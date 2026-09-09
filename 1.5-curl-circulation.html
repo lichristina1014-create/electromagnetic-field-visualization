@@ -1,0 +1,736 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>1.5 环量与旋度 · 斯托克斯定理 · 电磁场可视化平台</title>
+<style>
+:root{--teal:#156082;--teal-dark:#0E4A66;--teal-light:#E3EFF4;--orange:#E97132;--orange-light:#FDF0E7;--green:#3E9B4F;--green-light:#EAF5EC;--purple:#9B59B6;--crimson:#D04A3A;--blue:#0F9ED5;--ink:#1F3D4C;--muted:#5F7482;--line:#DCE6EB;--bg:#F2F6F8;}
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{height:100%;}
+body{font-family:"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--ink);overflow:hidden;}
+header{height:76px;background:#fff;border-bottom:1px solid var(--line);display:flex;align-items:center;padding:0 22px;gap:14px;}
+.logo{width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,var(--teal),#2E86AB);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:15px;text-decoration:none;}
+header h1{font-size:18px;font-weight:700;letter-spacing:.5px;}
+header .sub{font-size:12px;color:var(--muted);margin-top:2px;}
+header .badge{margin-left:auto;display:flex;flex-direction:column;align-items:flex-end;gap:4px;}
+header .badge .chip{font-size:12px;color:var(--teal);background:var(--teal-light);border:1px solid #C5DEE9;padding:4px 12px;border-radius:20px;white-space:nowrap;}
+header .badge .owner{font-size:11px;color:#5C6B73;background:#F4F7F9;border:1px solid #E2E8EC;padding:3px 10px;border-radius:20px;white-space:nowrap;display:inline-flex;align-items:center;gap:5px;}
+header .badge .owner b{color:var(--teal);font-weight:600;letter-spacing:.3px;}
+header .badge .owner::before{content:"";display:inline-block;width:5px;height:5px;background:var(--teal);border-radius:50%;}
+.layout{display:flex;height:calc(100vh - 76px);}
+aside{width:236px;background:#fff;border-right:1px solid var(--line);overflow-y:auto;padding:14px 0;flex-shrink:0;}
+aside::-webkit-scrollbar{width:6px;} aside::-webkit-scrollbar-thumb{background:#D5E0E6;border-radius:3px;}
+.nav-ch{font-size:12px;color:var(--muted);padding:12px 18px 6px;font-weight:600;letter-spacing:.5px;}
+.nav-item{display:flex;align-items:center;gap:8px;padding:9px 18px;font-size:13.5px;cursor:pointer;color:#3D5A68;border-left:3px solid transparent;transition:background .15s;text-decoration:none;}
+.nav-item:hover{background:#F5F9FB;}
+.nav-item.active{background:var(--teal-light);color:var(--teal-dark);font-weight:600;border-left-color:var(--teal);}
+.nav-item .dot{width:6px;height:6px;border-radius:50%;background:#C6D4DB;flex-shrink:0;}
+.nav-item.active .dot{background:var(--teal);}
+.nav-item.soon{color:#A5B6C0;cursor:not-allowed;}
+.nav-item.soon .dot{background:#E1E9ED;}
+.nav-item.soon::after{content:"建设中";font-size:10px;color:#B7C6CE;margin-left:auto;border:1px solid #DCE6EB;border-radius:8px;padding:1px 6px;}
+main{flex:1;display:flex;flex-direction:column;padding:14px 16px 12px;overflow:hidden;min-width:0;}
+.module-head{display:flex;align-items:center;gap:16px;margin-bottom:10px;flex-wrap:wrap;}
+.module-title{font-size:17px;font-weight:700;}
+.module-title small{font-weight:400;color:var(--muted);font-size:12px;margin-left:8px;}
+.seg{display:flex;background:#fff;border:1px solid var(--line);border-radius:10px;padding:3px;gap:2px;flex-wrap:wrap;}
+.seg button{border:none;background:transparent;padding:7px 15px;font-size:13px;border-radius:8px;cursor:pointer;color:var(--muted);font-family:inherit;transition:all .15s;white-space:nowrap;}
+.seg button:hover{color:var(--teal);}
+.seg button.on{background:var(--teal);color:#fff;font-weight:600;box-shadow:0 2px 6px rgba(21,96,130,.3);}
+.content-row{flex:1;display:flex;gap:14px;min-height:0;}
+.canvas-card{flex:1;background:#fff;border:1px solid var(--line);border-radius:14px;position:relative;overflow:hidden;min-width:0;display:flex;flex-direction:column;box-shadow:0 1px 4px rgba(30,60,80,.05);}
+#cv{width:100%;flex:1;display:block;cursor:grab;touch-action:none;}
+#cv:active{cursor:grabbing;}
+.cv-toolbar{position:absolute;top:12px;right:12px;display:flex;gap:8px;z-index:5;}
+.cv-toolbar button{border:1px solid var(--line);background:rgba(255,255,255,.92);border-radius:8px;padding:5px 12px;font-size:12px;color:var(--muted);cursor:pointer;font-family:inherit;backdrop-filter:blur(4px);transition:all .15s;}
+.cv-toolbar button:hover{color:var(--teal);border-color:var(--teal);}
+.cv-toolbar button.on{background:var(--teal);color:#fff;border-color:var(--teal);}
+.cv-mode-tag{position:absolute;top:12px;left:12px;font-size:12px;color:var(--teal-dark);background:rgba(227,239,244,.92);border:1px solid #C9E0EA;border-radius:8px;padding:5px 12px;z-index:4;pointer-events:none;font-weight:600;max-width:56%;}
+aside,.panel{transition:width .22s ease,padding .22s ease,border-width .22s ease;}
+body.nav-off aside{width:0;padding-top:0;padding-bottom:0;border-right-width:0;overflow:hidden;}
+body.panel-off .panel{width:0;border-left-width:0;border-right-width:0;overflow:hidden;}
+.fold-handle{position:absolute;top:50%;transform:translateY(-50%);z-index:6;width:15px;height:58px;padding:0;line-height:1;border:1px solid var(--line);background:rgba(255,255,255,.94);color:#A3B7C2;font-size:11px;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px);transition:all .15s;}
+.fold-handle:hover{color:var(--teal);border-color:var(--teal);background:#fff;}
+#foldNav{left:0;border-left:none;border-radius:0 9px 9px 0;}
+#foldPanel{right:0;border-right:none;border-radius:9px 0 0 9px;}
+.view-toggles{display:flex;gap:6px;margin-right:6px;}
+.view-toggles button{border:1px solid var(--line);background:#fff;border-radius:8px;padding:5px 11px;font-size:12px;color:var(--muted);cursor:pointer;font-family:inherit;transition:all .15s;}
+.view-toggles button:hover{border-color:var(--teal);color:var(--teal);}
+.view-toggles button.on{background:var(--teal);color:#fff;border-color:var(--teal);}
+.cv-pan-tag{position:absolute;top:12px;left:50%;transform:translateX(-50%);z-index:6;font-size:11.5px;color:#8A5A20;background:rgba(255,248,236,.95);border:1px solid #E7C48F;border-radius:8px;padding:5px 12px;display:none;align-items:center;gap:8px;}
+.cv-pan-tag.show{display:flex;}
+.cv-pan-tag button{border:1px solid #E0BE8C;background:#fff;border-radius:6px;padding:2px 9px;font-size:11.5px;color:#8A5A20;cursor:pointer;font-family:inherit;}
+.cv-pan-tag button:hover{background:#8A5A20;color:#fff;border-color:#8A5A20;}
+.cv-legend{position:absolute;bottom:14px;right:14px;z-index:5;background:rgba(255,255,255,.94);border:1px solid var(--line);border-radius:9px;padding:7px 11px 8px;font-size:11px;color:var(--muted);backdrop-filter:blur(4px);pointer-events:none;min-width:130px;}
+.cv-legend .lg-t{font-size:11px;color:var(--ink);font-weight:600;margin-bottom:5px;}
+.cv-legend .lg-note{font-size:10.5px;color:var(--muted);line-height:1.55;margin-top:4px;}
+.coord-strip{display:flex;gap:8px;padding:10px 12px;border-top:1px solid var(--line);background:#FBFDFE;flex-wrap:nowrap;overflow-x:auto;overflow-y:hidden;}
+.coord-strip::-webkit-scrollbar{height:5px;}
+.coord-strip::-webkit-scrollbar-thumb{background:#D5E0E6;border-radius:3px;}
+.coord-strip:empty{padding:0;border-top:none;}
+.coord-chip{font-size:12px;color:var(--muted);background:#F3F8FA;border:1px solid #E2ECF1;border-radius:8px;padding:5px 12px;white-space:nowrap;}
+.coord-chip b{color:var(--teal-dark);font-weight:600;margin-left:5px;font-family:Menlo,monospace;}
+.coord-chip i{font-style:italic;font-family:Georgia,serif;color:var(--ink);}
+.coord-chip.acc{background:#F5F0FA;border-color:#E2D4F0;}
+.coord-chip.acc b{color:#6B4E8A;}
+.coord-chip.warn{background:#FFF6EC;border-color:#F3DCC0;}
+.coord-chip.warn b{color:#B26A1E;}
+.panel{width:398px;flex-shrink:0;background:#fff;border:1px solid var(--line);border-radius:14px;display:flex;flex-direction:column;overflow-y:auto;box-shadow:0 1px 4px rgba(30,60,80,.05);}
+.panel::-webkit-scrollbar{width:6px;} .panel::-webkit-scrollbar-thumb{background:#D5E0E6;border-radius:3px;}
+.panel-sec{padding:14px 16px;border-bottom:1px solid #EEF3F6;}
+.panel-sec:last-child{border-bottom:none;}
+.readout-toggle{display:flex;align-items:center;gap:8px;padding:8px 10px;margin-bottom:12px;background:#F3F8FA;border:1px solid #E2ECF1;border-radius:8px;cursor:pointer;font-size:12.5px;line-height:1.5;color:var(--muted);}
+.readout-toggle:hover{border-color:#C6DAE3;background:#EDF4F7;}
+.readout-toggle input{accent-color:var(--teal);cursor:pointer;margin:0;}
+.readout-toggle b{color:var(--ink);}
+.sec-title{font-size:12px;color:var(--muted);font-weight:600;letter-spacing:1px;margin-bottom:10px;display:flex;align-items:center;gap:6px;}
+.sec-title::before{content:"";width:3px;height:12px;background:var(--teal);border-radius:2px;}
+.sub-chips{display:flex;gap:6px;flex-wrap:wrap;}
+.chip{border:1px solid var(--line);background:#fff;border-radius:16px;padding:4px 13px;font-size:12.5px;line-height:1.5;cursor:pointer;font-family:inherit;color:var(--muted);transition:all .15s;}
+.chip:hover{border-color:var(--teal);color:var(--teal);}
+.chip.on{background:var(--teal);border-color:var(--teal);color:#fff;font-weight:600;}
+.chip.pre{border-style:dashed;border-color:#C9D6DD;color:#7A8F9B;}
+.chip.pre:hover{border-color:var(--orange);color:var(--orange);background:#FFF8F2;}
+.chip.g.on{background:var(--green);border-color:var(--green);}
+.chip.o.on{background:var(--orange);border-color:var(--orange);}
+.chip.p.on{background:var(--purple);border-color:var(--purple);}
+.slider-row{display:flex;align-items:center;gap:10px;margin-bottom:9px;}
+.slider-row label{width:46px;font-size:13px;font-style:italic;font-family:Georgia,serif;color:var(--ink);text-align:right;flex-shrink:0;}
+.slider-row.w label{width:62px;font-style:normal;font-family:inherit;}
+.slider-row input[type=range]{flex:1;accent-color:var(--teal);height:4px;cursor:pointer;}
+.slider-row .val{width:62px;font-size:12px;color:var(--muted);font-family:Menlo,monospace;flex-shrink:0;}
+.ex-title{font-size:14.5px;font-weight:700;color:var(--teal-dark);margin-bottom:8px;line-height:1.45;}
+.ex-body{font-size:14px;line-height:1.7;color:#3A5462;}
+.ex-body b{color:var(--ink);}
+.ex-body ul{padding-left:18px;margin:6px 0;}
+.ex-body li{margin-bottom:3px;}
+.ex-note{font-size:12.5px;line-height:1.65;color:#6B8290;background:#F7FAFB;border:1px solid #E7EFF3;border-radius:8px;padding:8px 11px;margin-top:9px;}
+.frm{display:block;background:#F4F9FB;border:1px solid #DDE9EF;border-left:3px solid var(--teal);border-radius:8px;padding:10px 14px 10px 18px;margin:10px 0;font-size:14px;line-height:1.7;font-family:Georgia,"Times New Roman",serif;color:var(--ink);overflow-x:auto;white-space:nowrap;}
+.vec{position:relative;font-style:italic;font-weight:700;white-space:nowrap;}
+.vec::before,.vec::after{content:'';position:absolute;pointer-events:none;}
+.vec::before{left:0;right:.24em;top:-.28em;height:1px;background:currentColor;opacity:.9;}
+.vec::after{right:0;top:-.42em;width:0;height:0;border-left:.26em solid currentColor;border-top:.14em solid transparent;border-bottom:.14em solid transparent;}
+sub{font-size:.72em;vertical-align:-.24em;}
+.vec sub{font-style:normal;font-weight:600;}
+.sqrt{display:inline-block;position:relative;padding-left:.62em;margin-left:.05em;font-style:normal;}
+.sqrt::before{content:"√";position:absolute;left:.02em;top:-.12em;font-size:1.1em;font-family:"Cambria Math","STIX Two Math","Latin Modern Math","Times New Roman",Georgia,serif;}
+.sqrt .in{display:inline-block;border-top:1.15px solid currentColor;padding:.10em .06em .02em .06em;border-radius:4px 4px 0 0;line-height:1.1;}
+.card-tabs{display:flex;gap:6px;flex-wrap:wrap;margin:4px 0 10px;}
+.card-tab{cursor:pointer;font-family:inherit;font-size:12.5px;padding:5px 9px;border-radius:9px;border:1px solid var(--line);background:#fff;color:var(--muted);transition:all .15s;line-height:1.4;white-space:nowrap;flex:1;text-align:center;min-width:0;}
+.card-tab:hover{border-color:var(--teal);color:var(--teal);}
+.card-tab.c1.on{background:#156082;border-color:#156082;color:#fff;font-weight:600;}
+.card-tab.c2.on{background:#0F9ED5;border-color:#0F9ED5;color:#fff;font-weight:600;}
+.card-tab.c3.on{background:#E97132;border-color:#E97132;color:#fff;font-weight:600;}
+.card-tab.c4.on{background:#9B59B6;border-color:#9B59B6;color:#fff;font-weight:600;}
+.card-body{background:#FCFEFE;border:1px solid #E2ECF1;border-radius:8px;padding:12px 16px 8px;border-left:4px solid var(--teal);}
+.card-body.c1{border-left-color:#156082;} .card-body.c2{border-left-color:#0F9ED5;}
+.card-body.c3{border-left-color:#E97132;} .card-body.c4{border-left-color:#9B59B6;}
+#toast{position:fixed;bottom:26px;left:50%;transform:translateX(-50%);background:rgba(31,61,76,.94);color:#fff;font-size:13px;padding:9px 20px;border-radius:22px;opacity:0;pointer-events:none;transition:opacity .25s;z-index:99;}
+#toast.show{opacity:1;}
+</style>
+</head>
+<body>
+<header>
+  <a class="logo" href="index.html" title="返回平台首页">E&M</a>
+  <div><h1>1.5 环量与旋度 · 斯托克斯定理</h1><div class="sub">环量 · 旋度 · 环量面密度堆叠出边界环量</div></div>
+  <div class="view-toggles" id="viewToggles"><button id="tglNav" title="折叠 / 展开左侧目录（快捷键 [ ）">☰ 目录</button><button id="tglPanel" title="折叠 / 展开右侧控制面板（快捷键 ] ）">☰ 面板</button></div>
+  <div class="badge"><div class="chip">《工程电磁场》 ×《电磁场与电磁波》</div><div class="owner"><b>© 2026 Li Chenlu</b> All Rights Reserved</div></div>
+</header>
+<div class="layout">
+  <aside id="nav"></aside>
+  <main>
+    <div class="module-head">
+      <div class="module-title" id="moduleTitle">环量与旋度<small id="moduleSub">环量 · 旋度 · 斯托克斯定理</small></div>
+      <div class="seg" id="modeTabs"></div>
+    </div>
+    <div class="content-row">
+      <div class="canvas-card">
+        <canvas id="cv"></canvas>
+        <div class="cv-mode-tag" id="modeTag"></div>
+        <div class="cv-pan-tag" id="panTag"><span>画面已平移</span><button id="btnPanReset">回到原点</button></div>
+        <div class="cv-toolbar"><button id="btnReset">复位视角</button><button id="btnRotate">自动旋转</button></div>
+        <div class="cv-legend" id="legend"><div class="lg-t" id="lgTitle">环量</div><div class="lg-note" id="lgNote">沿闭合回路的线积分反映"涡旋"强度</div></div>
+        <button class="fold-handle" id="foldNav" title="折叠 / 展开左侧目录">‹</button>
+        <button class="fold-handle" id="foldPanel" title="折叠 / 展开右侧面板">›</button>
+        <div class="coord-strip" id="coordStrip"></div>
+      </div>
+      <div class="panel" id="panel"></div>
+    </div>
+  </main>
+</div>
+<div id="toast"></div>
+
+<script>
+'use strict';
+/* 1.5 环量与旋度 · 斯托克斯定理 —— 复用 1.3/1.4 同源引擎 */
+
+const NAV = [
+  { ch:'第 1 章 · 矢量分析', items:[
+    { id:'coord',  t:'1.1 三种常见坐标系', ready:true, href:'index.html' },
+    { id:'ch1-2',  t:'1.2 矢量的代数运算', ready:true, href:'1.2-vector-algebra.html' },
+    { id:'ch1-3',  t:'1.3 方向导数与梯度', ready:true, href:'1.3-directional-derivative.html' },
+    { id:'ch1-4',  t:'1.4 通量与散度',     ready:true, href:'1.4-divergence-flux.html' },
+    { id:'ch1-5',  t:'1.5 环量与旋度',     ready:true, active:true },
+  ]},
+  { ch:'第 2 章 · 静电场', items:[ {t:'2.1 电场强度与电位'}, {t:'2.2 高斯定理及其应用'}, {t:'2.3 导体与电介质'} ]},
+  { ch:'第 3 章 · 恒定磁场', items:[ {t:'3.1 比奥-萨伐尔定律'}, {t:'3.2 安培环路定理'} ]},
+  { ch:'第 4 章 · 时变电磁场', items:[ {t:'4.1 麦克斯韦方程组'}, {t:'4.2 均匀平面波'} ]},
+];
+
+const pt=(x,y,z)=>({x,y,z});
+const vadd=(a,b)=>({x:a.x+b.x,y:a.y+b.y,z:a.z+b.z});
+const vsub=(a,b)=>({x:a.x-b.x,y:a.y-b.y,z:a.z-b.z});
+const vmul=(a,s)=>({x:a.x*s,y:a.y*s,z:a.z*s});
+const vdot=(a,b)=>a.x*b.x+a.y*b.y+a.z*b.z;
+const vlen=a=>Math.hypot(a.x,a.y,a.z);
+const vnorm=a=>{const l=vlen(a)||1;return vmul(a,1/l);};
+const vcross=(a,b)=>({x:a.y*b.z-a.z*b.y, y:a.z*b.x-a.x*b.z, z:a.x*b.y-a.y*b.x});
+const D2R=Math.PI/180, R2D=180/Math.PI;
+
+/* === 三个示例矢量场 ===
+   V1: 纯旋转场 A = (-y, x, 0)，∇×A = (0,0,2)（绕 z 轴正方向旋转） */
+const V1=p=>pt(-p.y, p.x, 0);
+const curlV1=p=>pt(0,0,2);
+/* V2: 中心源汇对 A = (x, -y, 0)，∇×A = (0,0,0)（无旋场，可视为保守场） */
+const V2=p=>pt(p.x, -p.y, 0);
+const curlV2=p=>pt(0,0,0);
+/* V3: 螺旋场 A = (-y, x, z)，∇×A = (0,0,2)（与V1 类似，但带 z 分量变化） */
+const V3=p=>pt(-p.y, p.x, p.z*0.3);
+const curlV3=p=>pt(0,0,2);
+
+const state = {
+  mode:'circ',                            /* circ | curl | stokes */
+  field:1,                                /* 1 V1 2 V2 3 V3 */
+  loopR:0.7,                              /* 主闭合回路半径 */
+  loopCx:0, loopCy:0,                     /* 回路中心 */
+  N:3,                                    /* 斯托克斯网格密度 */
+  show:{ vec:true, loop:true, surf:true, cancel:true, labels:true, box:true },
+  cardTab:'1',
+  showReadout:true,
+  autoRotate:false,
+};
+
+function field(){ return state.field===1?V1:(state.field===2?V2:V3); }
+function curlF(){ return state.field===1?curlV1:(state.field===2?curlV2:curlV3); }
+function fieldName(){ return state.field===1?'@{A}=(-y, x, 0)':(state.field===2?'@{A}=(x, -y, 0)':'@{A}=(-y, x, 0.3z)'); }
+
+/* --- 富文本引擎 --- */
+function parseRich(s){
+  const items=[], groups=[]; const st={g:-1};
+  (function walk(str){
+    let buf='';
+    const flush=()=>{ if(buf){ items.push({t:'n',s:buf,g:st.g}); buf=''; } };
+    for(let i=0;i<str.length;){
+      const c=str[i];
+      if(c==='@' && str[i+1]==='{'){
+        const j=str.indexOf('}', i+2);
+        if(j<0){ buf+=c; i++; continue; }
+        flush();
+        const save=st.g; st.g=groups.length; groups.push(1);
+        walk(str.slice(i+2,j)); st.g=save; i=j+1; continue;
+      }
+      if(c==='_'){
+        flush();
+        if(str[i+1]==='{'){ const j=str.indexOf('}',i+2);
+          if(j>=0){ items.push({t:'s',s:str.slice(i+2,j),g:st.g}); i=j+1; continue; } }
+        items.push({t:'s',s:str[i+1]||'',g:st.g}); i+=2; continue;
+      }
+      if(c==='<'){ const j=str.indexOf('>',i);
+        if(j>=0){ buf+=str.slice(i,j+1); i=j+1; continue; } }
+      buf+=c; i++;
+    }
+    flush();
+  })(String(s));
+  return {items, groups};
+}
+const RICHFONT='"PingFang SC","Microsoft YaHei",sans-serif';
+const RICHFONT_M='Georgia,"Times New Roman",serif';
+function richLayout(ctx,rich,size,bold){const subSize=size*0.74;const wM=bold?'700 ':'';const fN=wM+size+'px '+RICHFONT;const fNs=wM+subSize+'px '+RICHFONT;const fV='italic '+wM+size+'px '+RICHFONT_M;const fVs=wM+subSize+'px '+RICHFONT_M;const groups=rich.groups.map(()=>({x0:1e9,x1:-1e9,locked:false,top:1e9}));const out=[];let x=0;const oldBL=ctx.textBaseline;ctx.textBaseline='middle';rich.items.forEach(it=>{const sub=it.t==='s',vec=it.g>=0;const font=sub?(vec?fVs:fNs):(vec?fV:fN);ctx.font=font;const m=ctx.measureText(it.s),w=m.width;const dy=sub?size*0.20:0;const asc=(m.actualBoundingBoxAscent!=null)?m.actualBoundingBoxAscent:size*0.38;if(vec){const g=groups[it.g];if(!g.locked){if(sub)g.locked=true;else{if(x<g.x0)g.x0=x;g.x1=x+w;}}const top=dy-asc;if(top<g.top)g.top=top;}out.push({s:it.s,sub,x,w,font,dy});x+=w;});ctx.textBaseline=oldBL;return{items:out,groups,w:x,size,subSize};}
+function richDraw(ctx,lo,cx,cy,align,color){let ox=align==='center'?cx-lo.w/2:align==='right'?cx-lo.w:cx;const dy=it=>cy+it.dy;const ay=g=>cy+g.top-Math.max(2.2,lo.size*0.13);const span=g=>[ox+g.x0-0.6,ox+g.x1+0.6];ctx.save();ctx.textAlign='left';ctx.textBaseline='middle';ctx.lineJoin='round';ctx.lineCap='butt';ctx.lineWidth=3.4;ctx.strokeStyle='rgba(255,255,255,.92)';lo.items.forEach(it=>{ctx.font=it.font;ctx.strokeText(it.s,ox+it.x,dy(it));});lo.groups.forEach(g=>{if(g.x1<=g.x0)return;const y=ay(g),s=span(g);ctx.beginPath();ctx.moveTo(s[0],y);ctx.lineTo(s[1],y);ctx.stroke();});lo.groups.forEach(g=>{if(g.x1<=g.x0)return;const y=ay(g),s=span(g),ax=s[0],bx=s[1];ctx.strokeStyle=color;ctx.lineWidth=1.15;ctx.beginPath();ctx.moveTo(ax,y);ctx.lineTo(bx-1.2,y);ctx.stroke();const h=Math.min(3.6,Math.max(2.6,(bx-ax)*0.40));ctx.beginPath();ctx.moveTo(bx,y);ctx.lineTo(bx-h,y-h*0.52);ctx.lineTo(bx-h,y+h*0.52);ctx.closePath();ctx.fillStyle=color;ctx.fill();});lo.items.forEach(it=>{ctx.font=it.font;ctx.fillStyle=color;ctx.fillText(it.s,ox+it.x,dy(it));});ctx.restore();}
+function richHTML(s){const r=parseRich(s);let h='',gi=-1;r.items.forEach(it=>{const body=it.t==='s'?'<sub>'+it.s+'</sub>':it.s;if(it.g!==gi){if(gi>=0)h+='</span>';if(it.g>=0)h+='<span class="vec">';gi=it.g;}h+=body;});if(gi>=0)h+='</span>';return wrapSqrt(h);}
+function wrapSqrt(html){const out=[];let i=0;while(i<html.length){const k=html.indexOf('√(',i);if(k<0){out.push(html.slice(i));break;}out.push(html.slice(i,k));out.push('<span class="sqrt"><span class="in">');let j=k+2,depth=1;while(j<html.length&&depth>0){const c=html[j];if(c==='(')depth++;else if(c===')'){depth--;if(depth===0)break;}j++;}if(depth!==0){out.push(html.slice(k));return out.join('');}out.push(html.slice(k+2,j));out.push('</span></span>');i=j+1;}return out.join('');}
+
+const C = {teal:'#156082',orange:'#E97132',green:'#3E9B4F',purple:'#9B59B6',crimson:'#D04A3A',blue:'#0F9ED5',gray:'#8CA0AC',light:'#C9D6DD',ink:'#22414F',grid:'#EAF0F4',muted:'#7A8F9B'};
+
+let canvas,ctx,W=800,H=600,DPR=1;
+const cam={az:.62,el:.46,zoom:1,px:0,py:0};
+let camU,camV,camD,camScale,CX2,CY;
+function setupCamera(){const ca=Math.cos(cam.az),sa=Math.sin(cam.az);const ce=Math.cos(cam.el),se=Math.sin(cam.el);camD={x:ce*ca,y:ce*sa,z:se};camU={x:-sa,y:ca,z:0};camV={x:-ca*se,y:-sa*se,z:ce};camScale=Math.min(W,H)/3.2*cam.zoom;CX2=W/2;CY=H*0.55;}
+function pr(p){return{x:CX2+cam.px+camScale*vdot(p,camU),y:CY+cam.py-camScale*vdot(p,camV),d:vdot(p,camD)};}
+
+let prims=[];
+function P_(z,fn){prims.push({z,draw:fn});}
+function line(a,b,o={}){const A=pr(a),B=pr(b);P_((A.d+B.d)/2,()=>{ctx.save();ctx.globalAlpha=o.alpha!=null?o.alpha:1;ctx.strokeStyle=o.color||C.gray;ctx.lineWidth=o.w||1.4;if(o.dash)ctx.setLineDash(o.dash);ctx.beginPath();ctx.moveTo(A.x,A.y);ctx.lineTo(B.x,B.y);ctx.stroke();ctx.restore();});}
+function arrowSeg(A,B,color,w,headScale){const dx=B.x-A.x,dy=B.y-A.y,L=Math.hypot(dx,dy);if(L<0.5)return;const ux=dx/L,uy=dy/L,hs=(headScale||1)*9;ctx.strokeStyle=color;ctx.lineWidth=w;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(A.x,A.y);ctx.lineTo(B.x-ux*hs*.55,B.y-uy*hs*.55);ctx.stroke();const ang=Math.atan2(dy,dx);ctx.beginPath();ctx.moveTo(B.x,B.y);ctx.lineTo(B.x-hs*Math.cos(ang-.42),B.y-hs*Math.sin(ang-.42));ctx.lineTo(B.x-hs*Math.cos(ang+.42),B.y-hs*Math.sin(ang+.42));ctx.closePath();ctx.fillStyle=color;ctx.fill();}
+function arrow(a,b,o={}){const A=pr(a),B=pr(b);P_((A.d+B.d)/2,()=>{ctx.save();ctx.globalAlpha=o.alpha!=null?o.alpha:1;if(o.dash)ctx.setLineDash(o.dash);arrowSeg(A,B,o.color||C.teal,o.w||2,o.headScale);ctx.restore();});if(o.label)text(vmul(vadd(a,b),.5),o.label,{color:o.color||C.teal,dx:o.ldx||0,dy:o.ldy!==undefined?o.ldy:-10,size:o.lsize||12.5,bold:true,align:o.lalign});}
+function curve(ptsArr,o={}){if(ptsArr.length<2)return;const S=ptsArr.map(pr);P_(S.reduce((s,p)=>s+p.d,0)/S.length,()=>{ctx.save();ctx.globalAlpha=o.alpha!=null?o.alpha:1;ctx.strokeStyle=o.color||C.gray;ctx.lineWidth=o.w||1.8;ctx.lineCap='round';if(o.dash)ctx.setLineDash(o.dash);ctx.beginPath();ctx.moveTo(S[0].x,S[0].y);for(let i=1;i<S.length;i++)ctx.lineTo(S[i].x,S[i].y);ctx.stroke();if(o.arrowEnd){const a=S[S.length-2],b=S[S.length-1];ctx.setLineDash([]);arrowSeg(a,b,o.color||C.gray,o.w||1.8,.75);}ctx.restore();});}
+function poly(ptsArr,o={}){if(ptsArr.length<3)return;const S=ptsArr.map(pr);P_(S.reduce((s,p)=>s+p.d,0)/S.length,()=>{ctx.save();ctx.beginPath();ctx.moveTo(S[0].x,S[0].y);for(let i=1;i<S.length;i++)ctx.lineTo(S[i].x,S[i].y);ctx.closePath();if(o.fill){ctx.globalAlpha=o.fillAlpha!=null?o.fillAlpha:.15;ctx.fillStyle=o.fill;ctx.fill();}if(o.stroke){ctx.globalAlpha=o.strokeAlpha!=null?o.strokeAlpha:1;ctx.strokeStyle=o.stroke;ctx.lineWidth=o.w||1.3;if(o.dash)ctx.setLineDash(o.dash);ctx.stroke();}ctx.restore();});}
+function marker(p,o={}){
+  const S=pr(p);
+  P_(S.d+0.02, ()=>{ ctx.save();
+    ctx.globalAlpha=o.alpha!=null?o.alpha:1;
+    ctx.beginPath(); ctx.arc(S.x,S.y,o.r||5,0,7);
+    ctx.fillStyle=o.color||C.orange; ctx.fill();
+    ctx.lineWidth=2; ctx.strokeStyle='#fff'; ctx.stroke();
+    if(o.ring){ ctx.beginPath(); ctx.arc(S.x,S.y,(o.r||5)+4,0,7);
+      ctx.strokeStyle=o.ring; ctx.lineWidth=2.2; ctx.stroke(); }
+    ctx.restore(); });
+  if(o.label) text(p, o.label, {color:o.color||C.orange,
+    dx:o.ldx!=null?o.ldx:10, dy:o.ldy!=null?o.ldy:-10, size:o.lsize||13, bold:true, align:o.lalign});
+}
+function text(p,str,o={}){const S=pr(p);P_(1e6,()=>{ctx.save();const size=o.size||12.5,bold=!!o.bold;const lo=richLayout(ctx,parseRich(str),size,bold);richDraw(ctx,lo,S.x+(o.dx||0),S.y+(o.dy||0),o.align||'left',o.color||C.ink);ctx.restore();});}
+
+/* 闭合回路采样（圆心 + 半径 + z） */
+function loopSamples(cx,cy,r,z,n){
+  const out=[]; for(let i=0;i<=n;i++){ const a=2*Math.PI*i/n;
+    out.push(pt(cx+r*Math.cos(a), cy+r*Math.sin(a), z)); } return out; }
+
+/* 沿闭合回路的线积分 ∮ A·dl（数值） */
+function circulation(cx,cy,r,z,A,n){
+  const pts=loopSamples(cx,cy,r,z,n);
+  let sum=0;
+  for(let i=0;i<n;i++){
+    const a=pts[i], b=pts[i+1];
+    const mid=vmul(vadd(a,b),0.5);
+    const Av=A(mid);
+    const dl=vsub(b,a);
+    sum += vdot(Av, dl);
+  }
+  return sum;
+}
+
+/* =========== 坐标轴 =========== */
+function drawAxes(){
+  if(!state.show.box) return;
+  for(let v=-1.2;v<=1.21;v+=0.3){line(pt(v,-1.2,-1.15),pt(v,1.2,-1.15),{color:C.grid,w:1});line(pt(-1.2,v,-1.15),pt(1.2,v,-1.15),{color:C.grid,w:1});}
+  line(pt(0,0,0),pt(-1.1,0,0),{color:'#B9C9D2',dash:[5,4],w:1.2});
+  line(pt(0,0,0),pt(0,-1.1,0),{color:'#B9C9D2',dash:[5,4],w:1.2});
+  line(pt(0,0,0),pt(0,0,-1.1),{color:'#B9C9D2',dash:[5,4],w:1.2});
+  arrow(pt(0,0,0),pt(1.45,0,0),{color:C.teal,w:2});
+  arrow(pt(0,0,0),pt(0,1.45,0),{color:C.orange,w:2});
+  arrow(pt(0,0,0),pt(0,0,1.45),{color:C.green,w:2.2});
+  text(pt(1.52,0,0),'x',{color:C.teal,bold:true,size:13,dy:-4});
+  text(pt(0,1.52,0),'y',{color:C.orange,bold:true,size:13,dy:-4});
+  text(pt(0,0,1.52),'z',{color:C.green,bold:true,size:13,dx:-4});
+  text(pt(0,0,0),'O',{color:'#7A8F9B',size:12,dx:-13,dy:13});
+}
+
+/* 矢量场采样箭头（平面网格） */
+function drawFieldGrid(z){
+  if(!state.show.vec) return;
+  const N=8, L=1.25;
+  for(let i=-N;i<=N;i++) for(let j=-N;j<=N;j++){
+    const x=L*i/N, y=L*j/N;
+    if(Math.hypot(x,y)>1.35) continue;
+    const A=field()(pt(x,y,z));
+    const L2=vlen(A);
+    if(L2<0.05) continue;
+    const a=vnorm(A);
+    const a0=pt(x-a.x*0.07, y-a.y*0.07, z);
+    const a1=pt(x+a.x*0.07, y+a.y*0.07, z);
+    arrow(a0, a1, {color:'#9DB3BF', w:0.9, alpha:0.55, headScale:0.6});
+  }
+}
+
+/* =========== 模式 1：环量（Circulation）—— 闭合回路 + 线积分 =========== */
+function modeCirc(){
+  const cx=state.loopCx, cy=state.loopCy, r=state.loopR;
+  /* 矢量场（取 z=0 平面） */
+  drawFieldGrid(0);
+  /* 闭合回路（按矢量方向带箭头 + 通量数字） */
+  const pts=loopSamples(cx,cy,r,0,72);
+  for(let i=0;i<72;i++){
+    const a=pts[i], b=pts[i+1];
+    const mid=vmul(vadd(a,b),0.5);
+    const Av=field()(mid);
+    const dl=vsub(b,a);
+    const dphi=vdot(Av, dl);
+    const col = dphi>0?C.orange:(dphi<0?C.blue:'#A0AFB8');
+    arrow(a, b, {color:col, w:2.2, headScale:0.75, alpha:0.95});
+    if(state.show.labels && Math.abs(dphi)>0.04){
+      const n=vnorm(vsub(b,a));
+      const perp=pt(-n.y, n.x, 0);
+      text(vadd(vadd(mid,vmul(perp,0.06)),vmul(n,0.04)), dphi.toFixed(2),
+        {color:col,size:9,bold:true,align:'center',dy:-4});
+    }
+  }
+  /* 回路整体外观 */
+  curve(pts.slice(0,-1), {color:C.ink, w:1.4, dash:[4,3], alpha:0.6});
+  /* 回路面积 + 旋度 × 面积（粗略） */
+  const A=Math.PI*r*r;
+  const curlVal = curlF()(pt(cx,cy,0)).z;
+  const surfInt = curlVal*A;
+  const circ = circulation(cx, cy, r, 0, field(), 96);
+  /* 显示数值 */
+  text(pt(cx, cy, -1.0),'∮ A·dl = '+circ.toFixed(2)+'   (∇×A)·S = '+surfInt.toFixed(2),
+    {color:C.crimson, size:12, bold:true, align:'center'});
+  text(pt(cx, cy, -1.22),'环量方向：'+(circ>0?'逆时针（+）':(circ<0?'顺时针（-）':'为零')),
+    {color:C.muted, size:11, align:'center'});
+  /* 旋度箭头（z 方向） */
+  if(Math.abs(curlVal)>0.05){
+    const Lc=Math.min(0.4, 0.18*Math.abs(curlVal));
+    const tip=pt(cx, cy, Lc);
+    arrow(pt(cx,cy,0), tip, {color:C.purple, w:2.6, label:'∇×A', lsize:13});
+  }
+}
+
+/* =========== 模式 2：旋度（Curl）—— 点 P + 小回路，求最大环量面密度 =========== */
+function modeCurl(){
+  drawFieldGrid(0);
+  const px=state.loopCx, py=state.loopCy, r=state.loopR*0.5;
+  const n=48;
+  const circ = circulation(px, py, r, 0, field(), n);
+  const A=Math.PI*r*r;
+  const dens=circ/A;
+  const pts=loopSamples(px,py,r,0,n);
+  for(let i=0;i<n;i++){
+    const a=pts[i], b=pts[i+1];
+    const mid=vmul(vadd(a,b),0.5);
+    const Av=field()(mid);
+    const dl=vsub(b,a);
+    const dphi=vdot(Av, dl);
+    const col = dphi>0?C.orange:(dphi<0?C.blue:'#A0AFB8');
+    arrow(a, b, {color:col, w:1.8, headScale:0.65, alpha:0.85});
+  }
+  curve(pts.slice(0,-1), {color:C.ink, w:1.2, dash:[3,3], alpha:0.55});
+  /* P 点 */
+  marker(pt(px,py,0),{r:6,color:C.teal,ring:'#BBD9E6',label:'P'});
+  /* 旋度箭头 */
+  const cv = curlF()(pt(px,py,0));
+  const Lc=Math.min(0.5, 0.20*vlen(cv));
+  if(Lc>0.05){
+    const tip=pt(px,py,Lc);
+    arrow(pt(px,py,0), tip, {color:C.purple, w:2.6, label:'∇×A', ldy:-11, lsize:13});
+  }
+  /* 数值 */
+  text(pt(px, py, -0.9),'小回路环量 ∮ A·dl = '+circ.toFixed(3),
+    {color:C.crimson, size:12, bold:true, align:'center'});
+  text(pt(px, py, -1.10),'面积 ΔS = '+A.toFixed(3)+'   环量面密度 ≈ '+dens.toFixed(3),
+    {color:C.teal, size:11.5, bold:true, align:'center'});
+  text(pt(px, py, -1.30),'r → 0 时趋近 |∇×A(P)| = '+vlen(cv).toFixed(3),
+    {color:C.muted, size:11, align:'center'});
+}
+
+/* =========== 模式 3：斯托克斯定理（Stokes）—— 表面网格剖分 =========== */
+function modeStokes(){
+  drawFieldGrid(0);
+  const L=state.loopR;                 /* 圆盘半径（=边界回路半径） */
+  const NR=state.N;                    /* 同心环数 */
+  const NP=Math.max(8, 4*NR);          /* 每环扇形数 */
+  let sumInt=0, nCell=0, area=0;
+  /* ---- 1. 小面片（环形扇区）：填色 + 旋度累加 ----
+     极坐标剖分的外边界天然是圆，Σ ΔS = πR² 精确，不再有方形网格锯齿误差 */
+  for(let i=0;i<NR;i++){
+    const r0=L*i/NR, r1=L*(i+1)/NR;
+    for(let j=0;j<NP;j++){
+      const a0=2*Math.PI*j/NP, a1=2*Math.PI*(j+1)/NP;
+      const am=(a0+a1)/2, rm=(r0+r1)/2;
+      const c=pt(rm*Math.cos(am), rm*Math.sin(am), 0);
+      const cv=curlF()(c).z;
+      const dS=0.5*(r1*r1-r0*r0)*(a1-a0);   /* 环形扇区面积 */
+      sumInt += cv*dS; area += dS; nCell++;
+      if(state.show.surf){
+        const seg=Math.max(3, Math.round(NP/12)+2), ring=[];
+        for(let t=0;t<=seg;t++){ const a=a0+(a1-a0)*t/seg; ring.push(pt(r0*Math.cos(a), r0*Math.sin(a), 0)); }
+        for(let t=seg;t>=0;t--){ const a=a0+(a1-a0)*t/seg; ring.push(pt(r1*Math.cos(a), r1*Math.sin(a), 0)); }
+        const col=cv>0?C.orange:(cv<0?C.blue:'#A0AFB8');
+        poly(ring.slice(0,-1), {fill:col, fillAlpha:0.11, stroke:col, strokeAlpha:0.22, w:0.7});
+      }
+    }
+  }
+  /* ---- 2. 内部剖分线：相邻面片共享 → 一正一负抵消（灰化虚线） ---- */
+  if(state.show.cancel){
+    for(let i=1;i<NR;i++){
+      const rr=L*i/NR, lp=[];
+      for(let t=0;t<=72;t++){ const a=2*Math.PI*t/72; lp.push(pt(rr*Math.cos(a), rr*Math.sin(a), 0)); }
+      curve(lp, {color:'#9DB3BF', w:1.0, alpha:0.55, dash:[3,3]});
+    }
+    for(let j=0;j<NP;j++){
+      const a=2*Math.PI*j/NP;
+      line(pt(0,0,0), pt(L*Math.cos(a), L*Math.sin(a), 0),
+        {color:'#9DB3BF', w:1.0, alpha:0.55, dash:[3,3]});
+    }
+  }
+  /* ---- 3. 外边界：唯一未被抵消的回路（彩色分段箭头） ---- */
+  const NB=Math.max(32, NP*2);
+  for(let t=0;t<NB;t++){
+    const a0=2*Math.PI*t/NB, a1=2*Math.PI*(t+1)/NB;
+    const p0=pt(L*Math.cos(a0), L*Math.sin(a0), 0);
+    const p1=pt(L*Math.cos(a1), L*Math.sin(a1), 0);
+    const mid=vmul(vadd(p0,p1),0.5);
+    const dphi=vdot(field()(mid), vsub(p1,p0));
+    const col=dphi>0?C.orange:(dphi<0?C.blue:'#A0AFB8');
+    arrow(p0, p1, {color:col, w:2.4, headScale:0.8, alpha:0.95});
+  }
+  /* ---- 4. 数值对比 ---- */
+  const circ=circulation(0, 0, L, 0, field(), 240);
+  const err=circ-sumInt;
+  text(pt(0, 0, -1.0),'边界环量 ∮ @{A}·d@{l} ≈ '+circ.toFixed(2),
+    {color:C.crimson, size:12.5, bold:true, align:'center'});
+  text(pt(0, 0, -1.22),'面片旋度累加 Σ(∇×@{A})·Δ@{S} ≈ '+sumInt.toFixed(2)+'（'+nCell+' 片）',
+    {color:C.teal, size:12.5, bold:true, align:'center'});
+  text(pt(0, 0, -1.44),'误差 ≈ '+Math.abs(err).toFixed(3)+'   剖分面积 Σ ΔS = '+area.toFixed(3)+'（πR² = '+(Math.PI*L*L).toFixed(3)+'）',
+    {color:Math.abs(err)<0.05?C.green:(Math.abs(err)<0.2?C.orange:C.crimson),
+     size:11.5, bold:true, align:'center'});
+  /* 中心标记 */
+  marker(pt(0,0,0),{r:4.5,color:C.purple,ring:'#E0CFEC',label:'中心'});
+}
+
+function buildScene(){
+  prims=[];
+  drawAxes();
+  if(state.mode==='circ') modeCirc();
+  else if(state.mode==='curl') modeCurl();
+  else modeStokes();
+}
+
+let needsRender=true;
+function draw(){setupCamera();ctx.clearRect(0,0,W,H);buildScene();prims.sort((a,b)=>a.z-b.z);for(const p of prims)p.draw(ctx);const t=document.getElementById('panTag');if(t)t.classList.toggle('show',Math.abs(cam.px)>2||Math.abs(cam.py)>2);needsRender=false;}
+function tick(){if(state.autoRotate){cam.az+=0.0045;needsRender=true;}if(needsRender)draw();requestAnimationFrame(tick);}
+function updateAll(){needsRender=true;syncSliders();updateReadout();updateModeTag();}
+
+const panel=document.getElementById('panel');
+function h(html){const d=document.createElement('div');d.innerHTML=html;return d;}
+function kchip(k,v,cls){return '<span class="coord-chip '+(cls||'')+'">'+richHTML(k)+'<b>'+v+'</b></span>';}
+
+const FIELD_OPTS=[
+  {k:1, label:'@{A}=(-y, x, 0)',  sub:'∇×A=(0,0,2) · 旋转场', col:'o'},
+  {k:2, label:'@{A}=(x, -y, 0)',  sub:'∇×A=0 · 无旋场',     col:'g'},
+  {k:3, label:'@{A}=(-y, x, 0.3z)',sub:'∇×A=(0,0,2) · 螺旋', col:'p'},
+];
+
+function renderSubSec(sec){
+  sec.innerHTML='';
+  sec.appendChild(h('<div class="sec-title">选择矢量场</div>'));
+  const box=h('<div class="sub-chips"></div>').firstChild;
+  FIELD_OPTS.forEach(it=>{
+    const fb=h('<button class="chip '+(it.col||'')+(state.field===it.k?' on':'')+'" data-k="'+it.k+'">'+richHTML(it.sub)+'</button>').firstChild;
+    fb.onclick=()=>{state.field=it.k;updateAll();renderPanel();};
+    box.appendChild(fb);
+  });
+  sec.appendChild(box);
+  sec.appendChild(h('<div class="sec-title" style="margin-top:14px">图中显示</div>'));
+  const SHOW=[
+    {k:'vec',    label:'矢量场网格'},
+    {k:'loop',   label:'闭合回路'},
+    {k:'surf',   label:'剖分面片'},
+    {k:'cancel', label:'内部抵消（灰化）'},
+    {k:'labels', label:'通量/环量数字'},
+    {k:'box',    label:'坐标轴'},
+  ];
+  const bx=h('<div class="sub-chips"></div>').firstChild;
+  SHOW.forEach(it=>{
+    const sb=h('<button class="chip '+(state.show[it.k]?'on':'')+'" data-k="'+it.k+'">'+it.label+'</button>').firstChild;
+    sb.onclick=()=>{state.show[it.k]=!state.show[it.k];sb.classList.toggle('on',state.show[it.k]);updateAll();};
+    bx.appendChild(sb);
+  });
+  sec.appendChild(bx);
+}
+
+function renderSliders(sec){
+  sec.innerHTML='';
+  sec.appendChild(h('<div class="sec-title">回路参数</div>'));
+  const SL=[
+    {k:'r',  label:'半径 R', min:0.15, max:1.05, step:0.02, dec:2, get:()=>state.loopR, set:v=>state.loopR=v},
+    {k:'cx', label:'圆心 x', min:-0.7, max:0.7, step:0.02, dec:2, get:()=>state.loopCx, set:v=>state.loopCx=v},
+    {k:'cy', label:'圆心 y', min:-0.7, max:0.7, step:0.02, dec:2, get:()=>state.loopCy, set:v=>state.loopCy=v},
+  ];
+  SL.forEach(d=>{
+    const r=h('<div class="slider-row"><label>'+d.label+'</label>'+
+      '<input type="range" id="s_'+d.k+'" min="'+d.min+'" max="'+d.max+'" step="'+d.step+'" value="'+d.get()+'">'+
+      '<span class="val" id="v_'+d.k+'">'+d.get().toFixed(d.dec)+'</span></div>');
+    const inp=r.querySelector('input');
+    inp.oninput=()=>{d.set(parseFloat(inp.value));document.getElementById('v_'+d.k).textContent=parseFloat(inp.value).toFixed(d.dec);needsRender=true;updateReadout();updateModeTag();};
+    sec.appendChild(r);
+  });
+  if(state.mode==='stokes'){
+    sec.appendChild(h('<div class="slider-group-label" style="margin-top:14px">斯托克斯网格密度</div>'));
+    const r=h('<div class="slider-row w"><label>同心环数 N</label>'+
+      '<input type="range" id="s_N" min="2" max="6" step="1" value="'+state.N+'">'+
+      '<span class="val" id="v_N">'+state.N+'</span></div>');
+    const inp=r.querySelector('input');
+    inp.oninput=()=>{state.N=parseInt(inp.value);document.getElementById('v_N').textContent=state.N;needsRender=true;updateReadout();updateModeTag();};
+    sec.appendChild(r);
+  }
+}
+
+function syncSliders(){
+  const SL=[{k:'r',v:state.loopR,d:2},{k:'cx',v:state.loopCx,d:2},{k:'cy',v:state.loopCy,d:2}];
+  SL.forEach(d=>{const s=document.getElementById('s_'+d.k);if(s)s.value=d.v;const v=document.getElementById('v_'+d.k);if(v)v.textContent=d.v.toFixed(d.d);});
+  const sN=document.getElementById('s_N'); if(sN) sN.value=state.N;
+  const vN=document.getElementById('v_N'); if(vN) vN.textContent=state.N;
+}
+
+function renderExplain(sec){
+  sec.innerHTML='';
+  const cards=[
+    {k:'1', tab:'1. 环量', cls:'c1', body:
+      '<b>环量（Circulation）：</b>沿闭合回路 C 的线积分'+
+      '<div class="frm">Γ = ∮<sub>C</sub> @{A}·d@{l}</</div>'+
+      '<ul><li>衡量矢量场沿闭合回路"<b>绕圈</b>"的趋势</li>'+
+      '<li><b>正环量</b>：场沿回路呈<b>逆时针</b>旋涡（沿 +n 看）</li>'+
+      '<li><b>零环量</b>：场是<b>保守场 / 无旋场</b>（如 V2）</li>'+
+      '<li>回路越大、场越<b>旋转</b>，环量越大</li></ul>'+
+      '<div class="ex-note">本演示：每段 d@{l} 的贡献 A·dl 正=橙、负=蓝，叠加即总环量。</div>'},
+    {k:'2', tab:'2. 旋度', cls:'c2', body:
+      '<b>旋度（Curl）：</b>环量面密度极限'+
+      '<div class="frm">∇×@{A} = lim<sub>ΔS→0</sub> (∮ A·dl @{n}) / ΔS</div>'+
+      '<ul><li>它是<b>矢量</b>，大小=最大环量面密度，方向=右手螺旋</li>'+
+      '<li>直角系计算：∇×A = (∂A_z/∂y-∂A_y/∂z, ∂A_x/∂z-∂A_z/∂x, ∂A_y/∂x-∂A_x/∂y)</li>'+
+      '<li>本演示里：缩小回路 r，环量/面积 → |∇×A(P)|</li>'+
+      '<li>纯旋转场（V1/V3）：∇×A = (0,0,2) 恒定</li>'+
+      '<li>无旋场（V2）：∇×A = 0</li></ul>'},
+    {k:'3', tab:'3. 斯托克斯', cls:'c3', body:
+      '<b>斯托克斯定理：</b>闭合回路的环量 = 曲面的旋度通量'+
+      '<div class="frm">∮<sub>C</sub> @{A}·d@{l} = ∫<sub>S</sub> (∇×@{A})·d@{S}</div>'+
+      '<ul><li>把大回路包围的开曲面切成<b>同心环 × 扇形</b>的小面片</li>'+
+      '<li>每个面片的<b>内部分界线</b>上，相邻两个面片贡献相反 → <b>抵消</b></li>'+
+      '<li>只有最外边界没有配对面 → <b>净环量保留</b></li>'+
+      '<li>Σ(∇×A)·ΔS ≈ ∮A·dl，剖分越细越精确</li></ul>'+
+      '<div class="ex-note">本演示实时显示<b>边界环量</b>与<b>面片旋度累加</b>的对比，与 1.4 散度定理的"体元抵消"对称。</div>'},
+    {k:'4', tab:'4. 对照', cls:'c4', body:
+      '<b>与散度定理对照（1.6 节 / 1.4 ↔ 1.5）：</b>'+
+      '<div class="frm">高斯散度：∮<sub>S</sub> A·dS = ∫<sub>V</sub> (∇·A) dV</div>'+
+      '<div class="frm">斯托克斯：∮<sub>C</sub> A·dl = ∫<sub>S</sub> (∇×A)·dS</div>'+
+      '<ul><li>高斯：<b>闭曲面通量</b> ↔ <b>体积分（散度）</b>，内部面抵消</li>'+
+      '<li>斯托克斯：<b>闭合回路环量</b> ↔ <b>面积分（旋度）</b>，内部边抵消</li>'+
+      '<li>两者都是"<b>积分体抵消 → 仅边界/外壳非零</b>"的统一原理</li></ul>'+
+      '<div class="ex-note">散度 = 体源密度的极限；旋度 = 面旋涡密度的极限。</div>'},
+  ];
+  if(!cards.find(c=>c.k===state.cardTab)) state.cardTab='1';
+  const cur=cards.find(c=>c.k===state.cardTab);
+  sec.appendChild(h('<div class="ex-title">公式与解读</div>'+
+    '<div class="card-tabs">'+cards.map(c=>'<button class="card-tab '+c.cls+(c.k===state.cardTab?' on':'')+'" data-k="'+c.k+'">'+c.tab+'</button>').join('')+'</div>'+
+    '<div class="card-body '+cur.cls+'"><div class="ex-body">'+cur.body+'</div></div>'));
+  sec.querySelectorAll('.card-tab').forEach(b=>{b.onclick=()=>{state.cardTab=b.dataset.k;renderPanel();};});
+}
+
+function renderPanel(){
+  ['subSec','sliderSec','explainSec'].forEach(id=>{const el=document.getElementById(id);if(el)el.remove();});
+  const mk=id=>{const d=document.createElement('div');d.className='panel-sec';d.id=id;return d;};
+  let togsec=document.getElementById('toggleSec');
+  if(!togsec){
+    togsec=mk('toggleSec');
+    togsec.appendChild(h('<label class="readout-toggle"><input type="checkbox" id="showReadoutCb"'+(state.showReadout?' checked':'')+'><span>在<b>画布下方</b>显示<b>实时数据</b>条</span></label>'));
+    togsec.querySelector('#showReadoutCb').onchange=e=>{state.showReadout=e.target.checked;updateReadout();};
+    panel.appendChild(togsec);
+  }else{togsec.querySelector('#showReadoutCb').checked=state.showReadout;}
+  const ssec=mk('subSec'),slsec=mk('sliderSec'),esec=mk('explainSec');
+  panel.appendChild(ssec);panel.appendChild(slsec);panel.appendChild(esec);
+  renderSubSec(ssec);renderSliders(slsec);renderExplain(esec);
+  updateReadout();updateModeTag();
+}
+
+function vstr(v){ return '('+v.x.toFixed(2)+', '+v.y.toFixed(2)+', '+v.z.toFixed(2)+')'; }
+function updateReadout(){
+  const strip=document.getElementById('coordStrip');
+  if(!strip)return;
+  if(!state.showReadout){strip.innerHTML='';return;}
+  let html='';
+  html += kchip('场', richHTML(FIELD_OPTS[state.field-1].label));
+  html += kchip('∇×@{A} =', vstr(curlF()(pt(0,0,0))));
+  if(state.mode==='circ'){
+    const circ=circulation(state.loopCx,state.loopCy,state.loopR,0,field(),96);
+    html += kchip('回路 =', 'R='+state.loopR.toFixed(2)+' 圆心 ('+state.loopCx.toFixed(2)+', '+state.loopCy.toFixed(2)+')');
+    html += kchip('∮ @{A·dl} =', circ.toFixed(3), 'acc');
+    html += kchip('(∇×A)·S =', (curlF()(pt(state.loopCx,state.loopCy,0)).z*Math.PI*state.loopR*state.loopR).toFixed(3), 'acc');
+    document.getElementById('lgTitle').textContent='环量 · 闭合回路';
+    document.getElementById('lgNote').textContent='环量 Γ = ∮A·dl 反映场的"绕圈"趋势';
+  }else if(state.mode==='curl'){
+    const r=state.loopR*0.5;
+    const circ=circulation(state.loopCx,state.loopCy,r,0,field(),48);
+    const A=Math.PI*r*r;
+    html += kchip('小回路半径 =', r.toFixed(2));
+    html += kchip('∮ A·dl =', circ.toFixed(3), 'acc');
+    html += kchip('环量面密度 ≈', (circ/A).toFixed(3), 'acc');
+    html += kchip('|∇×A(P)| =', vlen(curlF()(pt(state.loopCx,state.loopCy,0))).toFixed(3));
+    document.getElementById('lgTitle').textContent='旋度定义 · 环量面密度';
+    document.getElementById('lgNote').textContent='r → 0 时，环量/面积 → |∇×A(P)|';
+  }else{
+    const N=state.N, NP=Math.max(8, 4*N);
+    const circ=circulation(0,0,state.loopR,0,field(),96);
+    html += kchip('边界 R =', state.loopR.toFixed(2));
+    html += kchip('剖分 =', N+' 环 × '+NP+' 扇区 = '+(N*NP));
+    html += kchip('∮ @{A·dl} =', circ.toFixed(3), 'acc');
+    let sumInt=0;
+    const L=state.loopR;
+    for(let i=0;i<N;i++){
+      const r0=L*i/N, r1=L*(i+1)/N;
+      for(let j=0;j<NP;j++){
+        const am=2*Math.PI*(j+0.5)/NP, rm=(r0+r1)/2;
+        sumInt += curlF()(pt(rm*Math.cos(am),rm*Math.sin(am),0)).z * 0.5*(r1*r1-r0*r0)*(2*Math.PI/NP);
+      }
+    }
+    html += kchip('Σ(∇×A)·ΔS =', sumInt.toFixed(3), 'acc');
+    html += kchip('误差 =', Math.abs(circ-sumInt).toFixed(3), Math.abs(circ-sumInt)<0.05?'':'warn');
+    document.getElementById('lgTitle').textContent='斯托克斯定理 · '+N+' 环 × '+NP+' 扇区';
+    document.getElementById('lgNote').textContent='内部分界线抵消，仅外边界贡献净环量';
+  }
+  strip.innerHTML=html;
+}
+
+function updateModeTag(){
+  const t=document.getElementById('modeTag');
+  if(state.mode==='circ') t.innerHTML='环量 · '+richHTML(FIELD_OPTS[state.field-1].sub);
+  else if(state.mode==='curl') t.innerHTML='旋度 · P = ('+state.loopCx.toFixed(2)+', '+state.loopCy.toFixed(2)+')';
+  else t.innerHTML='斯托克斯 · '+state.N+' 环 × '+Math.max(8,4*state.N)+' 扇区';
+  document.getElementById('moduleSub').textContent=state.mode==='circ'?'∮ A·dl 沿闭合回路':(state.mode==='curl'?'环量面密度极限 = |∇×A|':'边界环量 = 面片旋度累加');
+}
+
+let drag=null;
+function localPos(ev){const r=canvas.getBoundingClientRect();return{x:ev.clientX-r.left,y:ev.clientY-r.top};}
+canvas=document.getElementById('cv');
+ctx=canvas.getContext('2d');
+canvas.addEventListener('pointerdown',ev=>{
+  canvas.setPointerCapture(ev.pointerId);
+  const m=localPos(ev);
+  drag={x:m.x,y:m.y,btn:ev.button,mode:(ev.button===2||ev.ctrlKey)?'pan':'rot'};
+  ev.preventDefault();
+});
+canvas.addEventListener('pointermove',ev=>{
+  const m=localPos(ev);
+  if(!drag)return;
+  const dx=m.x-drag.x,dy=m.y-drag.y;drag.x=m.x;drag.y=m.y;
+  if(drag.mode==='pan'){cam.px+=dx;cam.py+=dy;needsRender=true;}
+  else{cam.az-=dx*0.0075;cam.el=Math.max(-1.45,Math.min(1.45,cam.el+dy*0.0062));needsRender=true;}
+});
+canvas.addEventListener('pointerup',()=>{drag=null;});
+canvas.addEventListener('pointercancel',()=>{drag=null;});
+canvas.addEventListener('contextmenu',e=>e.preventDefault());
+canvas.addEventListener('wheel',e=>{e.preventDefault();cam.zoom=Math.max(.45,Math.min(3.2,cam.zoom*(e.deltaY<0?1.09:1/1.09)));needsRender=true;},{passive:false});
+
+document.getElementById('btnReset').onclick=()=>{cam.az=.62;cam.el=.46;cam.zoom=1;cam.px=0;cam.py=0;needsRender=true;};
+document.getElementById('btnRotate').onclick=e=>{state.autoRotate=!state.autoRotate;e.target.classList.toggle('on',state.autoRotate);};
+document.getElementById('btnPanReset').onclick=()=>{cam.px=0;cam.py=0;needsRender=true;};
+function bindFold(bid,cls){document.getElementById(bid).onclick=()=>{document.body.classList.toggle(cls);setTimeout(resize,60);setTimeout(resize,260);};}
+bindFold('foldNav','nav-off');bindFold('foldPanel','panel-off');
+document.getElementById('tglNav').onclick=()=>{document.body.classList.toggle('nav-off');setTimeout(resize,260);};
+document.getElementById('tglPanel').onclick=()=>{document.body.classList.toggle('panel-off');setTimeout(resize,260);};
+window.addEventListener('keydown',e=>{if(e.target.tagName==='INPUT')return;if(e.key==='['){document.body.classList.toggle('nav-off');setTimeout(resize,260);}if(e.key===']'){document.body.classList.toggle('panel-off');setTimeout(resize,260);}});
+
+const MT=[{k:'circ',t:'① 环量'},{k:'curl',t:'② 旋度'},{k:'stokes',t:'③ 斯托克斯定理'}];
+const modeTabs=document.getElementById('modeTabs');
+MT.forEach(m=>{const b=document.createElement('button');b.textContent=m.t;b.dataset.k=m.k;b.onclick=()=>{state.mode=m.k;syncModeTabs();renderPanel();updateAll();};modeTabs.appendChild(b);});
+function syncModeTabs(){Array.from(modeTabs.children).forEach(b=>b.classList.toggle('on',b.dataset.k===state.mode));}
+
+function resize(){
+  const r=canvas.getBoundingClientRect();
+  const nw=Math.max(60,Math.round(r.width)),nh=Math.max(60,Math.round(r.height));
+  DPR=Math.min(2,window.devicePixelRatio||1);
+  if(nw===W&&nh===H&&canvas.width===Math.round(nw*DPR))return;
+  W=nw;H=nh;canvas.width=Math.round(W*DPR);canvas.height=Math.round(H*DPR);ctx.setTransform(DPR,0,0,DPR,0,0);needsRender=true;
+}
+new ResizeObserver(()=>resize()).observe(canvas);
+
+const nav=document.getElementById('nav');
+NAV.forEach(g=>{nav.appendChild(h('<div class="nav-ch">'+g.ch+'</div>'));g.items.forEach(it=>{const cls='nav-item'+(it.active?' active':'')+(it.ready?'':' soon');const el=h('<a class="'+cls+'" '+(it.href?'href="'+it.href+'"':'')+'><span class="dot"></span>'+it.t+'</a>');nav.appendChild(el);});});
+
+syncModeTabs();
+resize();
+renderPanel();
+updateAll();
+tick();
+</script>
+</body>
+</html>

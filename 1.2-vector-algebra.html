@@ -1,0 +1,1333 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-page-node-id="p9NAFJ6WKYOHDIHbIf0Cct">
+<head data-page-node-id="QJkr8sBGBwaQo0ZZ3UCjlr">
+<meta charset="UTF-8" data-page-node-id="xTjmW3hcIwQG0vb02Otmjx">
+<meta name="viewport" content="width=device-width, initial-scale=1.0" data-page-node-id="nQyIk6yfjaimHSDApo5o3K">
+<title>1.2 矢量的代数运算 · 电磁场可视化平台</title>
+<style>
+:root{
+  --teal:#156082; --teal-dark:#0E4A66; --teal-light:#E3EFF4;
+  --orange:#E97132; --orange-light:#FDF0E7;
+  --green:#3E9B4F; --green-light:#EAF5EC;
+  --purple:#9B59B6; --crimson:#D04A3A; --blue:#0F9ED5;
+  --ink:#1F3D4C; --muted:#5F7482; --line:#DCE6EB; --bg:#F2F6F8;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{height:100%;}
+body{
+  font-family:"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  background:var(--bg); color:var(--ink); overflow:hidden;
+}
+header{
+  height:76px; background:#fff; border-bottom:1px solid var(--line);
+  display:flex; align-items:center; padding:0 22px; gap:14px;
+}
+.logo{
+  width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,var(--teal),#2E86AB);
+  display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:15px;
+  text-decoration:none;
+}
+header h1{font-size:18px;font-weight:700;letter-spacing:.5px;}
+header .sub{font-size:12px;color:var(--muted);margin-top:2px;}
+header .badge{margin-left:auto;display:flex;flex-direction:column;align-items:flex-end;gap:4px;}
+header .badge .chip{
+  font-size:12px;color:var(--teal);background:var(--teal-light);
+  border:1px solid #C5DEE9;padding:4px 12px;border-radius:20px;white-space:nowrap;
+}
+header .badge .owner{
+  font-size:11px;color:#5C6B73;background:#F4F7F9;
+  border:1px solid #E2E8EC;padding:3px 10px;border-radius:20px;white-space:nowrap;
+  display:inline-flex;align-items:center;gap:5px;
+}
+header .badge .owner b{color:var(--teal);font-weight:600;letter-spacing:.3px;}
+header .badge .owner::before{content:"";display:inline-block;width:5px;height:5px;background:var(--teal);border-radius:50%;}
+.layout{display:flex;height:calc(100vh - 58px);}
+aside{width:236px;background:#fff;border-right:1px solid var(--line);overflow-y:auto;padding:14px 0;flex-shrink:0;}
+aside::-webkit-scrollbar{width:6px;} aside::-webkit-scrollbar-thumb{background:#D5E0E6;border-radius:3px;}
+.nav-ch{font-size:12px;color:var(--muted);padding:12px 18px 6px;font-weight:600;letter-spacing:.5px;}
+.nav-item{
+  display:flex;align-items:center;gap:8px;padding:9px 18px;font-size:13.5px;cursor:pointer;
+  color:#3D5A68;border-left:3px solid transparent;transition:background .15s;text-decoration:none;
+}
+.nav-item:hover{background:#F5F9FB;}
+.nav-item.active{background:var(--teal-light);color:var(--teal-dark);font-weight:600;border-left-color:var(--teal);}
+.nav-item .dot{width:6px;height:6px;border-radius:50%;background:#C6D4DB;flex-shrink:0;}
+.nav-item.active .dot{background:var(--teal);}
+.nav-item.soon{color:#A5B6C0;cursor:not-allowed;}
+.nav-item.soon .dot{background:#E1E9ED;}
+.nav-item.soon::after{content:"建设中";font-size:10px;color:#B7C6CE;margin-left:auto;border:1px solid #DCE6EB;border-radius:8px;padding:1px 6px;}
+main{flex:1;display:flex;flex-direction:column;padding:14px 16px 12px;overflow:hidden;min-width:0;}
+.module-head{display:flex;align-items:center;gap:16px;margin-bottom:12px;flex-wrap:wrap;}
+.module-title{font-size:17px;font-weight:700;}
+.module-title small{font-weight:400;color:var(--muted);font-size:12px;margin-left:8px;}
+.seg{display:flex;background:#fff;border:1px solid var(--line);border-radius:10px;padding:3px;gap:2px;}
+.seg button{
+  border:none;background:transparent;padding:7px 18px;font-size:13.5px;border-radius:8px;cursor:pointer;
+  color:var(--muted);font-family:inherit;transition:all .15s;
+}
+.seg button:hover{color:var(--teal);}
+.seg button.on{background:var(--teal);color:#fff;font-weight:600;box-shadow:0 2px 6px rgba(21,96,130,.3);}
+.content-row{flex:1;display:flex;gap:14px;min-height:0;}
+.canvas-card{
+  flex:1;background:#fff;border:1px solid var(--line);border-radius:14px;
+  position:relative;overflow:hidden;min-width:0;display:flex;flex-direction:column;
+  box-shadow:0 1px 4px rgba(30,60,80,.05);
+}
+#cv{width:100%;flex:1;display:block;cursor:grab;touch-action:none;}
+#cv:active{cursor:grabbing;}
+#cv.over-pt{cursor:move;}
+.cv-toolbar{position:absolute;top:12px;right:12px;display:flex;gap:8px;z-index:5;}
+.cv-toolbar button{
+  border:1px solid var(--line);background:rgba(255,255,255,.92);border-radius:8px;
+  padding:5px 12px;font-size:12px;color:var(--muted);cursor:pointer;font-family:inherit;
+  backdrop-filter:blur(4px);transition:all .15s;
+}
+.cv-toolbar button:hover{color:var(--teal);border-color:var(--teal);}
+.cv-toolbar button.on{background:var(--teal);color:#fff;border-color:var(--teal);}
+/* （原 .cv-hint 已移除：操作提示不显示，避免与画布下方的实时读数条叠盖） */
+.cv-mode-tag{
+  position:absolute;top:12px;left:12px;font-size:12px;color:var(--teal-dark);
+  background:rgba(227,239,244,.92);border:1px solid #C9E0EA;border-radius:8px;
+  padding:5px 12px;z-index:4;pointer-events:none;font-weight:600;max-width:62%;
+}
+/* ============ 侧栏折叠（课堂投影：把画布放到最大） ============ */
+aside,.panel{transition:width .22s ease, padding .22s ease, border-width .22s ease;}
+body.nav-off   aside {width:0;padding-top:0;padding-bottom:0;border-right-width:0;overflow:hidden;}
+body.panel-off .panel{width:0;border-left-width:0;border-right-width:0;overflow:hidden;}
+/* 画布左右边缘的折叠手柄 */
+.fold-handle{
+  position:absolute;top:50%;transform:translateY(-50%);z-index:6;
+  width:15px;height:58px;padding:0;line-height:1;
+  border:1px solid var(--line);background:rgba(255,255,255,.94);
+  color:#A3B7C2;font-size:11px;cursor:pointer;font-family:inherit;
+  display:flex;align-items:center;justify-content:center;
+  backdrop-filter:blur(4px);transition:all .15s;
+}
+.fold-handle:hover{color:var(--teal);border-color:var(--teal);background:#fff;}
+#foldNav{left:0;border-left:none;border-radius:0 9px 9px 0;}
+#foldPanel{right:0;border-right:none;border-radius:9px 0 0 9px;}
+/* header 上的视图开关 */
+.view-toggles{display:flex;gap:6px;margin-right:6px;}
+.view-toggles button{
+  border:1px solid var(--line);background:#fff;border-radius:8px;padding:5px 11px;
+  font-size:12px;color:var(--muted);cursor:pointer;font-family:inherit;transition:all .15s;
+}
+.view-toggles button:hover{border-color:var(--teal);color:var(--teal);}
+.view-toggles button.on{background:var(--teal);color:#fff;border-color:var(--teal);}
+/* 画面被平移后的提示条 */
+.cv-pan-tag{
+  position:absolute;top:12px;left:50%;transform:translateX(-50%);z-index:6;
+  font-size:11.5px;color:#8A5A20;background:rgba(255,248,236,.95);
+  border:1px solid #E7C48F;border-radius:8px;padding:5px 12px;
+  display:none;align-items:center;gap:8px;
+}
+.cv-pan-tag.show{display:flex;}
+.cv-pan-tag button{
+  border:1px solid #E0BE8C;background:#fff;border-radius:6px;padding:2px 9px;
+  font-size:11.5px;color:#8A5A20;cursor:pointer;font-family:inherit;
+}
+.cv-pan-tag button:hover{background:#8A5A20;color:#fff;border-color:#8A5A20;}
+.coord-strip{display:flex;gap:8px;padding:10px 12px;border-top:1px solid var(--line);background:#FBFDFE;flex-wrap:nowrap;overflow-x:auto;overflow-y:hidden;}
+.coord-strip::-webkit-scrollbar{height:5px;}
+.coord-strip::-webkit-scrollbar-thumb{background:#D5E0E6;border-radius:3px;}
+.coord-strip:empty{padding:0;border-top:none;}
+.coord-chip{font-size:12px;color:var(--muted);background:#F3F8FA;border:1px solid #E2ECF1;border-radius:8px;padding:5px 12px;}
+.coord-chip b{color:var(--teal-dark);font-weight:600;margin-left:5px;font-family:Menlo,monospace;}
+.coord-chip i{font-style:italic;font-family:Georgia,serif;color:var(--ink);}
+.coord-chip.acc{background:#F5F0FA;border-color:#E2D4F0;}
+.coord-chip.acc b{color:#6B4E8A;}
+.panel{
+  width:368px;flex-shrink:0;background:#fff;border:1px solid var(--line);border-radius:14px;
+  display:flex;flex-direction:column;overflow-y:auto;box-shadow:0 1px 4px rgba(30,60,80,.05);
+}
+.panel::-webkit-scrollbar{width:6px;} .panel::-webkit-scrollbar-thumb{background:#D5E0E6;border-radius:3px;}
+.panel-sec{padding:14px 16px;border-bottom:1px solid #EEF3F6;}
+.panel-sec:last-child{border-bottom:none;}
+/* 实时数据显示开关：放在 subSec 顶部，避免右栏实时读数面板与画布下方实时条重复 */
+.readout-toggle{
+  display:flex;align-items:center;gap:8px;padding:8px 10px;margin-bottom:12px;
+  background:#F3F8FA;border:1px solid #E2ECF1;border-radius:8px;cursor:pointer;
+  font-size:12.5px;line-height:1.5;color:var(--muted);
+}
+.readout-toggle:hover{border-color:#C6DAE3;background:#EDF4F7;}
+.readout-toggle input{accent-color:var(--teal);cursor:pointer;margin:0;}
+.readout-toggle b{color:var(--ink);}
+.sec-title{font-size:12px;color:var(--muted);font-weight:600;letter-spacing:1px;margin-bottom:10px;display:flex;align-items:center;gap:6px;}
+.sec-title::before{content:"";width:3px;height:12px;background:var(--teal);border-radius:2px;}
+.sub-chips{display:flex;gap:6px;flex-wrap:wrap;}
+.chip{
+  border:1px solid var(--line);background:#fff;border-radius:16px;padding:4px 13px;
+  font-size:12.5px;line-height:1.5;cursor:pointer;font-family:inherit;color:var(--muted);transition:all .15s;
+}
+.chip:hover{border-color:var(--teal);color:var(--teal);}
+.chip.on{background:var(--teal);border-color:var(--teal);color:#fff;font-weight:600;}
+.chip.pre{border-style:dashed;border-color:#C9D6DD;color:#7A8F9B;}
+.chip.pre:hover{border-color:var(--orange);color:var(--orange);background:#FFF8F2;}
+.chip.op.on{background:var(--green);border-color:var(--green);}
+.chip.op2.on{background:var(--orange);border-color:var(--orange);}
+.slider-row{display:flex;align-items:center;gap:10px;margin-bottom:9px;}
+.slider-row label{width:34px;font-size:13px;font-style:italic;font-family:Georgia,serif;color:var(--ink);text-align:right;flex-shrink:0;}
+.slider-row.w label{width:58px;font-style:normal;font-family:inherit;}
+.slider-row input[type=range]{flex:1;accent-color:var(--teal);height:4px;cursor:pointer;}
+.slider-row .val{width:58px;font-size:12px;color:var(--muted);font-family:Menlo,monospace;flex-shrink:0;}
+.slider-group-label{font-size:12px;font-weight:600;color:var(--crimson);margin:4px 0 8px;}
+.slider-group-label.q{color:var(--blue);}
+.ex-title{font-size:14.5px;font-weight:700;color:var(--teal-dark);margin-bottom:8px;line-height:1.45;}
+.ex-body{font-size:14px;line-height:1.7;color:#3A5462;}
+.ex-body b{color:var(--ink);}
+.ex-body ul{padding-left:18px;margin:6px 0;}
+.ex-body li{margin-bottom:3px;}
+.frm{
+  display:block;background:#F4F9FB;border:1px solid #DDE9EF;border-left:3px solid var(--teal);
+  border-radius:8px;padding:10px 14px 10px 18px;margin:10px 0;font-size:14px;line-height:1.7;
+  font-family:Georgia,"Times New Roman",serif;color:var(--ink);overflow-x:auto;white-space:nowrap;
+}
+.frm::-webkit-scrollbar{height:4px;}
+.frm::-webkit-scrollbar-thumb{background:#D5E0E6;border-radius:2px;}
+.vec{position:relative;font-style:italic;font-weight:700;white-space:nowrap;}
+.vec::before,.vec::after{content:'';position:absolute;pointer-events:none;}
+.vec::before{left:0;right:.24em;top:-.28em;height:1px;background:currentColor;opacity:.9;}
+.vec::after{right:0;top:-.42em;width:0;height:0;
+  border-left:.26em solid currentColor;
+  border-top:.14em solid transparent;border-bottom:.14em solid transparent;}
+sub{font-size:.72em;vertical-align:-.24em;}
+.frm sub{font-size:.72em;}
+.vec sub{font-style:normal;font-weight:600;}
+/* 公式与解读的 4 卡片布局：顶部 4 个 tab + 下方一张卡片体；不同卡片左侧色条不同 */
+.card-tabs{display:flex;gap:6px;flex-wrap:wrap;margin:4px 0 10px;}
+.card-tab{
+  cursor:pointer;font-family:inherit;font-size:12.5px;padding:5px 9px;border-radius:9px;
+  border:1px solid var(--line);background:#fff;color:var(--muted);transition:all .15s;line-height:1.4;
+  white-space:nowrap;flex:1;text-align:center;min-width:0;
+}
+.card-tab:hover{border-color:var(--teal);color:var(--teal);}
+.card-tab.c1.on{background:#156082;border-color:#156082;color:#fff;font-weight:600;}
+.card-tab.c2.on{background:#0F9ED5;border-color:#0F9ED5;color:#fff;font-weight:600;}
+.card-tab.c3.on{background:#E97132;border-color:#E97132;color:#fff;font-weight:600;}
+.card-tab.c4.on{background:#9B59B6;border-color:#9B59B6;color:#fff;font-weight:600;}
+.card-body{
+  background:#FCFEFE;border:1px solid #E2ECF1;border-radius:8px;
+  padding:12px 16px 8px;border-left:4px solid var(--teal);
+}
+.card-body.c1{border-left-color:#156082;}
+.card-body.c2{border-left-color:#0F9ED5;}
+.card-body.c3{border-left-color:#E97132;}
+.card-body.c4{border-left-color:#9B59B6;}
+.card-body .frm{margin:8px 0;}
+/* 根号：√ 在左、横线在子表达式顶部自动延伸，覆盖全部平方和 */
+.sqrt{
+  display:inline-block;
+  position:relative;
+  padding-left:.62em;
+  margin-left:.05em;
+  font-style:normal;
+}
+.sqrt::before{
+  content:"√";
+  position:absolute;
+  left:.02em;
+  top:-.12em;
+  font-size:1.1em;
+  font-family:"Cambria Math","STIX Two Math","Latin Modern Math","Times New Roman",Georgia,serif;
+}
+.sqrt .in{
+  display:inline-block;
+  border-top:1.15px solid currentColor;
+  padding:.10em .06em .02em .06em;
+  border-radius:4px 4px 0 0;
+  line-height:1.1;
+}
+.tips{background:#FBF7EE;border:1px solid #F0E4C8;border-radius:8px;padding:9px 12px;margin-top:10px;}
+.tips .tt{font-size:11.5px;font-weight:600;color:#A07514;margin-bottom:4px;}
+.tips ul{padding-left:16px;font-size:12px;line-height:1.75;color:#7A6A45;}
+.readout{
+  background:#F5F0FA;border:1px solid #E2D4F0;border-radius:8px;padding:9px 12px;margin:10px 0 0;
+  font-size:12.5px;color:#6B4E8A;line-height:1.95;
+}
+.readout .vec{font-style:normal;font-weight:700;}
+.readout .num{font-family:Menlo,monospace;}
+.readout .ok{color:#2E7D45;font-weight:700;}
+.legend{display:flex;flex-wrap:wrap;gap:12px;margin-top:10px;font-size:12px;color:#4A6472;}
+.legend span{display:inline-flex;align-items:center;gap:5px;}
+.legend i{width:15px;height:3px;border-radius:2px;display:inline-block;}
+#toast{
+  position:fixed;left:50%;top:76px;transform:translateX(-50%) translateY(-8px);
+  background:rgba(31,61,76,.92);color:#fff;font-size:13px;padding:9px 20px;border-radius:22px;
+  opacity:0;pointer-events:none;transition:all .3s;z-index:99;
+}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+@media (max-width:1180px){ .panel{width:314px;} aside{width:200px;} }
+</style>
+</head>
+<body data-page-node-id="OiHPRx8zlfgzSBSZQkBmzV">
+<header data-page-node-id="WZ7P4fIvLAF5tvIGrQ14wM">
+  <a class="logo" href="index.html" title="返回平台首页" data-page-node-id="sqIBQd0GN9ZutxEjEwPcUu">E&M</a>
+  <div data-page-node-id="LBXLLDIUTCZl9HGVayp1FE">
+    <h1 data-page-node-id="u3bja8erNPPDr5ec8chGB3">1.2 矢量的代数运算</h1>
+    <div class="sub" data-page-node-id="xvpu8bytbcPbdWR7caojIu">矢量的表示 · 方向角 · 方向单位矢量 · 加减运算</div>
+  </div>
+  <div class="view-toggles" id="viewToggles">
+    <button id="tglNav"   title="折叠 / 展开左侧目录（快捷键 [ ）">☰ 目录</button>
+    <button id="tglPanel" title="折叠 / 展开右侧控制面板（快捷键 ] ）">☰ 面板</button>
+  </div>
+  <div class="badge" data-page-node-id="vB5YD1JzDePCAzwMaBoDQZ">
+    <div class="chip" data-page-node-id="K0G0WW2FpebpYG6me8R9cj">《工程电磁场》 ×《电磁场与电磁波》</div>
+    <div class="owner" data-page-node-id="kZUJ3wHeFAPpxMTIzb3sWc"><b data-page-node-id="a4hSREk7wWwXDdXMUfDDA2">© 2026 Li Chenlu</b> All Rights Reserved</div>
+  </div>
+</header>
+<div class="layout" data-page-node-id="E1tGafxDHcZslrz6urA8EC">
+  <aside id="nav" data-page-node-id="gnkl0sCKMAPNgz7lFJuDLQ"></aside>
+  <main data-page-node-id="9ekULikbUFaW1yr24jnizj">
+    <div class="module-head" data-page-node-id="lZVPhvvVjfKw9iDRHUzZWJ">
+      <div class="module-title" id="moduleTitle" data-page-node-id="H6pvrD3PPIXtjiAUWCKOmb">矢量代数<small data-page-node-id="MQfwjOvYEglKWVfPz51uGB">表示 · 方向角 · 加减</small></div>
+      <div class="seg" id="modeTabs" data-page-node-id="H2rFimBmwDmNFreHQCH8o4">
+        <button data-mode="dir" class="on" data-page-node-id="MGgEEWe7ISynOdWhxs6QUn">矢量的表示与方向角</button>
+        <button data-mode="alg" data-page-node-id="RXtYAeEta1nzzjcB5TXwrf">矢量的加减运算</button>
+      </div>
+    </div>
+    <div class="content-row" data-page-node-id="KJgDvQWohqj1j5UoaPR1ig">
+      <div class="canvas-card" data-page-node-id="YQpIsxbc3Q24G3FVfoQTD5">
+        <canvas id="cv" data-page-node-id="1Y9pRxTvTTHaABTk2u5ZjN"></canvas>
+        <div class="cv-mode-tag" id="modeTag" data-page-node-id="sv8Gg2fGooyf3NYoNiqa2c"></div>
+        <div class="cv-pan-tag" id="panTag">
+          <span>画面已平移</span><button id="btnPanReset">回到原点</button>
+        </div>
+        <div class="cv-toolbar" data-page-node-id="VZAeEwoOrirNLpvELEWqaE">
+          <button id="btnReset" data-page-node-id="tlpiq2CF0tdCU0HYPdPBs1">复位视角</button>
+          <button id="btnRotate" data-page-node-id="DTL7AxPxJIuBFKbDBvFCB3">自动旋转</button>
+        </div>
+        <button class="fold-handle" id="foldNav"   title="折叠 / 展开左侧目录（快捷键 [ ）">‹</button>
+        <button class="fold-handle" id="foldPanel" title="折叠 / 展开右侧面板（快捷键 ] ）">›</button>
+        <div class="coord-strip" id="coordStrip" data-page-node-id="F8Uqf2SMOjP3aGOil3HH4h"></div>
+      </div>
+      <div class="panel" id="panel" data-page-node-id="5MbUHuCGjsOxMXz5mSoqFi"></div>
+    </div>
+  </main>
+</div>
+<div id="toast" data-page-node-id="OedNmX0Xc4UVkVKSNWjL99"></div>
+
+<script>
+'use strict';
+/* =====================================================================
+ * 1.2 矢量的代数运算 —— 可视化交互页
+ * 与 1.1 节共用同一套渲染引擎（配色 / 相机 / 图元 / 富文本矢量记号）
+ * ===================================================================== */
+
+/* ---------------- 导航数据 ---------------- */
+const NAV = [
+  { ch:'第 1 章 · 矢量分析', items:[
+    { id:'coord',  t:'1.1 三种常见坐标系', ready:true, href:'index.html' },
+    { id:'ch1-2',  t:'1.2 矢量的代数运算', ready:true, active:true },
+    { id:'ch1-3',  t:'1.3 方向导数与梯度', ready:true, href:'1.3-directional-derivative.html' },
+    { id:'ch1-4',  t:'1.4 通量与散度',     ready:true, href:'1.4-divergence-flux.html' },
+    { id:'ch1-5',  t:'1.5 环量与旋度',     ready:true, href:'1.5-curl-circulation.html' },
+  ]},
+  { ch:'第 2 章 · 静电场', items:[ {t:'2.1 电场强度与电位'}, {t:'2.2 高斯定理及其应用'}, {t:'2.3 导体与电介质'} ]},
+  { ch:'第 3 章 · 恒定磁场', items:[ {t:'3.1 比奥-萨伐尔定律'}, {t:'3.2 安培环路定理'} ]},
+  { ch:'第 4 章 · 时变电磁场', items:[ {t:'4.1 麦克斯韦方程组'}, {t:'4.2 均匀平面波'} ]},
+];
+
+/* ---------------- 全局状态 ---------------- */
+const state = {
+  mode:'dir',                 // dir 表示与方向角 | alg 加减运算
+  /* 默认 A 刻意取「偏离体对角线」的方位：
+     标准 3/4 视角的视线方向约在 (45°,60°,60°)，若 A 也取成 (1,1,1) 附近，
+     A 就会几乎正对相机、在屏幕上缩成一个点，方向角完全看不清。
+     这里让 A 偏向 +y，使它与视线夹角约 36°，三个方向角约 80°/35°/57°，既分明又清晰。 */
+  A:{x:.235, y:1.068, z:.702}, // dir：A 点（矢量终点）；alg：A 矢量
+  B:{x:-.42, y:.86, z:.58},   // alg：B 矢量
+  op:'add',                   // add | sub
+  law:'para',                 // para 平行四边形 | tri 三角形
+  /* 初始只显示坐标轴和 A 矢量本身；分量 / 方向角 / 方向单位矢量 / 辅助线 全部默认关闭，
+     老师按需在右侧"图中显示哪些内容"中点亮对应按钮 */
+  show:{ comp:false, ang:false, ea:false, aux:false },
+  cardTab:'1',               // dir 模式公式与解读：当前显示的卡片 1..4
+  showReadout:true,          // 画布下方是否显示实时数据条（默认开；右栏实时读数面板已移除以避免重复）
+  autoRotate:false,
+};
+
+/* ================= 富文本引擎：矢量箭头 + 真下标 =================
+     @{ ... }   矢量组（整组主体上方画一个向右的箭头）
+     _c / _{cc} 下标
+   ------------------------------------------------------------ */
+function parseRich(s){
+  const items=[], groups=[]; const st={g:-1};
+  (function walk(str){
+    let buf='';
+    const flush=()=>{ if(buf){ items.push({t:'n',s:buf,g:st.g}); buf=''; } };
+    for(let i=0;i<str.length;){
+      const c=str[i];
+      if(c==='@' && str[i+1]==='{'){
+        const j=str.indexOf('}', i+2);
+        if(j<0){ buf+=c; i++; continue; }
+        flush();
+        const save=st.g; st.g=groups.length; groups.push(1);
+        walk(str.slice(i+2,j));
+        st.g=save; i=j+1; continue;
+      }
+      if(c==='_'){
+        flush();
+        if(str[i+1]==='{'){ const j=str.indexOf('}',i+2);
+          if(j>=0){ items.push({t:'s',s:str.slice(i+2,j),g:st.g}); i=j+1; continue; } }
+        items.push({t:'s',s:str[i+1]||'',g:st.g}); i+=2; continue;
+      }
+      if(c==='<'){
+        const j=str.indexOf('>',i);
+        if(j>=0){ buf+=str.slice(i,j+1); i=j+1; continue; }
+      }
+      buf+=c; i++;
+    }
+    flush();
+  })(String(s));
+  return {items, groups};
+}
+const RICHFONT='"PingFang SC","Microsoft YaHei",sans-serif';
+const RICHFONT_M='Georgia,"Times New Roman",serif';
+function richLayout(ctx,rich,size,bold){
+  const subSize=size*0.74;
+  const wM=bold?'700 ':'', wS=bold?'700 ':'';
+  const fN =wM+size+'px '+RICHFONT;
+  const fNs=wS+subSize+'px '+RICHFONT;
+  const fV ='italic '+wM+size+'px '+RICHFONT_M;
+  const fVs=wS+subSize+'px '+RICHFONT_M;
+  const groups=rich.groups.map(()=>({x0:1e9,x1:-1e9,locked:false,top:1e9}));
+  const out=[]; let x=0;
+  const oldBL=ctx.textBaseline; ctx.textBaseline='middle';
+  rich.items.forEach(it=>{
+    const sub=it.t==='s', vec=it.g>=0;
+    const font = sub ? (vec?fVs:fNs) : (vec?fV:fN);
+    ctx.font=font;
+    const m=ctx.measureText(it.s), w=m.width;
+    const dy = sub? lo_dy(size) : 0;
+    const asc = (m.actualBoundingBoxAscent!=null) ? m.actualBoundingBoxAscent : size*0.38;
+    if(vec){
+      const g=groups[it.g];
+      if(!g.locked){
+        if(sub) g.locked=true;
+        else { if(x<g.x0) g.x0=x; g.x1=x+w; }
+      }
+      const top=dy-asc; if(top<g.top) g.top=top;
+    }
+    out.push({s:it.s,sub,x,w,font,dy});
+    x+=w;
+  });
+  ctx.textBaseline=oldBL;
+  return {items:out, groups, w:x, size, subSize};
+}
+function lo_dy(size){ return size*0.20; }
+function richDraw(ctx,lo,cx,cy,align,color){
+  let ox = align==='center'? cx-lo.w/2 : align==='right'? cx-lo.w : cx;
+  const dy = it=> cy + it.dy;
+  const ay = g => cy + g.top - Math.max(2.2, lo.size*0.13);
+  const span = g => [ox+g.x0-0.6, ox+g.x1+0.6];
+  ctx.save();
+  ctx.textAlign='left'; ctx.textBaseline='middle'; ctx.lineJoin='round'; ctx.lineCap='butt';
+  ctx.lineWidth=3.4; ctx.strokeStyle='rgba(255,255,255,.92)';
+  lo.items.forEach(it=>{ ctx.font=it.font; ctx.strokeText(it.s, ox+it.x, dy(it)); });
+  lo.groups.forEach(g=>{ if(g.x1<=g.x0) return;
+    const y=ay(g), s=span(g);
+    ctx.beginPath(); ctx.moveTo(s[0],y); ctx.lineTo(s[1],y); ctx.stroke(); });
+  lo.groups.forEach(g=>{ if(g.x1<=g.x0) return;
+    const y=ay(g), s=span(g), ax=s[0], bx=s[1];
+    ctx.strokeStyle=color; ctx.lineWidth=1.15;
+    ctx.beginPath(); ctx.moveTo(ax,y); ctx.lineTo(bx-1.2,y); ctx.stroke();
+    const h=Math.min(3.6, Math.max(2.6,(bx-ax)*0.40));
+    ctx.beginPath(); ctx.moveTo(bx,y); ctx.lineTo(bx-h,y-h*0.52); ctx.lineTo(bx-h,y+h*0.52);
+    ctx.closePath(); ctx.fillStyle=color; ctx.fill(); });
+  lo.items.forEach(it=>{ ctx.font=it.font; ctx.fillStyle=color; ctx.fillText(it.s, ox+it.x, dy(it)); });
+  ctx.restore();
+}
+function richHTML(s){
+  const r=parseRich(s);
+  let h='', gi=-1;
+  r.items.forEach(it=>{
+    const body = it.t==='s' ? '<sub>'+it.s+'</sub>' : it.s;
+    if(it.g!==gi){
+      if(gi>=0) h+='</span>';
+      if(it.g>=0) h+='<span class="vec">';
+      gi=it.g;
+    }
+    h+=body;
+  });
+  if(gi>=0) h+='</span>';
+  return wrapSqrt(h);
+}
+/* 把 √(...) 模式包成 <span class="sqrt"><span class="in">...</span></span>，
+   字符串里的 √ 由 CSS ::before 画（不要重复加，否则会叠出两个根号），
+   CSS 横线自动延伸覆盖全部子表达式。 */
+function wrapSqrt(html){
+  const out=[]; let i=0;
+  while(i<html.length){
+    const k=html.indexOf('√(', i);
+    if(k<0){ out.push(html.slice(i)); break; }
+    out.push(html.slice(i,k));
+    out.push('<span class="sqrt"><span class="in">');
+    /* 括号配对，找出与 √( 配对的右括号 */
+    let j=k+2, depth=1;
+    while(j<html.length && depth>0){
+      const c=html[j];
+      if(c==='(') depth++;
+      else if(c===')'){ depth--; if(depth===0) break; }
+      j++;
+    }
+    if(depth!==0){ /* 括号不闭合，原样输出兜底 */ out.push(html.slice(k)); return out.join(''); }
+    out.push(html.slice(k+2, j));
+    out.push('</span></span>');
+    i=j+1;
+  }
+  return out.join('');
+}
+
+/* ---------------- 配色 ---------------- */
+const C = {
+  teal:'#156082', orange:'#E97132', green:'#3E9B4F', purple:'#9B59B6',
+  crimson:'#D04A3A', blue:'#0F9ED5', gray:'#8CA0AC', light:'#C9D6DD',
+  ink:'#22414F', grid:'#EAF0F4', muted:'#7A8F9B',
+};
+/* 本页角色配色：A=crimson  B=blue  e_A=purple  和=green  差=orange */
+
+/* ---------------- 向量工具 ---------------- */
+const pt=(x,y,z)=>({x,y,z});
+const vadd=(a,b)=>({x:a.x+b.x,y:a.y+b.y,z:a.z+b.z});
+const vsub=(a,b)=>({x:a.x-b.x,y:a.y-b.y,z:a.z-b.z});
+const vmul=(a,s)=>({x:a.x*s,y:a.y*s,z:a.z*s});
+const vdot=(a,b)=>a.x*b.x+a.y*b.y+a.z*b.z;
+const vlen=a=>Math.hypot(a.x,a.y,a.z);
+const vnorm=a=>{const l=vlen(a)||1;return vmul(a,1/l);};
+const vcross=(a,b)=>({x:a.y*b.z-a.z*b.y, y:a.z*b.x-a.x*b.z, z:a.x*b.y-a.y*b.x});
+const D2R=Math.PI/180, R2D=180/Math.PI;
+function sphToCart(r,thDeg,phDeg){ const t=thDeg*D2R,f=phDeg*D2R;
+  return pt(r*Math.sin(t)*Math.cos(f), r*Math.sin(t)*Math.sin(f), r*Math.cos(t)); }
+function cartToSph(p){ const r=vlen(p)||1e-9;
+  return {r:r, theta:Math.acos(Math.max(-1,Math.min(1,p.z/r)))*R2D, phi:(Math.atan2(p.y,p.x)*R2D+360)%360}; }
+
+/* ---------------- 画布与相机 ---------------- */
+let canvas, ctx, W=800, H=600, DPR=1;
+/* px / py：画面平移量（屏幕像素）。右键拖动可把任意一点拖到画面中任意位置，
+   相当于"把画面里任意一点当作视觉原点"，解决放大后点线面被侧栏挡住的问题。 */
+const cam={az:.62, el:.52, zoom:1, px:0, py:0};
+let camU, camV, camD, camScale, CX, CY;
+const LIM=1.5;
+function setupCamera(){
+  const ca=Math.cos(cam.az), sa=Math.sin(cam.az);
+  const ce=Math.cos(cam.el), se=Math.sin(cam.el);
+  camD={x:ce*ca, y:ce*sa, z:se};
+  camU={x:-sa, y:ca, z:0};
+  camV={x:-ca*se, y:-sa*se, z:ce};
+  camScale=Math.min(W,H)/3.55*cam.zoom;
+  CX=W/2; CY=H*0.54;
+}
+function pr(p){ return {x:CX+cam.px+camScale*vdot(p,camU), y:CY+cam.py-camScale*vdot(p,camV), d:vdot(p,camD)}; }
+
+/* ---------------- 图元系统 ---------------- */
+let prims=[];
+function P_(z,fn){ prims.push({z,draw:fn}); }
+function line(a,b,o={}){
+  const A=pr(a),B=pr(b);
+  P_((A.d+B.d)/2, ()=>{ ctx.save();
+    ctx.globalAlpha=o.alpha!=null?o.alpha:1;
+    ctx.strokeStyle=o.color||C.gray; ctx.lineWidth=o.w||1.4;
+    if(o.dash) ctx.setLineDash(o.dash);
+    ctx.beginPath(); ctx.moveTo(A.x,A.y); ctx.lineTo(B.x,B.y); ctx.stroke(); ctx.restore(); });
+}
+function arrowSeg(A,B,color,w,headScale){
+  const dx=B.x-A.x, dy=B.y-A.y, L=Math.hypot(dx,dy);
+  if(L<0.5) return;
+  const ux=dx/L, uy=dy/L, hs=(headScale||1)*9;
+  ctx.strokeStyle=color; ctx.lineWidth=w; ctx.lineCap='round';
+  ctx.beginPath(); ctx.moveTo(A.x,A.y); ctx.lineTo(B.x-ux*hs*.55, B.y-uy*hs*.55); ctx.stroke();
+  const ang=Math.atan2(dy,dx);
+  ctx.beginPath(); ctx.moveTo(B.x,B.y);
+  ctx.lineTo(B.x-hs*Math.cos(ang-.42), B.y-hs*Math.sin(ang-.42));
+  ctx.lineTo(B.x-hs*Math.cos(ang+.42), B.y-hs*Math.sin(ang+.42));
+  ctx.closePath(); ctx.fillStyle=color; ctx.fill();
+}
+function arrow(a,b,o={}){
+  const A=pr(a),B=pr(b);
+  P_((A.d+B.d)/2, ()=>{ ctx.save();
+    ctx.globalAlpha=o.alpha!=null?o.alpha:1;
+    if(o.dash) ctx.setLineDash(o.dash);
+    arrowSeg(A,B,o.color||C.teal,o.w||2,o.headScale); ctx.restore(); });
+  if(o.label) text(vmul(vadd(a,b),.5), o.label,
+    {color:o.color||C.teal, dx:o.ldx||0, dy:o.ldy!==undefined?o.ldy:-10, size:o.lsize||12.5, bold:true, align:o.lalign});
+}
+/* 沿屏幕方向把一个矢量平移 px 像素（用于把 e_A 从 A 身上错开画，二者都看得清） */
+function screenPerpOffset(dirWorld, px){
+  const sx=vdot(dirWorld,camU), sy=-vdot(dirWorld,camV);
+  const L=Math.hypot(sx,sy)||1;
+  const nx=-sy/L, ny=sx/L;                 // 屏幕平面内、垂直于该矢量的单位方向
+  const d=px/camScale;
+  return vadd(vmul(camU, nx*d), vmul(camV, -ny*d));
+}
+function curve(ptsArr,o={}){
+  if(ptsArr.length<2) return;
+  const S=ptsArr.map(pr);
+  P_(S.reduce((s,p)=>s+p.d,0)/S.length, ()=>{ ctx.save();
+    ctx.globalAlpha=o.alpha!=null?o.alpha:1;
+    ctx.strokeStyle=o.color||C.gray; ctx.lineWidth=o.w||1.8; ctx.lineCap='round';
+    if(o.dash) ctx.setLineDash(o.dash);
+    ctx.beginPath(); ctx.moveTo(S[0].x,S[0].y);
+    for(let i=1;i<S.length;i++) ctx.lineTo(S[i].x,S[i].y);
+    ctx.stroke();
+    if(o.arrowEnd){ const a=S[S.length-2], b=S[S.length-1];
+      ctx.setLineDash([]); arrowSeg(a,b,o.color||C.gray,o.w||1.8,.75); }
+    ctx.restore(); });
+}
+function poly(ptsArr,o={}){
+  if(ptsArr.length<3) return;
+  const S=ptsArr.map(pr);
+  P_(S.reduce((s,p)=>s+p.d,0)/S.length, ()=>{ ctx.save();
+    ctx.beginPath(); ctx.moveTo(S[0].x,S[0].y);
+    for(let i=1;i<S.length;i++) ctx.lineTo(S[i].x,S[i].y);
+    ctx.closePath();
+    if(o.fill){ ctx.globalAlpha=o.fillAlpha!=null?o.fillAlpha:.15; ctx.fillStyle=o.fill; ctx.fill(); }
+    if(o.stroke){ ctx.globalAlpha=o.strokeAlpha!=null?o.strokeAlpha:1;
+      ctx.strokeStyle=o.stroke; ctx.lineWidth=o.w||1.3; if(o.dash)ctx.setLineDash(o.dash); ctx.stroke(); }
+    ctx.restore(); });
+}
+function marker(p,o={}){
+  const S=pr(p);
+  P_(S.d+0.02, ()=>{ ctx.save();
+    ctx.globalAlpha=o.alpha!=null?o.alpha:1;
+    ctx.beginPath(); ctx.arc(S.x,S.y,o.r||5,0,7);
+    ctx.fillStyle=o.color||C.orange; ctx.fill();
+    ctx.lineWidth=2; ctx.strokeStyle='#fff'; ctx.stroke();
+    if(o.ring){ ctx.beginPath(); ctx.arc(S.x,S.y,(o.r||5)+4,0,7);
+      ctx.strokeStyle=o.ring; ctx.lineWidth=2.2; ctx.stroke(); }
+    ctx.restore(); });
+  if(o.label) text(p, o.label, {color:o.color||C.orange,
+    dx:o.ldx!=null?o.ldx:10, dy:o.ldy!=null?o.ldy:-10, size:o.lsize||13, bold:true, align:o.lalign});
+}
+function text(p,str,o={}){
+  const S=pr(p);
+  P_(1e6, ()=>{ ctx.save();
+    const size=o.size||12.5, bold=!!o.bold;
+    const lo=richLayout(ctx, parseRich(str), size, bold);
+    richDraw(ctx, lo, S.x+(o.dx||0), S.y+(o.dy||0), o.align||'left', o.color||C.ink);
+    ctx.restore(); });
+}
+/* ---------------- 公共场景：网格 + 坐标轴 ---------------- */
+function unitTick(p,d1,d2,color){
+  const s=0.055;
+  line(vsub(p,vmul(d1,s)), vadd(p,vmul(d1,s)), {color:color,w:1.6,alpha:.7});
+  line(vsub(p,vmul(d2,s)), vadd(p,vmul(d2,s)), {color:color,w:1.6,alpha:.7});
+}
+function drawGridAndAxes(){
+  for(let v=-1.2; v<=1.51; v+=0.3){
+    line(pt(v,-1.2,0), pt(v,LIM,0), {color:C.grid,w:1});
+    line(pt(-1.2,v,0), pt(LIM,v,0), {color:C.grid,w:1});
+  }
+  const light={color:'#B9C9D2',dash:[5,4],w:1.2};
+  line(pt(0,0,0), pt(-1.15,0,0), light);
+  line(pt(0,0,0), pt(0,-1.15,0), light);
+  line(pt(0,0,0), pt(0,0,-1.15), light);
+  arrow(pt(0,0,0), pt(1.58,0,0), {color:C.teal, w:2.2});
+  arrow(pt(0,0,0), pt(0,1.58,0), {color:C.orange, w:2.2});
+  arrow(pt(0,0,0), pt(0,0,1.58), {color:C.green, w:2.4});
+  text(pt(1.66,0,0),'x',{color:C.teal,bold:true,size:13.5,dy:-4});
+  text(pt(0,1.66,0),'y',{color:C.orange,bold:true,size:13.5,dy:-4});
+  text(pt(0,0,1.66),'z',{color:C.green,bold:true,size:13.5,dx:-4});
+  text(pt(0,0,0),'O',{color:'#7A8F9B',size:12,dx:-13,dy:13});
+  if(state.mode==='dir' && state.show.ea){
+    unitTick(pt(1,0,0), pt(0,1,0), pt(0,0,1), C.teal);
+    unitTick(pt(0,1,0), pt(1,0,0), pt(0,0,1), C.orange);
+    unitTick(pt(0,0,1), pt(1,0,0), pt(0,1,0), C.green);
+  }
+}
+
+/* =====================================================
+ * 模式一：矢量的表示与方向角
+ * ===================================================== */
+/* 从 axis（单位矢量）扫到 u（单位矢量）的圆弧 */
+function angleArc(axis,u,R,n){
+  n=n||28;
+  let perp=vsub(u, vmul(axis, vdot(u,axis)));
+  const pl=vlen(perp);
+  if(pl<1e-4) return {pts:[], ang:0, perp:null, R:R};
+  perp=vmul(perp,1/pl);
+  const ang=Math.atan2(pl, vdot(u,axis));
+  const pts=[];
+  for(let i=0;i<=n;i++){ const t=ang*i/n;
+    pts.push(vadd(vmul(axis,R*Math.cos(t)), vmul(perp,R*Math.sin(t)))); }
+  return {pts, ang, perp, R};
+}
+function drawDirAngle(axis,u,R,color,name,ldx,ldy){
+  const A=angleArc(axis,u,R);
+  if(!A.pts.length) return;
+  /* 沿轴的引导虚线（让"角"的两条边都看得见） */
+  curve(A.pts,{color:color,w:2.3,arrowEnd:true});
+  const mid=vadd(vmul(axis,R*Math.cos(A.ang/2)), vmul(A.perp,R*Math.sin(A.ang/2)));
+  const lp=vadd(mid, vmul(vnorm(mid), 0.20));
+  text(lp, name+' = '+(A.ang*R2D).toFixed(1)+'°',
+    {color:color, size:13.5, bold:true, align:'center', dx:ldx||0, dy:ldy||0});
+}
+
+function sceneDir(){
+  const A=state.A, L=vlen(A);
+  if(L<1e-6) return;
+  const u=vmul(A,1/L);
+  const Ax=A.x, Ay=A.y, Az=A.z;
+  const O=pt(0,0,0);
+
+  /* 1) 投影辅助线：沿"拉链"从 A 点反回到 O 的回程虚线 —— 让学生看清链尾在 3D 空间的位置。
+        路径：A → (Ax,Ay,0) → (Ax,0,0) → O（最后一段是 A_x 的反向，删掉以免与分量重复） */
+  if(state.show.aux){
+    const drop = pt(Ax, Ay, 0);
+    line(A,    drop, {color:C.gray, w:1.2, dash:[4,4], alpha:.80});
+    line(drop, pt(Ax,0,0), {color:C.gray, w:1.1, dash:[4,4], alpha:.55});
+    marker(drop,{color:C.gray,r:3,alpha:.9});
+  }
+
+  /* 2) 三个分量 —— 头尾相接的"拉链式"分解：O → A_x → A_y → A_z ≡ A
+        这样可以一眼看出 A = A_x + A_y + A_z（矢量加法的链式法则），
+        而不再是三条都从 O 出发的坐标轴投影。 */
+  if(state.show.comp){
+    const p1 = pt(Ax, 0, 0);          /* A_x 末端 = A_y 起点 */
+    const p2 = pt(Ax, Ay, 0);         /* A_y 末端 = A_z 起点 */
+    arrow(O,  p1, {color:C.teal,   w:2.8, headScale:.85,
+                   label:'A_x', ldy:-13, lsize:13});
+    arrow(p1, p2, {color:C.orange, w:2.8, headScale:.85,
+                   label:'A_y', ldx:12,  ldy:6,  lsize:13});
+    arrow(p2, A,  {color:C.green,  w:2.8, headScale:.85,
+                   label:'A_z', ldx:14,  ldy:-2, lsize:13});
+  }
+
+  /* 3) 三个方向角 α β γ —— 颜色与对应坐标轴一致（画在 A 之上，弧端箭头才看得见） */
+  if(state.show.ang){
+    drawDirAngle(pt(1,0,0), u, .52, C.teal,   'α',  -6, -6);
+    drawDirAngle(pt(0,1,0), u, .66, C.orange, 'β',   8,  6);
+    drawDirAngle(pt(0,0,1), u, .40, C.green,  'γ',   4, -8);
+  }
+
+  /* 4) A 矢量本体 */
+  arrow(O, A, {color:C.crimson, w:3.2, headScale:1.15});
+  text(vmul(A,.70), '@{A}', {color:C.crimson, size:17, bold:true, dx:14, dy:-8});
+  marker(A, {color:C.crimson, r:6, ring:'rgba(208,74,58,.35)', label:'A 点', ldx:13, ldy:15, lsize:13});
+
+  /* 5) 方向单位矢量 e_A：与 A 同向但长度恒为 1。共线会被 A 盖住，故沿屏幕垂向错开 17px 平行画出，
+        并用两条点线把两端与 A 对应连起来，表示"同一方向、只是长度归一"。 */
+  if(state.show.ea){
+    const off=screenPerpOffset(A, 17);
+    const o0=off, e0=vadd(u,off);
+    line(O, o0, {color:C.purple, w:1, dash:[3,3], alpha:.45});
+    line(u,  e0, {color:C.purple, w:1, dash:[3,3], alpha:.45});
+    arrow(o0, e0, {color:C.purple, w:2.9, headScale:.95});
+    let tick=vcross(A,camD);
+    if(vlen(tick)<1e-6) tick=vcross(A,pt(0,0,1));
+    tick=vmul(vnorm(tick), .075);
+    line(vsub(e0,tick), vadd(e0,tick), {color:C.purple, w:2.6});
+    text(vmul(vadd(o0,e0),.5), '@{e_A}',
+      {color:C.purple, size:15, bold:true, align:'center', dy:-13});
+    text(vadd(e0, vmul(vnorm(off),.10)), '长度 = 1',
+      {color:C.purple, size:11.5, align:'center', dy:13});
+  }
+}
+
+/* =====================================================
+ * 模式二：矢量的加减运算
+ * ===================================================== */
+function sceneAlg(){
+  const O=pt(0,0,0);
+  const A=state.A, B=state.B;
+  const sub = state.op==='sub';
+  const Bv  = sub ? vmul(B,-1) : B;
+  const S   = vadd(A,Bv);
+  const sumC = sub ? C.orange : C.green;
+
+  if(state.law==='para'){
+    /* 平行四边形法则：四条边 + 半透明填充 */
+    poly([O,A,S,Bv],{fill:sumC,fillAlpha:.08,stroke:sumC,strokeAlpha:.4,w:1.3,dash:[6,4]});
+    line(A,S,{color:C.blue,w:1.6,dash:[5,4],alpha:.7});
+    line(Bv,S,{color:C.crimson,w:1.6,dash:[5,4],alpha:.7});
+  }else{
+    /* 三角形法则：把第二个矢量平移到第一个矢量的末端（首尾相接） */
+    arrow(A,S,{color:sub?'#7FB6D0':C.blue,w:2.2,alpha:.85,headScale:.9,dash:[6,4],
+      label:sub?'−@{B}':'@{B}', ldy:-12, lsize:13});
+  }
+
+  /* 减法：额外画出从原点出发的 −B，强调 A − B = A + (−B) */
+  if(sub){
+    arrow(O,Bv,{color:C.blue,w:2.2,alpha:.5,headScale:.9,dash:[6,4]});
+    text(vmul(Bv,.62),'−@{B}',{color:C.blue,size:13,bold:true,dx:-38,dy:6,align:'left'});
+  }
+
+  arrow(O,A,{color:C.crimson,w:3.3,headScale:1.1});
+  arrow(O,B,{color:C.blue,w:3.3,headScale:1.1});
+  arrow(O,S,{color:sumC,w:3.8,headScale:1.2});
+
+  text(vmul(A,.52),'@{A}',{color:C.crimson,size:16,bold:true,align:'right',dx:-12,dy:-8});
+  text(vmul(B,.52),'@{B}',{color:C.blue,size:16,bold:true,dx:12,dy:-8});
+  text(vmul(S,.46), sub?'@{A} − @{B}':'@{A} + @{B}',
+    {color:sumC, size:16, bold:true, dx:14, dy:14});
+
+  marker(A,{color:C.crimson,r:5.5,ring:'rgba(208,74,58,.3)',label:'A',ldx:12,ldy:15,lsize:12.5});
+  marker(B,{color:C.blue,r:5.5,ring:'rgba(15,158,213,.3)', label:'B',ldx:12,ldy:15,lsize:12.5});
+  marker(S,{color:sumC,r:5,ring:'rgba(62,155,79,.3)',
+    label:sub?'A−B':'A+B', ldx:12, ldy:-13, lsize:12.5});
+}
+
+function buildScene(){
+  prims=[];
+  drawGridAndAxes();
+  if(state.mode==='dir') sceneDir(); else sceneAlg();
+}
+
+/* ---------------- 视角提示 ----------------
+   矢量方向与视线夹角过小时，它在屏幕上会缩成一个点、方向角也看不清。
+   这是正交投影的固有现象，检测到就给个明确提醒，免得学生误以为图坏了。 */
+function roundRectPath(c,x,y,w,h,r){
+  c.beginPath();
+  c.moveTo(x+r,y); c.arcTo(x+w,y,x+w,y+h,r); c.arcTo(x+w,y+h,x,y+h,r);
+  c.arcTo(x,y+h,x,y,r); c.arcTo(x,y,x+w,y,r); c.closePath();
+}
+function drawViewTip(){
+  const v = state.mode==='dir' ? state.A
+          : vadd(state.A, state.op==='sub'?vmul(state.B,-1):state.B);
+  const L=vlen(v); if(L<1e-6) return;
+  if(Math.abs(vdot(v,camD))/L < 0.94) return;      /* 夹角 > 20° 不提示 */
+  const nm = state.mode==='dir' ? '@{A}' : (state.op==='sub' ? '@{A}−@{B}' : '@{A}+@{B}');
+  ctx.save();
+  ctx.font='13px '+RICHFONT;
+  const lo=richLayout(ctx, parseRich(nm+' 几乎正对视线，请拖动旋转视角'), 13, false);
+  /* by=46：让开左上角 HTML 层的 modeTag（top:12 + 高约 26），否则提示条会被它盖住看不见 */
+  const bx=12, by=46, padX=12, padY=7;
+  const bw=lo.w+padX*2, bh=30;
+  ctx.fillStyle='rgba(255,248,236,.96)'; ctx.strokeStyle='#E7C48F'; ctx.lineWidth=1;
+  roundRectPath(ctx,bx,by,bw,bh,7); ctx.fill(); ctx.stroke();
+  richDraw(ctx, lo, bx+padX, by+bh/2, 'left', '#8A5A20');
+  ctx.restore();
+}
+
+/* ---------------- 渲染循环 ---------------- */
+let needsRender=true;
+function draw(){
+  setupCamera();
+  ctx.clearRect(0,0,W,H);
+  buildScene();
+  prims.sort((a,b)=>a.z-b.z);
+  for(const p of prims) p.draw(ctx);
+  drawViewTip();
+  needsRender=false;
+}
+function tick(){
+  if(state.autoRotate){ cam.az+=0.0045; needsRender=true; }
+  if(needsRender) draw();
+  requestAnimationFrame(tick);
+}
+/* ---------------- 全局刷新 ----------------
+   本页（1.2 矢量代数）是「HTML 面板 + Canvas 场景」混合结构，
+   画布用 needsRender 标志驱动 tick 重绘，没有 index.html 那个 updateAll。
+   chip / tab / preset 等交互统一走这里：置重绘标志 + 同步滑块 + 刷新读数。
+   （注意：这 5 处调用原先直接写 updateAll()，但本页从未定义过该函数，
+     点击时会抛 ReferenceError 中断 handler —— 必须补上定义。） */
+function updateAll(){
+  needsRender=true;
+  if(typeof syncSliders==='function') syncSliders();
+  if(typeof updateReadout==='function') updateReadout();
+  if(typeof updateModeTag==='function') updateModeTag();
+}
+/* ---------------- 面板渲染 ---------------- */
+const panel=document.getElementById('panel');
+function h(html){ const d=document.createElement('div'); d.innerHTML=html; return d; }
+
+const SL_DIR=[
+  {k:'r',  label:'|@{A}|', min:.25, max:1.55, step:.01, dec:2},
+  {k:'th', label:'θ',      min:3,   max:177,  step:1,   dec:0, unit:'°'},
+  {k:'ph', label:'φ',      min:0,   max:360,  step:1,   dec:0, unit:'°'},
+];
+const SL_ALG=[
+  {k:'ax',label:'A_x',min:-1.2,max:1.4,step:.01,dec:2},
+  {k:'ay',label:'A_y',min:-1.2,max:1.4,step:.01,dec:2},
+  {k:'az',label:'A_z',min:-1.2,max:1.4,step:.01,dec:2},
+  {k:'bx',label:'B_x',min:-1.2,max:1.4,step:.01,dec:2},
+  {k:'by',label:'B_y',min:-1.2,max:1.4,step:.01,dec:2},
+  {k:'bz',label:'B_z',min:-1.2,max:1.4,step:.01,dec:2},
+];
+function fmtV(v,d){ return v.toFixed(d.dec)+(d.unit||''); }
+
+function renderPanel(){
+  /* 保留 toggleSec（实时数据显示开关）—— 重建会让 checkbox DOM 节点换新，
+     任何 onclick/onchange handler 都得重新绑才生效，不可靠；
+     改为只移除另外三个 sec，toggleSec 永久挂在 panel 最前面复用 */
+  ['subSec','sliderSec','explainSec'].forEach(id=>{ const el=document.getElementById(id); if(el) el.remove(); });
+  /* 注意：必须用真实元素承载 id —— 若用 h() 的外层包装 div，
+     后续 sec.innerHTML='' 会把带 id 的内层 div 一起清掉，导致样式与查询全部失效 */
+  const mk=id=>{ const d=document.createElement('div'); d.className='panel-sec'; d.id=id; return d; };
+  let togsec=document.getElementById('toggleSec');
+  if(!togsec){
+    togsec=mk('toggleSec');
+    togsec.appendChild(h('<label class="readout-toggle"><input type="checkbox" id="showReadoutCb"'+
+      (state.showReadout?' checked':'')+'><span>在<b>画布下方</b>显示<b>实时数据</b>条（关闭后画布不留读数）</span></label>'));
+    togsec.querySelector('#showReadoutCb').onchange=e=>{ state.showReadout=e.target.checked; updateReadout(); };
+    panel.appendChild(togsec);
+  }else{
+    /* toggleSec 已挂上：只同步 checkbox 的 checked 状态（不开新 handler，避免事件丢失） */
+    togsec.querySelector('#showReadoutCb').checked = state.showReadout;
+  }
+  const subsec=mk('subSec'), ssec=mk('sliderSec'), esec=mk('explainSec');
+  panel.appendChild(subsec); panel.appendChild(ssec); panel.appendChild(esec);
+  renderSubSec(subsec);
+  renderSliders(ssec);
+  renderExplain(esec);
+  updateReadout();
+  updateModeTag();
+}
+
+/* ---- 子选项（显示开关 / 运算切换 / 典型情形） ---- */
+function renderSubSec(sec){
+  sec.innerHTML='';
+  if(state.mode==='dir'){
+    sec.appendChild(h('<div class="sec-title">图中显示哪些内容</div>'));
+    const w1=h('<div class="sub-chips"></div>').firstChild; sec.appendChild(w1);
+    [['comp','三个分量 A_x A_y A_z'],['ang','方向角 α β γ'],
+     ['ea','方向单位矢量 @{e_A}'],['aux','投影辅助线']].forEach(([k,nm])=>{
+      const b=document.createElement('button');
+      b.className='chip'+(state.show[k]?' on':'');
+      b.innerHTML=richHTML(nm);
+      b.onclick=()=>{ state.show[k]=!state.show[k]; renderPanel(); updateAll(); };
+      w1.appendChild(b);
+    });
+    sec.appendChild(h('<div class="sec-title" style="margin-top:14px">典型情形（一键切换）</div>'));
+    const w2=h('<div class="sub-chips"></div>').firstChild; sec.appendChild(w2);
+    [['iso','等方向角 α=β=γ≈54.7°'],['xoy','在 xoy 面内（γ=90°）'],
+     ['yoz','在 yoz 面内（α=90°）'],['xoz','在 xoz 面内（β=90°）']].forEach(([k,nm])=>{
+      const b=document.createElement('button');
+      b.className='chip pre'; b.innerHTML=richHTML(nm);
+      b.onclick=()=>{ applyPreset(k); };
+      w2.appendChild(b);
+    });
+  }else{
+    sec.appendChild(h('<div class="sec-title">选择运算</div>'));
+    const w1=h('<div class="sub-chips"></div>').firstChild; sec.appendChild(w1);
+    [['add','加法 @{A} + @{B}','op'],['sub','减法 @{A} − @{B}','op2']].forEach(([k,nm,cls])=>{
+      const b=document.createElement('button');
+      b.className='chip '+cls+(state.op===k?' on':'');
+      b.innerHTML=richHTML(nm);
+      b.onclick=()=>{ state.op=k; renderPanel(); updateAll(); };
+      w1.appendChild(b);
+    });
+    sec.appendChild(h('<div class="sec-title" style="margin-top:14px">选择几何画法</div>'));
+    const w2=h('<div class="sub-chips"></div>').firstChild; sec.appendChild(w2);
+    [['para','平行四边形法则'],['tri','三角形法则']].forEach(([k,nm])=>{
+      const b=document.createElement('button');
+      b.className='chip'+(state.law===k?' on':'');
+      b.textContent=nm;
+      b.onclick=()=>{ state.law=k; renderPanel(); updateAll(); };
+      w2.appendChild(b);
+    });
+    sec.appendChild(h('<div class="sec-title" style="margin-top:14px">典型情形（一键切换）</div>'));
+    const w3=h('<div class="sub-chips"></div>').firstChild; sec.appendChild(w3);
+    [['perp','@{A} ⟂ @{B}（勾股定理）'],['same','@{A} 与 @{B} 同向'],['opp','@{A} 与 @{B} 反向']]
+      .forEach(([k,nm])=>{
+        const b=document.createElement('button');
+        b.className='chip pre'; b.innerHTML=richHTML(nm);
+        b.onclick=()=>{ applyPreset(k); };
+        w3.appendChild(b);
+      });
+  }
+}
+function applyPreset(k){
+  if(state.mode==='dir'){
+    const s=cartToSph(state.A), r=Math.min(1.55,Math.max(.4,s.r));
+    if(k==='iso') state.A=sphToCart(r,54.7356,45);
+    if(k==='xoy') state.A=sphToCart(r,90,s.phi);
+    if(k==='yoz') state.A=sphToCart(r,s.theta,90);
+    if(k==='xoz') state.A=sphToCart(r,s.theta,0);
+  }else{
+    if(k==='perp'){ state.A={x:.95,y:.20,z:.35}; state.B={x:-.15,y:.85,z:.62}; }
+    if(k==='same'){ state.A={x:.55,y:.45,z:.50}; state.B={x:.95,y:.78,z:.86}; }
+    if(k==='opp') { state.A={x:.85,y:.55,z:.60}; state.B={x:-.62,y:-.40,z:-.44}; }
+  }
+  renderPanel();
+  updateAll();
+}
+
+/* ---- 滑块 ---- */
+function sliderRow(d,v){
+  const row=h('<div class="slider-row w"><label></label><input type="range"><span class="val"></span></div>');
+  row.querySelector('label').innerHTML=richHTML(d.label);
+  const inp=row.querySelector('input');
+  inp.min=d.min; inp.max=d.max; inp.step=d.step; inp.value=v; inp.dataset.k=d.k;
+  row.querySelector('.val').textContent=fmtV(v,d);
+  inp.oninput=()=>{ onSlider(d.k, +inp.value); };
+  return row;
+}
+function renderSliders(sec){
+  sec.innerHTML='';
+  if(state.mode==='dir'){
+    sec.appendChild(h('<div class="sec-title">调整 A 矢量（方向 / 长度）</div>'));
+    const s=cartToSph(state.A);
+    SL_DIR.forEach(d=>{
+      sec.appendChild(sliderRow(d, d.k==='r'?s.r : d.k==='th'?s.theta : s.phi));
+    });
+    sec.appendChild(h('<div style="font-size:11.5px;color:#8CA0AC;line-height:1.7;margin-top:2px">'
+      +'<i style="font-family:Georgia,serif">θ</i>：与 +z 轴的夹角　<i style="font-family:Georgia,serif">φ</i>：在 xoy 面内的方位角<br>'
+      +'改 θ、φ → 只变<b style="color:#156082">方向</b>（α β γ 跟着变）；改 |<span class="vec">A</span>| → 只变<b style="color:#156082">长度</b>（α β γ 不变）</div>'));
+  }else{
+    sec.appendChild(h('<div class="sec-title">调整 A 与 B 的分量</div>'));
+    sec.appendChild(h('<div class="slider-group-label">'+richHTML('@{A}')+' 的三个分量</div>'));
+    SL_ALG.slice(0,3).forEach(d=>sec.appendChild(sliderRow(d, state.A[d.k[1]])));
+    sec.appendChild(h('<div class="slider-group-label q">'+richHTML('@{B}')+' 的三个分量</div>'));
+    SL_ALG.slice(3).forEach(d=>sec.appendChild(sliderRow(d, state.B[d.k[1]])));
+  }
+}
+function onSlider(k,v){
+  if(state.mode==='dir'){
+    const s=cartToSph(state.A);
+    const r  = k==='r' ?v:s.r, th = k==='th'?v:s.theta, ph = k==='ph'?v:s.phi;
+    state.A=sphToCart(r,th,ph);
+  }else{
+    // k 形如 'ax' / 'bz'：k[0] 决定是 A 还是 B，k[1] 决定哪个分量
+    if(k[0]==='a') state.A[k[1]]=v;
+    else           state.B[k[1]]=v;
+  }
+  needsRender=true; syncSliders(); updateReadout();
+}
+function syncSliders(){
+  const defs = state.mode==='dir'?SL_DIR:SL_ALG;
+  document.querySelectorAll('#sliderSec input[type=range]').forEach(inp=>{
+    const k=inp.dataset.k, d=defs.find(x=>x.k===k); if(!d) return;
+    let v;
+    if(state.mode==='dir'){
+      const s=cartToSph(state.A);
+      v = k==='r'?s.r : k==='th'?s.theta : s.phi;
+    }else{
+      const o = k[0]==='a' ? state.A : state.B;
+      v = o[k[1]];
+    }
+    inp.value=v;
+    const row=inp.closest('.slider-row');
+    if(row) row.querySelector('.val').textContent=fmtV(v,d);
+  });
+}
+
+/* ---- 实时读数 ---- */
+function kchip(label,val,acc){
+  return '<div class="coord-chip'+(acc?' acc':'')+'">'+richHTML(label)+'<b>'+val+'</b></div>';
+}
+const f2=v=>v.toFixed(2), f3=v=>v.toFixed(3);
+function vstr(p){ return '('+f2(p.x)+', '+f2(p.y)+', '+f2(p.z)+')'; }
+
+function updateReadout(){
+  const strip=document.getElementById('coordStrip');
+  if(!strip) return;
+  /* 关闭时清空（CSS 用 :empty 去掉占位边框与内边距，画布区域自动变大） */
+  if(!state.showReadout){ strip.innerHTML=''; return; }
+  if(state.mode==='dir'){
+    const A=state.A, L=vlen(A)||1e-9;
+    const ca=A.x/L, cb=A.y/L, cc=A.z/L;
+    const al=Math.acos(Math.max(-1,Math.min(1,ca)))*R2D;
+    const be=Math.acos(Math.max(-1,Math.min(1,cb)))*R2D;
+    const ga=Math.acos(Math.max(-1,Math.min(1,cc)))*R2D;
+    const sum=ca*ca+cb*cb+cc*cc;
+    strip.innerHTML =
+      kchip('@{A} =', vstr(A)) +
+      kchip('|@{A}| =', f3(L)) +
+      kchip('α =', al.toFixed(1)+'°') + kchip('β =', be.toFixed(1)+'°') + kchip('γ =', ga.toFixed(1)+'°') +
+      kchip('cosα, cosβ, cosγ =', f3(ca)+', '+f3(cb)+', '+f3(cc), true) +
+      kchip('cos²α+cos²β+cos²γ =', f3(sum), true);
+  }else{
+    const A=state.A, B=state.B, sub=state.op==='sub';
+    const S=sub?vsub(A,B):vadd(A,B);
+    strip.innerHTML =
+      kchip('@{A} =', vstr(A)) + kchip('@{B} =', vstr(B)) +
+      kchip(sub?'@{A} − @{B} =':'@{A} + @{B} =', vstr(S), true) +
+      kchip('|@{A}| =', f3(vlen(A))) + kchip('|@{B}| =', f3(vlen(B))) +
+      kchip(sub?'|@{A} − @{B}| =':'|@{A} + @{B}| =', f3(vlen(S)), true);
+  }
+}
+
+/* ---- 教学解读 ---- */
+function renderExplain(sec){
+  sec.innerHTML='<div class="sec-title">公式与解读</div>';
+  if(state.mode==='dir'){
+    /* dir 模式：4 张卡片切换显示，避免一页内容字又小又多 */
+    const cards=[
+      {k:'1', tab:'1. 直角分量', cls:'c1', body:
+        '<b>直角坐标系中的分量表示</b>'+
+        '<span class="frm">'+richHTML('@{A} = @{e_x}A_x + @{e_y}A_y + @{e_z}A_z')+'</span>'+
+        '<span class="frm">'+richHTML('|@{A}| = √(A_x² + A_y² + A_z²)')+'</span>'},
+      {k:'2', tab:'2. 方向角', cls:'c2', body:
+        '<b>方向角（图中三段彩色弧）</b>'+
+        '<ul>'+
+          '<li>α、β、γ 是 <span class="vec">A</span> 与 +x、+y、+z 三个<b>正方向</b>的夹角，取值 0°~180°</li>'+
+          '<li>弧线与坐标轴<b>同色</b>：α↔x（青）、β↔y（橙）、γ↔z（绿），一眼看出谁对谁</li>'+
+        '</ul>'},
+      {k:'3', tab:'3. 方向余弦', cls:'c3', body:
+        '<b>方向余弦</b>'+
+        '<span class="frm">'+richHTML('cos α = A_x/|@{A}| ,  cos β = A_y/|@{A}| ,  cos γ = A_z/|@{A}|')+'</span>'+
+        '<span class="frm">'+richHTML('cos²α + cos²β + cos²γ = 1')+'</span>'},
+      {k:'4', tab:'4. 单位矢量', cls:'c4', body:
+        '<b>方向单位矢量</b>'+
+        '<span class="frm">'+richHTML('@{e_A} = @{A}/|@{A}| = @{e_x}cosα + @{e_y}cosβ + @{e_z}cosγ')+'</span>'+
+        '紫色箭头 <span class="vec">e<sub>A</sub></span> 的<b>长度恒为 1</b>（对照三条轴上距离原点 1 处的十字刻线），方向与 <span class="vec">A</span> 完全相同——它只描述"朝哪儿"，不描述"多长"。'+
+        '<div class="tips" style="background:#F5F0FA;border-color:#E2D4F0"><div class="tt" style="color:#7B5296">🔍 为什么 e<sub>A</sub> 要画在 A 的旁边？</div>'+
+        '<ul style="color:#6B4E8A">'+
+        '<li><span class="vec">e<sub>A</sub></span> 与 <span class="vec">A</span> <b>严格共线</b>，若重叠绘制，短的那个会被完全盖住</li>'+
+        '<li>所以把它沿垂直方向<b>平移</b>一小段（两条点线标出了平移关系），方向与 <span class="vec">A</span> 完全相同</li>'+
+        '<li>它末端短横刻线处，恰好对应 <span class="vec">A</span> 上"长度 = 1"的那一点</li></ul></div>'},
+    ];
+    /* state.cardTab 越界时夹回 */
+    if(!cards.find(c=>c.k===state.cardTab)) state.cardTab='1';
+    const cur = cards.find(c=>c.k===state.cardTab);
+    sec.appendChild(h(
+      '<div class="ex-title">矢量的表示 · 方向角 · 方向单位矢量</div>'+
+      '<div class="card-tabs">'+
+        cards.map(c=>'<button class="card-tab '+c.cls+(c.k===state.cardTab?' on':'')+'" data-k="'+c.k+'">'+c.tab+'</button>').join('')+
+      '</div>'+
+      '<div class="card-body '+cur.cls+'">'+cur.body+'</div>'+
+      '<div class="tips"><div class="tt">💡 动手试试</div><ul>'+
+        '<li>拖动图中<b>红色端点</b>：A 点移动 → <span class="vec">A</span> 的方向与模值<b>同时</b>改变</li>'+
+        '<li>拖 θ / φ 滑块：只改方向，α、β、γ 随之改变，模值不变</li>'+
+        '<li>拖 |<span class="vec">A</span>| 滑块：只改长度，三个方向角<b>纹丝不动</b></li>'+
+      '</ul></div>'));
+    /* 切换卡片只刷新面板，不影响画布 */
+    sec.querySelectorAll('.card-tab').forEach(b=>{
+      b.onclick=()=>{ state.cardTab=b.dataset.k; renderPanel(); };
+    });
+  }else if(state.op==='add'){
+    sec.appendChild(h(
+      '<div class="ex-title">矢量的加法'+(state.law==='para'?'（平行四边形法则）':'（三角形法则）')+'</div>'+
+      '<div class="ex-body">'+
+        '<b>1. 分量相加（最可靠的算法）</b>'+
+        '<span class="frm">'+richHTML('@{A} + @{B} = @{e_x}(A_x+B_x) + @{e_y}(A_y+B_y) + @{e_z}(A_z+B_z)')+'</span>'+
+        '<b>2. 几何画法</b>'+
+        (state.law==='para'
+          ? '<ul><li>把 <span class="vec">A</span>、<span class="vec">B</span> 的起点放在一起，以两者为<b>邻边</b>作平行四边形</li>'+
+            '<li>从公共起点出发的<b>对角线</b>（绿色粗箭头）就是 <span class="vec">A</span>+<span class="vec">B</span></li></ul>'
+          : '<ul><li>把 <span class="vec">B</span> <b>平移</b>到 <span class="vec">A</span> 的末端（首尾相接，图中蓝色虚线）</li>'+
+            '<li>从 <span class="vec">A</span> 的起点指向 <span class="vec">B</span> 终点的箭头（绿色粗箭头）就是 <span class="vec">A</span>+<span class="vec">B</span></li></ul>')+
+        '<span class="frm">'+richHTML('|@{A} + @{B}| = √((A_x+B_x)² + (A_y+B_y)² + (A_z+B_z)²)')+'</span>'+
+        '<div class="tips"><div class="tt">💡 动手试试</div><ul>'+
+          '<li>拖动红色 A 端点或蓝色 B 端点：和矢量<b>实时</b>跟着变</li>'+
+          '<li>让 A、B 同向 → |<span class="vec">A</span>+<span class="vec">B</span>| = |<span class="vec">A</span>|+|<span class="vec">B</span>|</li>'+
+          '<li>让 A ⟂ B → 满足<b>勾股定理</b> |<span class="vec">A</span>+<span class="vec">B</span>|² = |<span class="vec">A</span>|²+|<span class="vec">B</span>|²</li>'+
+        '</ul></div>'+
+      '</div>'));
+  }else{
+    sec.appendChild(h(
+      '<div class="ex-title">矢量的减法'+(state.law==='para'?'（平行四边形法则）':'（三角形法则）')+'</div>'+
+      '<div class="ex-body">'+
+        '<b>1. 减法就是加上"反向矢量"</b>'+
+        '<span class="frm">'+richHTML('@{A} − @{B} = @{A} + (−@{B})')+'</span>'+
+        '<span class="frm">'+richHTML('@{A} − @{B} = @{e_x}(A_x−B_x) + @{e_y}(A_y−B_y) + @{e_z}(A_z−B_z)')+'</span>'+
+        '<b>2. 几何画法</b>'+
+        (state.law==='para'
+          ? '<ul><li>先作 −<span class="vec">B</span>（图中从原点出发的<b>蓝色虚线</b>，与 <span class="vec">B</span> 等长反向）</li>'+
+            '<li>以 <span class="vec">A</span> 与 −<span class="vec">B</span> 为邻边作平行四边形，对角线即 <span class="vec">A</span>−<span class="vec">B</span>（橙色粗箭头）</li></ul>'
+          : '<ul><li>先作 −<span class="vec">B</span>（蓝色虚线），再把它平移到 <span class="vec">A</span> 的末端</li>'+
+            '<li>从 <span class="vec">A</span> 起点指向末端的箭头即 <span class="vec">A</span>−<span class="vec">B</span>（橙色粗箭头）</li></ul>')+
+        '<span class="frm">'+richHTML('|@{A} − @{B}| = √((A_x−B_x)² + (A_y−B_y)² + (A_z−B_z)²)')+'</span>'+
+        '<div class="tips"><div class="tt">💡 教学要点</div><ul>'+
+          '<li><span class="vec">A</span>−<span class="vec">B</span> 的几何意义：<b>从 B 的终点指向 A 的终点</b>的矢量</li>'+
+          '<li>它正是 1.1 节讲过的<b>距离矢量</b> <span class="vec">R</span><sub>12</sub> = <span class="vec">r</span><sub>2</sub> − <span class="vec">r</span><sub>1</sub></li>'+
+          '<li>|<span class="vec">A</span>−<span class="vec">B</span>| 就是 A、B 两个端点之间的<b>距离</b></li>'+
+        '</ul></div>'+
+      '</div>'));
+  }
+}
+
+/* ---------------- 模式标签 ---------------- */
+function updateModeTag(){
+  const tag=document.getElementById('modeTag');
+  if(state.mode==='dir'){
+    tag.textContent='矢量的表示 · 方向角 α β γ · 方向单位矢量 e_A';
+  }else{
+    tag.innerHTML=richHTML(state.op==='add'?'@{A} + @{B}':'@{A} − @{B}')
+      +'　（'+(state.law==='para'?'平行四边形法则':'三角形法则')+'）';
+  }
+}
+/* ---------------- 导航 ---------------- */
+function buildNav(){
+  const nav=document.getElementById('nav');
+  NAV.forEach(ch=>{
+    nav.appendChild(h('<div class="nav-ch">'+ch.ch+'</div>'));
+    ch.items.forEach(it=>{
+      /* 已完成的节一律渲染成真链接 <a href>，支持中键新开 / 右键复制链接；
+         未完成的节渲染成 <a> 但不带 href，点击给"建设中"提示 */
+      const cls='nav-item'+(it.active?' active':'')+(it.ready?'':' soon');
+      const el=h('<a class="'+cls+'" '+(it.href?'href="'+it.href+'"':'')+'><span class="dot"></span>'+it.t+'</a>');
+      if(!it.ready) el.onclick=e=>{ e.preventDefault(); toast('「'+it.t+'」正在建设中，敬请期待'); };
+      nav.appendChild(el);
+    });
+  });
+}
+function toast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('show');
+  clearTimeout(t._tm); t._tm=setTimeout(()=>t.classList.remove('show'),2200);
+}
+
+/* ---------------- 拖拽把手（矢量端点） ---------------- */
+function handleList(){
+  if(state.mode==='dir') return [{k:'A',p:state.A}];
+  const hs=[{k:'A',p:state.A},{k:'B',p:state.B}];
+  if(state.op==='sub') hs.push({k:'mB',p:vmul(state.B,-1)});
+  return hs;
+}
+function pickHandle(mx,my){
+  let best=null, bd=1e9;
+  for(const hd of handleList()){
+    /* 鼠标坐标与 pr() 结果都在"含平移"的屏幕坐标系里，直接比较即可，不要再还原平移 */
+    const s=pr(hd.p);
+    const d=Math.hypot(s.x-mx, s.y-my);
+    if(d<20 && d<bd){ bd=d; best=hd; }
+  }
+  return best?best.k:null;
+}
+function clampP(p){
+  if(state.mode==='dir'){
+    const s=cartToSph(p);
+    const r =Math.min(1.55,Math.max(.25,s.r));
+    const th=Math.min(177,  Math.max(3,  s.theta));
+    return sphToCart(r,th,s.phi);
+  }
+  const c=q=>Math.min(1.4,Math.max(-1.2,q));
+  return pt(c(p.x),c(p.y),c(p.z));
+}
+function applyDrag(kind,dw){
+  if(kind==='A')       state.A = clampP(vadd(state.A,dw));
+  else if(kind==='B')  state.B = clampP(vadd(state.B,dw));
+  else if(kind==='mB') state.B = clampP(vmul(vadd(vmul(state.B,-1),dw),-1));
+}
+
+/* ---------------- 交互事件 ---------------- */
+function bindEvents(){
+  document.getElementById('modeTabs').addEventListener('click',e=>{
+    const b=e.target.closest('button'); if(!b) return;
+    state.mode=b.dataset.mode;
+    document.querySelectorAll('#modeTabs button').forEach(x=>x.classList.toggle('on',x===b));
+    renderPanel(); updateAll();
+  });
+  let drag=null, panning=false, lx=0, ly=0;
+  const localPos=e=>{ const r=canvas.getBoundingClientRect(); return {x:e.clientX-r.left, y:e.clientY-r.top}; };
+  canvas.addEventListener('contextmenu',e=>e.preventDefault());  // 右键留给平移，不弹系统菜单
+  canvas.addEventListener('pointerdown',e=>{
+    lx=e.clientX; ly=e.clientY;
+    canvas.setPointerCapture(e.pointerId);
+    /* 右键 = 平移画面（把任意一点拖到画面任意位置）；左键落在控制点上 = 拖控制点，否则旋转视角 */
+    if(e.button===2){ panning=true; drag=null; canvas.style.cursor='move'; return; }
+    const q=localPos(e);
+    const k=pickHandle(q.x,q.y);
+    drag = k ? {kind:k} : {kind:'cam'};
+    canvas.style.cursor = k ? '' : 'grabbing';
+  });
+  canvas.addEventListener('pointermove',e=>{
+    if(panning){
+      cam.px += e.clientX-lx; cam.py += e.clientY-ly;
+      lx=e.clientX; ly=e.clientY; needsRender=true; updatePanTag(); return;
+    }
+    const q=localPos(e);
+    if(!drag){
+      canvas.classList.toggle('over-pt', !!pickHandle(q.x,q.y));
+      return;
+    }
+    const dx=e.clientX-lx, dy=e.clientY-ly;
+    lx=e.clientX; ly=e.clientY;
+    if(drag.kind==='cam'){
+      cam.az -= dx*0.008;
+      cam.el = Math.max(-1.25, Math.min(1.45, cam.el - dy*0.006));
+      needsRender=true;
+    }else{
+      const dw = vadd(vmul(camU, dx/camScale), vmul(camV, -dy/camScale));
+      applyDrag(drag.kind, dw);
+      needsRender=true; syncSliders(); updateReadout();
+    }
+  });
+  const endDrag=()=>{ drag=null; panning=false; canvas.style.cursor=''; };
+  canvas.addEventListener('pointerup',endDrag);
+  canvas.addEventListener('pointercancel',endDrag);
+  canvas.addEventListener('wheel',e=>{
+    e.preventDefault();
+    cam.zoom=Math.max(.45,Math.min(2.6,cam.zoom*Math.exp(-e.deltaY*0.0012)));
+    needsRender=true;
+  },{passive:false});
+  document.getElementById('btnReset').onclick=()=>{
+    cam.az=.62; cam.el=.52; cam.zoom=1; cam.px=0; cam.py=0;
+    needsRender=true; updatePanTag();
+  };
+  document.getElementById('btnPanReset').onclick=()=>{ cam.px=0; cam.py=0; needsRender=true; updatePanTag(); };
+  const br=document.getElementById('btnRotate');
+  br.onclick=()=>{ state.autoRotate=!state.autoRotate; br.classList.toggle('on',state.autoRotate); };
+  window.addEventListener('resize',resize);
+  /* 侧栏折叠时画布宽度是连续变化的（CSS 过渡动画），用 ResizeObserver 跟随重绘 */
+  if(window.ResizeObserver) new ResizeObserver(()=>resize()).observe(canvas);
+  // 侧栏折叠：header 按钮 + 画布边缘手柄 + 快捷键 [ ]
+  setupFolding();
+}
+function resize(){
+  const r=canvas.getBoundingClientRect();
+  const nw=Math.max(300,Math.round(r.width)), nh=Math.max(260,Math.round(r.height));
+  if(nw===W && nh===H) return;   // 尺寸没变就别做无用功（ResizeObserver 触发很频繁）
+  W=nw; H=nh;
+  DPR=window.devicePixelRatio||1;
+  canvas.width=W*DPR; canvas.height=H*DPR;
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+  needsRender=true;
+}
+
+/* ---------------- 画面平移提示条 ---------------- */
+function updatePanTag(){
+  const t=document.getElementById('panTag'); if(!t) return;
+  t.classList.toggle('show', Math.abs(cam.px)>2 || Math.abs(cam.py)>2);
+}
+
+/* ---------------- 侧栏折叠（课堂投影用） ---------------- */
+function setupFolding(){
+  const KEY='emviz.fold';
+  let fold={nav:false, panel:false};
+  try{ const s=JSON.parse(localStorage.getItem(KEY)||'{}'); if(s) fold=Object.assign(fold,s); }catch(_){}
+  const bNav=document.getElementById('tglNav'), bPan=document.getElementById('tglPanel');
+  const hNav=document.getElementById('foldNav'), hPan=document.getElementById('foldPanel');
+
+  function apply(){
+    document.body.classList.toggle('nav-off',   fold.nav);
+    document.body.classList.toggle('panel-off', fold.panel);
+    bNav.classList.toggle('on', !fold.nav);
+    bPan.classList.toggle('on', !fold.panel);
+    /* 手柄箭头：展开时指向"收起方向"，收起时指回"展开方向" */
+    hNav.textContent = fold.nav   ? '›' : '‹';
+    hPan.textContent = fold.panel ? '‹' : '›';
+    hNav.title = (fold.nav   ? '展开' : '折叠') + '左侧目录（快捷键 [ ）';
+    hPan.title = (fold.panel ? '展开' : '折叠') + '右侧面板（快捷键 ] ）';
+    try{ localStorage.setItem(KEY, JSON.stringify(fold)); }catch(_){}
+  }
+  const toggleNav  =()=>{ fold.nav  =!fold.nav;   apply(); };
+  const togglePanel=()=>{ fold.panel=!fold.panel; apply(); };
+  bNav.onclick=toggleNav;   bPan.onclick=togglePanel;
+  hNav.onclick=toggleNav;   hPan.onclick=togglePanel;
+  window.addEventListener('keydown',e=>{
+    const t=e.target;
+    if(t && (t.tagName==='INPUT'||t.tagName==='TEXTAREA')) return;
+    if(e.key==='[') toggleNav();
+    if(e.key===']') togglePanel();
+  });
+  apply();
+}
+
+/* ---------------- 启动 ---------------- */
+function init(){
+  const p=new URLSearchParams(location.search);
+  if(p.get('mode')==='alg') state.mode='alg';
+  if(p.get('op')==='sub')   state.op='sub';
+  if(p.get('law')==='tri')  state.law='tri';
+  /* show=comp,ang,ea,aux —— 课堂深链接：?show=comp,ang 直接进入"只讲分量 + 方向角"的状态。
+     不传该参数时保持默认（全部关闭，画面最干净）。 */
+  const sh=p.get('show');
+  if(sh!==null){
+    const on=sh.split(',');
+    ['comp','ang','ea','aux'].forEach(k=>{ state.show[k]=on.indexOf(k)>=0; });
+  }
+  document.querySelectorAll('#modeTabs button').forEach(x=>x.classList.toggle('on',x.dataset.mode===state.mode));
+  canvas=document.getElementById('cv');
+  ctx=canvas.getContext('2d');
+  buildNav();
+  renderPanel();
+  bindEvents();
+  resize();
+  tick();
+}
+init();
+</script>
+</body>
+</html>

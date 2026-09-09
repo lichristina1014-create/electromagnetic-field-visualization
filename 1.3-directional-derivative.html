@@ -1,0 +1,1654 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>1.3 标量场的方向导数与梯度 · 电磁场可视化平台</title>
+<style>
+:root{
+  --teal:#156082; --teal-dark:#0E4A66; --teal-light:#E3EFF4;
+  --orange:#E97132; --orange-light:#FDF0E7;
+  --green:#3E9B4F; --green-light:#EAF5EC;
+  --purple:#9B59B6; --crimson:#D04A3A; --blue:#0F9ED5;
+  --ink:#1F3D4C; --muted:#5F7482; --line:#DCE6EB; --bg:#F2F6F8;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{height:100%;}
+body{
+  font-family:"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  background:var(--bg); color:var(--ink); overflow:hidden;
+}
+header{
+  height:76px; background:#fff; border-bottom:1px solid var(--line);
+  display:flex; align-items:center; padding:0 22px; gap:14px;
+}
+.logo{
+  width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,var(--teal),#2E86AB);
+  display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:15px;
+  text-decoration:none;
+}
+header h1{font-size:18px;font-weight:700;letter-spacing:.5px;}
+header .sub{font-size:12px;color:var(--muted);margin-top:2px;}
+header .badge{margin-left:auto;display:flex;flex-direction:column;align-items:flex-end;gap:4px;}
+header .badge .chip{
+  font-size:12px;color:var(--teal);background:var(--teal-light);
+  border:1px solid #C5DEE9;padding:4px 12px;border-radius:20px;white-space:nowrap;
+}
+header .badge .owner{
+  font-size:11px;color:#5C6B73;background:#F4F7F9;
+  border:1px solid #E2E8EC;padding:3px 10px;border-radius:20px;white-space:nowrap;
+  display:inline-flex;align-items:center;gap:5px;
+}
+header .badge .owner b{color:var(--teal);font-weight:600;letter-spacing:.3px;}
+header .badge .owner::before{content:"";display:inline-block;width:5px;height:5px;background:var(--teal);border-radius:50%;}
+.layout{display:flex;height:calc(100vh - 76px);}
+aside{width:236px;background:#fff;border-right:1px solid var(--line);overflow-y:auto;padding:14px 0;flex-shrink:0;}
+aside::-webkit-scrollbar{width:6px;} aside::-webkit-scrollbar-thumb{background:#D5E0E6;border-radius:3px;}
+.nav-ch{font-size:12px;color:var(--muted);padding:12px 18px 6px;font-weight:600;letter-spacing:.5px;}
+.nav-item{
+  display:flex;align-items:center;gap:8px;padding:9px 18px;font-size:13.5px;cursor:pointer;
+  color:#3D5A68;border-left:3px solid transparent;transition:background .15s;text-decoration:none;
+}
+.nav-item:hover{background:#F5F9FB;}
+.nav-item.active{background:var(--teal-light);color:var(--teal-dark);font-weight:600;border-left-color:var(--teal);}
+.nav-item .dot{width:6px;height:6px;border-radius:50%;background:#C6D4DB;flex-shrink:0;}
+.nav-item.active .dot{background:var(--teal);}
+.nav-item.soon{color:#A5B6C0;cursor:not-allowed;}
+.nav-item.soon .dot{background:#E1E9ED;}
+.nav-item.soon::after{content:"建设中";font-size:10px;color:#B7C6CE;margin-left:auto;border:1px solid #DCE6EB;border-radius:8px;padding:1px 6px;}
+main{flex:1;display:flex;flex-direction:column;padding:14px 16px 12px;overflow:hidden;min-width:0;}
+.module-head{display:flex;align-items:center;gap:16px;margin-bottom:10px;flex-wrap:wrap;}
+.module-title{font-size:17px;font-weight:700;}
+.module-title small{font-weight:400;color:var(--muted);font-size:12px;margin-left:8px;}
+.seg{display:flex;background:#fff;border:1px solid var(--line);border-radius:10px;padding:3px;gap:2px;flex-wrap:wrap;}
+.seg button{
+  border:none;background:transparent;padding:7px 15px;font-size:13px;border-radius:8px;cursor:pointer;
+  color:var(--muted);font-family:inherit;transition:all .15s;white-space:nowrap;
+}
+.seg button:hover{color:var(--teal);}
+.seg button.on{background:var(--teal);color:#fff;font-weight:600;box-shadow:0 2px 6px rgba(21,96,130,.3);}
+.content-row{flex:1;display:flex;gap:14px;min-height:0;}
+.canvas-card{
+  flex:1;background:#fff;border:1px solid var(--line);border-radius:14px;
+  position:relative;overflow:hidden;min-width:0;display:flex;flex-direction:column;
+  box-shadow:0 1px 4px rgba(30,60,80,.05);
+}
+#cv{width:100%;flex:1;display:block;cursor:grab;touch-action:none;}
+#cv:active{cursor:grabbing;}
+#cv.over-pt{cursor:move;}
+.cv-toolbar{position:absolute;top:12px;right:12px;display:flex;gap:8px;z-index:5;}
+.cv-toolbar button{
+  border:1px solid var(--line);background:rgba(255,255,255,.92);border-radius:8px;
+  padding:5px 12px;font-size:12px;color:var(--muted);cursor:pointer;font-family:inherit;
+  backdrop-filter:blur(4px);transition:all .15s;
+}
+.cv-toolbar button:hover{color:var(--teal);border-color:var(--teal);}
+.cv-toolbar button.on{background:var(--teal);color:#fff;border-color:var(--teal);}
+.cv-mode-tag{
+  position:absolute;top:12px;left:12px;font-size:12px;color:var(--teal-dark);
+  background:rgba(227,239,244,.92);border:1px solid #C9E0EA;border-radius:8px;
+  padding:5px 12px;z-index:4;pointer-events:none;font-weight:600;max-width:56%;
+}
+aside,.panel{transition:width .22s ease, padding .22s ease, border-width .22s ease;}
+body.nav-off   aside {width:0;padding-top:0;padding-bottom:0;border-right-width:0;overflow:hidden;}
+body.panel-off .panel{width:0;border-left-width:0;border-right-width:0;overflow:hidden;}
+.fold-handle{
+  position:absolute;top:50%;transform:translateY(-50%);z-index:6;
+  width:15px;height:58px;padding:0;line-height:1;
+  border:1px solid var(--line);background:rgba(255,255,255,.94);
+  color:#A3B7C2;font-size:11px;cursor:pointer;font-family:inherit;
+  display:flex;align-items:center;justify-content:center;
+  backdrop-filter:blur(4px);transition:all .15s;
+}
+.fold-handle:hover{color:var(--teal);border-color:var(--teal);background:#fff;}
+#foldNav{left:0;border-left:none;border-radius:0 9px 9px 0;}
+#foldPanel{right:0;border-right:none;border-radius:9px 0 0 9px;}
+.view-toggles{display:flex;gap:6px;margin-right:6px;}
+.view-toggles button{
+  border:1px solid var(--line);background:#fff;border-radius:8px;padding:5px 11px;
+  font-size:12px;color:var(--muted);cursor:pointer;font-family:inherit;transition:all .15s;
+}
+.view-toggles button:hover{border-color:var(--teal);color:var(--teal);}
+.view-toggles button.on{background:var(--teal);color:#fff;border-color:var(--teal);}
+.cv-pan-tag{
+  position:absolute;top:12px;left:50%;transform:translateX(-50%);z-index:6;
+  font-size:11.5px;color:#8A5A20;background:rgba(255,248,236,.95);
+  border:1px solid #E7C48F;border-radius:8px;padding:5px 12px;
+  display:none;align-items:center;gap:8px;
+}
+.cv-pan-tag.show{display:flex;}
+.cv-pan-tag button{
+  border:1px solid #E0BE8C;background:#fff;border-radius:6px;padding:2px 9px;
+  font-size:11.5px;color:#8A5A20;cursor:pointer;font-family:inherit;
+}
+.cv-pan-tag button:hover{background:#8A5A20;color:#fff;border-color:#8A5A20;}
+/* 标量场色标（右下角图例） */
+.cv-legend{
+  position:absolute;bottom:14px;right:14px;z-index:5;
+  background:rgba(255,255,255,.94);border:1px solid var(--line);border-radius:9px;
+  padding:7px 11px 8px;font-size:11px;color:var(--muted);backdrop-filter:blur(4px);
+  pointer-events:none;min-width:132px;
+}
+.cv-legend .lg-t{font-size:11px;color:var(--ink);font-weight:600;margin-bottom:5px;}
+.cv-legend .lg-bar{height:9px;border-radius:5px;margin-bottom:3px;
+  background:linear-gradient(90deg,#2E6FB7,#4FA9C4,#7FC29B,#F2C14E,#E97132,#D04A3A);}
+.cv-legend .lg-sc{display:flex;justify-content:space-between;font-family:Menlo,monospace;font-size:10px;}
+.coord-strip{display:flex;gap:8px;padding:10px 12px;border-top:1px solid var(--line);background:#FBFDFE;flex-wrap:nowrap;overflow-x:auto;overflow-y:hidden;}
+.coord-strip::-webkit-scrollbar{height:5px;}
+.coord-strip::-webkit-scrollbar-thumb{background:#D5E0E6;border-radius:3px;}
+.coord-strip:empty{padding:0;border-top:none;}
+.coord-chip{font-size:12px;color:var(--muted);background:#F3F8FA;border:1px solid #E2ECF1;border-radius:8px;padding:5px 12px;white-space:nowrap;}
+.coord-chip b{color:var(--teal-dark);font-weight:600;margin-left:5px;font-family:Menlo,monospace;}
+.coord-chip i{font-style:italic;font-family:Georgia,serif;color:var(--ink);}
+.coord-chip.acc{background:#F5F0FA;border-color:#E2D4F0;}
+.coord-chip.acc b{color:#6B4E8A;}
+.coord-chip.warn{background:#FFF6EC;border-color:#F3DCC0;}
+.coord-chip.warn b{color:#B26A1E;}
+.panel{
+  width:378px;flex-shrink:0;background:#fff;border:1px solid var(--line);border-radius:14px;
+  display:flex;flex-direction:column;overflow-y:auto;box-shadow:0 1px 4px rgba(30,60,80,.05);
+}
+.panel::-webkit-scrollbar{width:6px;} .panel::-webkit-scrollbar-thumb{background:#D5E0E6;border-radius:3px;}
+.panel-sec{padding:14px 16px;border-bottom:1px solid #EEF3F6;}
+.panel-sec:last-child{border-bottom:none;}
+.readout-toggle{
+  display:flex;align-items:center;gap:8px;padding:8px 10px;margin-bottom:12px;
+  background:#F3F8FA;border:1px solid #E2ECF1;border-radius:8px;cursor:pointer;
+  font-size:12.5px;line-height:1.5;color:var(--muted);
+}
+.readout-toggle:hover{border-color:#C6DAE3;background:#EDF4F7;}
+.readout-toggle input{accent-color:var(--teal);cursor:pointer;margin:0;}
+.readout-toggle b{color:var(--ink);}
+.sec-title{font-size:12px;color:var(--muted);font-weight:600;letter-spacing:1px;margin-bottom:10px;display:flex;align-items:center;gap:6px;}
+.sec-title::before{content:"";width:3px;height:12px;background:var(--teal);border-radius:2px;}
+.sub-chips{display:flex;gap:6px;flex-wrap:wrap;}
+.chip{
+  border:1px solid var(--line);background:#fff;border-radius:16px;padding:4px 13px;
+  font-size:12.5px;line-height:1.5;cursor:pointer;font-family:inherit;color:var(--muted);transition:all .15s;
+}
+.chip:hover{border-color:var(--teal);color:var(--teal);}
+.chip.on{background:var(--teal);border-color:var(--teal);color:#fff;font-weight:600;}
+.chip.pre{border-style:dashed;border-color:#C9D6DD;color:#7A8F9B;}
+.chip.pre:hover{border-color:var(--orange);color:var(--orange);background:#FFF8F2;}
+.chip.g.on{background:var(--green);border-color:var(--green);}
+.chip.o.on{background:var(--orange);border-color:var(--orange);}
+.chip.p.on{background:var(--purple);border-color:var(--purple);}
+.slider-row{display:flex;align-items:center;gap:10px;margin-bottom:9px;}
+.slider-row label{width:40px;font-size:13px;font-style:italic;font-family:Georgia,serif;color:var(--ink);text-align:right;flex-shrink:0;}
+.slider-row.w label{width:62px;font-style:normal;font-family:inherit;}
+.slider-row input[type=range]{flex:1;accent-color:var(--teal);height:4px;cursor:pointer;}
+.slider-row .val{width:62px;font-size:12px;color:var(--muted);font-family:Menlo,monospace;flex-shrink:0;}
+.slider-group-label{font-size:12px;font-weight:600;color:var(--crimson);margin:4px 0 8px;}
+.slider-group-label.q{color:var(--blue);}
+.slider-group-label.g{color:var(--green);}
+.ex-title{font-size:14.5px;font-weight:700;color:var(--teal-dark);margin-bottom:8px;line-height:1.45;}
+.ex-body{font-size:14px;line-height:1.7;color:#3A5462;}
+.ex-body b{color:var(--ink);}
+.ex-body ul{padding-left:18px;margin:6px 0;}
+.ex-body li{margin-bottom:3px;}
+.ex-note{font-size:12.5px;line-height:1.65;color:#6B8290;background:#F7FAFB;border:1px solid #E7EFF3;border-radius:8px;padding:8px 11px;margin-top:9px;}
+.frm{
+  display:block;background:#F4F9FB;border:1px solid #DDE9EF;border-left:3px solid var(--teal);
+  border-radius:8px;padding:10px 14px 10px 18px;margin:10px 0;font-size:14px;line-height:1.7;
+  font-family:Georgia,"Times New Roman",serif;color:var(--ink);overflow-x:auto;white-space:nowrap;
+}
+.frm::-webkit-scrollbar{height:4px;}
+.frm::-webkit-scrollbar-thumb{background:#D5E0E6;border-radius:2px;}
+.vec{position:relative;font-style:italic;font-weight:700;white-space:nowrap;}
+.vec::before,.vec::after{content:'';position:absolute;pointer-events:none;}
+.vec::before{left:0;right:.24em;top:-.28em;height:1px;background:currentColor;opacity:.9;}
+.vec::after{right:0;top:-.42em;width:0;height:0;
+  border-left:.26em solid currentColor;
+  border-top:.14em solid transparent;border-bottom:.14em solid transparent;}
+sub{font-size:.72em;vertical-align:-.24em;}
+.frm sub{font-size:.72em;}
+.vec sub{font-style:normal;font-weight:600;}
+.sqrt{display:inline-block;position:relative;padding-left:.62em;margin-left:.05em;font-style:normal;}
+.sqrt::before{content:"√";position:absolute;left:.02em;top:-.12em;font-size:1.1em;
+  font-family:"Cambria Math","STIX Two Math","Latin Modern Math","Times New Roman",Georgia,serif;}
+.sqrt .in{display:inline-block;border-top:1.15px solid currentColor;
+  padding:.10em .06em .02em .06em;border-radius:4px 4px 0 0;line-height:1.1;}
+.card-tabs{display:flex;gap:6px;flex-wrap:wrap;margin:4px 0 10px;}
+.card-tab{
+  cursor:pointer;font-family:inherit;font-size:12.5px;padding:5px 9px;border-radius:9px;
+  border:1px solid var(--line);background:#fff;color:var(--muted);transition:all .15s;line-height:1.4;
+  white-space:nowrap;flex:1;text-align:center;min-width:0;
+}
+.card-tab:hover{border-color:var(--teal);color:var(--teal);}
+.card-tab.c1.on{background:#156082;border-color:#156082;color:#fff;font-weight:600;}
+.card-tab.c2.on{background:#0F9ED5;border-color:#0F9ED5;color:#fff;font-weight:600;}
+.card-tab.c3.on{background:#E97132;border-color:#E97132;color:#fff;font-weight:600;}
+.card-tab.c4.on{background:#9B59B6;border-color:#9B59B6;color:#fff;font-weight:600;}
+.card-body{
+  background:#FCFEFE;border:1px solid #E2ECF1;border-radius:8px;
+  padding:12px 16px 8px;border-left:4px solid var(--teal);
+}
+.card-body.c1{border-left-color:#156082;} .card-body.c2{border-left-color:#0F9ED5;}
+.card-body.c3{border-left-color:#E97132;} .card-body.c4{border-left-color:#9B59B6;}
+#toast{
+  position:fixed;bottom:26px;left:50%;transform:translateX(-50%);
+  background:rgba(31,61,76,.94);color:#fff;font-size:13px;padding:9px 20px;border-radius:22px;
+  opacity:0;pointer-events:none;transition:opacity .25s;z-index:99;
+}
+#toast.show{opacity:1;}
+</style>
+</head>
+<body>
+<header>
+  <a class="logo" href="index.html" title="返回平台首页">E&M</a>
+  <div>
+    <h1>1.3 标量场的方向导数与梯度</h1>
+    <div class="sub">等值面 · 方向导数 · 梯度 · 真实场景</div>
+  </div>
+  <div class="view-toggles" id="viewToggles">
+    <button id="tglNav"   title="折叠 / 展开左侧目录（快捷键 [ ）">☰ 目录</button>
+    <button id="tglPanel" title="折叠 / 展开右侧控制面板（快捷键 ] ）">☰ 面板</button>
+  </div>
+  <div class="badge">
+    <div class="chip">《工程电磁场》 ×《电磁场与电磁波》</div>
+    <div class="owner"><b>© 2026 Li Chenlu</b> All Rights Reserved</div>
+  </div>
+</header>
+<div class="layout">
+  <aside id="nav"></aside>
+  <main>
+    <div class="module-head">
+      <div class="module-title" id="moduleTitle">方向导数与梯度<small id="moduleSub">等值面 · 梯度 · 投影关系</small></div>
+      <div class="seg" id="sceneTabs"></div>
+    </div>
+    <div class="content-row">
+      <div class="canvas-card">
+        <canvas id="cv"></canvas>
+        <div class="cv-mode-tag" id="modeTag"></div>
+        <div class="cv-pan-tag" id="panTag">
+          <span>画面已平移</span><button id="btnPanReset">回到原点</button>
+        </div>
+        <div class="cv-toolbar">
+          <button id="btnReset">复位视角</button>
+          <button id="btnRotate">自动旋转</button>
+        </div>
+        <div class="cv-legend" id="legend">
+          <div class="lg-t" id="lgTitle">场值 φ</div>
+          <div class="lg-bar"></div>
+          <div class="lg-sc"><span id="lgMin">低</span><span id="lgMax">高</span></div>
+        </div>
+        <button class="fold-handle" id="foldNav"   title="折叠 / 展开左侧目录（快捷键 [ ）">‹</button>
+        <button class="fold-handle" id="foldPanel" title="折叠 / 展开右侧面板（快捷键 ] ）">›</button>
+        <div class="coord-strip" id="coordStrip"></div>
+      </div>
+      <div class="panel" id="panel"></div>
+    </div>
+  </main>
+</div>
+<div id="toast"></div>
+
+<script>
+'use strict';
+/* =====================================================================
+ * 1.3 标量场的方向导数与梯度 —— 可视化交互页
+ *   四个「真实场景」的标量场：地形高程 / 房间温度 / 点电荷电势 / 偶极子电势
+ *   核心关系：∂φ/∂l = ∇φ · e_l = |∇φ| cosθ
+ *   引擎与 1.1 / 1.2 同源（配色 / 相机 / 图元 / 富文本矢量记号）
+ * ===================================================================== */
+
+/* ---------------- 导航数据 ---------------- */
+const NAV = [
+  { ch:'第 1 章 · 矢量分析', items:[
+    { id:'coord',  t:'1.1 三种常见坐标系', ready:true, href:'index.html' },
+    { id:'ch1-2',  t:'1.2 矢量的代数运算', ready:true, href:'1.2-vector-algebra.html' },
+    { id:'ch1-3',  t:'1.3 方向导数与梯度', ready:true, active:true },
+    { id:'ch1-4',  t:'1.4 通量与散度',     ready:true, href:'1.4-divergence-flux.html' },
+    { id:'ch1-5',  t:'1.5 环量与旋度',     ready:true, href:'1.5-curl-circulation.html' },
+  ]},
+  { ch:'第 2 章 · 静电场', items:[ {t:'2.1 电场强度与电位'}, {t:'2.2 高斯定理及其应用'}, {t:'2.3 导体与电介质'} ]},
+  { ch:'第 3 章 · 恒定磁场', items:[ {t:'3.1 比奥-萨伐尔定律'}, {t:'3.2 安培环路定理'} ]},
+  { ch:'第 4 章 · 时变电磁场', items:[ {t:'4.1 麦克斯韦方程组'}, {t:'4.2 均匀平面波'} ]},
+];
+
+/* ---------------- 向量工具 ---------------- */
+const pt=(x,y,z)=>({x,y,z});
+const vadd=(a,b)=>({x:a.x+b.x,y:a.y+b.y,z:a.z+b.z});
+const vsub=(a,b)=>({x:a.x-b.x,y:a.y-b.y,z:a.z-b.z});
+const vmul=(a,s)=>({x:a.x*s,y:a.y*s,z:a.z*s});
+const vdot=(a,b)=>a.x*b.x+a.y*b.y+a.z*b.z;
+const vlen=a=>Math.hypot(a.x,a.y,a.z);
+const vnorm=a=>{const l=vlen(a)||1;return vmul(a,1/l);};
+const vcross=(a,b)=>({x:a.y*b.z-a.z*b.y, y:a.z*b.x-a.x*b.z, z:a.x*b.y-a.y*b.x});
+const D2R=Math.PI/180, R2D=180/Math.PI;
+
+/* =====================================================================
+ * 一、四个真实场景的标量场
+ *   每个场景给出：φ(p) 场函数、定义域、场值范围、等值面/等值线生成方式
+ * ===================================================================== */
+
+/* 场景 1：山地地形高程场（2D 标量场定义在 xy 平面上，几何上画成曲面 z=h） */
+const GAUSS_TERRAIN = [
+  {A: 1.05, x0: .52, y0: .38, s: .34},   // 主峰
+  {A: .68,  x0:-.62, y0:-.48, s: .26},   // 次峰
+  {A:-.46,  x0:-.18, y0: .66, s: .18},   // 洼地
+];
+function hTerrain(x,y){
+  let v=0;
+  for(const g of GAUSS_TERRAIN){
+    const dx=x-g.x0, dy=y-g.y0;
+    v += g.A*Math.exp(-(dx*dx+dy*dy)/(g.s*g.s));
+  }
+  return v;
+}
+
+/* 场景 2：篝火温度场 —— 定义在地面（xy 平面）上的二维场
+   T(d) = T_amb + ΔT·r₀²/(r₀²+d²)，中心最热、向外单调衰减（等温线 = 同心圆） */
+const T_AMB=15, T_HOT=115, FIRE_R=0.42;
+function hCampfire(x,y){
+  const d2=x*x+y*y, r2=FIRE_R*FIRE_R;
+  return T_AMB + (T_HOT-T_AMB)*r2/(r2+d2);
+}
+/* 给定温度反解等温线半径（画同心圆用，比 marching squares 精确） */
+function isoRadiusCampfire(T){
+  const r=(T_HOT-T_AMB)/(T-T_AMB) - 1;
+  return r>0 ? FIRE_R*Math.sqrt(r) : null;
+}
+/* 体感状态：冷 / 舒适 / 热 —— 用来驱动小人的表情和特效 */
+function personState(T){ return T>=62 ? 'hot' : (T>=30 ? 'comfy' : 'cold'); }
+
+/* 场景 3：点电荷电势 φ = q/(4πε₀ r) */
+const Q1 = pt(0,0,0);
+function hPoint(p){
+  const d = Math.max(0.06, vlen(vsub(p, Q1)));
+  return 1.0/d;
+}
+
+/* 场景 4：两个点电荷（偶极子）叠加电势 φ = q₁/r₁ + q₂/r₂ */
+const DIP = [ {q:+1, c:pt(-.52,0,0)}, {q:-1, c:pt(.52,0,0)} ];
+function hDipole(p){
+  let v=0;
+  for(const s of DIP){
+    const d = Math.max(0.06, vlen(vsub(p, s.c)));
+    v += s.q/d;
+  }
+  return v;
+}
+
+/* ---------------- 场景注册表 ---------------- */
+const SCENES = {
+  terrain:{
+    key:'terrain', tab:'① 山地地形高程', name:'山地地形高程场',
+    varName:'h', varDesc:'海拔高度', unit:'km',
+    kind:'terrain',
+    domain:[-1.25,1.25], zrange:[-.5,1.25],
+    f2:true,                                  // 定义在 xy 平面上的二维场
+    f:(x,y)=>hTerrain(x,y),
+    f3:p=>hTerrain(p.x,p.y),
+    lo:-.45, hi:1.15,
+    levels:()=>{ const a=[]; for(let v=-.4; v<=1.101; v+=.2) a.push(+v.toFixed(2)); return a; },
+    desc:'山坡上每一点有一个海拔 h(x,y)。等高线就是等值线；梯度 ∇h 指向<b>最陡上坡</b>方向，且<b>垂直于等高线</b>。',
+    real:'真实场景：地形图上的等高线。沿等高线走不升不降（方向导数 = 0），垂直于等高线走升得最快（方向导数 = |∇h|）。'
+  },
+  temp:{
+    key:'temp', tab:'② 篝火温度场', name:'篝火温度场',
+    varName:'T', varDesc:'温度', unit:'°C',
+    kind:'campfire',
+    domain:[-1.9,1.9], zrange:[0,.9],
+    f2:true,                                  // 定义在地面（xy 平面）上的二维场
+    f:(x,y)=>hCampfire(x,y),
+    f3:p=>hCampfire(p.x,p.y),
+    lo:15, hi:105,
+    levels:()=>[20,25,32,45,65,90],
+    desc:'篝火是热源，等温线是<b>地面向外扩散的同心圆</b>。梯度 ∇T 指向<b>升温最快</b>的方向（也就是指向篝火）。'+
+         '画面里的小人就是最好的"传感器"：越靠近火堆越热，站远了就冷。',
+    real:'真实场景：围着火堆取暖。太近烫得流汗、太远冻得发抖、不远不近最舒服——这就是温度场梯度的直观含义。'+
+         '<br>拖动主小人（<b>P</b> 点）在各个等温线之间移动，观察他的表情与 <b>∂T/∂l</b> 的变化。'
+  },
+  point:{
+    key:'point', tab:'③ 点电荷电势', name:'点电荷电势场',
+    varName:'φ', varDesc:'电位', unit:'V',
+    domain:[-1.25,1.25], zrange:[-1.25,1.25],
+    f3:p=>hPoint(p),
+    lo:.85, hi:3.6,
+    levels:()=>[1.0,1.25,1.6,2.1,3.0],
+    desc:'正点电荷的等势面是<b>同心球面</b>。梯度 ∇φ 沿径向指向<b>电势升高</b>的方向（对正电荷即指向电荷）；电场强度 <b>E</b> = −∇φ 指向电势降低方向。',
+    real:'真实场景：点电荷周围的等势面。这一节直接为 2.1 节「电场强度与电位」做铺垫。'
+  },
+  dipole:{
+    key:'dipole', tab:'④ 两个点电荷', name:'两个点电荷的叠加电势场',
+    varName:'φ', varDesc:'电位', unit:'V',
+    domain:[-1.25,1.25], zrange:[-1.25,1.25],
+    f3:p=>hDipole(p),
+    lo:-3.2, hi:3.2,
+    levels:()=>[-2.4,-1.2,-.5,.5,1.2,2.4],
+    desc:'正负电荷叠加后等势面<b>发生扭曲</b>，中间存在 φ = 0 的中性面。梯度 ∇φ 在每一点仍垂直于当地等势面。',
+    real:'真实场景：电偶极子。两电荷连线上存在电场为零附近的中性点，等势面在这里"张开"。'
+  },
+};
+
+/* 当前场值与梯度（统一入口） */
+function phiAt(p){
+  const S=SCENES[state.scene];
+  return S.f3(p);
+}
+/* 数值梯度（中心差分，h=1e-4）—— 四个场景统一，避免手写各场景偏导出错 */
+const DH=1e-4;
+function gradAt(p){
+  const S=SCENES[state.scene];
+  if(S.f2){
+    /* 二维场（地形 / 篝火）按场景选择场函数，
+       否则篝火的 ∇T 会被错算成地形梯度（小且语义错） */
+    const fn = (S.kind==='campfire') ? hCampfire : hTerrain;
+    const gx=(fn(p.x+DH,p.y)-fn(p.x-DH,p.y))/(2*DH);
+    const gy=(fn(p.x,p.y+DH)-fn(p.x,p.y-DH))/(2*DH);
+    return pt(gx,gy,0);
+  }
+  const gx=(S.f3(pt(p.x+DH,p.y,p.z))-S.f3(pt(p.x-DH,p.y,p.z)))/(2*DH);
+  const gy=(S.f3(pt(p.x,p.y+DH,p.z))-S.f3(pt(p.x,p.y-DH,p.z)))/(2*DH);
+  const gz=(S.f3(pt(p.x,p.y,p.z+DH))-S.f3(pt(p.x,p.y,p.z-DH)))/(2*DH);
+  return pt(gx,gy,gz);
+}
+
+/* ---------------- 场值 → 颜色（冷蓝 → 热红） ---------------- */
+const RAMP=[[46,111,183],[79,169,196],[127,194,155],[242,193,78],[233,113,50],[208,74,58]];
+function rampColor(t){
+  t=Math.max(0,Math.min(1,t));
+  const x=t*(RAMP.length-1), i=Math.floor(x), f=x-i;
+  const a=RAMP[i], b=RAMP[Math.min(RAMP.length-1,i+1)];
+  return `rgb(${Math.round(a[0]+(b[0]-a[0])*f)},${Math.round(a[1]+(b[1]-a[1])*f)},${Math.round(a[2]+(b[2]-a[2])*f)})`;
+}
+function phiColor(v){
+  const S=SCENES[state.scene];
+  return rampColor((v-S.lo)/(S.hi-S.lo));
+}
+
+/* ---------------- 全局状态 ---------------- */
+const state = {
+  scene:'terrain',
+  P:{x:.30, y:.22, z:0},     // 观察点（二维场时 z 由曲面决定）
+  zc:0,                       // 三维场时 P 的 z（二维场忽略）
+  dirAz:35,                   // e_l 方位角（°）
+  dirEl:0,                    // e_l 仰角（°），二维场锁定为 0
+  show:{ iso:true, grad:true, compass:true },
+  cardTab:'1',
+  showReadout:true,
+  autoRotate:false,
+};
+/* e_l 单位矢量 */
+function eDir(){
+  const S=SCENES[state.scene];
+  const el = S.f2 ? 0 : state.dirEl;
+  const a=state.dirAz*D2R, e=el*D2R;
+  return pt(Math.cos(e)*Math.cos(a), Math.cos(e)*Math.sin(a), Math.sin(e));
+}
+/* P 点的真实三维坐标（二维场贴在曲面上） */
+function Ppos(){
+  const S=SCENES[state.scene];
+  if(S.f2) return pt(state.P.x, state.P.y, hTerrain(state.P.x,state.P.y));
+  return pt(state.P.x, state.P.y, state.zc);
+}
+
+/* ---------------- 富文本引擎：矢量箭头 + 真下标 ---------------- */
+function parseRich(s){
+  const items=[], groups=[]; const st={g:-1};
+  (function walk(str){
+    let buf='';
+    const flush=()=>{ if(buf){ items.push({t:'n',s:buf,g:st.g}); buf=''; } };
+    for(let i=0;i<str.length;){
+      const c=str[i];
+      if(c==='@' && str[i+1]==='{'){
+        const j=str.indexOf('}', i+2);
+        if(j<0){ buf+=c; i++; continue; }
+        flush();
+        const save=st.g; st.g=groups.length; groups.push(1);
+        walk(str.slice(i+2,j));
+        st.g=save; i=j+1; continue;
+      }
+      if(c==='_'){
+        flush();
+        if(str[i+1]==='{'){ const j=str.indexOf('}',i+2);
+          if(j>=0){ items.push({t:'s',s:str.slice(i+2,j),g:st.g}); i=j+1; continue; } }
+        items.push({t:'s',s:str[i+1]||'',g:st.g}); i+=2; continue;
+      }
+      if(c==='<'){ const j=str.indexOf('>',i);
+        if(j>=0){ buf+=str.slice(i,j+1); i=j+1; continue; } }
+      buf+=c; i++;
+    }
+    flush();
+  })(String(s));
+  return {items, groups};
+}
+const RICHFONT='"PingFang SC","Microsoft YaHei",sans-serif';
+const RICHFONT_M='Georgia,"Times New Roman",serif';
+function richLayout(ctx,rich,size,bold){
+  const subSize=size*0.74;
+  const wM=bold?'700 ':'';
+  const fN =wM+size+'px '+RICHFONT;
+  const fNs=wM+subSize+'px '+RICHFONT;
+  const fV ='italic '+wM+size+'px '+RICHFONT_M;
+  const fVs=wM+subSize+'px '+RICHFONT_M;
+  const groups=rich.groups.map(()=>({x0:1e9,x1:-1e9,locked:false,top:1e9}));
+  const out=[]; let x=0;
+  const oldBL=ctx.textBaseline; ctx.textBaseline='middle';
+  rich.items.forEach(it=>{
+    const sub=it.t==='s', vec=it.g>=0;
+    const font = sub ? (vec?fVs:fNs) : (vec?fV:fN);
+    ctx.font=font;
+    const m=ctx.measureText(it.s), w=m.width;
+    const dy = sub? size*0.20 : 0;
+    const asc = (m.actualBoundingBoxAscent!=null) ? m.actualBoundingBoxAscent : size*0.38;
+    if(vec){
+      const g=groups[it.g];
+      if(!g.locked){
+        if(sub) g.locked=true;
+        else { if(x<g.x0) g.x0=x; g.x1=x+w; }
+      }
+      const top=dy-asc; if(top<g.top) g.top=top;
+    }
+    out.push({s:it.s,sub,x,w,font,dy});
+    x+=w;
+  });
+  ctx.textBaseline=oldBL;
+  return {items:out, groups, w:x, size, subSize};
+}
+function richDraw(ctx,lo,cx,cy,align,color){
+  let ox = align==='center'? cx-lo.w/2 : align==='right'? cx-lo.w : cx;
+  const dy = it=> cy + it.dy;
+  const ay = g => cy + g.top - Math.max(2.2, lo.size*0.13);
+  const span = g => [ox+g.x0-0.6, ox+g.x1+0.6];
+  ctx.save();
+  ctx.textAlign='left'; ctx.textBaseline='middle'; ctx.lineJoin='round'; ctx.lineCap='butt';
+  ctx.lineWidth=3.4; ctx.strokeStyle='rgba(255,255,255,.92)';
+  lo.items.forEach(it=>{ ctx.font=it.font; ctx.strokeText(it.s, ox+it.x, dy(it)); });
+  lo.groups.forEach(g=>{ if(g.x1<=g.x0) return;
+    const y=ay(g), s=span(g);
+    ctx.beginPath(); ctx.moveTo(s[0],y); ctx.lineTo(s[1],y); ctx.stroke(); });
+  lo.groups.forEach(g=>{ if(g.x1<=g.x0) return;
+    const y=ay(g), s=span(g), ax=s[0], bx=s[1];
+    ctx.strokeStyle=color; ctx.lineWidth=1.15;
+    ctx.beginPath(); ctx.moveTo(ax,y); ctx.lineTo(bx-1.2,y); ctx.stroke();
+    const h=Math.min(3.6, Math.max(2.6,(bx-ax)*0.40));
+    ctx.beginPath(); ctx.moveTo(bx,y); ctx.lineTo(bx-h,y-h*0.52); ctx.lineTo(bx-h,y+h*0.52);
+    ctx.closePath(); ctx.fillStyle=color; ctx.fill(); });
+  lo.items.forEach(it=>{ ctx.font=it.font; ctx.fillStyle=color; ctx.fillText(it.s, ox+it.x, dy(it)); });
+  ctx.restore();
+}
+function richHTML(s){
+  const r=parseRich(s);
+  let h='', gi=-1;
+  r.items.forEach(it=>{
+    const body = it.t==='s' ? '<sub>'+it.s+'</sub>' : it.s;
+    if(it.g!==gi){
+      if(gi>=0) h+='</span>';
+      if(it.g>=0) h+='<span class="vec">';
+      gi=it.g;
+    }
+    h+=body;
+  });
+  if(gi>=0) h+='</span>';
+  return wrapSqrt(h);
+}
+function wrapSqrt(html){
+  const out=[]; let i=0;
+  while(i<html.length){
+    const k=html.indexOf('√(', i);
+    if(k<0){ out.push(html.slice(i)); break; }
+    out.push(html.slice(i,k));
+    out.push('<span class="sqrt"><span class="in">');
+    let j=k+2, depth=1;
+    while(j<html.length && depth>0){
+      const c=html[j];
+      if(c==='(') depth++;
+      else if(c===')'){ depth--; if(depth===0) break; }
+      j++;
+    }
+    if(depth!==0){ out.push(html.slice(k)); return out.join(''); }
+    out.push(html.slice(k+2, j));
+    out.push('</span></span>');
+    i=j+1;
+  }
+  return out.join('');
+}
+
+/* ---------------- 配色 ---------------- */
+const C = {
+  teal:'#156082', orange:'#E97132', green:'#3E9B4F', purple:'#9B59B6',
+  crimson:'#D04A3A', blue:'#0F9ED5', gray:'#8CA0AC', light:'#C9D6DD',
+  ink:'#22414F', grid:'#EAF0F4', muted:'#7A8F9B',
+};
+/* 本页角色配色：梯度 ∇φ=crimson  e_l=blue  等值面=场值色  Δφ=orange  P=teal */
+
+/* ---------------- 画布与相机 ---------------- */
+let canvas, ctx, W=800, H=600, DPR=1;
+const cam={az:.62, el:.46, zoom:1, px:0, py:0};
+let camU, camV, camD, camScale, CX, CY;
+function setupCamera(){
+  const ca=Math.cos(cam.az), sa=Math.sin(cam.az);
+  const ce=Math.cos(cam.el), se=Math.sin(cam.el);
+  camD={x:ce*ca, y:ce*sa, z:se};
+  camU={x:-sa, y:ca, z:0};
+  camV={x:-ca*se, y:-sa*se, z:ce};
+  camScale=Math.min(W,H)/3.15*cam.zoom;
+  CX=W/2; CY=H*0.55;
+}
+function pr(p){ return {x:CX+cam.px+camScale*vdot(p,camU), y:CY+cam.py-camScale*vdot(p,camV), d:vdot(p,camD)}; }
+
+/* ---------------- 图元系统 ---------------- */
+let prims=[];
+function P_(z,fn){ prims.push({z,draw:fn}); }
+function line(a,b,o={}){
+  const A=pr(a),B=pr(b);
+  P_((A.d+B.d)/2, ()=>{ ctx.save();
+    ctx.globalAlpha=o.alpha!=null?o.alpha:1;
+    ctx.strokeStyle=o.color||C.gray; ctx.lineWidth=o.w||1.4;
+    if(o.dash) ctx.setLineDash(o.dash);
+    ctx.beginPath(); ctx.moveTo(A.x,A.y); ctx.lineTo(B.x,B.y); ctx.stroke(); ctx.restore(); });
+}
+function arrowSeg(A,B,color,w,headScale){
+  const dx=B.x-A.x, dy=B.y-A.y, L=Math.hypot(dx,dy);
+  if(L<0.5) return;
+  const ux=dx/L, uy=dy/L, hs=(headScale||1)*9;
+  ctx.strokeStyle=color; ctx.lineWidth=w; ctx.lineCap='round';
+  ctx.beginPath(); ctx.moveTo(A.x,A.y); ctx.lineTo(B.x-ux*hs*.55, B.y-uy*hs*.55); ctx.stroke();
+  const ang=Math.atan2(dy,dx);
+  ctx.beginPath(); ctx.moveTo(B.x,B.y);
+  ctx.lineTo(B.x-hs*Math.cos(ang-.42), B.y-hs*Math.sin(ang-.42));
+  ctx.lineTo(B.x-hs*Math.cos(ang+.42), B.y-hs*Math.sin(ang+.42));
+  ctx.closePath(); ctx.fillStyle=color; ctx.fill();
+}
+function arrow(a,b,o={}){
+  const A=pr(a),B=pr(b);
+  P_((A.d+B.d)/2, ()=>{ ctx.save();
+    ctx.globalAlpha=o.alpha!=null?o.alpha:1;
+    if(o.dash) ctx.setLineDash(o.dash);
+    arrowSeg(A,B,o.color||C.teal,o.w||2,o.headScale); ctx.restore(); });
+  if(o.label) text(vmul(vadd(a,b),.5), o.label,
+    {color:o.color||C.teal, dx:o.ldx||0, dy:o.ldy!==undefined?o.ldy:-10, size:o.lsize||12.5, bold:true, align:o.lalign});
+}
+function curve(ptsArr,o={}){
+  if(ptsArr.length<2) return;
+  const S=ptsArr.map(pr);
+  P_(S.reduce((s,p)=>s+p.d,0)/S.length, ()=>{ ctx.save();
+    ctx.globalAlpha=o.alpha!=null?o.alpha:1;
+    ctx.strokeStyle=o.color||C.gray; ctx.lineWidth=o.w||1.8; ctx.lineCap='round';
+    if(o.dash) ctx.setLineDash(o.dash);
+    ctx.beginPath(); ctx.moveTo(S[0].x,S[0].y);
+    for(let i=1;i<S.length;i++) ctx.lineTo(S[i].x,S[i].y);
+    ctx.stroke();
+    if(o.arrowEnd){ const a=S[S.length-2], b=S[S.length-1];
+      ctx.setLineDash([]); arrowSeg(a,b,o.color||C.gray,o.w||1.8,.75); }
+    ctx.restore(); });
+}
+function poly(ptsArr,o={}){
+  if(ptsArr.length<3) return;
+  const S=ptsArr.map(pr);
+  P_(S.reduce((s,p)=>s+p.d,0)/S.length, ()=>{ ctx.save();
+    ctx.beginPath(); ctx.moveTo(S[0].x,S[0].y);
+    for(let i=1;i<S.length;i++) ctx.lineTo(S[i].x,S[i].y);
+    ctx.closePath();
+    if(o.fill){ ctx.globalAlpha=o.fillAlpha!=null?o.fillAlpha:.15; ctx.fillStyle=o.fill; ctx.fill(); }
+    if(o.stroke){ ctx.globalAlpha=o.strokeAlpha!=null?o.strokeAlpha:1;
+      ctx.strokeStyle=o.stroke; ctx.lineWidth=o.w||1.3; if(o.dash)ctx.setLineDash(o.dash); ctx.stroke(); }
+    ctx.restore(); });
+}
+function marker(p,o={}){
+  const S=pr(p);
+  P_(S.d+0.02, ()=>{ ctx.save();
+    ctx.globalAlpha=o.alpha!=null?o.alpha:1;
+    ctx.beginPath(); ctx.arc(S.x,S.y,o.r||5,0,7);
+    ctx.fillStyle=o.color||C.orange; ctx.fill();
+    ctx.lineWidth=2; ctx.strokeStyle='#fff'; ctx.stroke();
+    if(o.ring){ ctx.beginPath(); ctx.arc(S.x,S.y,(o.r||5)+4,0,7);
+      ctx.strokeStyle=o.ring; ctx.lineWidth=2.2; ctx.stroke(); }
+    ctx.restore(); });
+  if(o.label) text(p, o.label, {color:o.color||C.orange,
+    dx:o.ldx!=null?o.ldx:10, dy:o.ldy!=null?o.ldy:-10, size:o.lsize||13, bold:true, align:o.lalign});
+}
+function text(p,str,o={}){
+  const S=pr(p);
+  P_(1e6, ()=>{ ctx.save();
+    const size=o.size||12.5, bold=!!o.bold;
+    const lo=richLayout(ctx, parseRich(str), size, bold);
+    richDraw(ctx, lo, S.x+(o.dx||0), S.y+(o.dy||0), o.align||'left', o.color||C.ink);
+    ctx.restore(); });
+}
+
+/* =====================================================================
+ * 二、场景几何生成
+ * ===================================================================== */
+
+/* ---------- 地形：曲面网格 + 等高线（marching squares） ---------- */
+const TER_N=44, TER_LIM=1.25;
+let _terGrid=null;
+function terrainGridLines(){
+  if(_terGrid) return _terGrid;
+  const out=[]; const n=22;
+  for(let i=0;i<=n;i++){
+    const t=-TER_LIM+2*TER_LIM*i/n;
+    const a=[], b=[];
+    for(let j=0;j<=TER_N;j++){
+      const u=-TER_LIM+2*TER_LIM*j/TER_N;
+      a.push(pt(t,u,hTerrain(t,u)));
+      b.push(pt(u,t,hTerrain(u,t)));
+    }
+    out.push(a); out.push(b);
+  }
+  _terGrid=out;
+  return out;
+}
+/* marching squares：返回 level 对应的线段数组（世界坐标，贴在曲面上） */
+function contourSegments(level){
+  const segs=[]; const n=TER_N; const L=TER_LIM;
+  const hv=(i,j)=>{ const x=-L+2*L*i/n, y=-L+2*L*j/n; return {x,y,v:hTerrain(x,y)}; };
+  const H=[]; for(let i=0;i<=n;i++){ H.push([]); for(let j=0;j<=n;j++) H[i].push(hv(i,j)); }
+  const lerp=(a,b)=>{ const t=(level-a.v)/(b.v-a.v);
+    return pt(a.x+(b.x-a.x)*t, a.y+(b.y-a.y)*t, level); };
+  for(let i=0;i<n;i++) for(let j=0;j<n;j++){
+    const c=[H[i][j],H[i+1][j],H[i+1][j+1],H[i][j+1]];
+    const pts=[];
+    const E=[[c[0],c[1]],[c[1],c[2]],[c[2],c[3]],[c[3],c[0]]];
+    for(const [a,b] of E){
+      if((a.v<level && b.v>=level) || (b.v<level && a.v>=level)) pts.push(lerp(a,b));
+    }
+    if(pts.length>=2) segs.push([pts[0],pts[pts.length-1]]);
+  }
+  return segs;
+}
+let contourCache={};
+function contoursFor(level){
+  const k=level.toFixed(4);
+  if(!contourCache[k]) contourCache[k]=contourSegments(level);
+  return contourCache[k];
+}
+
+/* ---------- 三维场：等值面（从中心沿射线求根 + 经纬线框） ---------- */
+function isoRadius(center, level, dir){
+  const f=r=>{ const p=vadd(center, vmul(dir,r)); return SCENES[state.scene].f3(p)-level; };
+  const rMin=0.10, rMax=2.6, NS=42;
+  let prev=rMin, pv=f(rMin);
+  for(let i=1;i<=NS;i++){
+    const r=rMin+(rMax-rMin)*i/NS, v=f(r);
+    if((pv<=0&&v>0)||(pv>=0&&v<0)){
+      let a=prev,b=r;
+      for(let k=0;k<26;k++){ const m=(a+b)/2; if((f(a)<=0)===(f(m)<=0)) a=m; else b=m; }
+      return (a+b)/2;
+    }
+    prev=r; pv=v;
+  }
+  return null;
+}
+const ISO_NTH=13, ISO_NPH=26;
+let isoCache={};
+function isoMesh(center, level){
+  const key=state.scene+'|'+level.toFixed(4)+'|'+center.x.toFixed(2);
+  if(isoCache[key]) return isoCache[key];
+  const rows=[];
+  for(let i=1;i<ISO_NTH;i++){
+    const th=Math.PI*i/ISO_NTH;
+    const row=[];
+    for(let j=0;j<ISO_NPH;j++){
+      const ph=2*Math.PI*j/ISO_NPH;
+      const d=pt(Math.sin(th)*Math.cos(ph), Math.sin(th)*Math.sin(ph), Math.cos(th));
+      const r=isoRadius(center, level, d);
+      row.push(r==null?null:vadd(center, vmul(d,r)));
+    }
+    rows.push(row);
+  }
+  isoCache[key]=rows;
+  return rows;
+}
+/* 画一族等值面：用经纬 quad 填色（每个 quad 由相邻 4 个顶点组成）——
+   关键：绝对不能按纬线圈 fill，否则水平角度看就是"一堆堆叠圆盘" */
+function drawIsoSurface(center, level, emph){
+  const rows=isoMesh(center, level);
+  const col=phiColor(level);
+  const nth=rows.length, nph=ISO_NPH;
+  for(let i=0;i<nth-1;i++){
+    for(let j=0;j<nph;j++){
+      const jp=(j+1)%nph;
+      const a=rows[i][j], b=rows[i+1][j], c=rows[i+1][jp], d=rows[i][jp];
+      if(!a||!b||!c||!d) continue;
+      /* quad 填色（真正在球面上）+ 微弱 stroke 让 quad 边界可见（球面纹理感） */
+      poly([a,b,c,d],{fill:col, fillAlpha:emph?0.26:0.14,
+        stroke:col, strokeAlpha:emph?0.85:0.35, w:emph?1.5:0.85});
+    }
+  }
+  /* 高亮层加一条赤道纬线圈（虚线）作"腰带"，让球面有"经纬线"暗示 */
+  const mi=Math.floor(nth/2);
+  if(emph){
+    const ring=[];
+    for(let j=0;j<nph;j++){ const p=rows[mi][j]; if(p) ring.push(p); }
+    if(ring.length>=3) poly(ring,{stroke:col, strokeAlpha:0.7, w:1.4, dash:[5,4]});
+  }
+}
+
+/* ---------- 坐标轴与底面网格 ---------- */
+function drawAxes(){
+  const S=SCENES[state.scene];
+  const L=1.3;
+  if(S.kind==='campfire'){
+    /* 篝火：地面就是 z=0，轴的线画在 z=0.01 略高于温度色地面，避免被盖住 */
+    const zz=.012;
+    line(pt(0,0,zz), pt(-1.7,0,zz), {color:'#B9C9D2',dash:[5,4],w:1.2});
+    line(pt(0,0,zz), pt(0,-1.7,zz), {color:'#B9C9D2',dash:[5,4],w:1.2});
+    arrow(pt(0,0,zz), pt(1.78,0,zz), {color:C.teal,w:2});
+    arrow(pt(0,0,zz), pt(0,1.78,zz), {color:C.orange,w:2});
+    text(pt(1.86,0,zz),'x',{color:C.teal,bold:true,size:13,dy:-4});
+    text(pt(0,1.86,zz),'y',{color:C.orange,bold:true,size:13,dy:-4});
+    arrow(pt(0,0,0), pt(0,0,.82), {color:C.green,w:2});
+    text(pt(0,0,.9),'z',{color:C.green,bold:true,size:13,dx:-4});
+    text(pt(0,0,zz),'O',{color:'#7A8F9B',size:12,dx:-13,dy:13});
+    return;
+  }
+  if(S.f2){
+    line(pt(0,0,-.55), pt(-1.15,0,-.55), {color:'#B9C9D2',dash:[5,4],w:1.2});
+    line(pt(0,0,-.55), pt(0,-1.15,-.55), {color:'#B9C9D2',dash:[5,4],w:1.2});
+    arrow(pt(0,0,-.55), pt(1.5,0,-.55), {color:C.teal,w:2});
+    arrow(pt(0,0,-.55), pt(0,1.5,-.55), {color:C.orange,w:2});
+    text(pt(1.58,0,-.55),'x',{color:C.teal,bold:true,size:13,dy:-4});
+    text(pt(0,1.58,-.55),'y',{color:C.orange,bold:true,size:13,dy:-4});
+    text(pt(0,0,-.72),'z（海拔 h）',{color:C.green,bold:true,size:12,dy:0});
+    /* 海拔轴：从底面竖直向上 */
+    arrow(pt(-1.28,-1.28,-.55), pt(-1.28,-1.28,1.15), {color:C.green,w:2});
+  }else{
+    line(pt(0,0,0), pt(-1.15,0,0), {color:'#B9C9D2',dash:[5,4],w:1.2});
+    line(pt(0,0,0), pt(0,-1.15,0), {color:'#B9C9D2',dash:[5,4],w:1.2});
+    line(pt(0,0,0), pt(0,0,-1.15), {color:'#B9C9D2',dash:[5,4],w:1.2});
+    arrow(pt(0,0,0), pt(1.5,0,0), {color:C.teal,w:2});
+    arrow(pt(0,0,0), pt(0,1.5,0), {color:C.orange,w:2});
+    arrow(pt(0,0,0), pt(0,0,1.5), {color:C.green,w:2.2});
+    text(pt(1.58,0,0),'x',{color:C.teal,bold:true,size:13,dy:-4});
+    text(pt(0,1.58,0),'y',{color:C.orange,bold:true,size:13,dy:-4});
+    text(pt(0,0,1.58),'z',{color:C.green,bold:true,size:13,dx:-4});
+    text(pt(0,0,0),'O',{color:'#7A8F9B',size:12,dx:-13,dy:13});
+  }
+}
+
+/* =====================================================================
+ * 二·补 篝火场景：柴火 + 火焰 + 地面温度分布 + 等温线 + 小人
+ * ===================================================================== */
+
+/* 地面温度色（平地 quad 填充，颜色 = 温度） */
+function drawCampfireGround(){
+  const N=34, L=1.85;
+  for(let i=0;i<N;i++) for(let j=0;j<N;j++){
+    const x0=-L+2*L*i/N, x1=-L+2*L*(i+1)/N, y0=-L+2*L*j/N, y1=-L+2*L*(j+1)/N;
+    const t=(hCampfire(x0,y0)+hCampfire(x1,y0)+hCampfire(x1,y1)+hCampfire(x0,y1))/4;
+    poly([pt(x0,y0,0), pt(x1,y0,0), pt(x1,y1,0), pt(x0,y1,0)],
+      {fill: phiColor(t), fillAlpha:.85, stroke:'#FFFFFF', strokeAlpha:.07, w:.5});
+  }
+}
+/* 等温线（解析同心圆，比 marching squares 精确）+ 温度标注 */
+function drawCampfireIsolines(P){
+  const S=SCENES[state.scene], lv=S.levels();
+  const pv=hCampfire(P.x,P.y);
+  let near=lv[0], nd=1e9;
+  for(const v of lv){ const d=Math.abs(v-pv); if(d<nd){nd=d; near=v;} }
+  for(const v of lv){
+    const r=isoRadiusCampfire(v);
+    if(r==null||r>2.4) continue;
+    const circle=[];
+    for(let k=0;k<=72;k++){ const a=2*Math.PI*k/72; circle.push(pt(r*Math.cos(a), r*Math.sin(a), .005)); }
+    const emph=(v===near);
+    curve(circle, {color:emph?'#1F3D4C':'#FFFFFF', w:emph?2.8:1.5, alpha:emph?.95:.62});
+    const a0=-Math.PI*0.30;
+    text(pt(r*Math.cos(a0), r*Math.sin(a0), .012), v+'°',
+      {color:emph?'#1F3D4C':'#FFFFFF', size:11.5, bold:emph, align:'center', dy:-3});
+  }
+}
+/* 火焰：billboard 2D（始终面向相机），3 层由外到内，带跳动动画 */
+function flameLayer(cx,cy,W,H,c1,c2,alpha){
+  ctx.beginPath();
+  ctx.moveTo(cx-W/2, cy);
+  ctx.bezierCurveTo(cx-W*0.78, cy-H*0.34, cx-W*0.22, cy-H*0.62, cx, cy-H);
+  ctx.bezierCurveTo(cx+W*0.22, cy-H*0.62, cx+W*0.78, cy-H*0.34, cx+W/2, cy);
+  ctx.closePath();
+  const g=ctx.createLinearGradient(cx,cy,cx,cy-H);
+  g.addColorStop(0,c1); g.addColorStop(1,c2);
+  ctx.globalAlpha=alpha; ctx.fillStyle=g; ctx.fill(); ctx.globalAlpha=1;
+}
+function drawCampfire(t){
+  /* 柴火：4 根交叉木棍（3D 线段，会随视角转） */
+  const sticks=[
+    [pt(-.14,-.02,.01), pt(.14,.06,.19)],
+    [pt(.14,-.02,.01), pt(-.14,.06,.19)],
+    [pt(-.02,-.14,.01), pt(.06,.14,.19)],
+    [pt(-.02,.14,.01), pt(.06,-.14,.19)],
+  ];
+  sticks.forEach((s,i)=>line(s[0],s[1],{color:i%2?'#8B5E3C':'#6B4426', w:4.4, alpha:.95}));
+  /* 石圈 */
+  for(let k=0;k<7;k++){
+    const a=2*Math.PI*k/7, R=.21;
+    marker(pt(R*Math.cos(a), R*Math.sin(a), .02),
+      {r:3.4, color:'#9AA7AE', alpha:.85});
+  }
+  /* 火焰（画在最前：深度取火焰底部再往前一点） */
+  const base=pr(pt(0,0,.05));
+  P_(base.d-0.02, ()=>{
+    const flick=1+0.13*Math.sin(t*7.3)+0.07*Math.sin(t*11.9);
+    const sway=2.6*Math.sin(t*3.1);
+    const H=68*flick, W=22*flick;
+    ctx.save();
+    flameLayer(base.x+sway, base.y, W, H, '#E8551F', '#FF9A2E', .62);
+    flameLayer(base.x+sway*0.7, base.y, W*0.64, H*0.74, '#FFA62B', '#FFD166', .82);
+    flameLayer(base.x+sway*0.4, base.y, W*0.36, H*0.46, '#FFE066', '#FFF8DC', .96);
+    ctx.restore();
+  });
+}
+/* 小人：billboard 2D。表情与特效由体感状态（冷 / 舒适 / 热）驱动 */
+function drawPerson(pos, T, t, isMain, tag){
+  const s=pr(pos), st=personState(T);
+  P_(s.d+0.012, ()=>{
+    const sc=isMain?2.0:1.6;      /* 小人身高缩放：主角更大，便于课堂上远距离看清表情 */
+    const shake = st==='cold' ? Math.sin(t*26)*1.7 : 0;
+    const px=s.x+shake, py=s.y;
+    const col = st==='hot' ? '#D04A3A' : (st==='cold' ? '#3D7EA6' : '#3E9B4F');
+    ctx.save(); ctx.lineCap='round'; ctx.lineJoin='round';
+    ctx.strokeStyle=col; ctx.fillStyle=col;
+    /* 腿 */
+    ctx.lineWidth=2.4*sc;
+    ctx.beginPath(); ctx.moveTo(px-3*sc,py); ctx.lineTo(px-4.4*sc,py-14*sc); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(px+3*sc,py); ctx.lineTo(px+4.4*sc,py-14*sc); ctx.stroke();
+    /* 身体 */
+    ctx.lineWidth=4.4*sc;
+    ctx.beginPath(); ctx.moveTo(px,py-14*sc); ctx.lineTo(px,py-30*sc); ctx.stroke();
+    /* 手臂：冷=抱臂 / 热=张开扇风 / 舒适=自然下垂 */
+    ctx.lineWidth=2.2*sc;
+    if(st==='hot'){
+      ctx.beginPath(); ctx.moveTo(px,py-27*sc); ctx.lineTo(px-9.5*sc,py-33*sc); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(px,py-27*sc); ctx.lineTo(px+9.5*sc,py-33*sc); ctx.stroke();
+    }else if(st==='cold'){
+      ctx.beginPath(); ctx.moveTo(px,py-26*sc); ctx.lineTo(px-7*sc,py-21*sc); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(px,py-26*sc); ctx.lineTo(px+7*sc,py-21*sc); ctx.stroke();
+    }else{
+      ctx.beginPath(); ctx.moveTo(px,py-27*sc); ctx.lineTo(px-6.5*sc,py-18*sc); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(px,py-27*sc); ctx.lineTo(px+6.5*sc,py-18*sc); ctx.stroke();
+    }
+    /* 头（白脸 + 发色边） */
+    ctx.beginPath(); ctx.arc(px,py-36*sc,6.4*sc,0,7); ctx.fill();
+    ctx.fillStyle='#FFF';
+    ctx.beginPath(); ctx.arc(px,py-36*sc,5.0*sc,0,7); ctx.fill();
+    /* 脸红（热） */
+    if(st==='hot'){
+      ctx.fillStyle='rgba(224,90,70,.55)';
+      ctx.beginPath(); ctx.arc(px-3.1*sc,py-34.6*sc,1.25*sc,0,7); ctx.fill();
+      ctx.beginPath(); ctx.arc(px+3.1*sc,py-34.6*sc,1.25*sc,0,7); ctx.fill();
+    }
+    /* 眼 */
+    ctx.fillStyle='#1F3D4C';
+    ctx.beginPath(); ctx.arc(px-1.9*sc,py-37.4*sc,1.0*sc,0,7); ctx.fill();
+    ctx.beginPath(); ctx.arc(px+1.9*sc,py-37.4*sc,1.0*sc,0,7); ctx.fill();
+    /* 嘴：冷=锯齿打颤 / 热=张嘴喘 / 舒适=微笑 */
+    const my=py-34.0*sc;
+    ctx.strokeStyle='#1F3D4C'; ctx.lineWidth=1.25*sc;
+    if(st==='cold'){
+      ctx.beginPath();
+      for(let i=0;i<4;i++){ const xx=px-3*sc+i*2*sc; ctx.moveTo(xx,my); ctx.lineTo(xx+1*sc,my+1.6*sc); }
+      ctx.stroke();
+    }else if(st==='hot'){
+      ctx.fillStyle='#8E3B2E';
+      ctx.beginPath(); ctx.ellipse(px,my+0.8*sc,1.9*sc,2.3*sc,0,0,7); ctx.fill();
+    }else{
+      ctx.beginPath(); ctx.arc(px,my-1.4*sc,2.7*sc,0.32*Math.PI,0.68*Math.PI); ctx.stroke();
+    }
+    /* ---- 状态特效 ---- */
+    if(st==='cold'){
+      /* 两侧抖动线 */
+      ctx.strokeStyle='rgba(61,126,166,.85)'; ctx.lineWidth=1.5*sc;
+      for(const sx of [-1,1]){
+        const bx=px+sx*11*sc;
+        ctx.beginPath();
+        for(let k=0;k<=8;k++){
+          const yy=py-26*sc+k*2.6*sc;
+          const xx=bx+Math.sin(t*22+k*0.9)*1.5;
+          k===0?ctx.moveTo(xx,yy):ctx.lineTo(xx,yy);
+        }
+        ctx.stroke();
+      }
+      /* 头顶雪花 */
+      ctx.fillStyle='#7FC3E8';
+      for(let k=0;k<3;k++){
+        const a=t*1.2+k*2.1;
+        const fx=px+Math.sin(a)*7*sc, fy=py-46*sc-((t*9+k*7)%14)*sc;
+        ctx.beginPath(); ctx.arc(fx,fy,1.15*sc,0,7); ctx.fill();
+      }
+    }else if(st==='hot'){
+      /* 汗滴（下落） */
+      ctx.fillStyle='#5FA8D3';
+      for(let k=0;k<2;k++){
+        const ph=((t*1.5+k*0.5)%1);
+        const fx=px+(k?7.5:-7.5)*sc, fy=py-40*sc+ph*16*sc;
+        ctx.globalAlpha=1-ph*0.55;
+        ctx.beginPath(); ctx.ellipse(fx,fy,1.0*sc,1.7*sc,0,0,7); ctx.fill();
+        ctx.globalAlpha=1;
+      }
+      /* 头顶热浪 */
+      ctx.strokeStyle='rgba(224,90,70,.8)'; ctx.lineWidth=1.5*sc;
+      for(let k=0;k<2;k++){
+        ctx.beginPath();
+        for(let m=0;m<=10;m++){
+          const yy=py-45*sc-k*4*sc-m*1.1*sc;
+          const xx=px+Math.sin(t*6+m*0.55+k*2)*(2.2+m*0.32)*sc;
+          m===0?ctx.moveTo(xx,yy):ctx.lineTo(xx,yy);
+        }
+        ctx.stroke();
+      }
+    }else{
+      /* 舒适：小音符 */
+      const fy=py-45*sc-Math.sin(t*2.2)*2.5*sc;
+      ctx.fillStyle='#3E9B4F'; ctx.font='bold '+(9*sc)+'px sans-serif'; ctx.textAlign='center';
+      ctx.fillText('♪', px+8*sc, fy);
+    }
+    ctx.restore();
+  });
+  /* 温度与状态标签 */
+  const lbl = T.toFixed(0)+'°C';
+  const sub = st==='hot'?'好热！':(st==='cold'?'好冷…':'舒服');
+  text(pos, isMain? ('P · '+lbl+' '+sub) : (tag+' '+lbl),
+    {color: st==='hot'?C.crimson:(st==='cold'?C.blue:C.green),
+     size:isMain?12.5:11, bold:isMain, dx:0, dy:9, align:'center'});
+}
+
+/* 数值自适应格式化：各场景 |∇φ| 量级差很大（地形 ~1、篝火 ~84、点电荷 ~几） */
+function fmtN(v){
+  const a=Math.abs(v);
+  return a>=100 ? v.toFixed(0) : (a>=10 ? v.toFixed(1) : v.toFixed(3));
+}
+
+/* ---------- 方向导数罗盘：「方向导数球」+ 等值面切平面 ----------
+   统一规律（与场景无关）：∂φ/∂l = ∇φ·@{e_l} = |∇φ|·cos θ，只取决于 @{e_l} 与 ∇φ 的夹角 θ
+     · θ = 0°   （沿 +∇φ）      → 最大 = +|∇φ|
+     · θ = 180° （沿 −∇φ）      → 最小 = −|∇φ|
+     · θ = 90°  （⊥∇φ，切平面）→ 0，<b>整个切平面内所有方向都是 0</b>
+   把每个方向的端点画在 P + (∂φ/∂l)·@{e_l} 处，所有端点构成一个<b>球</b>
+   （直径 = |∇φ|，过 P，最远点 = P + ∇φ 方向）。
+   这里画这个球的两个正交大圆 + 切平面零圆盘 —— 各场景的差别自然显现：
+     · 地形 h(x,y)：∇h 水平 ⇒ 球平躺，切平面是<b>竖直</b>的（含竖直方向与等高线切向）
+     · 篝火 T(d)  ：∇T 水平沿径向 ⇒ 同上，人沿地面走的方向都在水平截面里
+     · 点电荷 φ(r)：∇φ 沿<b>三维径向</b> ⇒ 球沿径向躺着，切平面正是<b>球面切平面</b>
+                   （沿球面走 ∂φ/∂l = 0，沿径向 ∂φ/∂l = |∇φ| 最大）
+   ───────────────────────────────────────────────────────────────────
+   【地形场景特别处理】（用户教学诉求）：
+   严格按 h(x,y) 数学，∂h/∂z = 0，竖直 e_z 方向是 0（不是最大），
+   沿水平 ∇h 方向才是真最大。
+   但学生爬坡时身体方向 = 3D 真实山的<b>最陡上坡方向</b> = (∇h + e_z) 归一化
+   （在 3D 中是斜上的，看着像"竖直向上"）。
+   所以地形场景把 gh 改为这个 3D 上坡方向 —— 极值射线沿斜上方向，**符合学生直觉**。*/
+function drawCompass(P,g,e){
+  const _before = prims.length;             // 罗盘 prims 起点，之后统一加 z 偏置画在最上层
+  const gl=vlen(g);
+  if(gl<1e-9) return;
+  const S=SCENES[state.scene];
+
+  /* 地形场景：gh = 3D 真实山最陡上坡方向 = (∇h + e_z|∇h|) 归一化（在 3D 中是斜上的） */
+  let gh, maxDL, ghLabel;
+  if (S.kind === 'terrain') {
+    gh = vnorm({ x: g.x, y: g.y, z: gl });   // = (∇h_x, ∇h_y, |∇h|) / |∇h|√2
+    maxDL = gl;                              // 罗盘大小 = |∇h|（沿 3D 上坡方向实际 ∂h/∂l = |∇h|/√2）
+    ghLabel = '上坡方向';
+  } else {
+    /* 篝火 / 点电荷 / 偶极子：严格按 ∇φ */
+    gh = vnorm(g);
+    maxDL = gl;
+    ghLabel = '∇' + S.varName;
+  }
+
+  /* 切平面的一组正交基（都 ⊥ gh） */
+  let u=vcross(gh, pt(0,0,1));
+  if(vlen(u)<1e-4) u=vcross(gh, pt(1,0,0));   // gh 竖直时退化处理
+  u=vnorm(u);
+  const w=vnorm(vcross(gh,u));
+  const L=0.50;                                // 罗盘长度（粗线在远景也清晰可见）
+  const R0=0.18;                               // 零圆盘半径（标示切平面）
+
+  /* ① 方向导数球的两个正交大圆（在 gh-u 与 gh-w 截面内）。
+        截面内方向 dir(θ)=gh·cosθ + a·sinθ，端点 = P + dir·(cosθ·L)
+        ⇒ 恰好是半径 L/2 的圆，过 P，最远点 P + L·gh */
+  const N=56;
+  const section=(a,wd,al)=>{
+    const pts=[];
+    for(let i=0;i<=N;i++){
+      const th=2*Math.PI*i/N;
+      const dir=vadd(vmul(gh,Math.cos(th)), vmul(a,Math.sin(th)));
+      pts.push(vadd(P, vmul(dir, Math.cos(th)*L)));
+    }
+    curve(pts,{color:C.teal,w:wd,alpha:al,_compass:1});   // _compass: 自检用的标记，不参与渲染
+  };
+  section(u, 2.8, 1);                // 主圆：深色加粗，远景也清晰
+  section(w, 1.7, .55);              // 次圆：浅一些表示另一个正交截面
+
+  /* ② 等值面切平面：这个平面内<b>所有</b>方向 ∂φ/∂l = 0 */
+  const ring=[];
+  for(let i=0;i<=48;i++){
+    const a=2*Math.PI*i/48;
+    ring.push(vadd(P, vadd(vmul(u,Math.cos(a)*R0), vmul(w,Math.sin(a)*R0))));
+  }
+  poly(ring,{fill:'#8FA6B2',fillAlpha:.18,stroke:'#7A8F9B',strokeAlpha:.6,w:1.2,dash:[3,3]});
+  text(vadd(P, vmul(u,R0)), '等值面切平面（⊥'+ghLabel+'）：∂'+S.varName+'/∂l = 0',
+    {color:'#6B8290',size:10.5,dx:8,dy:-3});
+
+  /* ③ 两个极值方向 —— 沿 gh（地形是 3D 上坡，3D 场是严格 ∇φ） */
+  arrow(P, vadd(P,vmul(gh, L)), {color:C.crimson,w:3.4,
+    label:'沿 '+ghLabel+' 最大：∂'+S.varName+'/∂l = +'+fmtN(maxDL), ldy:-12, lsize:11.5});
+  arrow(P, vadd(P,vmul(gh,-L)), {color:C.green,w:3.4,
+    label:'沿 −'+ghLabel+' 最小：= −'+fmtN(maxDL), ldy:15, lsize:11.5});
+  /* 极值端点 marker 让"最远点"在球面上一眼可见 */
+  marker(vadd(P,vmul(gh, L)),{r:5.5,color:C.crimson,alpha:1});
+  marker(vadd(P,vmul(gh,-L)),{r:5.5,color:C.green,  alpha:1});
+
+  /* ④ 当前 @{e_l} 高亮：端点同样落在方向导数球面上 */
+  if(e){
+    const t=vdot(gh,e);                       // = cos θ ∈[-1,1]（地形用 gh 而不是 g）
+    const tip=vadd(P, vmul(e, t*L));
+    const col=t>=0? C.crimson : C.green;
+    arrow(P, tip, {color:col, w:3.2, alpha:.95});
+    marker(tip,{r:5.0,color:col,alpha:1});
+    marker(tip,{r:2.2,color:'#fff',alpha:1});
+    text(tip,'@{e_l}：∂'+S.varName+'/∂l = '+fmtN(vdot(g,e)),
+      {color:col,size:11.5,bold:true,dx:9,dy:-3});
+  }
+  /* 罗盘所有 prims 加 z 偏置，避免被地形曲面/篝火等不透明元素覆盖 */
+  for(let i=_before;i<prims.length;i++) prims[i].z += 5;
+}
+
+/* =====================================================================
+ * 三、主场景构建
+ * ===================================================================== */
+function buildScene(){
+  prims=[];
+  const S=SCENES[state.scene];
+  drawAxes();
+
+  /* ---- 等值面 / 等值线 ---- */
+  if(state.show.iso){
+    if(S.kind==='campfire'){
+      drawCampfireGround();
+      drawCampfireIsolines(Ppos());
+    }else if(S.f2){
+      /* 地形：彩色曲面填充（每个 cell 按平均高度上色） */
+      const N=TER_N, xs=[], ys=[];
+      for(let i=0;i<=N;i++){ xs.push(-TER_LIM+2*TER_LIM*i/N); ys.push(-TER_LIM+2*TER_LIM*i/N); }
+      for(let i=0;i<N;i++) for(let j=0;j<N;j++){
+        const x0=xs[i],x1=xs[i+1],y0=ys[j],y1=ys[j+1];
+        const v00=hTerrain(x0,y0), v10=hTerrain(x1,y0),
+              v11=hTerrain(x1,y1), v01=hTerrain(x0,y1);
+        poly([pt(x0,y0,v00), pt(x1,y0,v10), pt(x1,y1,v11), pt(x0,y1,v01)],
+          {fill: phiColor((v00+v10+v11+v01)/4), fillAlpha:.88, stroke:'#FFFFFF', strokeAlpha:.12, w:.55});
+      }
+      /* 曲面上细网格（白色，让结构可见） */
+      for(const L of terrainGridLines()) curve(L,{color:'#FFFFFF',w:.55,alpha:.22});
+      /* 等高线 */
+      const lv=S.levels();
+      const pv=hTerrain(state.P.x,state.P.y);
+      let near=lv[0], nd=1e9;
+      for(const v of lv){ const d=Math.abs(v-pv); if(d<nd){nd=d; near=v;} }
+      for(const v of lv){
+        const emph=(v===near);
+        const col=emph? '#1F3D4C' : '#FFFFFF';
+        for(const sg of contoursFor(v))
+          curve(sg,{color:col, w:emph?2.4:1.4, alpha:emph?.95:.6});
+      }
+    }else{
+      const lv=S.levels();
+      const pv=phiAt(Ppos());
+      let near=lv[0], nd=1e9;
+      for(const v of lv){ const d=Math.abs(v-pv); if(d<nd){nd=d; near=v;} }
+      for(const v of lv){
+        const emph=(v===near);
+        let center;
+        if(state.scene==='dipole') center = (v>0? DIP[0].c : DIP[1].c);
+        else if(state.scene==='temp') center = Q1;    /* 篝火已改走 campfire 分支，这里不会执行 */
+        else center = Q1;
+        drawIsoSurface(center, v, emph);
+      }
+      /* 场源标记 */
+      if(state.scene==='point'){ marker(Q1,{r:6,color:C.crimson,ring:'#F6C9C2',label:'+q'}); }
+      if(state.scene==='dipole'){
+        marker(DIP[0].c,{r:6,color:C.crimson,ring:'#F6C9C2',label:'+q'});
+        marker(DIP[1].c,{r:6,color:C.blue,ring:'#C6E6F5',label:'-q'});
+      }
+    }
+  }
+
+  /* ---- 篝火 + 小人（场景主体，不受"等值面"开关控制，始终显示） ---- */
+  if(S.kind==='campfire'){
+    const tt=performance.now()/1000;
+    drawCampfire(tt);
+    /* 三个固定参考小人：远（冷）/ 中（舒适）/ 近（热） */
+    const REFS=[ {a:206, d:1.42, tag:'远'}, {a:256, d:.78, tag:'中'}, {a:322, d:.30, tag:'近'} ];
+    REFS.forEach(r=>{
+      const a=r.a*D2R;
+      const q=pt(r.d*Math.cos(a), r.d*Math.sin(a), 0);
+      drawPerson(q, hCampfire(q.x,q.y), tt, false, r.tag);
+    });
+  }
+
+  /* ---- P 点、梯度、罗盘 ---- */
+  const P=Ppos();
+  const g=gradAt(P), gl=vlen(g), gh=vnorm(g);
+  const S3=SCENES[state.scene];
+
+  if(state.show.compass) drawCompass(P,g,eDir());
+
+  /* 梯度 ∇φ：长度随模值单调增长但永不爆炸 */
+  if(state.show.grad && gl>1e-6){
+    const gref = S3.f2?1.2 : (state.scene==='point'?3.0 : state.scene==='dipole'?6.0 : 1.0);
+    const Lg = 0.28 + 0.62*(gl/(gl+gref));
+    const G=vadd(P, vmul(gh, Lg));
+    arrow(P, G, {color:C.crimson, w:2.6, label:'∇'+S3.varName, ldy:-12, lsize:13});
+  }
+
+  /* P 点：篝火场景画成"主角小人"（可拖动，表情随温度变化），其余场景画圆点 */
+  if(S3.kind==='campfire'){
+    drawPerson(P, phiAt(P), performance.now()/1000, true, 'P');
+    marker(P,{r:3.2,color:C.teal,ring:'#BBD9E6',alpha:.9});
+  }else{
+    marker(P,{r:6,color:C.teal,ring:'#BBD9E6',label:'P'});
+    /* P 到底面的竖直投影（三维场） */
+    if(!S3.f2){
+      line(P, pt(P.x,P.y,-1.15), {color:'#C9D6DD',w:1,dash:[3,3]});
+    }
+  }
+}
+
+/* =====================================================================
+ * 四、渲染循环
+ * ===================================================================== */
+let needsRender=true;
+function draw(){
+  setupCamera();
+  ctx.clearRect(0,0,W,H);
+  buildScene();
+  prims.sort((a,b)=>a.z-b.z);
+  for(const p of prims) p.draw(ctx);
+  updatePanTag();
+  needsRender=false;
+}
+function tick(){
+  if(state.autoRotate){ cam.az+=0.0045; needsRender=true; }
+  /* 篝火场景需要持续动画（火焰跳动 / 小人发抖 / 汗滴下落） */
+  if(SCENES[state.scene] && SCENES[state.scene].kind==='campfire') needsRender=true;
+  if(needsRender) draw();
+  requestAnimationFrame(tick);
+}
+/* 全局刷新：任何交互改动 state 后统一走这里
+   （本页必须定义 updateAll —— 1.2 页曾因缺这个函数导致 handler 抛 ReferenceError 中断） */
+function updateAll(){
+  needsRender=true;
+  syncSliders();
+  updateReadout();
+  updateModeTag();
+}
+
+/* =====================================================================
+ * 五、右侧面板
+ * ===================================================================== */
+const panel=document.getElementById('panel');
+function h(html){ const d=document.createElement('div'); d.innerHTML=html; return d; }
+const f2=v=>v.toFixed(2), f3=v=>v.toFixed(3);
+function vstr(v){ return '('+v.x.toFixed(2)+', '+v.y.toFixed(2)+', '+v.z.toFixed(2)+')'; }
+function chipHtml(k,label,on,cls){
+  return '<button class="chip '+(cls||'')+(on?' on':'')+'" data-k="'+k+'">'+label+'</button>';
+}
+
+const SHOW_ITEMS=[
+  {k:'iso',     label:'等值面 / 等值线'},
+  {k:'grad',    label:'梯度 ∇φ'},
+  {k:'compass', label:'方向导数罗盘'},
+];
+
+function renderSubSec(sec){
+  sec.innerHTML='';
+  sec.appendChild(h('<div class="sec-title">图中显示哪些内容</div>'));
+  const box=h('<div class="sub-chips"></div>').firstChild;
+  SHOW_ITEMS.forEach(it=>{
+    const b=h(chipHtml(it.k, richHTML(it.label), state.show[it.k]));
+    const btn=b.firstChild;
+    btn.onclick=()=>{
+      state.show[it.k]=!state.show[it.k];
+      btn.classList.toggle('on', state.show[it.k]);   // 同步外观——updateAll 不调 renderPanel，chip DOM 不会自动重建
+      updateAll();
+    };
+    box.appendChild(btn);
+  });
+  sec.appendChild(box);
+
+  sec.appendChild(h('<div class="sec-title" style="margin-top:14px">一键对齐方向</div>'));
+  const pre=h('<div class="sub-chips"></div>').firstChild;
+  const PRE=[
+    {k:'grad', label:'@{e_l} ∥ ∇φ（最大）', cls:'o'},
+    {k:'tang', label:'@{e_l} ⊥ ∇φ（为 0）', cls:'g'},
+    {k:'opp',  label:'@{e_l} ∥ −∇φ（最小）', cls:'p'},
+  ];
+  PRE.forEach(it=>{
+    const b=h(chipHtml(it.k, richHTML(it.label), false, 'pre '+it.cls));
+    b.firstChild.onclick=()=>{
+      const P=Ppos(), g=gradAt(P), gl=vlen(g);
+      if(gl<1e-6){ toast('该点梯度为零，方向唯一'); return; }
+      const gh=vnorm(g);
+      if(it.k==='grad'){ setDirFromVec(gh); }
+      else if(it.k==='opp'){ setDirFromVec(vmul(gh,-1)); }
+      else{
+        /* 切于等值面：取一个与 ∇φ 垂直的方向（水平优先，退化时用 x 轴叉乘） */
+        let t=vcross(gh, pt(0,0,1));
+        if(vlen(t)<1e-4) t=vcross(gh, pt(1,0,0));
+        setDirFromVec(vnorm(t));
+      }
+      updateAll();
+      toast('已把 e_l 对齐到「'+it.label.replace(/@\{|\}/g,'')+'」');
+    };
+    pre.appendChild(b.firstChild);
+  });
+  sec.appendChild(pre);
+}
+/* 由矢量反解方位角/仰角并写入 state */
+function setDirFromVec(v){
+  const u=vnorm(v);
+  state.dirAz=(Math.atan2(u.y,u.x)*R2D+360)%360;
+  state.dirEl=Math.asin(Math.max(-1,Math.min(1,u.z)))*R2D;
+}
+
+function renderSliders(sec){
+  sec.innerHTML='';
+  const S=SCENES[state.scene];
+  sec.appendChild(h('<div class="sec-title">观察点 P 的位置</div>'));
+  const rows=[];
+  for(let i=-1.2;i<=1.201;i+=0.3) rows.push(i);
+  const SL=[
+    {k:'px', label:'x', min:-1.2, max:1.2, step:.02, dec:2, get:()=>state.P.x, set:v=>state.P.x=v},
+    {k:'py', label:'y', min:-1.2, max:1.2, step:.02, dec:2, get:()=>state.P.y, set:v=>state.P.y=v},
+  ];
+  if(!S.f2) SL.push({k:'pz', label:'z', min:-1.15, max:1.15, step:.02, dec:2, get:()=>state.zc, set:v=>state.zc=v});
+  SL.forEach(d=>{
+    const r=h('<div class="slider-row"><label>'+d.label+'</label>'+
+      '<input type="range" id="s_'+d.k+'" min="'+d.min+'" max="'+d.max+'" step="'+d.step+'" value="'+d.get()+'">'+
+      '<span class="val" id="v_'+d.k+'">'+d.get().toFixed(d.dec)+'</span></div>');
+    const inp=r.querySelector('input');
+    inp.oninput=()=>{ d.set(parseFloat(inp.value));
+      document.getElementById('v_'+d.k).textContent=parseFloat(inp.value).toFixed(d.dec);
+      needsRender=true; updateReadout(); updateModeTag(); };
+    sec.appendChild(r);
+  });
+
+  sec.appendChild(h('<div class="slider-group-label" style="margin-top:14px">方向 @{e_l}（单位矢量）</div>'));
+  const SL2=[
+    {k:'az', label:'方位角', min:0, max:360, step:1, dec:0, unit:'°', get:()=>state.dirAz, set:v=>state.dirAz=v},
+  ];
+  if(!S.f2) SL2.push({k:'el', label:'仰角', min:-90, max:90, step:1, dec:0, unit:'°', get:()=>state.dirEl, set:v=>state.dirEl=v});
+  SL2.forEach(d=>{
+    const r=h('<div class="slider-row w"><label>'+richHTML(d.label)+'</label>'+
+      '<input type="range" id="s_'+d.k+'" min="'+d.min+'" max="'+d.max+'" step="'+d.step+'" value="'+d.get()+'">'+
+      '<span class="val" id="v_'+d.k+'">'+d.get().toFixed(d.dec)+(d.unit||'')+'</span></div>');
+    const inp=r.querySelector('input');
+    inp.oninput=()=>{ d.set(parseFloat(inp.value));
+      document.getElementById('v_'+d.k).textContent=parseFloat(inp.value).toFixed(d.dec)+(d.unit||'');
+      needsRender=true; updateReadout(); updateModeTag(); };
+    sec.appendChild(r);
+  });
+  if(S.f2) sec.appendChild(h('<div class="ex-note">地形是定义在水平面上的二维场，方向 '+
+    richHTML('@{e_l}')+' 只能水平取（仰角锁定 0°）；Δh 就是沿该方向走一步的<b>高度变化</b>。</div>'));
+}
+
+function syncSliders(){
+  const S=SCENES[state.scene];
+  const set=(id,v,dec,unit)=>{ const el=document.getElementById(id); if(el) el.textContent=v.toFixed(dec)+(unit||''); };
+  const put=(id,v)=>{ const el=document.getElementById(id); if(el) el.value=v; };
+  put('s_px',state.P.x); set('v_px',state.P.x,2);
+  put('s_py',state.P.y); set('v_py',state.P.y,2);
+  if(!S.f2){ put('s_pz',state.zc); set('v_pz',state.zc,2); }
+  put('s_az',state.dirAz); set('v_az',state.dirAz,0,'°');
+  if(!S.f2){ put('s_el',state.dirEl); set('v_el',state.dirEl,0,'°'); }
+}
+
+function renderExplain(sec){
+  sec.innerHTML='';
+  const S=SCENES[state.scene];
+  const P=Ppos(), g=gradAt(P), gl=vlen(g), e=eDir(), dfdl=vdot(g,e);
+  const ang=Math.acos(Math.max(-1,Math.min(1, gl>1e-9? vdot(vnorm(g),e):1)));
+  const vn=S.varName;
+  const isoDesc = S.kind==='campfire' ? '<b>地面上向外扩散的同心圆</b>（等温线，越靠近火堆温度越高）'
+        : (S.f2 ? '<b>等高线</b>（画在地形曲面上）' : '<b>一族闭曲面</b>（半透明线框）');
+  const cards=[
+    {k:'1', tab:'1. 等值面', cls:'c1', body:
+      '<b>定义：</b>标量场中使场函数取同一数值的点的集合，即'+
+      '<div class="frm">'+vn+'(x, y, z) = C</div>'+
+      '<ul><li>空间每一点只有一个场值 ⇒ <b>每一点只在一个等值面上</b>，等值面<b>互不相交</b></li>'+
+      '<li>本场景（'+S.name+'）的等值面：'+isoDesc+'</li>'+
+      '<li>P 点所在的那一层已<b>加粗高亮</b>——拖动 P 时高亮层会跟着跳</li></ul>'+
+      '<div class="ex-note">'+S.real+'</div>'},
+    {k:'2', tab:'2. 方向导数', cls:'c2', body:
+      '<b>定义：</b>场函数沿某一方向 '+richHTML('@{e_l}')+' 的变化率'+
+      '<div class="frm">∂'+vn+'/∂l = lim<sub>Δl→0</sub> Δ'+vn+'/Δl</div>'+
+      '<ul><li>它是<b>标量</b>，可正可负：正=沿该方向场值上升，负=下降</li>'+
+      '<li>几何意义就是<b>坡度</b>：沿 '+richHTML('@{e_l}')+' 走一小段 d'+richHTML('@{l}')+
+        '，场值变化 Δ'+vn+' —— 罗盘里每根折线的<b>竖直段</b>就是这个 Δ'+vn+'</li>'+
+      '<li>当前 '+richHTML('@{e_l}')+'（方位角 '+state.dirAz.toFixed(0)+'°'+
+        (S.f2?'':'，仰角 '+state.dirEl.toFixed(0)+'°')+'）：∂'+vn+'/∂l = <b>'+
+        dfdl.toFixed(3)+'</b></li></ul>'+
+      '<div class="ex-note"><b>易错点：</b>'+richHTML('@{e_l}')+
+        ' 确实躺在<b>水平面</b>里——它是<b>定义域（xy 平面）中的位移方向</b>。'+
+        '但 '+vn+' 是定义在水平面上的函数：<b>在水平面里走 dl，对应的点高度就变了 Δ'+vn+'</b>。'+
+        '所以 ∂'+vn+'/∂l = Δ'+vn+'/dl ≠ 0。'+
+        '<br>打开「方向导数罗盘」可以看到：'+
+        '一圈 36 根折线，每根都<b>从 P 出发</b>——水平段是方向、竖直段是该方向的 Δ'+vn+'；'+
+        '加粗那一根就是你选中的 '+richHTML('@{e_l}')+'。'+
+        '把 '+richHTML('@{e_l}')+' 转到<b>沿等高线</b>时，竖直段缩成 0，方向导数就是 0。</div>'},
+    {k:'3', tab:'3. 梯度', cls:'c3', body:
+      '<b>定义：</b>大小取方向导数的<b>最大值</b>、方向取<b>取得最大值的方向</b>的矢量'+
+      '<div class="frm">grad '+vn+' = ∇'+vn+' = @{e_x}∂'+vn+'/∂x + @{e_y}∂'+vn+'/∂y + @{e_z}∂'+vn+'/∂z</div>'+
+      '<ul><li>∇'+vn+' <b>垂直于过该点的等值面</b>，并指向场值<b>增大</b>的方向</li>'+
+      '<li>当前 ∇'+vn+' = <b>'+vstr(g)+'</b>，|∇'+vn+'| = <b>'+gl.toFixed(3)+'</b></li>'+
+      '<li>等值面越密的地方 |∇'+vn+'| 越大 —— 地图上等高线越密坡越陡</li></ul>'+
+      (state.scene==='point'||state.scene==='dipole'?
+        '<div class="ex-note">电势的负梯度就是电场强度：<b>E</b> = −∇'+vn+'。图中红色箭头是 ∇'+vn+
+        '，电场方向与它<b>相反</b>。</div>':'')},
+    {k:'4', tab:'4. 三者关系', cls:'c4', body:
+      '<b>核心公式（一句话记住全部）：</b>'+
+      '<div class="frm">∂'+vn+'/∂l = ∇'+vn+' · @{e_l} = |∇'+vn+'| cos θ</div>'+
+      '<ul><li>沿<b>等值线（面）切线</b>方向：θ = 90° ⇒ ∂'+vn+'/∂l = <b>0</b>（不升不降）</li>'+
+      '<li>沿<b>梯度方向</b>：θ = 0° ⇒ ∂'+vn+'/∂l = |∇'+vn+'|，取<b>最大值</b></li>'+
+      '<li>沿<b>反梯度</b>方向：θ = 180° ⇒ ∂'+vn+'/∂l = −|∇'+vn+'|，取<b>最小值</b></li>'+
+      '<li>其他方向：都是 ∇'+vn+' 在该方向上的<b>投影</b></li></ul>'+
+      '<div class="ex-note">当前 θ = <b>'+(ang*R2D).toFixed(1)+'°</b>，|∇'+vn+'|cos θ = <b>'+
+        (gl*Math.cos(ang)).toFixed(3)+'</b>，与 ∂'+vn+'/∂l = <b>'+dfdl.toFixed(3)+'</b> 一致。'+
+        '打开「方向导数罗盘」可以一眼看到：红箭头最长处 = 梯度方向，绿箭头 = 下降方向。</div>'},
+  ];
+  if(!cards.find(c=>c.k===state.cardTab)) state.cardTab='1';
+  const cur=cards.find(c=>c.k===state.cardTab);
+  sec.appendChild(h('<div class="ex-title">公式与解读</div>'+
+    '<div class="card-tabs">'+cards.map(c=>'<button class="card-tab '+c.cls+(c.k===state.cardTab?' on':'')+
+      '" data-k="'+c.k+'">'+c.tab+'</button>').join('')+'</div>'+
+    '<div class="card-body '+cur.cls+'"><div class="ex-body">'+cur.body+'</div></div>'));
+  sec.querySelectorAll('.card-tab').forEach(b=>{ b.onclick=()=>{ state.cardTab=b.dataset.k; renderPanel(); }; });
+}
+
+function renderPanel(){
+  ['subSec','sliderSec','explainSec'].forEach(id=>{ const el=document.getElementById(id); if(el) el.remove(); });
+  const mk=id=>{ const d=document.createElement('div'); d.className='panel-sec'; d.id=id; return d; };
+  let togsec=document.getElementById('toggleSec');
+  if(!togsec){
+    togsec=mk('toggleSec');
+    togsec.appendChild(h('<label class="readout-toggle"><input type="checkbox" id="showReadoutCb"'+
+      (state.showReadout?' checked':'')+'><span>在<b>画布下方</b>显示<b>实时数据</b>条</span></label>'));
+    togsec.querySelector('#showReadoutCb').onchange=e=>{ state.showReadout=e.target.checked; updateReadout(); };
+    panel.appendChild(togsec);
+  }else{
+    togsec.querySelector('#showReadoutCb').checked=state.showReadout;
+  }
+  const subsec=mk('subSec'), ssec=mk('sliderSec'), esec=mk('explainSec');
+  panel.appendChild(subsec); panel.appendChild(ssec); panel.appendChild(esec);
+  renderSubSec(subsec); renderSliders(ssec); renderExplain(esec);
+  updateReadout(); updateModeTag();
+}
+
+/* =====================================================================
+ * 六、读数与提示
+ * ===================================================================== */
+function kchip(k,v,cls){ return '<span class="coord-chip '+(cls||'')+'">'+richHTML(k)+
+  '<b>'+v+'</b></span>'; }
+function updateReadout(){
+  const strip=document.getElementById('coordStrip');
+  if(!strip) return;
+  if(!state.showReadout){ strip.innerHTML=''; return; }
+  const S=SCENES[state.scene], P=Ppos();
+  const g=gradAt(P), gl=vlen(g), e=eDir();
+  const dfdl=vdot(g,e);
+  const ang=Math.acos(Math.max(-1,Math.min(1, gl>1e-9? vdot(vnorm(g),e):1)))*R2D;
+  const vn=S.varName, u=S.unit?(' '+S.unit):'';
+  const T0=phiAt(P);
+  let html='';
+  html+=kchip(vn+'(P) =', f3(T0)+u);
+  if(S.kind==='campfire'){
+    const st=personState(T0);
+    html+=kchip('体感 =', st==='hot'?'热 · 流汗红温':(st==='cold'?'冷 · 瑟瑟发抖':'舒适'), st==='comfy'?'':'warn');
+  }
+  html+=kchip('∇'+vn+' =', vstr(g));
+  html+=kchip('|∇'+vn+'| =', f3(gl));
+  html+=kchip('@{e_l} =', vstr(e));
+  html+=kchip('∂'+vn+'/∂l =', f3(dfdl), Math.abs(dfdl)<1e-3?'warn':'acc');
+  html+=kchip('θ =', ang.toFixed(1)+'°');
+  html+=kchip('|∇'+vn+'|cosθ =', f3(gl*Math.cos(ang*D2R)));
+  strip.innerHTML=html;
+  /* 图例 */
+  document.getElementById('lgTitle').textContent='场值 '+vn+'（'+S.varDesc+'）';
+  const big=Math.abs(S.hi)>20;
+  document.getElementById('lgMin').textContent=S.lo.toFixed(big?0:2)+u;
+  document.getElementById('lgMax').textContent=S.hi.toFixed(big?0:2)+u;
+}
+function updateModeTag(){
+  const S=SCENES[state.scene], P=Ppos();
+  const g=gradAt(P), gl=vlen(g), e=eDir(), dfdl=vdot(g,e);
+  let tip;
+  if(gl<1e-4) tip='该点 ∇'+S.varName+' ≈ 0（极值点／中性点）';
+  else if(Math.abs(dfdl)<1e-3) tip='沿 '+richHTML('@{e_l}')+' 的方向导数 ≈ 0 —— 正切于等值面';
+  else if(dfdl>0) tip='沿 '+richHTML('@{e_l}')+' 走场值<b>上升</b>';
+  else tip='沿 '+richHTML('@{e_l}')+' 走场值<b>下降</b>';
+  document.getElementById('modeTag').innerHTML=S.name+' · '+tip;
+  document.getElementById('moduleSub').textContent=S.varDesc+' · 等值面 · 梯度 · 投影关系';
+}
+function updatePanTag(){
+  const t=document.getElementById('panTag');
+  t.classList.toggle('show', Math.abs(cam.px)>2||Math.abs(cam.py)>2);
+}
+function toast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('show');
+  clearTimeout(toast._t); toast._t=setTimeout(()=>t.classList.remove('show'),1900);
+}
+
+/* =====================================================================
+ * 七、交互：旋转 / 平移 / 缩放 / 拖动 P 点
+ * ===================================================================== */
+let drag=null;
+function localPos(ev){ const r=canvas.getBoundingClientRect();
+  return {x:ev.clientX-r.left, y:ev.clientY-r.top}; }
+function pickHandle(mx,my){
+  const S=pr(Ppos());
+  if(Math.hypot(S.x-mx, S.y-my)<14) return 'P';
+  return null;
+}
+canvas=document.getElementById('cv');
+ctx=canvas.getContext('2d');
+canvas.addEventListener('pointerdown',ev=>{
+  canvas.setPointerCapture(ev.pointerId);
+  const m=localPos(ev);
+  drag={x:m.x, y:m.y, btn:ev.button, mode:(ev.button===2||ev.ctrlKey)?'pan':(pickHandle(m.x,m.y)||'rot')};
+  if(drag.mode==='P') canvas.classList.add('over-pt');
+  ev.preventDefault();
+});
+canvas.addEventListener('pointermove',ev=>{
+  const m=localPos(ev);
+  if(!drag){ canvas.classList.toggle('over-pt', pickHandle(m.x,m.y)==='P'); return; }
+  const dx=m.x-drag.x, dy=m.y-drag.y;
+  drag.x=m.x; drag.y=m.y;
+  if(drag.mode==='pan'){ cam.px+=dx; cam.py+=dy; needsRender=true; }
+  else if(drag.mode==='P'){
+    const s=camScale;
+    const d=vadd(vmul(camU,dx/s), vmul(camV,-dy/s));
+    const S=SCENES[state.scene];
+    state.P.x=Math.max(-1.2,Math.min(1.2,state.P.x+d.x));
+    state.P.y=Math.max(-1.2,Math.min(1.2,state.P.y+d.y));
+    if(!S.f2) state.zc=Math.max(-1.15,Math.min(1.15,state.zc+d.z*0.6));
+    needsRender=true; syncSliders(); updateReadout(); updateModeTag();
+  }
+  else{ cam.az-=dx*0.0075; cam.el=Math.max(-1.45,Math.min(1.45,cam.el+dy*0.0062)); needsRender=true; }
+});
+canvas.addEventListener('pointerup',ev=>{ drag=null; canvas.classList.remove('over-pt'); });
+canvas.addEventListener('pointercancel',()=>{ drag=null; canvas.classList.remove('over-pt'); });
+canvas.addEventListener('contextmenu',e=>e.preventDefault());
+canvas.addEventListener('wheel',e=>{ e.preventDefault();
+  cam.zoom=Math.max(.45,Math.min(3.2,cam.zoom*(e.deltaY<0?1.09:1/1.09))); needsRender=true; },{passive:false});
+
+/* 工具栏 / 折叠 / 快捷键 */
+document.getElementById('btnReset').onclick=()=>{
+  cam.az=.62; cam.el=.46; cam.zoom=1; cam.px=0; cam.py=0; needsRender=true; };
+document.getElementById('btnRotate').onclick=e=>{
+  state.autoRotate=!state.autoRotate; e.target.classList.toggle('on',state.autoRotate); };
+document.getElementById('btnPanReset').onclick=()=>{ cam.px=0; cam.py=0; needsRender=true; };
+function bindFold(btnId,cls){
+  document.getElementById(btnId).onclick=()=>{
+    document.body.classList.toggle(cls);
+    setTimeout(resize,60); setTimeout(resize,260);
+  };
+}
+bindFold('foldNav','nav-off'); bindFold('foldPanel','panel-off');
+document.getElementById('tglNav').onclick=()=>{ document.body.classList.toggle('nav-off');
+  setTimeout(resize,60); setTimeout(resize,260); };
+document.getElementById('tglPanel').onclick=()=>{ document.body.classList.toggle('panel-off');
+  setTimeout(resize,60); setTimeout(resize,260); };
+window.addEventListener('keydown',e=>{
+  if(e.target.tagName==='INPUT') return;
+  if(e.key==='['){ document.body.classList.toggle('nav-off'); setTimeout(resize,260); }
+  if(e.key===']'){ document.body.classList.toggle('panel-off'); setTimeout(resize,260); }
+});
+
+/* 场景切换 */
+const sceneTabs=document.getElementById('sceneTabs');
+Object.keys(SCENES).forEach(k=>{
+  const S=SCENES[k];
+  const b=document.createElement('button');
+  b.textContent=S.tab; b.dataset.k=k;
+  b.onclick=()=>{ state.scene=k; setDefaultP(k); syncTabs(); updateAll(); };
+  sceneTabs.appendChild(b);
+});
+function syncTabs(){
+  Array.from(sceneTabs.children).forEach(b=>b.classList.toggle('on', b.dataset.k===state.scene));
+}
+function setDefaultP(k){
+  if(k==='terrain'){ state.P.x=.30; state.P.y=.22; }
+  else if(k==='temp'){ state.P.x=.72; state.P.y=-.58; state.dirAz=210; state.dirEl=0; }
+  else if(k==='point'){ state.P.x=.55; state.P.y=.25; state.zc=.20; state.dirAz=25; state.dirEl=0; }
+  else if(k==='dipole'){ state.P.x=.05; state.P.y=.35; state.zc=.28; state.dirAz=90; state.dirEl=0; }
+  contourCache={}; isoCache={};
+  renderPanel();
+}
+
+/* 尺寸 */
+function resize(){
+  const r=canvas.getBoundingClientRect();
+  const nw=Math.max(60,Math.round(r.width)), nh=Math.max(60,Math.round(r.height));
+  DPR=Math.min(2, window.devicePixelRatio||1);
+  if(nw===W && nh===H && canvas.width===Math.round(nw*DPR)) return;
+  W=nw; H=nh;
+  canvas.width=Math.round(W*DPR); canvas.height=Math.round(H*DPR);
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+  needsRender=true;
+}
+new ResizeObserver(()=>resize()).observe(canvas);
+
+/* 导航渲染 */
+const nav=document.getElementById('nav');
+NAV.forEach(g=>{
+  nav.appendChild(h('<div class="nav-ch">'+g.ch+'</div>'));
+  g.items.forEach(it=>{
+    const cls='nav-item'+(it.active?' active':'')+(it.ready?'':' soon');
+    const el=h('<a class="'+cls+'" '+(it.href?'href="'+it.href+'"':'')+'><span class="dot"></span>'+it.t+'</a>');
+    nav.appendChild(el);
+  });
+});
+
+/* 启动 */
+syncTabs();
+resize();
+setDefaultP(state.scene);
+renderPanel();
+updateAll();
+tick();
+</script>
+</body>
+</html>

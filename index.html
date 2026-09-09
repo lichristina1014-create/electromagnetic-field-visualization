@@ -1,0 +1,1741 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-page-node-id="WkXFigqftuIwcWAtIIklpQ">
+<head data-page-node-id="qhIl8J9QnKEARC6j1IKEhN">
+<meta charset="UTF-8" data-page-node-id="k7RQEDbRdgHhwHloSkGO0h">
+<meta name="viewport" content="width=device-width, initial-scale=1.0" data-page-node-id="4rsIM9QAz1klEC9at03ww4">
+<title>电磁场与电磁波 · 可视化交互平台</title>
+<style>
+:root{
+  --teal:#156082; --teal-dark:#0E4A66; --teal-light:#E3EFF4;
+  --orange:#E97132; --orange-light:#FDF0E7;
+  --green:#3E9B4F; --green-light:#EAF5EC;
+  --purple:#9B59B6; --crimson:#D04A3A; --blue:#0F9ED5;
+  --ink:#1F3D4C; --muted:#5F7482; --line:#DCE6EB; --bg:#F2F6F8;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{height:100%;}
+body{
+  font-family:"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  background:var(--bg); color:var(--ink); overflow:hidden;
+}
+/* ============ 顶栏 ============ */
+header{
+  height:76px; background:#fff; border-bottom:1px solid var(--line);
+  display:flex; align-items:center; padding:0 22px; gap:14px;
+}
+.logo{
+  width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,var(--teal),#2E86AB);
+  display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:15px;
+}
+header h1{font-size:18px;font-weight:700;letter-spacing:.5px;}
+header .sub{font-size:12px;color:var(--muted);margin-top:2px;}
+header .badge{
+  margin-left:auto;display:flex;flex-direction:column;align-items:flex-end;gap:4px;
+}
+header .badge .chip{
+  font-size:12px;color:var(--teal);background:var(--teal-light);
+  border:1px solid #C5DEE9;padding:4px 12px;border-radius:20px;white-space:nowrap;
+}
+header .badge .owner{
+  font-size:11px;color:#5C6B73;background:#F4F7F9;
+  border:1px solid #E2E8EC;padding:3px 10px;border-radius:20px;white-space:nowrap;
+  display:inline-flex;align-items:center;gap:5px;
+}
+header .badge .owner b{color:var(--teal);font-weight:600;letter-spacing:.3px;}
+header .badge .owner::before{content:"";display:inline-block;width:5px;height:5px;background:var(--teal);border-radius:50%;}
+/* ============ 布局 ============ */
+.layout{display:flex;height:calc(100vh - 58px);}
+aside{
+  width:236px;background:#fff;border-right:1px solid var(--line);
+  overflow-y:auto;padding:14px 0;flex-shrink:0;
+}
+aside::-webkit-scrollbar{width:6px;} aside::-webkit-scrollbar-thumb{background:#D5E0E6;border-radius:3px;}
+.nav-ch{font-size:12px;color:var(--muted);padding:12px 18px 6px;font-weight:600;letter-spacing:.5px;}
+.nav-item{
+  display:flex;align-items:center;gap:8px;padding:9px 18px;font-size:13.5px;cursor:pointer;
+  color:#3D5A68;border-left:3px solid transparent;transition:background .15s;text-decoration:none;
+}
+.nav-item:hover{background:#F5F9FB;}
+.nav-item.active{
+  background:var(--teal-light);color:var(--teal-dark);font-weight:600;border-left-color:var(--teal);
+}
+.nav-item .dot{width:6px;height:6px;border-radius:50%;background:#C6D4DB;flex-shrink:0;}
+.nav-item.active .dot{background:var(--teal);}
+.nav-item.soon{color:#A5B6C0;cursor:not-allowed;}
+.nav-item.soon .dot{background:#E1E9ED;}
+.nav-item.soon::after{content:"建设中";font-size:10px;color:#B7C6CE;margin-left:auto;border:1px solid #DCE6EB;border-radius:8px;padding:1px 6px;}
+main{flex:1;display:flex;flex-direction:column;padding:14px 16px 12px;overflow:hidden;min-width:0;}
+/* ============ 模块头部 ============ */
+.module-head{display:flex;align-items:center;gap:16px;margin-bottom:12px;flex-wrap:wrap;}
+.module-title{font-size:17px;font-weight:700;}
+.module-title small{font-weight:400;color:var(--muted);font-size:12px;margin-left:8px;}
+.seg{display:flex;background:#fff;border:1px solid var(--line);border-radius:10px;padding:3px;gap:2px;}
+.seg button{
+  border:none;background:transparent;padding:7px 18px;font-size:13.5px;border-radius:8px;cursor:pointer;
+  color:var(--muted);font-family:inherit;transition:all .15s;
+}
+.seg button:hover{color:var(--teal);}
+.seg button.on{background:var(--teal);color:#fff;font-weight:600;box-shadow:0 2px 6px rgba(21,96,130,.3);}
+.seg.sym{margin-left:auto;padding:2px;gap:2px;}
+.seg.sym button{font-size:12px;padding:4px 10px;}
+/* ============ 内容区 ============ */
+.content-row{flex:1;display:flex;gap:14px;min-height:0;}
+.canvas-card{
+  flex:1;background:#fff;border:1px solid var(--line);border-radius:14px;
+  position:relative;overflow:hidden;min-width:0;display:flex;flex-direction:column;
+  box-shadow:0 1px 4px rgba(30,60,80,.05);
+}
+#cv{width:100%;flex:1;display:block;cursor:grab;touch-action:none;}
+#cv:active{cursor:grabbing;}
+.cv-toolbar{
+  position:absolute;top:12px;right:12px;display:flex;gap:8px;z-index:5;
+}
+.cv-toolbar button{
+  border:1px solid var(--line);background:rgba(255,255,255,.92);border-radius:8px;
+  padding:5px 12px;font-size:12px;color:var(--muted);cursor:pointer;font-family:inherit;
+  backdrop-filter:blur(4px);transition:all .15s;
+}
+.cv-toolbar button:hover{color:var(--teal);border-color:var(--teal);}
+.cv-toolbar button.on{background:var(--teal);color:#fff;border-color:var(--teal);}
+.cv-hint{
+  position:absolute;bottom:10px;left:50%;transform:translateX(-50%);
+  font-size:11.5px;color:#93A8B4;background:rgba(255,255,255,.85);
+  padding:4px 14px;border-radius:14px;pointer-events:none;backdrop-filter:blur(3px);z-index:4;
+}
+.cv-mode-tag{
+  position:absolute;top:12px;left:12px;font-size:12px;color:var(--teal-dark);
+  background:rgba(227,239,244,.92);border:1px solid #C9E0EA;border-radius:8px;
+  padding:5px 12px;z-index:4;pointer-events:none;font-weight:600;max-width:60%;
+}
+/* ============ 侧栏折叠（课堂投影：把画布放到最大） ============ */
+aside,.panel{transition:width .22s ease, padding .22s ease, border-width .22s ease;}
+body.nav-off   aside {width:0;padding-top:0;padding-bottom:0;border-right-width:0;overflow:hidden;}
+body.panel-off .panel{width:0;border-left-width:0;border-right-width:0;overflow:hidden;}
+/* 画布左右边缘的折叠手柄 */
+.fold-handle{
+  position:absolute;top:50%;transform:translateY(-50%);z-index:6;
+  width:15px;height:58px;padding:0;line-height:1;
+  border:1px solid var(--line);background:rgba(255,255,255,.94);
+  color:#A3B7C2;font-size:11px;cursor:pointer;font-family:inherit;
+  display:flex;align-items:center;justify-content:center;
+  backdrop-filter:blur(4px);transition:all .15s;
+}
+.fold-handle:hover{color:var(--teal);border-color:var(--teal);background:#fff;}
+#foldNav{left:0;border-left:none;border-radius:0 9px 9px 0;}
+#foldPanel{right:0;border-right:none;border-radius:9px 0 0 9px;}
+/* header 上的视图开关 */
+.view-toggles{display:flex;gap:6px;margin-right:6px;}
+.view-toggles button{
+  border:1px solid var(--line);background:#fff;border-radius:8px;padding:5px 11px;
+  font-size:12px;color:var(--muted);cursor:pointer;font-family:inherit;transition:all .15s;
+}
+.view-toggles button:hover{border-color:var(--teal);color:var(--teal);}
+.view-toggles button.on{background:var(--teal);color:#fff;border-color:var(--teal);}
+/* 画面被平移后，提示可以一键归位 */
+.cv-pan-tag{
+  position:absolute;top:12px;left:50%;transform:translateX(-50%);z-index:6;
+  font-size:11.5px;color:#8A5A20;background:rgba(255,248,236,.95);
+  border:1px solid #E7C48F;border-radius:8px;padding:5px 12px;
+  display:none;align-items:center;gap:8px;
+}
+.cv-pan-tag.show{display:flex;}
+.cv-pan-tag button{
+  border:1px solid #E0BE8C;background:#fff;border-radius:6px;padding:2px 9px;
+  font-size:11.5px;color:#8A5A20;cursor:pointer;font-family:inherit;
+}
+.cv-pan-tag button:hover{background:#8A5A20;color:#fff;border-color:#8A5A20;}
+/* 球坐标两极提示：θ→0°/180° 时纬线退化，说明这是数学事实不是画错。
+   放 top:44px 是为了避开同样居中的 panTag(top:12px)，两者可同时出现不打架。 */
+.cv-pole-tag{
+  position:absolute;top:44px;left:50%;transform:translateX(-50%);z-index:6;
+  font-size:11.5px;color:#155E63;background:rgba(236,251,252,.96);
+  border:1px solid #9CD3D8;border-radius:8px;padding:5px 12px;
+  display:none;
+}
+.cv-pole-tag.show{display:block;}
+/* 坐标换算条 */
+.coord-strip{
+  display:flex;gap:8px;padding:10px 12px;border-top:1px solid var(--line);background:#FBFDFE;
+  flex-wrap:wrap;
+}
+.coord-chip{
+  font-size:12px;color:var(--muted);background:#F3F8FA;border:1px solid #E2ECF1;
+  border-radius:8px;padding:5px 12px;
+}
+.coord-chip b{color:var(--teal-dark);font-weight:600;margin-right:4px;}
+.coord-chip i{font-style:italic;font-family:Georgia,serif;color:var(--ink);}
+/* ============ 右侧面板 ============ */
+.panel{
+  width:352px;flex-shrink:0;background:#fff;border:1px solid var(--line);border-radius:14px;
+  display:flex;flex-direction:column;overflow-y:auto;box-shadow:0 1px 4px rgba(30,60,80,.05);
+}
+.panel::-webkit-scrollbar{width:6px;} .panel::-webkit-scrollbar-thumb{background:#D5E0E6;border-radius:3px;}
+.panel-sec{padding:14px 16px;border-bottom:1px solid #EEF3F6;}
+.panel-sec:last-child{border-bottom:none;}
+/* 从"单独查看某个坐标变量"开始的所有 section 整体右移，避免左边沿被遮 */
+#subSec, #sliderSec, #explainSec{padding-left:38px;}
+.sec-title{
+  font-size:12px;color:var(--muted);font-weight:600;letter-spacing:1px;margin-bottom:10px;
+  display:flex;align-items:center;gap:6px;
+}
+.sec-title::before{content:"";width:3px;height:12px;background:var(--teal);border-radius:2px;}
+/* 物理量按钮 */
+.qty-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.qty-btn{
+  border:1.5px solid var(--line);background:#fff;border-radius:10px;padding:9px 10px;
+  text-align:left;cursor:pointer;font-family:inherit;transition:all .15s;position:relative;
+}
+.qty-btn:hover{border-color:var(--teal);background:#F7FBFD;}
+.qty-btn.on{border-color:var(--teal);background:var(--teal-light);box-shadow:0 2px 8px rgba(21,96,130,.12);}
+.qty-btn .no{
+  display:inline-flex;width:20px;height:20px;border-radius:50%;background:var(--teal);color:#fff;
+  font-size:11px;align-items:center;justify-content:center;margin-right:6px;font-weight:600;
+}
+.qty-btn .nm{font-size:13.5px;font-weight:600;color:var(--ink);}
+.qty-btn.on .nm{color:var(--teal-dark);}
+.qty-btn .ds{display:block;font-size:10.5px;color:var(--muted);margin-top:3px;}
+.qty-btn.star{grid-column:span 2;border-color:#F0C9A8;background:linear-gradient(to right,#FDF6EF,#fff);}
+.qty-btn.star .no{background:var(--orange);}
+.qty-btn.star.on{border-color:var(--orange);background:var(--orange-light);}
+.qty-btn.star.on .nm{color:#B5541C;}
+/* 子选项 chips */
+.sub-chips{display:flex;gap:6px;flex-wrap:wrap;}
+.chip{
+  border:1px solid var(--line);background:#fff;border-radius:16px;padding:4px 13px;
+  font-size:12.5px;line-height:1.5;cursor:pointer;font-family:inherit;color:var(--muted);transition:all .15s;
+}
+.chip:hover{border-color:var(--teal);color:var(--teal);}
+.chip.on{background:var(--teal);border-color:var(--teal);color:#fff;font-weight:600;}
+.chip.face.on{background:var(--orange);border-color:var(--orange);}
+/* 参考几何开关 */
+.ref-toggle{
+  display:flex;align-items:flex-start;gap:8px;margin-top:12px;padding:8px 10px;
+  background:#F3F8FA;border:1px solid #E2ECF1;border-radius:8px;cursor:pointer;
+  font-size:12px;line-height:1.6;color:var(--muted);
+}
+.ref-toggle:hover{border-color:#C6DAE3;background:#EDF4F7;}
+.ref-toggle input{accent-color:var(--teal);margin-top:2px;flex-shrink:0;cursor:pointer;}
+.ref-toggle b{color:var(--ink);}
+/* 滑块 */
+.slider-row{display:flex;align-items:center;gap:10px;margin-bottom:9px;}
+.slider-row label{width:34px;font-size:13px;font-style:italic;font-family:Georgia,serif;color:var(--ink);text-align:right;flex-shrink:0;}
+.slider-row input[type=range]{flex:1;accent-color:var(--teal);height:4px;cursor:pointer;}
+.slider-row .val{width:56px;font-size:12px;color:var(--muted);font-family:Menlo,monospace;flex-shrink:0;}
+.slider-group-label{font-size:12px;font-weight:600;color:var(--teal-dark);margin:4px 0 8px;}
+.slider-group-label.q{color:var(--purple);}
+/* 解读区 */
+.ex-title{font-size:14.5px;font-weight:700;color:var(--teal-dark);margin-bottom:8px;line-height:1.45;}
+.ex-body{font-size:13px;line-height:1.85;color:#3A5462;}
+.ex-body b{color:var(--ink);}
+.ex-body ul{padding-left:18px;margin:6px 0;}
+.ex-body li{margin-bottom:3px;}
+.frm{
+  display:block;background:#F4F9FB;border:1px solid #DDE9EF;border-left:3px solid var(--teal);
+  border-radius:8px;padding:10px 14px 10px 18px;margin:10px 0;font-size:14px;line-height:1.7;
+  font-family:Georgia,"Times New Roman",serif;color:var(--ink);overflow-x:auto;white-space:nowrap;
+}
+.frm::-webkit-scrollbar{height:4px;}
+.frm::-webkit-scrollbar-thumb{background:#D5E0E6;border-radius:2px;}
+/* ---------- 矢量记号：<span class="vec">X</span> 上方加箭头 ---------- */
+.vec{position:relative;font-style:italic;font-weight:700;white-space:nowrap;}
+.vec::before,.vec::after{content:'';position:absolute;pointer-events:none;}
+/* 箭杆 */
+.vec::before{left:0;right:.24em;top:-.28em;height:1px;background:currentColor;opacity:.9;}
+/* 箭头（三角形，指向右） */
+.vec::after{right:0;top:-.42em;width:0;height:0;
+  border-left:.26em solid currentColor;
+  border-top:.14em solid transparent;border-bottom:.14em solid transparent;}
+sub{font-size:.72em;vertical-align:-.24em;}
+.frm sub{font-size:.72em;}
+.vec sub{font-style:normal;font-weight:600;}
+.frm .v,.frm .uv{font-style:italic;font-weight:700;}
+.tips{
+  background:#FBF7EE;border:1px solid #F0E4C8;border-radius:8px;padding:9px 12px;margin-top:10px;
+}
+.tips .tt{font-size:11.5px;font-weight:600;color:#A07514;margin-bottom:4px;}
+.tips ul{padding-left:16px;font-size:12px;line-height:1.75;color:#7A6A45;}
+.readout{
+  background:#F5F0FA;border:1px solid #E2D4F0;border-radius:8px;padding:9px 12px;margin-top:10px;
+  font-family:Menlo,monospace;font-size:12.5px;color:#6B4E8A;line-height:2;
+}
+.readout .vec{font-style:normal;font-weight:700;}
+/* toast */
+#toast{
+  position:fixed;left:50%;top:76px;transform:translateX(-50%) translateY(-8px);
+  background:rgba(31,61,76,.92);color:#fff;font-size:13px;padding:9px 20px;border-radius:22px;
+  opacity:0;pointer-events:none;transition:all .3s;z-index:99;
+}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+@media (max-width:1100px){
+  .panel{width:300px;} aside{width:200px;}
+}
+</style>
+</head>
+<body data-page-node-id="3Du5CuK5PJmFBDaxHCu3yv">
+<header data-page-node-id="kmiD2FcZMCH6mvPUMOqadz">
+  <div class="logo" data-page-node-id="a7ksc3e04NIXDNywNwZ1x6">E&M</div>
+  <div data-page-node-id="JusMI3BlNoFFNxHvL29zS1">
+    <h1 data-page-node-id="ORLK33Y7q4IN7KNGKErwsH">电磁场与电磁波 · 可视化交互平台</h1>
+    <div class="sub" data-page-node-id="eKiKcnkCqAsacolgMNGwxB">看得见的场与波 —— 在交互中理解抽象概念</div>
+  </div>
+  <div class="view-toggles" id="viewToggles" data-page-node-id="vtTg001">
+    <button id="tglNav"   title="折叠 / 展开左侧目录（快捷键 [ ）">☰ 目录</button>
+    <button id="tglPanel" title="折叠 / 展开右侧控制面板（快捷键 ] ）">☰ 面板</button>
+  </div>
+  <div class="badge" data-page-node-id="uhAEsYNzWSCMFgwrQgLZnJ">
+    <div class="chip">《工程电磁场》 ×《电磁场与电磁波》</div>
+    <div class="owner"><b>© 2026 Li Chenlu</b> All Rights Reserved</div>
+  </div>
+</header>
+<div class="layout" data-page-node-id="ilu7F0DaAot3hprGqyqURE">
+  <aside id="nav" data-page-node-id="fWzb7Cq2dV2zLvdPaCxRyC"></aside>
+  <main data-page-node-id="aFYMk4oKqaXDZCKvM6vGxD">
+    <div class="module-head" data-page-node-id="FPERDYDvXooDLDUPCIUng0">
+      <div class="module-title" id="moduleTitle" data-page-node-id="nLQzXcDXxU9FHCFNXqvPOA">1.1 三种常见坐标系<small data-page-node-id="r2t6cewpBCe7dCTgcLG4Yl">直角 · 圆柱 · 球</small></div>
+      <div class="seg" id="sysTabs" data-page-node-id="l3DH8GbDIu6NP03X51WM9x">
+        <button data-sys="cart" class="on" data-page-node-id="Fi1eSa2EnKQz1H7KafZo7N">直角坐标系</button>
+        <button data-sys="cyl" data-page-node-id="AVuXvISFEbwo8tj5DnUA38">圆柱坐标系</button>
+        <button data-sys="sph" data-page-node-id="a8l68opyLZXCTPpU4dzoVJ">球坐标系</button>
+      </div>
+      <div class="seg sym" id="symTabs">
+        <button data-sym="rho" class="on" title="《电磁场与电磁波》第一章记法：圆柱半径记作 ρ">ρ 记法</button>
+        <button data-sym="r" title="《工程电磁场》记法：圆柱半径记作 r（也用于避免与电荷密度 ρ 混淆）">r 记法</button>
+      </div>
+    </div>
+    <div class="content-row" data-page-node-id="QZijFBeAusI2bxdu1u1vDr">
+      <div class="canvas-card" data-page-node-id="rrAUMGTGXBNUGN4zdU4vuB">
+        <canvas id="cv" data-page-node-id="ZLzBkxmpuhCH97sWfF3Kbw"></canvas>
+        <div class="cv-mode-tag" id="modeTag" data-page-node-id="knO1bMCtZOHQ2bYvxBMzJl"></div>
+        <div class="cv-pan-tag" id="panTag">
+          <span>画面已平移</span><button id="btnPanReset">回到原点</button>
+        </div>
+        <div class="cv-pole-tag" id="poleTag"></div>
+        <div class="cv-toolbar" data-page-node-id="QU0HABzFcj3jvA96czGRkM">
+          <button id="btnReset" data-page-node-id="nYSZ0hadZeA7ABqJrKxLQb">复位视角</button>
+          <button id="btnRotate" data-page-node-id="LR5KyaFAZd86QHn8y71er3">自动旋转</button>
+        </div>
+        <button class="fold-handle" id="foldNav"   title="折叠 / 展开左侧目录（快捷键 [ ）">‹</button>
+        <button class="fold-handle" id="foldPanel" title="折叠 / 展开右侧面板（快捷键 ] ）">›</button>
+        <div class="cv-hint" data-page-node-id="B3COBhN984hcZipcNxCgqf">🖱 拖动旋转 · 右键拖动平移 · 滚轮缩放 · 右侧选择物理量</div>
+        <div class="coord-strip" id="coordStrip" data-page-node-id="93OnM6bfOmpOoMpKl2vgdv"></div>
+      </div>
+      <div class="panel" id="panel" data-page-node-id="8VBBcG7ruozoPMUV4WrDPF"></div>
+    </div>
+  </main>
+</div>
+<div id="toast" data-page-node-id="v696ktbd2AoT2WPsx0B8ec"></div>
+
+<script>
+'use strict';
+/* =====================================================================
+ * 电磁场与电磁波 · 可视化交互平台
+ * 模块注册机制：后续知识点在 MODULES 中注册即可挂载到左侧导航
+ * ===================================================================== */
+
+/* ---------------- 导航数据 ---------------- */
+const NAV = [
+  { ch:'第 1 章 · 矢量分析', items:[
+    { id:'coord', t:'1.1 三种常见坐标系', ready:true, active:true },
+    { id:'ch1-2', t:'1.2 矢量的代数运算', ready:true, href:'1.2-vector-algebra.html' },
+    { id:'ch1-3', t:'1.3 方向导数与梯度', ready:true, href:'1.3-directional-derivative.html?v=20260908r4' },
+    { id:'ch1-4', t:'1.4 通量与散度',     ready:true, href:'1.4-divergence-flux.html' },
+    { id:'ch1-5', t:'1.5 环量与旋度',     ready:true, href:'1.5-curl-circulation.html' },
+  ]},
+  { ch:'第 2 章 · 静电场', items:[ {t:'2.1 电场强度与电位'}, {t:'2.2 高斯定理及其应用'}, {t:'2.3 导体与电介质'} ]},
+  { ch:'第 3 章 · 恒定磁场', items:[ {t:'3.1 比奥-萨伐尔定律'}, {t:'3.2 安培环路定理'} ]},
+  { ch:'第 4 章 · 时变电磁场', items:[ {t:'4.1 麦克斯韦方程组'}, {t:'4.2 均匀平面波'} ]},
+];
+
+/* ---------------- 全局状态 ---------------- */
+const state = {
+  sys:'cart',            // cart | cyl | sph
+  quantity:'vars',       // vars | unitvec | posvec | distvec | diff
+  sub:'all',             // vars: all/x/y/z/ρ/φ/... ; diff: dl/dS/dv
+  face:0,                // dS 面元索引
+  dscale:1,              // 微元缩放
+  P:{ cart:{x:.8,y:.6,z:.7}, cyl:{rho:.85,phi:40,z:.7}, sph:{r:1.15,theta:55,phi:40} },
+  Q:{ cart:{x:-.5,y:.85,z:1.15}, cyl:{rho:.55,phi:210,z:-.35}, sph:{r:.75,theta:115,phi:215} },
+  autoRotate:false,
+  refGeo:true,            // 微分元板块：是否显示「参考几何」（完整圆/纬线经线、半径与 dφ 角标注）
+  notation:'rho',        // rho | r —— 圆柱半径记法（ρ 记法=电磁场与电磁波；r 记法=工程电磁场）
+};
+
+/* 圆柱径向符号工具：r 记法下 ρ→r、e_ρ→e_r，且径向颜色换蓝以区别球坐标 */
+function symStr(s){
+  if(state.notation!=='r') return s;
+  return String(s).replace(/e_ρ/g,'e_r').replace(/ρ/g,'r');
+}
+function cRho(){ return state.notation==='r' ? C.blue : C.teal; }
+
+/* ================= 富文本引擎：矢量箭头 + 真下标 =================
+   统一记号（画布与 HTML 共用）：
+     @{ ... }   矢量组（渲染时在整组上方画一个向右的箭头）
+     _c         单字符下标        _{cc}   多字符下标
+   例：'@{e_x}'  'dS = dy·dz @{e_x}'  '@{R}_{12} = @{r}_2 − @{r}_1'
+   ------------------------------------------------------------ */
+function parseRich(s){
+  const items=[], groups=[]; const st={g:-1};
+  (function walk(str){
+    let buf='';
+    const flush=()=>{ if(buf){ items.push({t:'n',s:buf,g:st.g}); buf=''; } };
+    for(let i=0;i<str.length;){
+      const c=str[i];
+      if(c==='@' && str[i+1]==='{'){                       // 矢量组
+        const j=str.indexOf('}', i+2);
+        if(j<0){ buf+=c; i++; continue; }
+        flush();
+        const save=st.g; st.g=groups.length; groups.push(1);
+        walk(str.slice(i+2,j));
+        st.g=save; i=j+1; continue;
+      }
+      if(c==='_'){                                          // 下标
+        flush();
+        if(str[i+1]==='{'){ const j=str.indexOf('}',i+2);
+          if(j>=0){ items.push({t:'s',s:str.slice(i+2,j),g:st.g}); i=j+1; continue; } }
+        items.push({t:'s',s:str[i+1]||'',g:st.g}); i+=2; continue;
+      }
+      if(c==='<'){                                          // 原样透传 HTML 标签
+        const j=str.indexOf('>',i);
+        if(j>=0){ buf+=str.slice(i,j+1); i=j+1; continue; }
+      }
+      buf+=c; i++;
+    }
+    flush();
+  })(String(s));
+  return {items, groups};
+}
+/* 画布侧：把富文本排成可绘制的片段（矢量主体用斜体衬线，下标保持正体） */
+const RICHFONT='"PingFang SC","Microsoft YaHei",sans-serif';
+const RICHFONT_M='Georgia,"Times New Roman",serif';
+function richLayout(ctx,rich,size,bold){
+  const subSize=size*0.74;
+  const wM=bold?'700 ':'', wS=bold?'700 ':'';
+  const fN =wM+size+'px '+RICHFONT;                       // 正文（非矢量）
+  const fNs=wS+subSize+'px '+RICHFONT;                    // 下标（非矢量）
+  const fV ='italic '+wM+size+'px '+RICHFONT_M;           // 矢量主体：斜体衬线
+  const fVs=wS+subSize+'px '+RICHFONT_M;                  // 矢量下标：正体
+  const groups=rich.groups.map(()=>({x0:1e9,x1:-1e9,locked:false,top:1e9}));
+  const out=[]; let x=0;
+  /* 注意：度量时须与绘制时用同一 textBaseline，否则 ascent 基准不一致、箭头会飘 */
+  const oldBL=ctx.textBaseline; ctx.textBaseline='middle';
+  rich.items.forEach(it=>{
+    const sub=it.t==='s', vec=it.g>=0;
+    const font = sub ? (vec?fVs:fNs) : (vec?fV:fN);
+    ctx.font=font;
+    const m=ctx.measureText(it.s), w=m.width;
+    const dy = sub? lo_dy(size) : 0;
+    const asc = (m.actualBoundingBoxAscent!=null) ? m.actualBoundingBoxAscent : size*0.38;
+    if(vec){
+      const g=groups[it.g];
+      if(!g.locked){
+        if(sub) g.locked=true;                 // 箭头只覆盖主体（第一个下标之前）
+        else { if(x<g.x0) g.x0=x; g.x1=x+w; }
+      }
+      const top=dy-asc; if(top<g.top) g.top=top;
+    }
+    out.push({s:it.s,sub,x,w,font,dy});
+    x+=w;
+  });
+  ctx.textBaseline=oldBL;
+  return {items:out, groups, w:x, size, subSize};
+}
+function lo_dy(size){ return size*0.20; }
+/* 画布侧：绘制（白色描边 halo → 箭头 → 填字） */
+function richDraw(ctx,lo,cx,cy,align,color){
+  let ox = align==='center'? cx-lo.w/2 : align==='right'? cx-lo.w : cx;
+  const dy = it=> cy + it.dy;
+  const ay = g => cy + g.top - Math.max(2.2, lo.size*0.13);   // 紧贴字符顶端、留一点呼吸
+  const span = g => [ox+g.x0-0.6, ox+g.x1+0.6];
+  ctx.save();
+  ctx.textAlign='left'; ctx.textBaseline='middle'; ctx.lineJoin='round'; ctx.lineCap='butt';
+  /* 1) 白色 halo，保证压在网格/图形上仍可读 */
+  ctx.lineWidth=3.4; ctx.strokeStyle='rgba(255,255,255,.92)';
+  lo.items.forEach(it=>{ ctx.font=it.font; ctx.strokeText(it.s, ox+it.x, dy(it)); });
+  lo.groups.forEach(g=>{ if(g.x1<=g.x0) return;
+    const y=ay(g), [ax,bx]=span(g);
+    ctx.beginPath(); ctx.moveTo(ax,y); ctx.lineTo(bx,y); ctx.stroke(); });
+  /* 2) 矢量箭头（箭杆 + 三角箭头） */
+  lo.groups.forEach(g=>{ if(g.x1<=g.x0) return;
+    const y=ay(g), [ax,bx]=span(g);
+    ctx.strokeStyle=color; ctx.lineWidth=1.15;
+    ctx.beginPath(); ctx.moveTo(ax,y); ctx.lineTo(bx-1.2,y); ctx.stroke();
+    const h=Math.min(3.6, Math.max(2.6,(bx-ax)*0.40));
+    ctx.beginPath(); ctx.moveTo(bx,y); ctx.lineTo(bx-h,y-h*0.52); ctx.lineTo(bx-h,y+h*0.52);
+    ctx.closePath(); ctx.fillStyle=color; ctx.fill();
+  });
+  /* 3) 正文 */
+  lo.items.forEach(it=>{ ctx.font=it.font; ctx.fillStyle=color; ctx.fillText(it.s, ox+it.x, dy(it)); });
+  ctx.restore();
+}
+/* HTML 侧：转成 <span class="vec">…<sub>…</sub></span> */
+function richHTML(s){
+  const r=parseRich(symStr(s));
+  let h='', gi=-1;
+  r.items.forEach(it=>{
+    const body = it.t==='s' ? '<sub>'+it.s+'</sub>' : it.s;
+    if(it.g!==gi){
+      if(gi>=0) h+='</span>';
+      if(it.g>=0) h+='<span class="vec">';
+      gi=it.g;
+    }
+    h+=body;
+  });
+  if(gi>=0) h+='</span>';
+  return h;
+}
+
+const C = {
+  teal:'#156082', orange:'#E97132', green:'#3E9B4F', purple:'#9B59B6',
+  crimson:'#D04A3A', blue:'#0F9ED5', gray:'#8CA0AC', light:'#C9D6DD',
+  ink:'#22414F', grid:'#EAF0F4',
+};
+
+const QUANTITIES = [
+  {id:'vars',    no:'1', nm:'坐标变量',     ds:'点在哪里？如何确定'},
+  {id:'unitvec', no:'2', nm:'坐标单位矢量', ds:'三个方向的"标尺"'},
+  {id:'posvec',  no:'3', nm:'位置矢量',     ds:'从原点指向 P'},
+  {id:'distvec', no:'4', nm:'距离矢量',     ds:'两点之间的桥梁'},
+  {id:'diff',    no:'5', nm:'微分元 ★ 重点', ds:'线元 · 面元 · 体积元（后续积分的基石）', star:true},
+];
+
+const SYS_NAME = { cart:'直角坐标系', cyl:'圆柱坐标系', sph:'球坐标系' };
+
+/* ---------------- 向量工具 ---------------- */
+const pt=(x,y,z)=>({x,y,z});
+const vadd=(a,b)=>({x:a.x+b.x,y:a.y+b.y,z:a.z+b.z});
+const vsub=(a,b)=>({x:a.x-b.x,y:a.y-b.y,z:a.z-b.z});
+const vmul=(a,s)=>({x:a.x*s,y:a.y*s,z:a.z*s});
+const vdot=(a,b)=>a.x*b.x+a.y*b.y+a.z*b.z;
+const vlen=a=>Math.hypot(a.x,a.y,a.z);
+const vnorm=a=>{const l=vlen(a)||1;return vmul(a,1/l);};
+
+const D2R=Math.PI/180, R2D=180/Math.PI;
+function cylToCart(rho,phiDeg,z){ const f=phiDeg*D2R; return pt(rho*Math.cos(f), rho*Math.sin(f), z); }
+function sphToCart(r,thDeg,phDeg){ const t=thDeg*D2R,f=phDeg*D2R;
+  return pt(r*Math.sin(t)*Math.cos(f), r*Math.sin(t)*Math.sin(f), r*Math.cos(t)); }
+function cartToCyl(p){ return {rho:Math.hypot(p.x,p.y), phi:(Math.atan2(p.y,p.x)*R2D+360)%360, z:p.z}; }
+function cartToSph(p){ const r=vlen(p); return {r:r, theta:Math.acos(p.z/(r||1))*R2D, phi:(Math.atan2(p.y,p.x)*R2D+360)%360}; }
+function getPCart(){ const s=state.sys,p=state.P[s];
+  if(s==='cart') return pt(p.x,p.y,p.z);
+  if(s==='cyl') return cylToCart(p.rho,p.phi,p.z);
+  return sphToCart(p.r,p.theta,p.phi); }
+function getQCart(){ const s=state.sys,q=state.Q[s];
+  if(s==='cart') return pt(q.x,q.y,q.z);
+  if(s==='cyl') return cylToCart(q.rho,q.phi,q.z);
+  return sphToCart(q.r,q.theta,q.phi); }
+
+/* ---------------- 画布与相机 ---------------- */
+let canvas, ctx, W=800, H=600, DPR=1;
+/* px / py：画面平移量（屏幕像素）。右键拖动可把任意一点拖到画面中任意位置，
+   相当于"把画面里任意一点当作视觉原点"，解决放大后点线面被侧栏挡住的问题。 */
+const cam={az:.62, el:.52, zoom:1, px:0, py:0};
+let camU, camV, camD, camScale, CX, CY;
+const LIM=1.5;
+
+function setupCamera(){
+  const ca=Math.cos(cam.az), sa=Math.sin(cam.az);
+  const ce=Math.cos(cam.el), se=Math.sin(cam.el);
+  camD={x:ce*ca, y:ce*sa, z:se};
+  camU={x:-sa, y:ca, z:0};
+  camV={x:-ca*se, y:-sa*se, z:ce};
+  camScale=Math.min(W,H)/3.55*cam.zoom;
+  CX=W/2; CY=H*0.54;
+}
+function pr(p){ return {x:CX+cam.px+camScale*vdot(p,camU), y:CY+cam.py-camScale*vdot(p,camV), d:vdot(p,camD)}; }
+
+/* ---------------- 图元系统 ---------------- */
+let prims=[];
+function P_(z,fn){ prims.push({z,draw:fn}); }
+
+function line(a,b,o={}){
+  const A=pr(a),B=pr(b);
+  P_((A.d+B.d)/2, ()=>{ ctx.save();
+    ctx.globalAlpha=o.alpha!=null?o.alpha:1;
+    ctx.strokeStyle=o.color||C.gray; ctx.lineWidth=o.w||1.4;
+    if(o.dash) ctx.setLineDash(o.dash);
+    ctx.beginPath(); ctx.moveTo(A.x,A.y); ctx.lineTo(B.x,B.y); ctx.stroke(); ctx.restore(); });
+}
+function arrowSeg(A,B,color,w,headScale){
+  const dx=B.x-A.x, dy=B.y-A.y, L=Math.hypot(dx,dy);
+  if(L<0.5) return;
+  const ux=dx/L, uy=dy/L, hs=(headScale||1)*9;
+  ctx.strokeStyle=color; ctx.lineWidth=w; ctx.lineCap='round';
+  ctx.beginPath(); ctx.moveTo(A.x,A.y); ctx.lineTo(B.x-ux*hs*.55, B.y-uy*hs*.55); ctx.stroke();
+  ctx.setLineDash([]);                       // 箭头头部始终实线，避免虚线箭头头看着"断头"
+  const ang=Math.atan2(dy,dx);
+  ctx.beginPath(); ctx.moveTo(B.x,B.y);
+  ctx.lineTo(B.x-hs*Math.cos(ang-.42), B.y-hs*Math.sin(ang-.42));
+  ctx.lineTo(B.x-hs*Math.cos(ang+.42), B.y-hs*Math.sin(ang+.42));
+  ctx.closePath(); ctx.fillStyle=color; ctx.fill();
+}
+function arrow(a,b,o={}){
+  const A=pr(a),B=pr(b);
+  P_((A.d+B.d)/2, ()=>{ ctx.save();
+    ctx.globalAlpha=o.alpha!=null?o.alpha:1;
+    if(o.dash) ctx.setLineDash(o.dash);
+    arrowSeg(A,B,o.color||C.teal,o.w||2,o.headScale); ctx.restore(); });
+  if(o.label) text(vmul(vadd(a,b),.5), o.label, {color:o.color||C.teal, dx:o.ldx||0, dy:o.ldy||-10, size:o.lsize||12.5, bold:true});
+}
+function dblArrow(a,b,o={}){
+  const A=pr(a),B=pr(b);
+  P_((A.d+B.d)/2, ()=>{ ctx.save();
+    ctx.globalAlpha=o.alpha!=null?o.alpha:1;
+    if(o.dash) ctx.setLineDash(o.dash);
+    arrowSeg(A,B,o.color||C.teal,o.w||1.8,.8); 
+    arrowSeg(B,A,o.color||C.teal,o.w||1.8,.8); ctx.restore(); });
+  if(o.label) text(vmul(vadd(a,b),.5), o.label, {color:o.color||C.teal, dx:o.ldx||0, dy:o.ldy||-10, size:o.lsize||12.5, bold:true});
+}
+/* 尺寸标注线（不是矢量）：两端各一道短垂直刻度线、线身可虚线可实线 */
+function dimLine(a,b,o={}){
+  line(a,b,o);
+  const A=pr(a),B=pr(b);
+  const dx=B.x-A.x, dy=B.y-A.y, L=Math.hypot(dx,dy);
+  if(L<1) return;
+  const px=-dy/L, py=dx/L;          // 垂直于连线方向的单位向量
+  const t=o.tick||6;
+  function tick(P){
+    P_((A.d+B.d)/2, ()=>{ ctx.save();
+      ctx.strokeStyle=o.color||C.gray; ctx.lineWidth=o.w||1.5;
+      ctx.setLineDash([]);           // 刻度永远实线，与虚线线身形成对比
+      ctx.beginPath();
+      ctx.moveTo(P.x+px*t, P.y+py*t);
+      ctx.lineTo(P.x-px*t, P.y-py*t);
+      ctx.stroke(); ctx.restore(); });
+  }
+  tick(A); tick(B);
+  if(o.label) text(vmul(vadd(a,b),.5), o.label, {color:o.color||C.gray, dx:o.ldx||0, dy:o.ldy||-10, size:o.lsize||12.5, bold:true});
+}
+function curve(ptsArr,o={}){
+  if(ptsArr.length<2) return;
+  const S=ptsArr.map(pr);
+  P_(S.reduce((s,p)=>s+p.d,0)/S.length, ()=>{ ctx.save();
+    ctx.globalAlpha=o.alpha!=null?o.alpha:1;
+    ctx.strokeStyle=o.color||C.gray; ctx.lineWidth=o.w||1.8; ctx.lineCap='round';
+    if(o.dash) ctx.setLineDash(o.dash);
+    ctx.beginPath(); ctx.moveTo(S[0].x,S[0].y);
+    for(let i=1;i<S.length;i++) ctx.lineTo(S[i].x,S[i].y);
+    ctx.stroke();
+    if(o.arrowEnd){ const a=S[S.length-2], b=S[S.length-1];
+      ctx.setLineDash([]); arrowSeg(a,b,o.color||C.gray,o.w||1.8,.75); }
+    ctx.restore(); });
+  if(o.label){
+    const mid=ptsArr[Math.floor(ptsArr.length/2)];
+    text(mid, o.label, {color:o.color||C.gray, dx:o.ldx||0, dy:o.ldy||-10, size:12.5, bold:true});
+  }
+}
+function poly(ptsArr,o={}){
+  if(ptsArr.length<3) return;
+  const S=ptsArr.map(pr);
+  P_(S.reduce((s,p)=>s+p.d,0)/S.length, ()=>{ ctx.save();
+    ctx.beginPath(); ctx.moveTo(S[0].x,S[0].y);
+    for(let i=1;i<S.length;i++) ctx.lineTo(S[i].x,S[i].y);
+    ctx.closePath();
+    if(o.fill){ ctx.globalAlpha=o.fillAlpha!=null?o.fillAlpha:.15; ctx.fillStyle=o.fill; ctx.fill(); }
+    if(o.stroke){ ctx.globalAlpha=o.strokeAlpha!=null?o.strokeAlpha:1;
+      ctx.strokeStyle=o.stroke; ctx.lineWidth=o.w||1.3; if(o.dash)ctx.setLineDash(o.dash); ctx.stroke(); }
+    ctx.restore(); });
+}
+function marker(p,o={}){
+  const S=pr(p);
+  P_(S.d+0.02, ()=>{ ctx.save();
+    ctx.beginPath(); ctx.arc(S.x,S.y,o.r||5,0,7);
+    ctx.fillStyle=o.color||C.orange; ctx.fill();
+    ctx.lineWidth=2; ctx.strokeStyle='#fff'; ctx.stroke();
+    if(o.ring){ ctx.beginPath(); ctx.arc(S.x,S.y,(o.r||5)+4,0,7);
+      ctx.strokeStyle=o.ring; ctx.lineWidth=1.6; ctx.stroke(); }
+    ctx.restore(); });
+  if(o.label) text(p, o.label, {color:o.color||C.orange, dx:o.ldx!=null?o.ldx:10, dy:o.ldy!=null?o.ldy:-10, size:o.lsize||13, bold:true});
+}
+function text(p,str,o={}){
+  const S=pr(p);
+  P_(1e6, ()=>{ ctx.save();
+    const size=o.size||12.5, bold=!!o.bold;
+    /* 富文本：@{…} 渲染为上方带箭头的矢量，_c 渲染为下标 */
+    const lo=richLayout(ctx, parseRich(symStr(str)), size, bold);
+    richDraw(ctx, lo, S.x+(o.dx||0), S.y+(o.dy||0), o.align||'left', o.color||C.ink);
+    ctx.restore(); });
+}
+/* 弧线生成器 */
+function xyArc(R,a0deg,a1deg,z,n){
+  n=n||30; const pts=[];
+  for(let i=0;i<=n;i++){ const a=(a0deg+(a1deg-a0deg)*i/n)*D2R;
+    pts.push(pt(R*Math.cos(a), R*Math.sin(a), z)); }
+  return pts;
+}
+function meridianArc(R,azDeg,t0deg,t1deg,n){
+  n=n||30; const pts=[]; const f=azDeg*D2R;
+  for(let i=0;i<=n;i++){ const t=(t0deg+(t1deg-t0deg)*i/n)*D2R;
+    pts.push(pt(R*Math.sin(t)*Math.cos(f), R*Math.sin(t)*Math.sin(f), R*Math.cos(t))); }
+  return pts;
+}
+
+/* ---------------- 公共场景元素 ---------------- */
+function drawGridAndAxes(sys){
+  // xy 面网格
+  for(let v=-1.2; v<=1.51; v+=0.3){
+    line(pt(v,-1.2,0), pt(v,LIM,0), {color:C.grid,w:1});
+    line(pt(-1.2,v,0), pt(LIM,v,0), {color:C.grid,w:1});
+  }
+  const light={color:'#B9C9D2',dash:[5,4],w:1.2};
+  line(pt(0,0,0), pt(-1.15,0,0), light);
+  line(pt(0,0,0), pt(0,-1.15,0), light);
+  const xw = sys==='cart'?2.2:1.5, yw = sys==='cart'?2.2:1.5, zw = 2.4;
+  const dimAxis = sys!=='cart';
+  arrow(pt(0,0,0), pt(1.55,0,0), {color:dimAxis?'#5E8CA3':C.teal, w:xw});
+  arrow(pt(0,0,0), pt(0,1.55,0), {color:dimAxis?'#D89B69':C.orange, w:yw});
+  arrow(pt(0,0,0), pt(0,0,1.55), {color:C.green, w:zw});
+  arrow(pt(0,0,0), pt(0,0,-1.15), {color:'#9DBAA7', w:1.2, dash:[5,4]});
+  text(pt(1.62,0,0), dimAxis?'x (参考)':'x', {color:dimAxis?'#5E8CA3':C.teal, bold:true, size:13.5, dy:-4});
+  text(pt(0,1.62,0), dimAxis?'y (参考)':'y', {color:dimAxis?'#D89B69':C.orange, bold:true, size:13.5, dy:-4});
+  text(pt(0,0,1.62), 'z', {color:C.green, bold:true, size:13.5, dx:-4});
+  text(pt(0,0,0), 'O', {color:C.muted0||'#7A8F9B', size:12, dx:-12, dy:12});
+}
+
+/* =====================================================
+ * 各模式场景绘制
+ * ===================================================== */
+function sceneVars(){
+  const s=state.sys, sub=state.sub;
+  if(s==='cart'){
+    const p=state.P.cart;
+    const P0=pt(p.x,p.y,p.z);
+    const fx=pt(0,p.y,p.z), fy=pt(p.x,0,p.z), fz=pt(p.x,p.y,0);
+    const dim=(sub==='all'||sub==='x'), em=(sub==='x');
+    if(sub==='all'||sub==='x'){
+      poly([pt(0,-1.15,-.5),pt(0,LIM,-.5),pt(0,LIM,LIM),pt(0,-1.15,LIM)],
+        {fill:C.teal,fillAlpha:em?.13:.05,stroke:C.teal,strokeAlpha:em?.55:.22,w:em?1.6:1,dash:[6,4]});
+      text(pt(0,.35,LIM-.08),'yoz 面',{color:C.teal,size:12,alpha:1,dx:em?0:0,dy:-8,align:'center'});
+      dblArrow(P0,fx,{color:C.teal,w:em?2:1.5,alpha:em?1:.75,label:'x = '+p.x.toFixed(2),ldy:-10});
+      marker(fx,{color:C.teal,r:3});
+    }
+    if(sub==='all'||sub==='y'){
+      const emy=(sub==='y');
+      poly([pt(-1.15,0,-.5),pt(LIM,0,-.5),pt(LIM,0,LIM),pt(-1.15,0,LIM)],
+        {fill:C.orange,fillAlpha:emy?.13:.05,stroke:C.orange,strokeAlpha:emy?.55:.22,w:emy?1.6:1,dash:[6,4]});
+      text(pt(LIM-.1,0,LIM-.05),'xoz 面',{color:C.orange,size:12,dy:-8,align:'center'});
+      dblArrow(P0,fy,{color:C.orange,w:emy?2:1.5,alpha:emy?1:.75,label:'y = '+p.y.toFixed(2),ldy:-10});
+      marker(fy,{color:C.orange,r:3});
+    }
+    if(sub==='all'||sub==='z'){
+      const emz=(sub==='z');
+      poly([pt(-1.15,-1.15,0),pt(LIM,-1.15,0),pt(LIM,LIM,0),pt(-1.15,LIM,0)],
+        {fill:C.green,fillAlpha:emz?.13:.05,stroke:C.green,strokeAlpha:emz?.55:.22,w:emz?1.6:1,dash:[6,4]});
+      text(pt(LIM-.1,LIM-.1,0),'xoy 面',{color:C.green,size:12,dy:-8});
+      dblArrow(P0,fz,{color:C.green,w:emz?2:1.5,alpha:emz?1:.75,label:'z = '+p.z.toFixed(2),ldy:-10});
+      marker(fz,{color:C.green,r:3});
+    }
+  }
+  else if(s==='cyl'){
+    const p=state.P.cyl, P0=cylToCart(p.rho,p.phi,p.z);
+    const Pp=pt(P0.x,P0.y,0);
+    const foot=pt(0,0,p.z);
+    // 圆（ρ 为半径的圆周轨迹）
+    if(sub==='all'||sub==='ρ'||sub==='φ')
+      curve(xyArc(p.rho,0,360,p.z,64),{color:C.gray,alpha:.4,w:1.2});
+    if(sub==='all'||sub==='φ') curve(xyArc(p.rho,0,360,0,64),{color:C.gray,alpha:.35,w:1.2,dash:[4,4]});
+    // 径向线
+    if(sub==='all'||sub==='ρ'||sub==='φ')
+      line(pt(0,0,0),Pp,{color:C.gray,alpha:.55,w:1.3});
+    if(sub==='all'||sub==='ρ'||sub==='z')
+      line(P0,Pp,{color:C.gray,alpha:.55,w:1.3,dash:[4,4]});
+    if(sub==='all'||sub==='ρ'){
+      const em=(sub==='ρ');
+      arrow(pt(0,0,1.1), pt(0,0,LIM+.05), {color:C.green,w:3.4}); // 强调 z 轴
+      text(pt(0,0,1.35),'z 轴',{color:C.green,size:12,dx:16});
+      dblArrow(P0,foot,{color:cRho(),w:em?2.2:1.6,
+        label:(state.notation==='r'?'r(柱) = ':'ρ = ')+p.rho.toFixed(2),ldy:-10});
+      marker(foot,{color:cRho(),r:3});
+    }
+    if(sub==='all'||sub==='φ'){
+      const em=(sub==='φ');
+      const aR=Math.min(.62,p.rho*.92)||.4;
+      curve(xyArc(aR,0,p.phi,0,30),{color:C.orange,w:em?2.2:1.6,arrowEnd:true,
+        label:'φ = '+p.phi.toFixed(0)+'°',ldy:-12,alpha:em?1:.8});
+      if(p.phi>150) {} // 长弧标签仍可读
+    }
+    if(sub==='all'||sub==='z'){
+      const em=(sub==='z');
+      if(em) poly([pt(-1.15,-1.15,0),pt(LIM,-1.15,0),pt(LIM,LIM,0),pt(-1.15,LIM,0)],
+        {fill:C.green,fillAlpha:.10,stroke:C.green,strokeAlpha:.4,w:1.2,dash:[6,4]});
+      dblArrow(Pp,P0,{color:C.green,w:em?2.2:1.6,label:'z = '+p.z.toFixed(2),ldx:12,ldy:0,alpha:em?1:.8});
+    }
+    if(sub==='all'||sub==='φ') marker(Pp,{color:C.blue,r:3.5,label:"P′",ldx:8,ldy:10,color2:C.blue});
+  }
+  else{ // sph
+    const p=state.P.sph, P0=sphToCart(p.r,p.theta,p.phi);
+    const rc=p.r*Math.sin(p.theta*D2R); // P′ 半径
+    const Pp=pt(P0.x,P0.y,0);
+    if(sub==='all'||sub==='φ'){
+      curve(xyArc(rc,0,360,0,64),{color:C.gray,alpha:.4,w:1.2,dash:[4,4]});
+      line(pt(0,0,0),Pp,{color:C.gray,alpha:.55,w:1.3,dash:[4,4]});
+      line(P0,Pp,{color:C.gray,alpha:.55,w:1.3,dash:[4,4]});
+      marker(Pp,{color:C.blue,r:3.5,label:"P′",ldx:8,ldy:10});
+    }
+    if(sub==='all'||sub==='r'){
+      const em=(sub==='r');
+      arrow(pt(0,0,0),P0,{color:C.crimson,w:em?2.8:2,alpha:em?1:.75,
+        label:(state.notation==='r'?'r(球) = ':'r = ')+p.r.toFixed(2),ldy:-12});
+    }
+    if(sub==='all'||sub==='θ'){
+      const em=(sub==='θ');
+      line(pt(0,0,0),P0,{color:C.gray,alpha:.5,w:1.3,dash:[4,4]});
+      const aR=Math.min(.8,p.r*.75)||.4;
+      curve(meridianArc(aR,p.phi,0,p.theta,26),{color:C.blue,w:em?2.2:1.6,arrowEnd:true,
+        label:'θ = '+p.theta.toFixed(0)+'°',ldx:16,alpha:em?1:.8});
+      text(pt(0,0,aR+.1),'θ 从 +z 轴量起',{color:C.blue,size:11.5,dx:-10,dy:-26});
+    }
+    if(sub==='all'||sub==='φ'){
+      const em=(sub==='φ');
+      const aR=Math.min(.55,rc*.9)||.35;
+      curve(xyArc(aR,0,p.phi,0,26),{color:C.orange,w:em?2.2:1.6,arrowEnd:true,
+        label:'φ = '+p.phi.toFixed(0)+'°',ldy:-12,alpha:em?1:.8});
+    }
+  }
+}
+
+function sceneUnitvec(){
+  const s=state.sys;
+  const P0=getPCart();
+  const L=0.5;
+  function triad(base,alpha,lw){
+    if(s==='cart'){
+      arrow(base,vadd(base,pt(lw,0,0)),{color:C.teal,w:2,alpha,label:'@{e_x}',ldy:-8});
+      arrow(base,vadd(base,pt(0,lw,0)),{color:C.orange,w:2,alpha,label:'@{e_y}',ldy:-8,ldx:6});
+      arrow(base,vadd(base,pt(0,0,lw)),{color:C.green,w:2,alpha,label:'@{e_z}',ldx:8});
+    }else if(s==='cyl'){
+      const p=state.P.cyl, f=p.phi*D2R;
+      const eR=pt(Math.cos(f),Math.sin(f),0), eF=pt(-Math.sin(f),Math.cos(f),0);
+      arrow(base,vadd(base,vmul(eR,lw)),{color:cRho(),w:2.2,alpha,label:state.notation==='r'?'@{e_r}(柱)':'@{e_ρ}',ldy:-8});
+      arrow(base,vadd(base,vmul(eF,lw)),{color:C.orange,w:2.2,alpha,label:'@{e_φ}',ldy:-8,ldx:6});
+      arrow(base,vadd(base,pt(0,0,lw)),{color:C.green,w:2.2,alpha,label:'@{e_z}',ldx:8});
+    }else{
+      const p=state.P.sph, t=p.theta*D2R, f=p.phi*D2R;
+      const eR=vnorm(P0);
+      const eT=pt(Math.cos(t)*Math.cos(f),Math.cos(t)*Math.sin(f),-Math.sin(t));
+      const eF=pt(-Math.sin(f),Math.cos(f),0);
+      arrow(base,vadd(base,vmul(eR,lw)),{color:C.teal,w:2.2,alpha,label:state.notation==='r'?'@{e_r}(球)':'@{e_r}',ldy:-8});
+      arrow(base,vadd(base,vmul(eT,lw)),{color:C.orange,w:2.2,alpha,label:'@{e_θ}',ldy:-8,ldx:6});
+      arrow(base,vadd(base,vmul(eF,lw)),{color:C.green,w:2.2,alpha,label:'@{e_φ}',ldx:8});
+    }
+  }
+  if(s==='cart'){
+    // 直角：三个单位矢量方向恒定（常矢量），只在 O 处画一套，附 P 处注释即可
+    triad(pt(0,0,0),1,.55);
+    // 在 P 点处画一个"复制方向"提示，不重复完整标架
+    arrow(P0,vadd(P0,pt(.32,0,0)),{color:C.teal,w:1.5,alpha:.5});
+    arrow(P0,vadd(P0,pt(0,.32,0)),{color:C.orange,w:1.5,alpha:.5});
+    arrow(P0,vadd(P0,pt(0,0,.32)),{color:C.green,w:1.5,alpha:.5});
+    text(P0,'P 处方向与 O 处完全相同',{color:C.muted||'#7A8F9B',size:11,dy:-30,align:'center'});
+  }else if(s==='cyl'){
+    const p=state.P.cyl, P0c=cylToCart(p.rho,p.phi,p.z);
+    curve(xyArc(p.rho,0,360,p.z,64),{color:C.gray,alpha:.4,w:1.2});
+    line(pt(0,0,0),pt(P0c.x,P0c.y,0),{color:C.gray,alpha:.5,w:1.3,dash:[4,4]});
+    line(P0c,pt(P0c.x,P0c.y,0),{color:C.gray,alpha:.5,w:1.3,dash:[4,4]});
+    triad(P0c,1,.5);
+    triad(pt(P0c.x,P0c.y,0),.4,.42); // P′ 处对照
+    text(pt(P0c.x,P0c.y,0),'（对照：P′ 处）',{color:C.gray,size:10.5,dy:36,align:'center'});
+  }else{
+    const p=state.P.sph, P0c=sphToCart(p.r,p.theta,p.phi);
+    line(pt(0,0,0),P0c,{color:C.gray,alpha:.5,w:1.3,dash:[4,4]});
+    const rc=p.r*Math.sin(p.theta*D2R), zc=p.r*Math.cos(p.theta*D2R);
+    curve(xyArc(rc,0,360,zc,64),{color:C.gray,alpha:.4,w:1.2,dash:[4,4]}); // 纬线
+    curve(meridianArc(p.r,p.phi,0,p.theta,30),{color:C.gray,alpha:.45,w:1.3}); // 经线
+    triad(P0c,1,.5);
+  }
+}
+
+function scenePosvec(){
+  const s=state.sys, P0=getPCart();
+  if(s==='cart'){
+    const p=state.P.cart;
+    const a=pt(p.x,0,0), b=pt(p.x,p.y,0);
+    arrow(pt(0,0,0),a,{color:C.teal,w:2.2,label:'x',ldy:-10});
+    arrow(a,b,{color:C.orange,w:2.2,label:'y',ldy:-10,ldx:10});
+    arrow(b,P0,{color:C.green,w:2.2,label:'z',ldx:12});
+    marker(a,{color:C.teal,r:3}); marker(b,{color:C.orange,r:3});
+    arrow(pt(0,0,0),P0,{color:C.crimson,w:2.8,label:'@{r}（位置矢量）',ldy:-30,ldx:-10});
+  }else if(s==='cyl'){
+    const p=state.P.cyl;
+    const Pp=pt(P0.x,P0.y,0);
+    curve(xyArc(p.rho,0,360,0,64),{color:C.gray,alpha:.35,w:1.2});
+    arrow(pt(0,0,0),Pp,{color:cRho(),w:2.4,label:'ρ·@{e_ρ}',ldy:-12});
+    arrow(Pp,P0,{color:C.green,w:2.4,label:'z·@{e_z}',ldx:12});
+    arrow(pt(0,0,0),P0,{color:C.crimson,w:2.8,label:'@{r}',ldy:-14});
+    marker(Pp,{color:cRho(),r:3.5,label:'P′',ldx:10,ldy:12});
+    text(vmul(vadd(Pp,P0),.5),'走路径：先沿 @{e_ρ} 走 ρ，再沿 @{e_z} 走 z',{color:C.muted,size:11.5,dy:30,align:'center'});
+  }else{
+    const p=state.P.sph;
+    const rc=p.r*Math.sin(p.theta*D2R);
+    const Pp=pt(P0.x,P0.y,0);
+    // 方位弧（确定 φ）
+    const aR=Math.min(.55,rc*.9)||.35;
+    curve(xyArc(aR,0,p.phi,0,26),{color:C.orange,w:1.8,arrowEnd:true,label:'先定方位 φ',ldy:-12,alpha:.9});
+    // 经线弧（转过 θ 到达 P 方向）
+    curve(meridianArc(p.r,p.phi,0,p.theta,30),{color:C.blue,w:1.8,arrowEnd:true,label:'再沿经线转过 θ',ldx:-30,alpha:.9});
+    // 辅助虚线
+    line(pt(0,0,0),Pp,{color:C.gray,alpha:.5,w:1.2,dash:[4,4]});
+    line(P0,Pp,{color:C.gray,alpha:.5,w:1.2,dash:[4,4]});
+    marker(Pp,{color:C.blue,r:3.5,label:'P′',ldx:10,ldy:12});
+    // 位置矢量
+    arrow(pt(0,0,0),P0,{color:C.crimson,w:2.8,label:'@{r} = r·@{e_r}',ldy:-14});
+  }
+}
+
+function sceneDistvec(){
+  const P0=getPCart(), Q0=getQCart();
+  // 让两个点标签沿连线方向撑开，避免投影后叠在一起
+  const Pmid=vmul(vadd(P0,Q0),.5), Ms=pr(Pmid);
+  function pushOff(p){ const s=pr(p); const dx=s.x-Ms.x, dy=s.y-Ms.y, l=Math.hypot(dx,dy)||1;
+    return {ldx:dx/l*18, ldy:dy/l*18}; }
+  const oP=pushOff(P0), oQ=pushOff(Q0);
+  arrow(pt(0,0,0),P0,{color:C.crimson,w:1.8,alpha:.55,label:'@{r}_1',ldy:oP.ldy-8,ldx:oP.ldx});
+  arrow(pt(0,0,0),Q0,{color:C.crimson,w:1.8,alpha:.55,label:'@{r}_2',ldy:oQ.ldy-8,ldx:oQ.ldx});
+  arrow(P0,Q0,{color:C.purple,w:2.8,label:'@{R}（距离矢量）',ldy:0,ldx:0,lsize:12.5});
+  marker(P0,{color:C.orange,r:5.5,label:'P₁（起点）',ldx:oP.ldx*1.6,ldy:oP.ldy*1.6,lsize:13});
+  marker(Q0,{color:C.purple,r:5.5,label:'P₂（终点）',ldx:oQ.ldx*1.6,ldy:oQ.ldy*1.6,lsize:13});
+}
+
+/* ---- 微分元 ---- */
+function diffSizes(){
+  const k=state.dscale;
+  return { dlin:.32*k, dang:Math.min(15*k,26)*D2R, dangDeg:Math.min(15*k,26) };
+}
+function sphP(r,thDeg,phDeg){ return sphToCart(r,thDeg,phDeg); }
+function cylP(rho,phDeg,z){ return cylToCart(rho,phDeg,z); }
+
+function sceneDiff(){
+  const s=state.sys, sub=state.sub, k=state.dscale;
+  const {dlin,dang,dangDeg}=diffSizes();
+  if(s==='cart'){
+    const p=state.P.cart;
+    const A=pt(p.x,p.y,p.z);
+    const dx=dlin, dy=dlin, dz=dlin;
+    const B=pt(p.x+dx,p.y,p.z), Cc=pt(p.x+dx,p.y+dy,p.z), D=pt(p.x,p.y+dy,p.z);
+    const A3=pt(p.x,p.y,p.z+dz), B3=pt(p.x+dx,p.y,p.z+dz),
+          C3=pt(p.x+dx,p.y+dy,p.z+dz), D3=pt(p.x,p.y+dy,p.z+dz);
+
+    /* ---------- 参考几何：「坐标长方体」+ x/y/z 三个分量（可开关）----------
+       dx·dy·dz 不是凭空冒出来的三条小线段 —— 它们分别是「从原点 O 到 P 的那个
+       大长方体」三条棱的一小截。把大长方体画出来，学生就能把微元盒对号入座：
+       它正好卡在大长方体的 P 这一角上。 */
+    if(state.refGeo){
+      /* 说明：三条坐标轴本身已经带 x / y / z 标签，这里就不再重复标注分量，
+         只画「坐标长方体」的九条棱 —— 其中三条竖线是从 P 向三个坐标面作的垂线。
+         不画 O→Xf / O→Yf / O→Zf 那三条，是因为它们会与坐标轴重影。 */
+      const st0={stroke:C.gray,alpha:.28,w:1.0,dash:[5,4]};
+      const Xf=pt(p.x,0,0), Yf=pt(0,p.y,0), Zf=pt(0,0,p.z);
+      const XY=pt(p.x,p.y,0), XZ=pt(p.x,0,p.z), YZ=pt(0,p.y,p.z);
+      /* 三个坐标面上的六条边 */
+      line(Xf,XY,st0); line(Yf,XY,st0);
+      line(Xf,XZ,st0); line(Zf,XZ,st0);
+      line(Yf,YZ,st0); line(Zf,YZ,st0);
+      /* 从三个面上的垂足竖直回到 P */
+      line(XY,A,st0); line(XZ,A,st0); line(YZ,A,st0);
+      /* 三个垂足加小点，强调"投影到坐标面" */
+      marker(XY,{color:C.gray,r:2.6}); marker(XZ,{color:C.gray,r:2.6}); marker(YZ,{color:C.gray,r:2.6});
+      text(XY,'P 在 xy 面的投影',{color:C.muted||'#7A8F9B',size:10.5,dy:16,align:'center'});
+    }
+
+    // 长方体（虚线轮廓）
+    const bo={stroke:C.gray,w:1.1,dash:[4,3]};
+    poly([A,B,Cc,D],bo);
+    poly([A3,B3,C3,D3],bo);
+    poly([A,D,D3,A3],bo);
+    poly([B,Cc,C3,B3],bo);
+    poly([D,Cc,C3,D3],bo);
+    if(sub==='dl'){
+      arrow(A,B,{color:C.teal,w:2.4,label:'dx·@{e_x}',ldy:-10});
+      arrow(B,Cc,{color:C.orange,w:2.4,label:'dy·@{e_y}',ldx:12});
+      arrow(Cc,C3,{color:C.green,w:2.4,label:'dz·@{e_z}',ldx:14});
+      arrow(A,C3,{color:C.crimson,w:2.6,label:'@{d𝑙}',ldy:-16});
+    }else if(sub==='dS'){
+      const f=state.face;
+      if(f===0){ // e_x 方向面元（x+dx 侧面）
+        poly([B,Cc,C3,B3],{fill:C.teal,fillAlpha:.32,stroke:C.teal,w:2});
+        const ctr=vmul(vadd(vadd(B,B3),vadd(Cc,C3)),.25);
+        arrow(ctr,vadd(ctr,pt(.36,0,0)),{color:C.teal,w:2.4,label:'@{dS} = dy·dz·@{e_x}',ldy:-10});
+      }else if(f===1){ // e_y 方向面元（y+dy 侧面）
+        poly([D,Cc,C3,D3],{fill:C.orange,fillAlpha:.32,stroke:C.orange,w:2});
+        const ctr=vmul(vadd(vadd(D,D3),vadd(Cc,C3)),.25);
+        arrow(ctr,vadd(ctr,pt(0,.36,0)),{color:C.orange,w:2.4,label:'@{dS} = dx·dz·@{e_y}',ldy:-10});
+      }else if(f===2){ // -e_z 方向面元（z 底面）
+        poly([A,B,Cc,D],{fill:C.green,fillAlpha:.32,stroke:C.green,w:2});
+        const ctr=vmul(vadd(vadd(A,D),vadd(B,Cc)),.25);
+        arrow(ctr,vadd(ctr,pt(0,0,-.36)),{color:C.green,w:2.4,label:'@{dS} = dx·dy·@{-e_z}',ldy:18});
+      }else{ // +e_z 方向面元（z+dz 顶面）
+        poly([A3,B3,C3,D3],{fill:C.green,fillAlpha:.32,stroke:C.green,w:2});
+        const ctr=vmul(vadd(vadd(A3,D3),vadd(B3,C3)),.25);
+        arrow(ctr,vadd(ctr,pt(0,0,.36)),{color:C.green,w:2.4,label:'@{dS} = dx·dy·@{e_z}',ldy:-10});
+      }
+    }else{ // dv
+      poly([A,B,Cc,D],{fill:C.teal,fillAlpha:.14,stroke:C.teal,w:1.4});
+      poly([A3,B3,C3,D3],{fill:C.teal,fillAlpha:.2,stroke:C.teal,w:1.4});
+      poly([A,D,D3,A3],{fill:C.teal,fillAlpha:.1,stroke:C.teal,w:1.4});
+      poly([B,Cc,C3,B3],{fill:C.teal,fillAlpha:.1,stroke:C.teal,w:1.4});
+      poly([D,Cc,C3,D3],{fill:C.teal,fillAlpha:.1,stroke:C.teal,w:1.4});
+      const ctr=vmul(vadd(A,C3),.5);
+      text(ctr,'dv = dx·dy·dz',{color:C.teal,size:12.5,bold:true,dy:-40,align:'center'});
+      text(vmul(vadd(A,B),.5),'dx',{color:C.muted||'#7A8F9B',size:11,dy:16,align:'center'});
+      text(vmul(vadd(B,Cc),.5),'dy',{color:C.muted||'#7A8F9B',size:11,dx:16});
+      text(vmul(vadd(Cc,C3),.5),'dz',{color:C.muted||'#7A8F9B',size:11,dx:16});
+    }
+  }
+  else if(s==='cyl'){
+    const p=state.P.cyl;
+    const dr=dlin, dph=dang, dz=dlin;
+    const rho0=p.rho, phi0=p.phi, z0=p.z;
+    const A =cylP(rho0,phi0,z0);
+    const B =cylP(rho0+dr,phi0,z0);
+    const Cc=cylP(rho0+dr,phi0+dph*R2D,z0);
+    const D =cylP(rho0,phi0+dph*R2D,z0);
+    const A2=cylP(rho0,phi0,z0+dz), B2=cylP(rho0+dr,phi0,z0+dz),
+          C2=cylP(rho0+dr,phi0+dph*R2D,z0+dz), D2=cylP(rho0,phi0+dph*R2D,z0+dz);
+    const arcB=xyArc(rho0+dr,phi0,phi0+dph*R2D,z0,12);
+    const arcB2=xyArc(rho0+dr,phi0,phi0+dph*R2D,z0+dz,12);
+    const arcA=xyArc(rho0,phi0,phi0+dph*R2D,z0,12);
+    const arcA2=xyArc(rho0,phi0,phi0+dph*R2D,z0+dz,12);
+
+    /* ---------- 参考几何：「圆柱母体」+ 半径/角度标注（可开关）----------
+       学生看到 dρ · ρdφ · dz 这三个微元时，常困惑「是凭空出现的线」。这里把它们的
+       「母体」画全，做到一一对位：
+         · ρdφ —— 落在 ρ=ρ₀+dρ 的那条完整底圆上（一段圆弧 = 半径 × 圆心角）
+         · dz   —— 落在 (ρ₀+dρ, φ₀+dφ) 那条母线上（从 z=0 一直拉上来）
+         · dρ   —— 是内圆 ρ=ρ₀ 与外圆 ρ=ρ₀+dρ 之间的一段径向线
+       再用两条从 z 轴出发的径向虚线把 dφ 角「夹」出来，并标出半径 ρ 与高度 z。 */
+    if(state.refGeo){
+      const st0={stroke:C.gray,alpha:.28,w:1.0,dash:[5,4]};   // 轮廓（很淡，只作背景）
+      const st1={stroke:C.gray,alpha:.55,w:1.2,dash:[6,3]};   // 真正承载微元段的那条线（稍重）
+      const ph1=phi0+dph*R2D, rOut=rho0+dr;
+      /* ① 完整圆：外圆（ρdφ 落在它上面）/ 内圆（看出 dρ 是两圆之间的径向段）/ 顶圆 */
+      curve(xyArc(rOut,0,360,z0,60), st1);
+      curve(xyArc(rho0,0,360,z0,60), st0);
+      curve(xyArc(rOut,0,360,z0+dz,60), st0);
+      /* ② 母线：dz 段是 (ρ₀+dρ, φ₀+dφ) 那条母线上的一小段，从 z=0 一直画到 z₀+dz */
+      line(cylP(rOut,ph1 ,0), cylP(rOut,ph1 ,z0+dz), st1);
+      line(cylP(rho0,phi0,0), cylP(rho0,phi0,z0+dz), st0);
+      /* ③ dφ 角：从 z 轴 A×0 出发的两条径向虚线（顶点都在 A×0）+ 一小段 dφ 圆弧。
+            注意：两条径向虚线的端点都在外圆 ρ=ρ₀+dρ 上，能让学生一眼看出
+            "dφ 是 z 轴上的角、ρdφ 是这个角在外圆上截出的弧"。 */
+      const Ax0=pt(0,0,z0);
+      line(Ax0,cylP(rOut,phi0,z0),{stroke:C.orange,alpha:.6,w:1.2,dash:[6,3]});
+      line(Ax0,cylP(rOut,ph1 ,z0),{stroke:C.orange,alpha:.6,w:1.2,dash:[6,3]});
+      const rA=rOut*.44, phM=(phi0+ph1)/2;
+      curve(xyArc(rA,phi0,ph1,z0,10), {stroke:C.orange,alpha:.9,w:1.5});
+      text(cylP(rA,phM,z0),'dφ',{color:C.orange,size:12,bold:true,dy:-9,align:'center'});
+      /* ④ 半径 ρ：z 轴垂足 → P（= P 到 z 轴的距离，正是底圆的半径） */
+      dimLine(Ax0,A,{color:C.purple,w:1.5,dash:[5,3]});
+      text(vmul(vadd(Ax0,A),.5),'ρ',{color:C.purple,size:12.5,bold:true,dy:-9,align:'center'});
+      marker(Ax0,{color:C.purple,r:3});
+      /* ⑤ 底面高度 z₀：原点 → z 轴垂足（标 z_0，避免与坐标轴末端的 z 重名） */
+      line(pt(0,0,0),Ax0,{stroke:C.green,alpha:.5,w:1.2,dash:[5,3]});
+      text(pt(0,0,z0/2),'z_0',{color:C.green,size:12,bold:true,dx:-17,dy:6});
+    }
+
+    function boxOutline(alpha,dash){
+      line(A,B,{color:C.gray,alpha,w:1.1,dash}); line(D,Cc,{color:C.gray,alpha,w:1.1,dash});
+      curve(arcA,{color:C.gray,alpha,w:1.1,dash}); curve(arcA2,{color:C.gray,alpha,w:1.1,dash});
+      line(A,A2,{color:C.gray,alpha,w:1.1,dash}); line(B,B2,{color:C.gray,alpha,w:1.1,dash});
+      line(Cc,C2,{color:C.gray,alpha,w:1.1,dash}); line(D,D2,{color:C.gray,alpha,w:1.1,dash});
+      line(A2,B2,{color:C.gray,alpha,w:1.1,dash}); line(D2,C2,{color:C.gray,alpha,w:1.1,dash});
+      curve(arcB,{color:C.gray,alpha,w:1.1,dash}); curve(arcB2,{color:C.gray,alpha,w:1.1,dash});
+    }
+    boxOutline(.7,[4,3]);
+    if(sub==='dl'){
+      arrow(A,B,{color:cRho(),w:2.4,label:'dρ·@{e_ρ}',ldy:-10});
+      curve(arcB,{color:C.orange,w:2.4,arrowEnd:true,label:'ρ·dφ·@{e_φ}',ldy:-14});
+      arrow(Cc,C2,{color:C.green,w:2.4,label:'dz·@{e_z}',ldx:14});
+      arrow(A,C2,{color:C.crimson,w:2.6,label:'@{d𝑙}',ldy:-16});
+    }else if(sub==='dS'){
+      const f=state.face;
+      if(f===0){ // e_ρ 外侧面（曲面）
+        poly(arcB.concat([C2].concat(arcB2.slice().reverse().concat([B]))),{fill:cRho(),fillAlpha:.3,stroke:cRho(),w:2});
+        const ctr=cylP(rho0+dr,phi0+dph*R2D/2,z0+dz/2);
+        arrow(ctr,vadd(ctr,vmul(pt(Math.cos((phi0+dph*R2D/2)*D2R),Math.sin((phi0+dph*R2D/2)*D2R),0),.4)),
+          {color:cRho(),w:2.4,label:'@{dS} = ρdφ·dz·@{e_ρ}',ldy:-10});
+      }else if(f===1){ // e_φ 侧面（平面）
+        poly([D,Cc,C2,D2],{fill:C.orange,fillAlpha:.3,stroke:C.orange,w:2});
+        const ctr=cylP(rho0+dr/2,phi0+dph*R2D,z0+dz/2);
+        arrow(ctr,vadd(ctr,vmul(pt(-Math.sin((phi0+dph*R2D)*D2R),Math.cos((phi0+dph*R2D)*D2R),0),.4)),
+          {color:C.orange,w:2.4,label:'@{dS} = dρ·dz·@{e_φ}',ldy:-10});
+      }else if(f===2){ // -e_z 下底面（z=z₀, ρdρ·dφ）
+        poly([].concat([A,B],arcB.slice(1,-1),[Cc,D],arcA.slice(1,-1).reverse()),
+          {fill:C.green,fillAlpha:.32,stroke:C.green,w:2});
+        const ctr=cylP(rho0+dr/2,phi0+dph*R2D/2,z0);
+        arrow(ctr,vadd(ctr,pt(0,0,-.4)),{color:C.green,w:2.4,label:'@{dS} = ρdρ·dφ·@{-e_z}',ldy:18});
+      }else{ // +e_z 上顶面（z=z₀+dz, ρdρ·dφ）
+        poly([].concat([A2,B2],arcB2.slice(1,-1),[C2,D2],arcA2.slice(1,-1).reverse()),
+          {fill:C.green,fillAlpha:.32,stroke:C.green,w:2});
+        const ctr=cylP(rho0+dr/2,phi0+dph*R2D/2,z0+dz);
+        arrow(ctr,vadd(ctr,pt(0,0,.4)),{color:C.green,w:2.4,label:'@{dS} = ρdρ·dφ·@{e_z}',ldy:-10});
+      }
+    }else{ // dv
+      poly([].concat([A,B],arcB.slice(1,-1),[Cc,D],arcA.slice(1,-1).reverse()),{fill:C.green,fillAlpha:.18,stroke:C.green,w:1.4});
+      poly([].concat([A2,B2],arcB2.slice(1,-1),[C2,D2],arcA2.slice(1,-1).reverse()),{fill:C.green,fillAlpha:.18,stroke:C.green,w:1.4});
+      poly(arcB.concat([C2].concat(arcB2.slice().reverse().concat([B]))),{fill:cRho(),fillAlpha:.14,stroke:cRho(),w:1.4});
+      poly([D,Cc,C2,D2],{fill:C.orange,fillAlpha:.14,stroke:C.orange,w:1.4});
+      poly([A,B,B2,A2],{fill:C.gray,fillAlpha:.10,stroke:C.gray,w:1.2});
+      const ctr=cylP(rho0+dr/2,phi0+dph*R2D/2,z0+dz/2);
+      text(ctr,'dv = ρ·dρ·dφ·dz',{color:cRho(),size:12.5,bold:true,dy:-44,align:'center'});
+      text(vmul(vadd(A,B),.5),'dρ',{color:C.muted,size:11,dy:16,align:'center'});
+      text(vmul(vadd(Cc,C2),.5),'dz',{color:C.muted,size:11,dx:14});
+      text(arcB[Math.floor(arcB.length/2)],'ρdφ',{color:C.muted,size:11,dy:18,align:'center'});
+    }
+  }
+  else{ // sph
+    const p=state.P.sph;
+    const dr=Math.min(.28*k,.45), dth=dang, dph=dang;
+    const r0=p.r, th0=p.theta, ph0=p.phi;
+    /* θ 的定义域是 [0°, 180°]。当 θ₀ 已经贴到 180° 时，θ₀+dθ 会越出球面，
+       微元就画到球外面去了 —— 这时把 dθ 微元翻到 θ 减小的一侧（边界处取单侧微分），
+       保证微元块始终落在球坐标定义域内。thMid 是微元在 θ 方向的中间角。 */
+    const thEnd = (th0 + dth*R2D > 180) ? th0 - dth*R2D : th0 + dth*R2D;
+    const thMid = (th0 + thEnd) / 2;
+    const A =sphP(r0,th0,ph0);
+    const B =sphP(r0+dr,th0,ph0);
+    const Cc=sphP(r0+dr,thEnd,ph0);
+    const D =sphP(r0,thEnd,ph0);
+    const A2=sphP(r0,th0,ph0+dph*R2D), B2=sphP(r0+dr,th0,ph0+dph*R2D),
+          C2=sphP(r0+dr,thEnd,ph0+dph*R2D), D2=sphP(r0,thEnd,ph0+dph*R2D);
+    // 弧采样
+    function arcRT(r,thDeg,ph0Deg,ph1Deg,n){ // θ 固定，φ 变（纬线弧）
+      n=n||12; const out=[]; for(let i=0;i<=n;i++){ const ph=(ph0Deg+(ph1Deg-ph0Deg)*i/n);
+        out.push(sphP(r,thDeg,ph)); } return out; }
+    function arcRPh(r,phDeg,th0Deg,th1Deg,n){ // φ 固定，θ 变（经线弧）
+      n=n||12; const out=[]; for(let i=0;i<=n;i++){ const th=(th0Deg+(th1Deg-th0Deg)*i/n);
+        out.push(sphP(r,th,phDeg)); } return out; }
+    const merB=arcRPh(r0+dr,ph0,th0,thEnd);
+    const merD=arcRPh(r0,ph0,th0,thEnd);
+    const merB2=arcRPh(r0+dr,ph0+dph*R2D,th0,thEnd);
+    const merD2=arcRPh(r0,ph0+dph*R2D,th0,thEnd);
+    const parC=arcRT(r0+dr,thEnd,ph0,ph0+dph*R2D);
+    const parA=arcRT(r0,th0,ph0,ph0+dph*R2D);
+    const parC0=arcRT(r0+dr,th0,ph0,ph0+dph*R2D);
+    const parD0=arcRT(r0,thEnd,ph0,ph0+dph*R2D);
+
+    /* ---------- 参考几何：「球面母体」+ 纬线 / 纬线半径 / 球半径标注（可开关）----------
+       球坐标三个微分段的「母体」分别是：
+         · dr·e_r         —— 沿 O→P 这条球半径向外的一小截
+         · r·dθ·e_θ       —— (r=r₀+dr, φ=φ₀) 那条经线上的一小段弧
+         · r·sinθ·dφ·e_φ  —— (r=r₀+dr, θ=θ₀+dθ) 那条纬圆上的一小段弧，
+                             而这个纬圆的半径是 r·sinθ（不是 r！），圆面距 xy 平面高 r·cosθ。
+       所以除了画出完整纬圆与经线，还必须把「纬线半径 r·sinθ」和「球半径 r」两条
+       尺寸线标出来 —— 学生才能明白 sinθ 是从哪来的。 */
+    if(state.refGeo){
+      const th1=thEnd, ph1=ph0+dph*R2D, rOut=r0+dr;
+      function meridianFull(r, phDeg){
+        return arcRPh(r, phDeg, 0, 180, 18).concat(arcRPh(r, phDeg, 180, 360, 18));
+      }
+      /* ① 纬线：先画「点所在的纬线」(r₀, θ₀)，再画微元弧真正落在的那条 (r₀+dr, θ₀+dθ)
+            ——两条只差一个 dr、dθ，把它们并排画出来，正好说明"取极限时二者重合" */
+      curve(arcRT(r0,  th0,-180,180,56), {stroke:C.green,alpha:.45,w:1.2,dash:[6,3]});
+      curve(arcRT(rOut,th1,-180,180,56), {stroke:C.green,alpha:.22,w:1.0,dash:[5,4]});
+      /* ② 经线：φ=φ₀ 与 φ=φ₀+dφ 两条完整经线（两条经线之间夹的就是 dφ 角） */
+      curve(meridianFull(r0,ph0), {stroke:C.orange,alpha:.26,w:1.0,dash:[5,4]});
+      curve(meridianFull(r0,ph1), {stroke:C.orange,alpha:.26,w:1.0,dash:[5,4]});
+      /* ③ dφ 角：纬线圆心 H 出发的两条半径 + 一小段 dφ 圆弧
+            （第一条半径就是下面的 r·sinθ 尺寸线 H→P，这里只补另一条） */
+      const Hz=r0*Math.cos(th0*D2R), rLat=r0*Math.sin(th0*D2R);   // 纬线圆心高度 / 纬线半径
+      const H =pt(0,0,Hz);                                        // 纬线圆心（z 轴上的垂足）
+      /* 两极退化：θ→0° 或 180° 时 sinθ→0，纬线半径 r·sinθ 缩成一个点，
+         dφ 弧与 r·sinθ·dφ 线元也随之退化为零长度 —— 这是真实结论而非画错，
+         所以这里照实画（纬线收缩到极点），并补一句说明，避免学生以为是图坏了。 */
+      const atPole = (rLat < .03);
+      const Q2=pt(rLat*Math.cos(ph1*D2R), rLat*Math.sin(ph1*D2R), Hz);
+      line(H,Q2,{stroke:C.green,alpha:.6,w:1.2,dash:[6,3]});
+      curve(xyArc(rLat*.44, ph0, ph1, Hz, 10), {stroke:C.green,alpha:atPole?0:.9,w:1.5});
+      if(!atPole) text(cylP(rLat*.44,(ph0+ph1)/2,Hz),'dφ',{color:C.green,size:12,bold:true,dy:-9,align:'center'});
+      /* ④ 纬线半径 r·sinθ（H → P）：注意它不是 r，而是 P 到 z 轴的距离 —— 用尺寸线而非矢量 */
+      dimLine(H,A,{color:C.purple,w:1.6,dash:[5,3]});
+      text(vmul(vadd(H,A),.5), atPole?'r·sinθ = 0':'r·sinθ',{color:C.purple,size:12,bold:true,dy:-9,align:'center'});
+      marker(H,{color:C.purple,r:3});
+      /* ⑤ 球半径 r（O → P）与 θ 角（+z 轴 → OP）—— 也是距离，用尺寸线 */
+      dimLine(pt(0,0,0),A,{color:C.blue,w:1.6,dash:[5,3]});
+      text(vmul(A,.5),'r',{color:C.blue,size:12.5,bold:true,dx:11,dy:-8});
+      curve(arcRPh(r0*.40, ph0, 0, th0, 14), {stroke:C.blue,alpha:.85,w:1.5});
+      text(sphP(r0*.46, th0/2, ph0),'θ',{color:C.blue,size:12,bold:true,dy:-8,align:'center'});
+      /* ⑤b dθ 角：紧接 θ 弧画一小段，与 θ 弧连贯，标 dθ —— 学生才能看清
+            "r·dθ·e_θ 这段弧的圆心角是 dθ"。再补一条径向虚线把 dθ "夹"出来。 */
+      curve(arcRPh(r0*.40, ph0, th0, thEnd, 6), {stroke:C.orange,alpha:.9,w:1.5});
+      text(sphP(r0*.44, th0+(thEnd-th0)*0.45, ph0),'dθ',{color:C.orange,size:12,bold:true,dy:-8,align:'center'});
+      /*  dθ 角的第二条径向参考线：从原点出发到 (r₀+dr, θ₀+dθ, φ₀)，
+            把 dθ 角"夹"在 r 半径和这条虚线之间 —— 与 dφ 角的处理方式一致 */
+      line(pt(0,0,0), sphP(rOut, thEnd, ph0), {stroke:C.orange,alpha:.6,w:1.2,dash:[6,3]});
+      /* ⑥ 直角三角形 O–H–P 的第三边 r·cosθ（在 z 轴上）：
+            三条边凑成直角三角形，sinθ / cosθ 的来历一目了然 */
+      line(pt(0,0,0),H,{stroke:C.purple,alpha:.45,w:1.1,dash:[4,4]});
+      text(pt(0,0,Hz/2),'r·cosθ',{color:C.purple,size:11,dy:6,dx:-17});
+    }
+
+    function boxOutline(){
+      line(A,B,{color:C.gray,w:1.1,dash:[4,3]}); line(D,Cc,{color:C.gray,w:1.1,dash:[4,3]});
+      curve(merB,{color:C.gray,w:1.1,dash:[4,3]}); curve(merD,{color:C.gray,w:1.1,dash:[4,3]});
+      line(A2,B2,{color:C.gray,w:1.1,dash:[4,3]}); line(D2,C2,{color:C.gray,w:1.1,dash:[4,3]});
+      curve(parC0,{color:C.gray,w:1.1,dash:[4,3]}); curve(parA,{color:C.gray,w:1.1,dash:[4,3]});
+      curve(parC,{color:C.gray,w:1.1,dash:[4,3]}); curve(parD0,{color:C.gray,w:1.1,dash:[4,3]});
+      curve(merB2,{color:C.gray,w:1.1,dash:[4,3]}); curve(merD2,{color:C.gray,w:1.1,dash:[4,3]});
+    }
+    boxOutline();
+    if(sub==='dl'){
+      arrow(A,B,{color:C.teal,w:2.4,label:'dr·@{e_r}',ldy:-10});
+      curve(merB,{color:C.orange,w:2.4,arrowEnd:true,label:'r·dθ·@{e_θ}',ldy:-14,ldx:-10});
+      curve(parC,{color:C.green,w:2.4,arrowEnd:true,label:'r·sinθ·dφ·@{e_φ}',ldy:16});
+      arrow(A,C2,{color:C.crimson,w:2.6,label:'@{d𝑙}',ldy:-18});
+    }else if(sub==='dS'){
+      const f=state.face;
+      if(f===0){ // e_r 外球面
+        poly([].concat([B],merB.slice(1,-1),[Cc],parC.slice(1,-1),[C2],merB2.slice(1,-1).reverse(),[B2],parC0.slice(1,-1).reverse()),
+          {fill:C.teal,fillAlpha:.32,stroke:C.teal,w:2});
+        const ctr=sphP(r0+dr,thMid,ph0+dph*R2D/2);
+        arrow(ctr,vadd(ctr,vmul(vnorm(ctr),.42)),{color:C.teal,w:2.4,label:'@{dS} = r²sinθ·dθ·dφ·@{e_r}',ldy:-10});
+      }else if(f===1){ // e_θ 锥面
+        poly([].concat([D,Cc],parC.slice(1,-1),[C2,D2],parD0.slice(1,-1).reverse()),
+          {fill:C.orange,fillAlpha:.32,stroke:C.orange,w:2});
+        const ctr=sphP(r0+dr/2,thEnd,ph0+dph*R2D/2);
+        const t=(thEnd)*D2R, fph=(ph0+dph*R2D/2)*D2R;
+        const eT=pt(Math.cos(t)*Math.cos(fph),Math.cos(t)*Math.sin(fph),-Math.sin(t));
+        arrow(ctr,vadd(ctr,vmul(eT,.42)),{color:C.orange,w:2.4,label:'@{dS} = r·sinθ·dr·dφ·@{e_θ}',ldy:-10});
+      }else{ // e_φ 平面片（φ+dφ 远侧）
+        poly([].concat([A2,B2],merB2.slice(1,-1),[C2,D2],merD2.slice(1,-1).reverse()),
+          {fill:C.green,fillAlpha:.32,stroke:C.green,w:2});
+        const ctr=sphP(r0+dr/2,thMid,ph0+dph*R2D);
+        const fph=(ph0+dph*R2D)*D2R;
+        const eF=pt(-Math.sin(fph),Math.cos(fph),0);
+        arrow(ctr,vadd(ctr,vmul(eF,.42)),{color:C.green,w:2.4,label:'@{dS} = r·dr·dθ·@{e_φ}',ldy:-10});
+      }
+    }else{ // dv
+      poly([].concat([B],merB.slice(1,-1),[Cc],parC.slice(1,-1),[C2],merB2.slice(1,-1).reverse(),[B2],parC0.slice(1,-1).reverse()),
+        {fill:C.teal,fillAlpha:.16,stroke:C.teal,w:1.4});
+      poly([].concat([D,Cc],parC.slice(1,-1),[C2,D2],parD0.slice(1,-1).reverse()),
+        {fill:C.orange,fillAlpha:.14,stroke:C.orange,w:1.4});
+      poly([].concat([A2,B2],merB2.slice(1,-1),[C2,D2],merD2.slice(1,-1).reverse()),
+        {fill:C.green,fillAlpha:.14,stroke:C.green,w:1.4});
+      poly([].concat([A,B],merB.slice(1,-1),[Cc,D],merD.slice(1,-1).reverse()),
+        {fill:C.gray,fillAlpha:.08,stroke:C.gray,w:1.1});
+      poly([].concat([A,B],parC0.slice(1,-1),[B2,A2],parA.slice(1,-1).reverse()),
+        {fill:C.gray,fillAlpha:.08,stroke:C.gray,w:1.1});
+      const ctr=sphP(r0+dr/2,thMid,ph0+dph*R2D/2);
+      text(ctr,'dv = r²·sinθ·dr·dθ·dφ',{color:C.teal,size:12.5,bold:true,dy:-44,align:'center'});
+      text(vmul(vadd(A,B),.5),'dr',{color:C.muted,size:11,dy:14,align:'center'});
+      text(merB[Math.floor(merB.length/2)],'rdθ',{color:C.muted,size:11,dy:-14,align:'center'});
+      text(parC[Math.floor(parC.length/2)],'rsinθdφ',{color:C.muted,size:11,dy:16,align:'center'});
+    }
+  }
+}
+
+/* ---------------- 场景总装 ---------------- */
+function buildScene(){
+  prims=[];
+  drawGridAndAxes(state.sys);
+  const P0=getPCart();
+  // P 点标注（各模式均显示）
+  const s=state.sys, p=state.P[s];
+  let coordStr='';
+  if(s==='cart') coordStr='P('+p.x.toFixed(2)+', '+p.y.toFixed(2)+', '+p.z.toFixed(2)+')';
+  else if(s==='cyl') coordStr=symStr('P(ρ='+p.rho.toFixed(2)+', φ='+p.phi.toFixed(0)+'°, z='+p.z.toFixed(2)+')');
+  else coordStr='P(r='+p.r.toFixed(2)+', θ='+p.theta.toFixed(0)+'°, φ='+p.phi.toFixed(0)+'°)';
+  if(state.quantity==='diff'||state.quantity==='posvec')
+    marker(P0,{color:C.orange,r:5.5,label:'P',ldx:10,ldy:14,lsize:13});
+  else if(state.quantity!=='distvec')
+    marker(P0,{color:C.orange,r:5.5,label:coordStr,ldx:12,ldy:-14,lsize:13});
+  switch(state.quantity){
+    case 'vars': sceneVars(); break;
+    case 'unitvec': sceneUnitvec(); break;
+    case 'posvec': scenePosvec(); break;
+    case 'distvec': sceneDistvec(); break;
+    case 'diff': sceneDiff(); break;
+  }
+}
+
+/* ---------------- 渲染主循环 ---------------- */
+let needsRender=true;
+function draw(){
+  setupCamera();
+  ctx.clearRect(0,0,W,H);
+  buildScene();
+  prims.sort((a,b)=>a.z-b.z);
+  for(const p of prims) p.draw(ctx);
+  needsRender=false;
+}
+function tick(){
+  if(state.autoRotate){ cam.az+=0.0045; needsRender=true; }
+  if(needsRender) draw();
+  requestAnimationFrame(tick);
+}
+
+/* ---------------- 面板渲染 ---------------- */
+const panel=document.getElementById('panel');
+function h(html){ const d=document.createElement('div'); d.innerHTML=html; return d; }
+
+function renderPanel(){
+  panel.innerHTML='';
+  // 物理量
+  const qsec=h('<div class="panel-sec"><div class="sec-title">重点物理量（点击切换图中内容）</div><div class="qty-grid" id="qtyGrid"></div></div>');
+  panel.appendChild(qsec);
+  const grid=qsec.querySelector('#qtyGrid');
+  QUANTITIES.forEach(q=>{
+    const b=document.createElement('button');
+    b.className='qty-btn'+(q.star?' star':'')+(state.quantity===q.id?' on':'');
+    b.innerHTML='<span class="no">'+q.no+'</span><span class="nm">'+q.nm+'</span><span class="ds">'+q.ds+'</span>';
+    b.onclick=()=>{ state.quantity=q.id; state.sub=q.id==='vars'?'all':(q.id==='diff'?'dl':null); renderPanel(); updateAll(); };
+    grid.appendChild(b);
+  });
+  // 子选项
+  const subsec=h('<div class="panel-sec" id="subSec"></div>');
+  panel.appendChild(subsec);
+  renderSubSec(subsec);
+  // 滑块
+  const ssec=h('<div class="panel-sec" id="sliderSec"></div>');
+  panel.appendChild(ssec);
+  renderSliders(ssec);
+  // 解读
+  const esec=h('<div class="panel-sec" id="explainSec"></div>');
+  panel.appendChild(esec);
+  renderExplain(esec);
+  updateModeTag();
+}
+
+const VAR_CHIPS={
+  cart:[['all','全部'],['x','x'],['y','y'],['z','z']],
+  cyl:[['all','全部'],['ρ','ρ'],['φ','φ'],['z','z']],
+  sph:[['all','全部'],['r','r'],['θ','θ'],['φ','φ']],
+};
+function renderSubSec(sec){
+  sec.innerHTML='';
+  if(state.quantity==='vars'){
+    sec.appendChild(h('<div class="sec-title">单独查看某个坐标变量</div>'));
+    const wrap=h('<div class="sub-chips"></div>'); sec.appendChild(wrap);
+    VAR_CHIPS[state.sys].forEach(([id,nm])=>{
+      const b=document.createElement('button');
+      b.className='chip'+(String(state.sub)===String(id)?' on':'');
+      b.textContent=symStr(nm);
+      b.onclick=()=>{ state.sub=id; renderPanel(); updateAll(); };
+      wrap.appendChild(b);
+    });
+  }else if(state.quantity==='diff'){
+    sec.appendChild(h('<div class="sec-title">微分元类型</div>'));
+    const wrap=h('<div class="sub-chips"></div>'); sec.appendChild(wrap);
+    [['dl','线元 @{d𝑙}'],['dS','面元 @{dS}'],['dv','体积元 dv']].forEach(([id,nm])=>{
+      const b=document.createElement('button');
+      b.className='chip'+(state.sub===id?' on':'');
+      b.innerHTML=richHTML(nm);
+      b.onclick=()=>{ state.sub=id; renderPanel(); updateAll(); };
+      wrap.appendChild(b);
+    });
+    if(state.sub==='dS'){
+      sec.appendChild(h('<div class="sec-title" style="margin-top:12px">选择面元方向</div>'));
+      const fw=h('<div class="sub-chips"></div>'); sec.appendChild(fw);
+      dSFaces().forEach((f,i)=>{
+        const b=document.createElement('button');
+        b.className='chip face'+(state.face===i?' on':'');
+        b.innerHTML=richHTML(f.chip);
+        b.onclick=()=>{ state.face=i; renderPanel(); updateAll(); };
+        fw.appendChild(b);
+      });
+    }
+    /* 参考几何开关：默认开，觉得乱可以一键收起 */
+    const tg=h('<label class="ref-toggle"><input type="checkbox" id="refGeoCb"'+
+      (state.refGeo?' checked':'')+'><span>显示<b>参考几何</b>（微元的"母体"：完整圆 / 纬线·经线、半径与角标）</span></label>');
+    sec.appendChild(tg);
+    tg.querySelector('#refGeoCb').onchange=e=>{ state.refGeo=e.target.checked; updateAll(); };
+  }
+}
+function dSFaces(){
+  if(state.sys==='cart') return [
+    {chip:'@{e_x} 面 (dy·dz)'},
+    {chip:'@{e_y} 面 (dx·dz)'},
+    {chip:'@{-e_z} 下底面 (dx·dy)'},
+    {chip:'@{e_z} 上顶面 (dx·dy)'}
+  ];
+  if(state.sys==='cyl') return [
+    {chip:'@{e_ρ} 面 (ρdφ·dz)'},
+    {chip:'@{e_φ} 面 (dρ·dz)'},
+    {chip:'@{-e_z} 下底面 (ρdρ·dφ)'},
+    {chip:'@{e_z} 上顶面 (ρdρ·dφ)'}
+  ];
+  return [{chip:'@{e_r} 面 (r²sinθdθdφ)'},{chip:'@{e_θ} 面 (rsinθdrdφ)'},{chip:'@{e_φ} 面 (rdrdθ)'}];
+}
+/* 面元索引钳制：直角/圆柱有 4 个面（z 方向拆成下底 -e_z 与上顶 +e_z），
+   球坐标只有 3 个面（e_r 面本身就是外球面，无内外之分）。
+   从 cart/cyl 切到 sph 时若 face 还停在 3 会落空，这里统一夹回合法范围。 */
+function clampFace(){
+  const n = dSFaces().length;
+  if(!(state.face>=0)) state.face=0;
+  if(state.face > n-1) state.face = n-1;
+}
+
+const SLIDER_DEFS={
+  cart:[{k:'x',min:-1,max:1.4,step:.01},{k:'y',min:-1,max:1.4,step:.01},{k:'z',min:-1,max:1.4,step:.01}],
+  cyl:[{k:'rho',min:.15,max:1.4,step:.01},{k:'phi',min:0,max:360,step:1,unit:'°'},{k:'z',min:-1,max:1.4,step:.01}],
+  sph:[{k:'r',min:.3,max:1.5,step:.01},{k:'theta',min:0,max:180,step:1,unit:'°'},{k:'phi',min:0,max:360,step:1,unit:'°'}],
+};
+const SLIDER_LABEL={cart:{x:'x',y:'y',z:'z'},cyl:{rho:'ρ',phi:'φ',z:'z'},sph:{r:'r',theta:'θ',phi:'φ'}};
+function renderSliders(sec){
+  sec.innerHTML='';
+  sec.appendChild(h('<div class="sec-title">图形控制 · 拖动滑块移动 P 点</div>'));
+  function mkGroup(label,target,cls){
+    if(label) sec.appendChild(h('<div class="slider-group-label'+(cls||'')+'">'+richHTML(label)+'</div>'));
+    SLIDER_DEFS[state.sys].forEach(def=>{
+      const row=h('<div class="slider-row"></div>');
+      const lab=h('<label>'+richHTML(SLIDER_LABEL[state.sys][def.k])+'</label>');
+      const inp=document.createElement('input');
+      inp.type='range'; inp.min=def.min; inp.max=def.max; inp.step=def.step; inp.value=target[def.k];
+      const val=h('<span class="val">'+fmtVal(target[def.k],def)+'</span>');
+      inp.oninput=()=>{ target[def.k]=parseFloat(inp.value); val.textContent=fmtVal(target[def.k],def); updateAll(); };
+      row.appendChild(lab); row.appendChild(inp); row.appendChild(val);
+      sec.appendChild(row);
+    });
+  }
+  mkGroup('P 点坐标', state.P[state.sys]);
+  if(state.quantity==='distvec') mkGroup('P_2 点坐标（终点）', state.Q[state.sys],' q');
+  if(state.quantity==='diff'){
+    const row=h('<div class="slider-row"></div>');
+    row.appendChild(h('<label style="font-style:normal;font-family:inherit;font-size:12px;">微元大小</label>'));
+    const inp=document.createElement('input');
+    inp.type='range'; inp.min=.5; inp.max=1.8; inp.step=.05; inp.value=state.dscale;
+    const val=h('<span class="val">×'+state.dscale.toFixed(2)+'</span>');
+    inp.oninput=()=>{ state.dscale=parseFloat(inp.value); val.textContent='×'+state.dscale.toFixed(2); updateAll(); };
+    row.appendChild(inp); row.appendChild(val);
+    sec.appendChild(row);
+  }
+}
+function fmtVal(v,def){ return v.toFixed(def.step<1?2:0)+(def.unit||''); }
+
+/* ---------------- 解读文案 ---------------- */
+function renderExplain(sec){
+  const e=EXPL[state.sys][state.quantity];
+  let html='<div class="ex-title">'+richHTML(e.title)+'</div><div class="ex-body">'+richHTML(e.body)+'</div>';
+  if(e.formula) html+='<div class="frm">'+richHTML(e.formula)+'</div>';
+  if(state.quantity==='diff'){
+    const ds=EXPL[state.sys].diffSub;
+    if(ds && ds[state.sub]) html+=richHTML(ds[state.sub]);
+  }
+  if(e.tips){ html+='<div class="tips"><div class="tt">观察要点</div><ul>'+e.tips.map(t=>'<li>'+richHTML(t)+'</li>').join('')+'</ul></div>'; }
+  if(state.notation==='r'&&state.sys!=='cart'){
+    html+='<div class="ex-body" style="margin-top:8px;padding:7px 10px;background:#FDF6EF;border:1px solid #F0C9A8;border-radius:8px;color:#8A5A2B;font-size:12px;">'+
+      (state.sys==='cyl'
+        ?'当前为 <b>r 记法</b>（《工程电磁场》）：圆柱半径记作 <b>r</b>，指 P 到 <b>z 轴</b>的距离（图中蓝色）。注意与球坐标的 r（P 到原点的距离，青色）含义不同。'
+        :'当前为 <b>r 记法</b>：球坐标 <b>r</b> 指 P 到<b>原点</b>的距离（青色）。圆柱坐标系的 r（蓝色）指 P 到 z 轴的距离，两者含义不同。')+
+      '</div>';
+  }
+  if(state.quantity==='distvec') html+='<div class="readout" id="distReadout"></div>';
+  sec.innerHTML=html;
+  updateDistReadout();
+}
+function updateDistReadout(){
+  const el=document.getElementById('distReadout'); if(!el) return;
+  const P0=getPCart(), Q0=getQCart();
+  const R=vsub(Q0,P0);
+  el.innerHTML=richHTML('@{R} = ('+R.x.toFixed(2)+', '+R.y.toFixed(2)+', '+R.z.toFixed(2)+')<br>|@{R}| = '+vlen(R).toFixed(3));
+}
+const EXPL={
+cart:{
+  vars:{
+    title:'坐标变量 x、y、z —— P 点的"门牌号"',
+    body:'三个坐标变量的几何意义都是<b>到坐标面的有向距离</b>：<ul><li><b style="color:#156082">x</b>：P 到 <b>yoz 面</b>的距离（沿 @{e_x} 正方向为正）</li><li><b style="color:#E97132">y</b>：P 到 <b>xoz 面</b>的距离</li><li><b style="color:#3E9B4F">z</b>：P 到 <b>xoy 面</b>的距离</li></ul>取值范围：x, y, z ∈ (−∞, +∞)。',
+    formula:'P(x, y, z)',
+    tips:['点击上方 x / y / z 单独高亮对应的坐标面与距离线','把 x 拖成负值，观察 P 跨过 yoz 面时距离变号'],
+  },
+  unitvec:{
+    title:'坐标单位矢量 @{e_x}、@{e_y}、@{e_z}',
+    body:'过 P 点沿三个坐标面的<b>法线方向</b>各取一个单位矢量：模为 1，以坐标变量增大的方向为正方向，两两正交且成右手螺旋关系。<br><b>直角坐标系中三个单位矢量方向恒定，不随 P 点位置变化（常矢量）。</b>',
+    formula:'@{e_x} × @{e_y} = @{e_z}，@{e_x} ⊥ @{e_y} ⊥ @{e_z}',
+    tips:['图中在 O 点与 P 点各画了一组（浅色），平移后方向完全相同'],
+  },
+  posvec:{
+    title:'位置矢量 @{r} —— 从原点指向 P',
+    body:'位置矢量 = 坐标原点 O 指向 P 点的矢量。图中给出一条"走路径"：<b>先沿 @{e_x} 走 x，再沿 @{e_y} 走 y，最后沿 @{e_z} 走 z</b>，恰好到达 P——这正是位置矢量按坐标分量的分解。',
+    formula:'@{r} = x @{e_x} + y @{e_y} + z @{e_z}　　|@{r}| = √(x²+y²+z²)',
+    tips:['三个分量首尾相接，合成为红色箭头（平行六面体的体对角线）','位置矢量与 P 点一一对应：给出 @{r} 就等价于给出 P'],
+  },
+  distvec:{
+    title:'距离矢量 @{R} —— 从起点指向终点',
+    body:'空间两点 P_1（起点）与 P_2（终点）之间的距离矢量 = 两点<b>位置矢量之差（终点 − 起点）</b>。<br>注意 @{R} 的方向由起点指向终点，起点终点写反，@{R} 的符号全反。',
+    formula:'@{R}_{12} = @{r}_2 − @{r}_1 = (x_2−x_1)@{e_x} + (y_2−y_1)@{e_y} + (z_2−z_1)@{e_z}',
+    tips:['O→P_1、O→P_2 与 P_1→P_2 构成矢量三角形：@{r}_2 = @{r}_1 + @{R}','两点间距离就是 |@{R}|，实时数值见下方读数'],
+  },
+  diff:{
+    title:'微分元 —— 后续所有积分的"积木"',
+    body:'微分元是从 P 点出发、沿三个坐标方向各取一小段所构成的几何元素，分为<b>线元（位移）、面元（矢量面积）、体积元</b>三类。这里为看清结构已放大绘制，实际应为无穷小。',
+    formula:'',
+    tips:['先选线元 @{d𝑙}，再切换面元 / 体积元对比三者关系'],
+    },
+  diffSub:{
+    dl:'<div class="frm">@{d𝑙} = dx @{e_x} + dy @{e_y} + dz @{e_z}</div><div class="ex-body">三段小位移首尾相接，其<b>矢量和</b>就是沿任意方向的线元 @{d𝑙}（红色对角箭头）。</div>',
+    dS:'<div class="frm">@{dS_x} = dy·dz @{e_x}<br>@{dS_y} = dx·dz @{e_y}<br>@{dS_z} = dx·dy @{e_z}</div><div class="ex-body">分别令 dx、dy、dz 之一为零，得到与坐标面平行的小矩形面积元。面元是<b>矢量</b>，方向沿该面的法线方向。</div>',
+    dv:'<div class="frm">dv = dx·dy·dz</div><div class="ex-body">三个微分长度同时取出，围成小长方体，其体积即体积元。</div>',
+  },
+},
+cyl:{
+  vars:{
+    title:'坐标变量 (ρ, φ, z)',
+    body:'<ul><li><b style="color:#E97132">ρ</b>：P 点到 <b>z 轴的垂直距离</b>，ρ ≥ 0</li><li><b style="color:#0F9ED5">φ</b>：方位角——P′（P 在 xoy 面上的投影）在圆周上的位置，从 +x 轴绕 z 轴转向 +y 轴，0 ≤ φ &lt; 2π</li><li><b style="color:#3E9B4F">z</b>：P 点到 xoy 面的高度</li></ul>坐标面：ρ = 常数 → <b>圆柱面</b>；φ = 常数 → 过 z 轴的半平面；z = 常数 → 水平面。',
+    formula:'x = ρcosφ，y = ρsinφ，z = z',
+    tips:['图中灰色圆周即"ρ、φ 相同、z 不同"点的轨迹（圆柱面截线）','ρ 与 φ 一定，就锁定了 P 所在的圆柱面与半平面'],
+  },
+  unitvec:{
+    title:'单位矢量 @{e_ρ}、@{e_φ}、@{e_z}',
+    body:'<b>@{e_ρ}</b> 沿径向离开 z 轴；<b>@{e_φ}</b> 沿圆周切线（φ 增大方向）；<b>@{e_z}</b> 竖直向上。<br><b>@{e_ρ}、@{e_φ} 随 P 点位置（φ）变化，是变矢量；@{e_z} 恒定。</b>三者处处正交、保持右手系。',
+    formula:'@{e_ρ} × @{e_φ} = @{e_z}',
+    tips:['对比 P 点与浅色的 P′ 点两套矢量：@{e_z} 不变，@{e_ρ}、@{e_φ} 随 φ 一起旋转','这是圆柱坐标系与直角坐标系最本质的区别'],
+  },
+  posvec:{
+    title:'位置矢量 @{r} = ρ @{e_ρ} + z @{e_z}',
+    body:'走路径：<b>先在 xoy 面内沿 @{e_ρ} 走 ρ 到 P′，再沿 @{e_z} 上升 z 到达 P</b>。<br>注意：除 P 恰在 z 轴上（ρ=0）或 xoy 面上（z=0）外，<b>@{r} 一般不沿任何坐标单位矢量方向</b>——因此圆柱坐标下位置矢量的表达不如球坐标简洁。',
+    formula:'@{r} = ρ @{e_ρ} + z @{e_z}　　|@{r}| = √(ρ²+z²)',
+    tips:['青色箭头（ρ）+ 绿色箭头（z）首尾相接，合成为红色 @{r}'],
+  },
+  distvec:{
+    title:'距离矢量：必须先化成直角分量',
+    body:'两点的 ρ、φ、z <b>不能直接相减</b>（φ 是角度，ρ 也只含部分信息）。正确做法：先化成直角坐标分量，再对应相减。',
+    formula:'@{R} = (ρ_2cosφ_2−ρ_1cosφ_1)@{e_x} + (ρ_2sinφ_2−ρ_1sinφ_1)@{e_y} + (z_2−z_1)@{e_z}',
+    tips:['实时读数给出 @{R} 的三个分量与模长 |@{R}|'],
+  },
+  diff:{
+    title:'微分元 —— 注意"弧长"因子 ρ',
+    body:'圆柱坐标系的三个方向"刻度"不同：沿 @{e_ρ}、@{e_z} 是普通长度，沿 @{e_φ} 是<b>圆弧</b>。微分元的所有公式中出现的 ρ，都来自弧长换算 ρ·dφ。',
+    formula:'',
+    tips:['拉梅系数：h_ρ = 1，h_φ = ρ，h_z = 1'],
+  },
+  diffSub:{
+    dl:'<div class="frm">@{d𝑙} = dρ @{e_ρ} + ρ dφ @{e_φ} + dz @{e_z}</div><div class="ex-body">沿 @{e_ρ} 走 dρ 是直线；沿 @{e_φ} 走的是<b>半径为 ρ 的圆弧</b>，弧长 = ρ·dφ（半径越大，同样的角度张成的弧越长）。</div>',
+    dS:'<div class="frm">@{dS_ρ} = ρ·dφ·dz @{e_ρ}（外侧面·曲面）<br>@{dS_φ} = dρ·dz @{e_φ}（侧平面）<br>@{dS_z} = ρ·dρ·dφ @{e_z}（上下底）</div><div class="ex-body">外侧面是圆柱面的一部分，沿 φ 方向的边是弧——所以面积中出现因子 ρ。</div>',
+    dv:'<div class="frm">dv = ρ·dρ·dφ·dz</div><div class="ex-body">三个微分长度围成一块"弯曲的小积木"。对比直角坐标的 dx·dy·dz，多出的因子 ρ 正来自弧长 ρ·dφ。</div>',
+  },
+},
+sph:{
+  vars:{
+    title:'坐标变量 (r, θ, φ)',
+    body:'<ul><li><b style="color:#D04A3A">r</b>：P 点到<b>坐标原点 O 的距离</b>，r ≥ 0</li><li><b style="color:#0F9ED5">θ</b>：极角——OP 与 <b>+z 轴</b>的夹角，0 ≤ θ ≤ π</li><li><b style="color:#E97132">φ</b>：方位角——OP′ 与 +x 轴的夹角，绕 z 轴，0 ≤ φ &lt; 2π</li></ul>坐标面：r = 常数 → <b>球面</b>；θ = 常数 → 圆锥面；φ = 常数 → 半平面。',
+    formula:'x = r sinθ cosφ，y = r sinθ sinφ，z = r cosθ',
+    tips:['θ 从 +z 轴量起（不是从 xoy 面量起）——常见易错点','r = 常数的坐标面是球面，这正是"球坐标系"名称的由来'],
+  },
+  unitvec:{
+    title:'单位矢量 @{e_r}、@{e_θ}、@{e_φ} —— 全都是变矢量',
+    body:'<b>@{e_r}</b> 沿 OP 径向朝外；<b>@{e_θ}</b> 沿经线切线（θ 增大方向，指向"低纬度"）；<b>@{e_φ}</b> 沿纬线切线（φ 增大方向）。<b>三者均随 P 点位置变化</b>，但处处正交、右手系。',
+    formula:'@{e_r} × @{e_θ} = @{e_φ}',
+    tips:['@{e_θ} 在 OP 与 z 轴决定的平面内，且垂直于 @{e_r}','@{e_φ} 垂直于该平面——三个方向构成随 P 移动的"活动标架"'],
+  },
+  posvec:{
+    title:'位置矢量 @{r} = r @{e_r} —— 最简洁的表达',
+    body:'球坐标系中，位置矢量恰沿 @{e_r} 方向、长度就是坐标变量 r，因此表达最简洁（只需 1 项）。<br>走路径：<b>先绕 z 轴转过方位角 φ（橙色弧），再从 +z 轴沿经线转过极角 θ（蓝色弧）</b>，即确定了 OP 方向；沿 @{e_r} 走 r 即到 P。',
+    formula:'@{r} = r @{e_r} = x @{e_x} + y @{e_y} + z @{e_z}',
+    tips:['对比：直角坐标 3 项、圆柱坐标 2 项、球坐标 1 项','坐标面与位置矢量"对齐"得越好，表达越简洁'],
+  },
+  distvec:{
+    title:'距离矢量：同样先化直角分量',
+    body:'与圆柱坐标系同理：两点的 r、θ、φ 不能直接相减，需先化为直角分量。',
+    formula:'@{R} = (r_2sinθ_2cosφ_2 − r_1sinθ_1cosφ_1)@{e_x} + (r_2sinθ_2sinφ_2 − r_1sinθ_1sinφ_1)@{e_y} + (r_2cosθ_2 − r_1cosθ_1)@{e_z}',
+    tips:['实时读数给出 @{R} 的三个分量与模长 |@{R}|'],
+  },
+  diff:{
+    title:'微分元 —— 三个方向"刻度"都不同',
+    body:'沿 @{e_r} 是普通长度 dr；沿 @{e_θ} 是<b>半径为 r 的经线弧</b>（r·dθ）；沿 @{e_φ} 是<b>半径为 r·sinθ 的纬线弧</b>（r·sinθ·dφ）。两个因子 r 与 sinθ 都来自弧长换算。',
+    formula:'',
+    tips:['拉梅系数：h_r = 1，h_θ = r，h_φ = r sinθ','越靠近极点（θ→0），同样的 dφ 对应的纬线弧越短'],
+  },
+  diffSub:{
+    dl:'<div class="frm">@{d𝑙} = dr @{e_r} + r dθ @{e_θ} + r sinθ dφ @{e_φ}</div><div class="ex-body">三段弧（线）首尾相接，矢量和即任意方向的线元 @{d𝑙}（红色箭头）。</div>',
+    dS:'<div class="frm">@{dS_r} = r² sinθ·dθ·dφ @{e_r}（外球面片）<br>@{dS_θ} = r sinθ·dr·dφ @{e_θ}（锥面片）<br>@{dS_φ} = r·dr·dθ @{e_φ}（平面片）</div><div class="ex-body">外球面片两个方向都是弧：θ 方向弧长 r·dθ，φ 方向弧长 r·sinθ·dφ，故面积为 r² sinθ dθ dφ。</div>',
+    dv:'<div class="frm">dv = r²·sinθ·dr·dθ·dφ</div><div class="ex-body">对比直角坐标 dx·dy·dz，多出的 r² sinθ 全部来自弧长换算。这一体积元在球对称问题（高斯定理、球面波）中反复出现。</div>',
+  },
+},
+};
+
+/* ---------------- 顶部模式标签 & 坐标条 ---------------- */
+function updateModeTag(){
+  const q=QUANTITIES.find(q=>q.id===state.quantity);
+  let tag=SYS_NAME[state.sys]+' · '+q.nm;
+  if(state.quantity==='diff'&&state.sub) tag+={dl:'（线元）',dS:'（面元）',dv:'（体积元）'}[state.sub]||'';
+  document.getElementById('modeTag').textContent=tag;
+}
+function updateCoordStrip(){
+  const P0=getPCart();
+  const c=state.P.cart, cy=cartToCyl(P0), sp=cartToSph(P0);
+  const f2=v=>v.toFixed(2);
+  document.getElementById('coordStrip').innerHTML=
+    '<div class="coord-chip"><b>同一点的坐标换算</b></div>'+
+    '<div class="coord-chip"><b>直角</b><i>x</i>='+f2(P0.x)+'　<i>y</i>='+f2(P0.y)+'　<i>z</i>='+f2(P0.z)+'</div>'+
+    '<div class="coord-chip"><b>圆柱</b><i>'+symStr('ρ')+'</i>='+f2(cy.rho)+'　<i>φ</i>='+cy.phi.toFixed(0)+'°　<i>z</i>='+f2(cy.z)+'</div>'+
+    '<div class="coord-chip"><b>球</b><i>r</i>='+f2(sp.r)+'　<i>θ</i>='+sp.theta.toFixed(0)+'°　<i>φ</i>='+sp.phi.toFixed(0)+'°</div>';
+}
+function updateAll(){
+  needsRender=true;
+  updateCoordStrip();
+  updateDistReadout();
+  updateModeTag();
+  updatePoleTag();
+}
+
+/* ---------------- 导航 ---------------- */
+function buildNav(){
+  const nav=document.getElementById('nav');
+  NAV.forEach(ch=>{
+    nav.appendChild(h('<div class="nav-ch">'+ch.ch+'</div>'));
+    ch.items.forEach(it=>{
+      /* 已完成的节一律渲染成真链接 <a href>，支持中键新开 / 右键复制链接；
+         未完成的节渲染成 <a> 但不带 href，点击给"建设中"提示 */
+      const cls='nav-item'+(it.active?' active':'')+(it.ready?'':' soon');
+      const el=h('<a class="'+cls+'" '+(it.href?'href="'+it.href+'"':'')+'><span class="dot"></span>'+it.t+'</a>');
+      if(!it.ready) el.onclick=e=>{ e.preventDefault(); toast('「'+it.t+'」正在建设中，敬请期待'); };
+      nav.appendChild(el);
+    });
+  });
+}
+function toast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('show');
+  clearTimeout(t._tm); t._tm=setTimeout(()=>t.classList.remove('show'),2200);
+}
+
+/* ---------------- 交互事件 ---------------- */
+function bindEvents(){
+  // 坐标系切换
+  document.getElementById('sysTabs').addEventListener('click',e=>{
+    const b=e.target.closest('button'); if(!b) return;
+    state.sys=b.dataset.sys;
+    clampFace();
+    document.querySelectorAll('#sysTabs button').forEach(x=>x.classList.toggle('on',x===b));
+    state.sub = state.quantity==='vars'?'all':state.sub;
+    renderPanel(); updateAll();
+  });
+  // 记法切换（ρ / r）
+  document.getElementById('symTabs').addEventListener('click',e=>{
+    const b=e.target.closest('button'); if(!b) return;
+    state.notation = b.dataset.sym==='r' ? 'r' : 'rho';
+    document.querySelectorAll('#symTabs button').forEach(x=>x.classList.toggle('on',x===b));
+    renderPanel(); updateAll();
+  });
+  /* 画布交互：左键拖动 = 旋转视角；右键拖动 = 平移画面（可把任意一点拖到画面任意位置）；
+     滚轮 = 缩放。侧栏折叠后画布变大，配合右键平移就不会有点线面被挡住的情况。 */
+  let dragging=false, panning=false, lx=0, ly=0;
+  canvas.addEventListener('contextmenu',e=>e.preventDefault());  // 右键留给平移，不弹系统菜单
+  canvas.addEventListener('pointerdown',e=>{
+    lx=e.clientX; ly=e.clientY;
+    if(e.button===2) panning=true; else dragging=true;
+    canvas.setPointerCapture(e.pointerId);
+    canvas.style.cursor = panning ? 'move' : 'grabbing';
+  });
+  canvas.addEventListener('pointermove',e=>{
+    if(panning){
+      cam.px += e.clientX-lx; cam.py += e.clientY-ly;
+      lx=e.clientX; ly=e.clientY; needsRender=true; updatePanTag(); return;
+    }
+    if(!dragging) return;
+    cam.az -= (e.clientX-lx)*0.008;
+    cam.el = Math.max(-1.25, Math.min(1.45, cam.el-(e.clientY-ly)*0.006));
+    lx=e.clientX; ly=e.clientY; needsRender=true;
+  });
+  const endDrag=()=>{ dragging=false; panning=false; canvas.style.cursor=''; };
+  canvas.addEventListener('pointerup',endDrag);
+  canvas.addEventListener('pointercancel',endDrag);
+  canvas.addEventListener('wheel',e=>{
+    e.preventDefault();
+    cam.zoom=Math.max(.45,Math.min(2.6,cam.zoom*Math.exp(-e.deltaY*0.0012)));
+    needsRender=true;
+  },{passive:false});
+  document.getElementById('btnReset').onclick=()=>{
+    cam.az=.62; cam.el=.52; cam.zoom=1; cam.px=0; cam.py=0;
+    needsRender=true; updatePanTag();
+  };
+  document.getElementById('btnPanReset').onclick=()=>{ cam.px=0; cam.py=0; needsRender=true; updatePanTag(); };
+  const br=document.getElementById('btnRotate');
+  br.onclick=()=>{ state.autoRotate=!state.autoRotate; br.classList.toggle('on',state.autoRotate); };
+  // 侧栏折叠：header 按钮 + 画布边缘手柄 + 快捷键 [ ]
+  setupFolding();
+  // 窗口尺寸
+  window.addEventListener('resize',resize);
+  /* 侧栏折叠时画布宽度是连续变化的（CSS 过渡动画），用 ResizeObserver 跟随重绘，
+     否则动画期间画面会被拉伸，等结束才"啪"地跳回正确比例 */
+  if(window.ResizeObserver) new ResizeObserver(()=>resize()).observe(canvas);
+}
+
+/* ---------------- 画面平移提示条 ---------------- */
+function updatePanTag(){
+  const t=document.getElementById('panTag'); if(!t) return;
+  t.classList.toggle('show', Math.abs(cam.px)>2 || Math.abs(cam.py)>2);
+}
+
+/* ---------------- 球坐标两极提示条 ----------------
+   θ = 0° 或 180° 时 P 落在 z 轴上：纬线半径 r·sinθ = 0，纬线缩成一个点，
+   dφ 弧与 r·sinθ·dφ 线元随之退化为零长度。这是球坐标在极点处的真实性质，
+   但学生第一反应多半是"图坏了"，所以显式说明一句。 */
+function updatePoleTag(){
+  const t=document.getElementById('poleTag'); if(!t) return;
+  const th = (state.sys==='sph') ? state.P.sph.theta : null;
+  const atPole = (th!==null) && (th<=1 || th>=179);
+  t.classList.toggle('show', atPole);
+  if(atPole){
+    t.innerHTML = (th<=1)
+      ? 'P 在<b>北极</b>（θ = 0°）：纬线半径 r·sinθ = 0，纬线退化为一点，φ 方向不再唯一'
+      : 'P 在<b>南极</b>（θ = 180°）：纬线半径 r·sinθ = 0，纬线退化为一点，φ 方向不再唯一';
+  }
+}
+
+/* ---------------- 侧栏折叠（课堂投影用） ---------------- */
+function setupFolding(){
+  const KEY='emviz.fold';
+  let fold={nav:false, panel:false};
+  try{ const s=JSON.parse(localStorage.getItem(KEY)||'{}'); if(s) fold=Object.assign(fold,s); }catch(_){}
+  const bNav=document.getElementById('tglNav'), bPan=document.getElementById('tglPanel');
+  const hNav=document.getElementById('foldNav'), hPan=document.getElementById('foldPanel');
+
+  function apply(){
+    document.body.classList.toggle('nav-off',   fold.nav);
+    document.body.classList.toggle('panel-off', fold.panel);
+    bNav.classList.toggle('on', !fold.nav);
+    bPan.classList.toggle('on', !fold.panel);
+    /* 手柄箭头方向：展开时箭头指向"收起的方向"，收起时指回展开方向 */
+    hNav.textContent = fold.nav   ? '›' : '‹';
+    hPan.textContent = fold.panel ? '‹' : '›';
+    hNav.title = (fold.nav   ? '展开' : '折叠') + '左侧目录（快捷键 [ ）';
+    hPan.title = (fold.panel ? '展开' : '折叠') + '右侧面板（快捷键 ] ）';
+    try{ localStorage.setItem(KEY, JSON.stringify(fold)); }catch(_){}
+  }
+  const toggleNav  =()=>{ fold.nav  =!fold.nav;   apply(); };
+  const togglePanel=()=>{ fold.panel=!fold.panel; apply(); };
+  bNav.onclick=toggleNav;   bPan.onclick=togglePanel;
+  hNav.onclick=toggleNav;   hPan.onclick=togglePanel;
+  window.addEventListener('keydown',e=>{
+    const t=e.target;
+    if(t && (t.tagName==='INPUT'||t.tagName==='TEXTAREA')) return;
+    if(e.key==='[') toggleNav();
+    if(e.key===']') togglePanel();
+  });
+  apply();
+}
+function resize(){
+  const r=canvas.getBoundingClientRect();
+  const nw=Math.max(300,Math.round(r.width)), nh=Math.max(260,Math.round(r.height));
+  if(nw===W && nh===H) return;   // 尺寸没变就别做无用功（ResizeObserver 触发很频繁）
+  W=nw; H=nh;
+  DPR=window.devicePixelRatio||1;
+  canvas.width=W*DPR; canvas.height=H*DPR;
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+  needsRender=true;
+}
+
+/* ---------------- 启动 ---------------- */
+function init(){
+  // 允许通过 URL 参数指定初始状态，便于直接分享/截图某个模式
+  const p=new URLSearchParams(location.search);
+  if(['cart','cyl','sph'].includes(p.get('sys'))) state.sys=p.get('sys');
+  if(['vars','unitvec','posvec','distvec','diff'].includes(p.get('q'))) state.quantity=p.get('q');
+  if(p.get('sub')!=null) state.sub=p.get('sub');
+  if(p.get('face')!=null) state.face=+p.get('face');
+  clampFace();
+  if(p.get('sym')==='r') state.notation='r';
+  document.querySelectorAll('#sysTabs button').forEach(x=>x.classList.toggle('on',x.dataset.sys===state.sys));
+  document.querySelectorAll('#symTabs button').forEach(x=>x.classList.toggle('on',x.dataset.sym===state.notation));
+  canvas=document.getElementById('cv');
+  ctx=canvas.getContext('2d');
+  buildNav();
+  renderPanel();
+  bindEvents();
+  resize();
+  updateCoordStrip();
+  tick();
+}
+init();
+</script>
+</body>
+</html>
