@@ -888,11 +888,11 @@ function sceneDistvec(){
   function pushOff(p){ const s=pr(p); const dx=s.x-Ms.x, dy=s.y-Ms.y, l=Math.hypot(dx,dy)||1;
     return {ldx:dx/l*18, ldy:dy/l*18}; }
   const oP=pushOff(P0), oQ=pushOff(Q0);
-  arrow(pt(0,0,0),P0,{color:C.crimson,w:1.8,alpha:.55,label:'@{r}_1',ldy:oP.ldy-8,ldx:oP.ldx});
-  arrow(pt(0,0,0),Q0,{color:C.crimson,w:1.8,alpha:.55,label:'@{r}_2',ldy:oQ.ldy-8,ldx:oQ.ldx});
+  arrow(pt(0,0,0),P0,{color:C.crimson,w:1.8,alpha:.55,label:'@{r′}',ldy:oP.ldy-8,ldx:oP.ldx});
+  arrow(pt(0,0,0),Q0,{color:C.crimson,w:1.8,alpha:.55,label:'@{r}',ldy:oQ.ldy-8,ldx:oQ.ldx});
   arrow(P0,Q0,{color:C.purple,w:2.8,label:'@{R}（距离矢量）',ldy:0,ldx:0,lsize:12.5});
-  marker(P0,{color:C.orange,r:5.5,label:'P₁（起点）',ldx:oP.ldx*1.6,ldy:oP.ldy*1.6,lsize:13});
-  marker(Q0,{color:C.purple,r:5.5,label:'P₂（终点）',ldx:oQ.ldx*1.6,ldy:oQ.ldy*1.6,lsize:13});
+  marker(P0,{color:C.orange,r:5.5,label:'P′（源点）',ldx:oP.ldx*1.6,ldy:oP.ldy*1.6,lsize:13});
+  marker(Q0,{color:C.purple,r:5.5,label:'P（终点）',ldx:oQ.ldx*1.6,ldy:oQ.ldy*1.6,lsize:13});
 }
 
 /* ---- 微分元 ---- */
@@ -1385,8 +1385,12 @@ function renderSliders(sec){
       sec.appendChild(row);
     });
   }
-  mkGroup('P 点坐标', state.P[state.sys]);
-  if(state.quantity==='distvec') mkGroup('P_2 点坐标（终点）', state.Q[state.sys],' q');
+  if(state.quantity==='distvec'){
+    mkGroup('P′ 点坐标（源点）', state.P[state.sys]);
+    mkGroup('P 点坐标（终点）', state.Q[state.sys],' q');
+  }else{
+    mkGroup('P 点坐标', state.P[state.sys]);
+  }
   if(state.quantity==='diff'){
     const row=h('<div class="slider-row"></div>');
     row.appendChild(h('<label style="font-style:normal;font-family:inherit;font-size:12px;">微元大小</label>'));
@@ -1448,10 +1452,10 @@ cart:{
     tips:['三个分量首尾相接，合成为红色箭头（平行六面体的体对角线）','位置矢量与 P 点一一对应：给出 @{r} 就等价于给出 P'],
   },
   distvec:{
-    title:'距离矢量 @{R} —— 从起点指向终点',
-    body:'空间两点 P_1（起点）与 P_2（终点）之间的距离矢量 = 两点<b>位置矢量之差（终点 − 起点）</b>。<br>注意 @{R} 的方向由起点指向终点，起点终点写反，@{R} 的符号全反。',
-    formula:'@{R}_{12} = @{r}_2 − @{r}_1 = (x_2−x_1)@{e_x} + (y_2−y_1)@{e_y} + (z_2−z_1)@{e_z}',
-    tips:['O→P_1、O→P_2 与 P_1→P_2 构成矢量三角形：@{r}_2 = @{r}_1 + @{R}','两点间距离就是 |@{R}|，实时数值见下方读数'],
+    title:'距离矢量 @{R} —— 从源点指向终点',
+    body:'空间两点 P′（源点）与 P（终点）之间的距离矢量 = 两点<b>位置矢量之差（终点 − 源点）</b>。<br>注意 @{R} 的方向由源点指向终点，源点终点写反，@{R} 的符号全反。',
+    formula:'@{R} = @{r} − @{r′} = (x−x′)@{e_x} + (y−y′)@{e_y} + (z−z′)@{e_z}',
+    tips:['O→P′、O→P 与 P′→P 构成矢量三角形：@{r} = @{r′} + @{R}','两点间距离就是 |@{R}|，实时数值见下方读数'],
   },
   diff:{
     title:'微分元 —— 后续所有积分的"积木"',
@@ -1487,7 +1491,7 @@ cyl:{
   distvec:{
     title:'距离矢量：必须先化成直角分量',
     body:'两点的 ρ、φ、z <b>不能直接相减</b>（φ 是角度，ρ 也只含部分信息）。正确做法：先化成直角坐标分量，再对应相减。',
-    formula:'@{R} = (ρ_2cosφ_2−ρ_1cosφ_1)@{e_x} + (ρ_2sinφ_2−ρ_1sinφ_1)@{e_y} + (z_2−z_1)@{e_z}',
+    formula:'@{R} = (ρcosφ−ρ′cosφ′)@{e_x} + (ρsinφ−ρ′sinφ′)@{e_y} + (z−z′)@{e_z}',
     tips:['实时读数给出 @{R} 的三个分量与模长 |@{R}|'],
   },
   diff:{
@@ -1524,7 +1528,7 @@ sph:{
   distvec:{
     title:'距离矢量：同样先化直角分量',
     body:'与圆柱坐标系同理：两点的 r、θ、φ 不能直接相减，需先化为直角分量。',
-    formula:'@{R} = (r_2sinθ_2cosφ_2 − r_1sinθ_1cosφ_1)@{e_x} + (r_2sinθ_2sinφ_2 − r_1sinθ_1sinφ_1)@{e_y} + (r_2cosθ_2 − r_1cosθ_1)@{e_z}',
+    formula:'@{R} = (r sinθ cosφ − r′ sinθ′ cosφ′)@{e_x} + (r sinθ sinφ − r′ sinθ′ sinφ′)@{e_y} + (r cosθ − r′ cosθ′)@{e_z}',
     tips:['实时读数给出 @{R} 的三个分量与模长 |@{R}|'],
   },
   diff:{
