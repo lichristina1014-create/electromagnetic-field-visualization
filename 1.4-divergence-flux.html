@@ -501,7 +501,7 @@ function drawAxes(){
 const FLUX_SCENES=[
   {k:'lantern', t:'灯笼 · 光通量'},
   {k:'bottle',  t:'瓶子 · 透光看液面'},
-  {k:'magnet',  t:'磁力线 · 磁通量'},
+  {k:'magnet',  t:'发电机 · 磁通量'},
   {k:'charge',  t:'点电荷球 · 电通量'},
 ];
 const THEOREM_SCENES=[
@@ -750,33 +750,86 @@ function sceneBottle(){
   }
 }
 
-/* ---------- 场景③ 磁力线穿面 · 磁通量 ---------- */
+/* ---------- 场景③ 发电机 · 磁通量（线圈面穿过磁力线） ---------- */
 function sceneMagnet(){
-  const th=state.magnetTilt*Math.PI/180;
-  const A=0.62;
-  const u=pt(1,0,0), v=pt(0,Math.cos(th),Math.sin(th));
-  const nrm=vnorm(vcross(u,v));
-  const corners=[vadd(vmul(u,A),vmul(v,A)),  vadd(vmul(u,-A),vmul(v,A)),
-                 vadd(vmul(u,-A),vmul(v,-A)), vadd(vmul(u,A),vmul(v,-A))];
-  poly(corners,{fill:C.orange, fillAlpha:.18, stroke:C.orange, w:2});
-  arrow(pt(0,0,0), vmul(nrm,0.8), {color:C.orange, w:2.2, label:'@{n}'});
-  let through=0;
-  for(let i=-2;i<=2;i++) for(let j=-2;j<=2;j++){
-    const x=i*0.26, y=j*0.26;
-    let inside=false, pI=null;
-    if(Math.abs(nrm.z)>1e-6){
-      const t=-(nrm.x*x+nrm.y*y)/nrm.z;
-      if(t>-1.05 && t<1.05){
-        const p=pt(x,y,t);
-        if(Math.abs(vdot(p,u))<=A && Math.abs(vdot(p,v))<=A){ inside=true; pI=p; }
-      }
-    }
-    arrow(pt(x,y,-1.0), pt(x,y,1.0), {color: inside?'#D0452F':'#BCCAD3', w: inside?2.3:1.1, alpha: inside?1:.5});
-    if(inside){ through++; marker(pI,{r:3.4,color:'#D0452F'}); }
+  const th=state.magnetTilt*Math.PI/180;   /* 线圈面法向 与 磁场 的夹角 */
+  const wHalf=0.40;                         /* 线圈矩形面的半宽/半高（做成有厚度的线圈） */
+  const nrm=vnorm(pt(Math.sin(th),0,Math.cos(th)));   /* 面法向在 x-z 平面内转动 */
+  /* 面内一组正交基：t1 沿"转轴"方向（y 方向，不随 θ 变），t2 在转动平面内 */
+  const t1=pt(0,1,0);
+  const t2=vnorm(vcross(nrm,t1));          /* = (-cosθ, 0, sinθ) */
+  const phi=Math.cos(th);                    /* Φ/Φmax = cosθ */
+
+  /* 磁场源：两块磁极（N 在下、S 在上，中间是匀强区） */
+  const gap=.95, wd=.66;
+  const NS=[
+    {z:-gap, c:'#B23A48', l:'N'},
+    {z: gap, c:'#2F6FB2', l:'S'},
+  ];
+  NS.forEach(mag=>{
+    poly([pt(-wd,-wd,mag.z),pt(wd,-wd,mag.z),pt(wd,wd,mag.z),pt(-wd,wd,mag.z)],
+         {fill:mag.c, fillAlpha:.28, stroke:mag.c, w:1.8});
+    text(pt(0,-wd-.22,mag.z),mag.l,{color:mag.c,size:15,bold:true,align:'center'});
+  });
+
+  /* 匀强磁场磁力线：竖直向上（从 N 指向 S）的一族平行线。
+   * 只画外圈，中心区让给"穿过线圈面"的红色线，避免视觉打架 */
+  const grids=[-0.62,-0.31,0.31,0.62];
+  const Bz0=-gap, Bz1=gap;
+  grids.forEach(x=>grids.forEach(y=>{
+    arrow(pt(x,y,Bz0), pt(x,y,Bz1), {color:'#8BA7B8', w:1.15, alpha:.55});
+  }));
+
+  /* 转轴：过原点沿 y 方向的短杆（线圈绕它转） */
+  line(pt(0,-.85,0), pt(0,.85,0), {color:'#9DB3BF', w:2.6, alpha:.7});
+
+  /* 线圈：矩形环（有厚度，两根矩形环框出线圈导线），法向 = nrm */
+  const ring1=[], ring2=[];
+  for(let i=0;i<=40;i++){
+    const a=2*Math.PI*i/40;
+    const cx=Math.cos(a), cy=Math.sin(a);
+    /* 沿 nrm 方向：导线中心在原点，宽度方向沿 t2（在转动平面内） */
+    const p1=vadd(vmul(t2,cx*wHalf), vmul(t1,cy*wHalf));
+    const p2=vadd(vmul(t2,cx*(wHalf+0.05)), vmul(t1,cy*(wHalf+0.05)));
+    ring1.push(p1); ring2.push(p2);
   }
-  text(pt(0,0,1.32),'匀强磁场 @{B} 向上，穿过这块面', {color:C.ink, size:12.5, bold:true, align:'center'});
-  text(pt(0,0,-1.32),'穿过的场线越多 → 磁通量 Φ = @{B}·@{S} 越大（共 '+through+' 条穿过）',
+  curve(ring1,{color:'#C26A2B', w:2.4, alpha:.95});
+  curve(ring2,{color:'#C26A2B', w:1.4, alpha:.55});
+  /* 线圈面（半透明矩形，法向 = nrm） */
+  const q=[
+    vadd(vmul(t2, wHalf),vmul(t1,wHalf)),
+    vadd(vmul(t2,-wHalf),vmul(t1,wHalf)),
+    vadd(vmul(t2,-wHalf),vmul(t1,-wHalf)),
+    vadd(vmul(t2, wHalf),vmul(t1,-wHalf)),
+  ];
+  poly(q,{fill:C.orange, fillAlpha:.22, stroke:C.orange, w:2});
+
+  /* 法向箭头 */
+  arrow(pt(0,0,0), vmul(nrm,0.85), {color:C.orange, w:2.4, label:'@{n}'});
+
+  /* 穿过线圈面的磁力线：磁力线是空间里固定的一族**竖直平行线**（网格步长 d），
+   * 线圈面在其中转动。某条线是否"穿过面" = 它在地面（水平面）的落点是否落在
+   * 线圈面的水平投影内；投影面积 = A·cosθ，故穿过条数 ∝ cosθ。 */
+  let through=0;
+  const d=0.085;                                     /* 磁力线网格步长 */
+  for(let x=-0.62; x<=0.62+1e-6; x+=d) for(let y=-0.62; y<=0.62+1e-6; y+=d){
+    /* 面在水平面(x-y)的投影：把面内点 c 的水平分量与 (x,y) 比对。
+     * 面内点 c = t2·pu + t1·pv，其水平分量 = (pu·t2.x, pv)。反向解出 pu,pv 判范围 */
+    const pv=y;                                       /* t1=(0,1,0)，故 v 投影=pv=y */
+    const pu = Math.abs(t2.x)>1e-6 ? x/t2.x : 0;      /* 由 x=pu·t2.x 解 pu */
+    const inside = Math.abs(pu)<=wHalf && Math.abs(pv)<=wHalf && Math.abs(t2.x)>1e-6;
+    arrow(pt(x,y,Bz0), pt(x,y,Bz1),
+      {color: inside?'#D0452F':'#BCCAD3', w: inside?1.9:1.0, alpha: inside?.9:.4});
+    if(inside){ through++; marker(pt(x,y,-Math.tan(th)*x),{r:2.6,color:'#D0452F', alpha:.9}); }
+  }
+
+  /* 读数 */
+  text(pt(0,0,1.78),'Φ = B·A·cosθ = '+phi.toFixed(2)+' Φ_{max}　（θ = '+state.magnetTilt+'°，穿过 '+through+' 条）',
+    {color:C.crimson, size:13, bold:true, align:'center'});
+  text(pt(0,0,-1.70),'线圈一转，穿过的磁力线条数随 θ 变 → Φ 变 → 线圈里感应出电流（发电机）',
     {color:C.muted, size:11.5, align:'center'});
+  /* 转轴顶点提示 */
+  text(pt(0,.95,0),'转轴',{color:'#7A8F9B',size:11,align:'center'});
 }
 
 /* ---------- 场景④ 点电荷球 · 电通量 ---------- */
@@ -1193,9 +1246,9 @@ function updateQNote(){
 function updateMagNote(){
   const e=document.getElementById('magNote'); if(!e) return;
   const th=state.magnetTilt, cos=Math.cos(th*Math.PI/180);
-  e.innerHTML='Φ ∝ cos θ = '+cos.toFixed(2)+'（θ = '+th+'°）'+
-    (th>82?'：面几乎与场线平行，通量 ≈ 0':'')+
-    (th<3?'：面与场线垂直，穿过的场线最多':'');
+  e.innerHTML='Φ = B·A·cosθ = '+cos.toFixed(2)+' Φ<sub>max</sub>（θ = '+th+'°）'+
+    (th>82?'：线圈面几乎与磁力线平行，几乎没有磁力线穿过 → Φ ≈ 0':'')+
+    (th<3?'：线圈面与磁力线垂直，穿过的磁力线最多 → Φ = Φ<sub>max</sub>':'');
 }
 function renderSliders(sec){
   sec.innerHTML='';
@@ -1207,7 +1260,7 @@ function renderSliders(sec){
       sec.appendChild(h('<div class="ex-note" id="qNote"></div>'));
       updateQNote();
     } else if(state.fluxScene==='magnet'){
-      sec.appendChild(h('<div class="sec-title">面与场线的夹角</div>'));
+      sec.appendChild(h('<div class="sec-title">线圈面与磁力线的夹角</div>'));
       mkSlider(sec,'倾斜角 θ（度）','mTilt', 0,85,1, state.magnetTilt, v=>{ state.magnetTilt=v; });
       sec.appendChild(h('<div class="ex-note" id="magNote"></div>'));
       updateMagNote();
@@ -1258,7 +1311,7 @@ function renderExplain(sec){
       {k:'2', tab:'2. 光与磁的类比', cls:'c2', body:
         '<b>① 灯笼（光通量）：</b>灯笼里有光源，光从里面射出来、<b>穿过灯罩表面</b>，我们才看得见它亮。<br>'+
         '<b>② 瓶子（透光看液面）：</b>没有光时看不清瓶里剩多少；<b>对着光一照</b>，外部光线穿过瓶壁照进去，液面就显出来了 —— 光穿过瓶壁这个面，瓶壁就有光通量。<br>'+
-        '<b>③ 磁力线（磁通量）：</b>磁力线穿过一块面，穿过的条数越多，磁通量越大（Φ = B·A·cos θ）。'+
+        '<b>③ 发电机（磁通量）：</b>磁铁产生磁场，磁力线穿过线圈围成的面。线圈一转，穿过面的磁力线条数跟着变 —— 这就是磁通量 Φ = B·A·cosθ，也是发电机发电的根源。'+
         '<div class="ex-note">光本身也是电磁波 —— 所以"光通量"和"磁通量 / 电通量"在数学上是同一回事：都是矢量场穿过一个面的通量。</div>'},
       {k:'3', tab:'3. 包围电荷的通量', cls:'c3', body:
         '<b>闭合球面（高斯面）里的净电荷，决定净通量：</b>'+
@@ -1377,10 +1430,10 @@ function updateReadout(){
       }
     } else if(state.fluxScene==='magnet'){
       const th=state.magnetTilt, cos=Math.cos(th*Math.PI/180);
-      html += kchip('场景 =','磁力线穿面 · 磁通量');
-      html += kchip('倾角 θ =', th+'°');
-      html += kchip('Φ ∝ cos θ =', cos.toFixed(2),'acc');
-      lgTitle.textContent='通量 · 磁通量'; lgNote.textContent='磁场线穿过一块面：穿过的条数 = 通量';
+      html += kchip('场景 =','发电机 · 磁通量');
+      html += kchip('线圈转角 θ =', th+'°');
+      html += kchip('Φ = B·A·cosθ =', cos.toFixed(2)+' Φmax','acc');
+      lgTitle.textContent='通量 · 磁通量（发电机）'; lgNote.textContent='磁力线穿过线圈面：穿过的条数 = 磁通量';
     } else {
       const np=state.nPlus, nm=state.nMinus, Q=np-nm;
       html += kchip('球内 ＋q / −q =', np+' / '+nm);
@@ -1443,7 +1496,7 @@ function updateModeTag(){
   const sub=document.getElementById('moduleSub');
   if(state.mode==='flux'){
     t.innerHTML={lantern:'通量 · 灯笼（光通量）', bottle:'通量 · 瓶子（透光看液面）',
-      magnet:'通量 · 磁力线穿面（磁通量）', charge:'通量 · 包围电荷的球面（电通量）'}[state.fluxScene];
+      magnet:'通量 · 发电机（磁通量）', charge:'通量 · 包围电荷的球面（电通量）'}[state.fluxScene];
     sub.textContent='凡"穿过"即有通量：光通量 / 磁通量 / 电通量';
   } else if(state.mode==='div'){
     t.innerHTML='散度定义 · l='+state.halfL.toFixed(2)+'（越小越接近真实散度）';
