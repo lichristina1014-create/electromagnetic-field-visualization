@@ -566,7 +566,7 @@ function modeCircDens(){
   /* 面元法线箭头（沿任意方向 n） */
   const nl=0.42+0.35*r;
   const nTip=pt(cx+nrm.x*nl, cy+nrm.y*nl, nrm.z*nl);
-  arrow(pt(cx,cy,0), nTip, {color:C.purple, w:2.8, label:'@{n}', lsize:13, ldy:-6});
+  arrow(pt(cx,cy,0), nTip, {color:C.purple, w:2.8, label:'@{e_n}', lsize:13, ldy:-6});
   /* 数值 */
   const circ=circAny(pts, field(), n);
   const S=Math.PI*r*r;
@@ -575,13 +575,13 @@ function modeCircDens(){
   const thDot=vdot(cv,nrm);                     /* 理论 (∇×B)·n */
   const maxD=vlen(cv);
   const ang=Math.acos(Math.max(-1,Math.min(1,vdot(vnorm(cv),nrm))))*R2D;
-  text(pt(cx, cy, -0.98),'∮ @{B}·d@{l} = '+circ.toFixed(2)+'　（法线 @{n}：倾角 '+state.loopTilt.toFixed(0)+'° / 方位 '+state.loopAzim.toFixed(0)+'°）',
+  text(pt(cx, cy, -0.98),'∮ @{B}·d@{l} = '+circ.toFixed(2)+'　（法线 @{e_n}：倾角 '+state.loopTilt.toFixed(0)+'° / 方位 '+state.loopAzim.toFixed(0)+'°）',
     {color:C.crimson, size:12.5, bold:true, align:'center'});
   text(pt(cx, cy, -1.18),'ΔS = πR² = '+S.toFixed(3)+'　　环量面密度 = ∮@{B}·d@{l} / ΔS = '+dens.toFixed(2),
     {color:C.teal, size:12, bold:true, align:'center'});
-  text(pt(cx, cy, -1.38),'理论 (∇×@{B})·@{n} = '+thDot.toFixed(2)+'　　⟂分量不贡献 → n 转动时密度连续变',
+  text(pt(cx, cy, -1.38),'理论 (∇×@{B})·@{e_n} = '+thDot.toFixed(2)+'　　⟂分量不贡献 → @{e_n} 转动时密度连续变',
     {color:C.purple, size:11.5, bold:true, align:'center'});
-  text(pt(cx, cy, -1.58),'密度最大 = |∇×@{B}| = '+maxD.toFixed(2)+'（@{n} 与 ∇×@{B} 夹角 '+ang.toFixed(0)+'°，0° 时最大）→ 定义为旋度',
+  text(pt(cx, cy, -1.58),'密度最大 = |∇×@{B}| = '+maxD.toFixed(2)+'（@{e_n} 与 ∇×@{B} 夹角 '+ang.toFixed(0)+'°，0° 时最大）→ 定义为旋度',
     {color:C.muted, size:11, align:'center'});
 }
 
@@ -775,7 +775,7 @@ function renderSubSec(sec){
       box.appendChild(fb);
     });
     sec.appendChild(box);
-    sec.appendChild(h('<div class="ex-note">拖「半径 R」或点「让环缩小到 P 点」：观察环量与<b>环量面密度</b>随环缩小的变化；切换<b>绕行方向</b>（= 翻转面元法线 n）密度变号——其中<b>最大</b>的环量面密度就定义为<b>旋度</b>。</div>'));
+    sec.appendChild(h('<div class="ex-note">拖「半径 R」或点「让环缩小到 P 点」：观察环量与<b>环量面密度</b>随环缩小的变化；拖「法线倾角 θ / 方位 φ」任意翻转面元（= 改变法线 <i>e<sub>n</sub></i> 方向），密度连续变——其中<b>最大</b>的环量面密度就定义为<b>旋度</b>。</div>'));
     return;
   }
   /* 旋度 / 斯托克斯页：选择矢量场 + 图中显示 */
@@ -838,7 +838,7 @@ function renderSliders(sec){
     const rb=h('<button class="chip">↺ 恢复大环</button>').firstChild;
     rb.onclick=()=>{state.circShrink=false; state.loopR=0.7; renderPanel(); updateAll();};
     bx.appendChild(rb);
-    const fb=h('<button class="chip">翻转法线 n → −n</button>').firstChild;
+    const fb=h('<button class="chip">翻转法线 <i>e<sub>n</sub></i> → −<i>e<sub>n</sub></i></button>').firstChild;
     fb.onclick=()=>{state.loopTilt=(180-state.loopTilt+360)%360; state.loopAzim=(state.loopAzim+180)%360; renderPanel(); updateAll();};
     bx.appendChild(fb);
     sec.appendChild(bx);
@@ -846,8 +846,8 @@ function renderSliders(sec){
   const SL=[];
   if(state.mode==='circdens'){
     SL.push(
-      {k:'tilt', label:'法线倾角θ', min:0, max:180, step:1, dec:0, get:()=>state.loopTilt, set:v=>state.loopTilt=v, int:true},
-      {k:'azim', label:'法线方位φ', min:0, max:360, step:1, dec:0, get:()=>state.loopAzim, set:v=>state.loopAzim=v, int:true}
+      {k:'tilt', label:'<i>e<sub>n</sub></i> 倾角θ', min:0, max:180, step:1, dec:0, get:()=>state.loopTilt, set:v=>state.loopTilt=v, int:true},
+      {k:'azim', label:'<i>e<sub>n</sub></i> 方位φ', min:0, max:360, step:1, dec:0, get:()=>state.loopAzim, set:v=>state.loopAzim=v, int:true}
     );
   }
   SL.push(
@@ -895,16 +895,16 @@ function renderExplain(sec){
       '<div class="ex-note">正环量=逆时针旋涡；零环量=无旋/保守。下一张「环量密度」把它归一化到单位面积。</div>'},
     {k:'2', tab:'2. 环量密度', cls:'c2', body:
       '<b>环量面密度：</b>面元法线可任意取向'+
-      '<div class="frm">环量面密度(@{n}) = ∮ B·dl / ΔS　→　lim = (∇×B)·@{n}</div>'+
+      '<div class="frm">环量面密度(@{e_n}) = ∮ B·dl / ΔS　→　lim = (∇×B)·@{e_n}</div>'+
       '<ul><li>沿<b>大环</b>对 B 积分得环量；让环<b>缩小</b>，包围其中某一点 P</li>'+
       '<li>环围成一个<b>开曲面</b>（面元 ΔS）——面元可以<b>任意翻转</b>（倾角 θ、方位 φ 两个自由度）</li>'+
-      '<li>法线 @{n} 方向不同，密度不同：只有 ∇×B 在 @{n} 上的投影贡献</li>'+
-      '<li>其中<b>最大的环量面密度</b> = |∇×B|，取最大时的 @{n} 方向 = ∇×B 方向</li>'+
+      '<li>法线 @{e_n} 方向不同，密度不同：只有 ∇×B 在 @{e_n} 上的投影贡献</li>'+
+      '<li>其中<b>最大的环量面密度</b> = |∇×B|，取最大时的 @{e_n} 方向 = ∇×B 方向</li>'+
       '<li>这个「最大环量面密度」及其方向，就定义为<b>旋度矢量</b></li></ul>'+
-      '<div class="ex-note">操作：拖「法线倾角 θ / 方位 φ」翻转面元，看密度连续变化；θ=0（n=+z）时最大；点「翻转法线 n→−n」看密度变号；「缩小到 P」观察极限。</div>'},
+      '<div class="ex-note">操作：拖「法线倾角 θ / 方位 φ」翻转面元，看密度连续变化；θ=0（e<sub>n</sub>=+z）时最大；点「翻转法线 e<sub>n</sub>→−e<sub>n</sub>」看密度变号；「缩小到 P」观察极限。</div>'},
     {k:'3', tab:'3. 旋度', cls:'c3', body:
       '<b>旋度（Curl）：</b>环量面密度极限'+
-      '<div class="frm">∇×@{A} = lim<sub>ΔS→0</sub> (∮ A·dl @{n}) / ΔS</div>'+
+      '<div class="frm">∇×@{A} = lim<sub>ΔS→0</sub> (∮ A·dl @{e_n}) / ΔS</div>'+
       '<ul><li>它是<b>矢量</b>，大小=最大环量面密度，方向=右手螺旋</li>'+
       '<li>直角系计算：∇×A = (∂A_z/∂y-∂A_y/∂z, ∂A_x/∂z-∂A_z/∂x, ∂A_y/∂x-∂A_x/∂y)</li>'+
       '<li>本演示里：缩小回路 r，环量/面积 → |∇×A(P)|</li>'+
@@ -923,7 +923,7 @@ function renderExplain(sec){
   const cur=cards.find(c=>c.k===state.cardTab);
   sec.appendChild(h('<div class="ex-title">公式与解读</div>'+
     '<div class="card-tabs">'+cards.map(c=>'<button class="card-tab '+c.cls+(c.k===state.cardTab?' on':'')+'" data-k="'+c.k+'">'+c.tab+'</button>').join('')+'</div>'+
-    '<div class="card-body '+cur.cls+'"><div class="ex-body">'+cur.body+'</div></div>'));
+    '<div class="card-body '+cur.cls+'"><div class="ex-body">'+richHTML(cur.body)+'</div></div>'));
   sec.querySelectorAll('.card-tab').forEach(b=>{b.onclick=()=>{state.cardTab=b.dataset.k;renderPanel();};});
 }
 
@@ -972,7 +972,7 @@ function updateReadout(){
     const A=Math.PI*r0*r0;
     const cv=curlF()(pt(state.loopCx,state.loopCy,0));
     html += kchip('场 B', richHTML(FIELD_OPTS[state.field-1].label.replace(/\{A\}/g,'{B}')));
-    html += kchip('法线 n =', '('+nrm.x.toFixed(2)+', '+nrm.y.toFixed(2)+', '+nrm.z.toFixed(2)+')');
+    html += kchip('法线 @{e_n} =', '('+nrm.x.toFixed(2)+', '+nrm.y.toFixed(2)+', '+nrm.z.toFixed(2)+')');
     html += kchip('∮ @{B·dl} =', circ.toFixed(3), 'acc');
     html += kchip('环量面密度 =', (circ/A).toFixed(3), 'acc');
     html += kchip('(∇×B)·n =', vdot(cv,nrm).toFixed(3), 'acc');
