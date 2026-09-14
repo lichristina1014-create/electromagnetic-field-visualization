@@ -238,6 +238,8 @@ const state = {
   halfL:.25,                            /* modeDiv 小立方体半边长 */
   nPlus:2, nMinus:0,                    /* 点电荷球：球心正 / 负电荷个数 */
   magnetTilt:0,                         /* 磁通量场景：面与场线的夹角(度) */
+  spin:false,                           /* 发电机：匀速转动开关 */
+  omega:0,                              /* 发电机：角速度估计(°/s)，拖滑块时更新、松手衰减 */
   show:{ flux:true, cancel:true, vec:true, labels:true, box:true, light:true },
   cardTab:'1',
   showReadout:true,
@@ -750,88 +752,112 @@ function sceneBottle(){
   }
 }
 
-/* ---------- 场景③ 发电机 · 磁通量（线圈面穿过磁力线） ---------- */
+/* ---------- 场景③ 发电机 · 磁通量（线圈绕轴转动，灯泡亮度 = |dΦ/dt|） ---------- */
 function sceneMagnet(){
-  const th=state.magnetTilt*Math.PI/180;   /* 线圈面法向 与 磁场 的夹角 */
-  const wHalf=0.40;                         /* 线圈矩形面的半宽/半高（做成有厚度的线圈） */
-  const nrm=vnorm(pt(Math.sin(th),0,Math.cos(th)));   /* 面法向在 x-z 平面内转动 */
-  /* 面内一组正交基：t1 沿"转轴"方向（y 方向，不随 θ 变），t2 在转动平面内 */
-  const t1=pt(0,1,0);
+  const th=state.magnetTilt*Math.PI/180;   /* 线圈面法向 与 磁场 的夹角（可连续转） */
+  const wHalf=0.40;                         /* 线圈矩形面的半宽/半高 */
+  const nrm=vnorm(pt(Math.sin(th),0,Math.cos(th)));
+  const t1=pt(0,1,0);                       /* 转轴方向（不随 θ 变） */
   const t2=vnorm(vcross(nrm,t1));          /* = (-cosθ, 0, sinθ) */
-  const phi=Math.cos(th);                    /* Φ/Φmax = cosθ */
+  const phi=Math.cos(th);
+  /* 角速度（°/s）：拖 θ 滑块时实时估计，松手后由 tick 衰减 → 灯泡亮度源 */
+  const omega=Math.abs(state.omega||0);
+  const bright=Math.min(1, Math.abs(Math.sin(th))*omega/90);
 
-  /* 磁场源：两块磁极（N 在下、S 在上，中间是匀强区） */
+  /* 配色分工：暖红 = 磁力线 · 深青 = 转轴 · 铜橙 = 线圈电路（线圈+引出线） · 紫 = 法向 */
+  const COL_LINE='#C9553D', COL_AXIS='#156082', COL_COIL='#C26A2B', COL_N='#9B59B6';
+
+  /* 磁场源：两块磁极（N 在下、S 在上，中间匀强区） */
   const gap=.95, wd=.66;
-  const NS=[
-    {z:-gap, c:'#B23A48', l:'N'},
-    {z: gap, c:'#2F6FB2', l:'S'},
-  ];
-  NS.forEach(mag=>{
+  [{z:-gap,c:'#B23A48',l:'N'},{z:gap,c:'#2F6FB2',l:'S'}].forEach(mag=>{
     poly([pt(-wd,-wd,mag.z),pt(wd,-wd,mag.z),pt(wd,wd,mag.z),pt(-wd,wd,mag.z)],
-         {fill:mag.c, fillAlpha:.28, stroke:mag.c, w:1.8});
-    text(pt(0,-wd-.22,mag.z),mag.l,{color:mag.c,size:15,bold:true,align:'center'});
+         {fill:mag.c, fillAlpha:.22, stroke:mag.c, w:1.6});
+    text(pt(-wd-.16,-wd-.10,mag.z),mag.l,{color:mag.c,size:15,bold:true});
   });
 
-  /* 匀强磁场磁力线：竖直向上（从 N 指向 S）的一族平行线。
-   * 只画外圈，中心区让给"穿过线圈面"的红色线，避免视觉打架 */
-  const grids=[-0.62,-0.31,0.31,0.62];
-  const Bz0=-gap, Bz1=gap;
-  grids.forEach(x=>grids.forEach(y=>{
-    arrow(pt(x,y,Bz0), pt(x,y,Bz1), {color:'#8BA7B8', w:1.15, alpha:.55});
-  }));
+  /* 磁力线：一族固定的竖直平行线（密度调稀，画面清爽）。
+   * 落点在线圈面水平投影内的 = "穿过面"，暖红高亮；其余淡灰。 */
+  const Bz0=-gap, Bz1=gap, d=0.155;
+  let through=0;
+  for(let x=-0.62; x<=0.62+1e-6; x+=d) for(let y=-0.62; y<=0.62+1e-6; y+=d){
+    const pv=y;
+    const pu = Math.abs(t2.x)>1e-6 ? x/t2.x : 0;
+    const inside = Math.abs(pu)<=wHalf && Math.abs(pv)<=wHalf && Math.abs(t2.x)>1e-6;
+    if(inside) through++;
+    arrow(pt(x,y,Bz0), pt(x,y,Bz1),
+      {color: inside?COL_LINE:'#BCCAD3', w: inside?1.7:1.0, alpha: inside?.72:.38});
+  }
 
-  /* 转轴：过原点沿 y 方向的短杆（线圈绕它转） */
-  line(pt(0,-.85,0), pt(0,.85,0), {color:'#9DB3BF', w:2.6, alpha:.7});
+  /* 转轴：深青粗杆（与磁力线、线圈明确区分），尾端小圆点 */
+  const AX0=-0.92, AX1=1.12;
+  line(pt(0,AX0,0), pt(0,AX1,0), {color:COL_AXIS, w:4, alpha:.95});
+  marker(pt(0,AX0,0),{r:3.5,color:COL_AXIS});
+  text(pt(0,AX0-0.06,0),'转轴',{color:COL_AXIS,size:11.5,bold:true,dx:-10,dy:14});
 
-  /* 线圈：矩形环（有厚度，两根矩形环框出线圈导线），法向 = nrm */
+  /* 线圈：矩形环（铜橙，双线勾出导线厚度），绕转轴转动 */
   const ring1=[], ring2=[];
   for(let i=0;i<=40;i++){
-    const a=2*Math.PI*i/40;
-    const cx=Math.cos(a), cy=Math.sin(a);
-    /* 沿 nrm 方向：导线中心在原点，宽度方向沿 t2（在转动平面内） */
-    const p1=vadd(vmul(t2,cx*wHalf), vmul(t1,cy*wHalf));
-    const p2=vadd(vmul(t2,cx*(wHalf+0.05)), vmul(t1,cy*(wHalf+0.05)));
-    ring1.push(p1); ring2.push(p2);
+    const a=2*Math.PI*i/40, cx=Math.cos(a), cy=Math.sin(a);
+    ring1.push(vadd(vmul(t2,cx*wHalf), vmul(t1,cy*wHalf)));
+    ring2.push(vadd(vmul(t2,cx*(wHalf+0.05)), vmul(t1,cy*(wHalf+0.05))));
   }
-  curve(ring1,{color:'#C26A2B', w:2.4, alpha:.95});
-  curve(ring2,{color:'#C26A2B', w:1.4, alpha:.55});
-  /* 线圈面（半透明矩形，法向 = nrm） */
-  const q=[
-    vadd(vmul(t2, wHalf),vmul(t1,wHalf)),
-    vadd(vmul(t2,-wHalf),vmul(t1,wHalf)),
-    vadd(vmul(t2,-wHalf),vmul(t1,-wHalf)),
-    vadd(vmul(t2, wHalf),vmul(t1,-wHalf)),
-  ];
-  poly(q,{fill:C.orange, fillAlpha:.22, stroke:C.orange, w:2});
+  curve(ring1,{color:COL_COIL, w:2.6, alpha:.98});
+  curve(ring2,{color:COL_COIL, w:1.3, alpha:.55});
+  /* 线圈面（半透明） */
+  poly([vadd(vmul(t2,wHalf),vmul(t1,wHalf)), vadd(vmul(t2,-wHalf),vmul(t1,wHalf)),
+        vadd(vmul(t2,-wHalf),vmul(t1,-wHalf)), vadd(vmul(t2,wHalf),vmul(t1,-wHalf))],
+       {fill:'#E8A25C', fillAlpha:.15, stroke:COL_COIL, w:1.6});
+  /* 法向箭头（紫，与线圈/磁力线区分） */
+  arrow(pt(0,0,0), vmul(nrm,0.85), {color:COL_N, w:2.2, label:'@{n}'});
 
-  /* 法向箭头 */
-  arrow(pt(0,0,0), vmul(nrm,0.85), {color:C.orange, w:2.4, label:'@{n}'});
+  /* 引出线：线圈两个边脚沿转轴引到轴端（简化滑环），接小灯泡 */
+  const bulbP=pt(0,1.34,0.06);
+  curve([pt(0,wHalf,0), pt(0,1.10,0.02), pt(-0.07,1.22,0.05), pt(0,1.28,0.06)],
+        {color:COL_COIL, w:2.2, alpha:.95});
+  curve([pt(0,-wHalf,0), pt(0,AX1-0.03,0), pt(0.10,1.22,0.06), pt(0.05,1.30,0.07)],
+        {color:COL_COIL, w:2.2, alpha:.95});
 
-  /* 穿过线圈面的磁力线：磁力线是空间里固定的一族**竖直平行线**（网格步长 d），
-   * 线圈面在其中转动。某条线是否"穿过面" = 它在地面（水平面）的落点是否落在
-   * 线圈面的水平投影内；投影面积 = A·cosθ，故穿过条数 ∝ cosθ。 */
-  let through=0;
-  const d=0.085;                                     /* 磁力线网格步长 */
-  for(let x=-0.62; x<=0.62+1e-6; x+=d) for(let y=-0.62; y<=0.62+1e-6; y+=d){
-    /* 面在水平面(x-y)的投影：把面内点 c 的水平分量与 (x,y) 比对。
-     * 面内点 c = t2·pu + t1·pv，其水平分量 = (pu·t2.x, pv)。反向解出 pu,pv 判范围 */
-    const pv=y;                                       /* t1=(0,1,0)，故 v 投影=pv=y */
-    const pu = Math.abs(t2.x)>1e-6 ? x/t2.x : 0;      /* 由 x=pu·t2.x 解 pu */
-    const inside = Math.abs(pu)<=wHalf && Math.abs(pv)<=wHalf && Math.abs(t2.x)>1e-6;
-    arrow(pt(x,y,Bz0), pt(x,y,Bz1),
-      {color: inside?'#D0452F':'#BCCAD3', w: inside?1.9:1.0, alpha: inside?.9:.4});
-    if(inside){ through++; marker(pt(x,y,-Math.tan(th)*x),{r:2.6,color:'#D0452F', alpha:.9}); }
+  /* 小灯泡：屏幕空间手绘（底座 + 玻璃泡 + 灯丝），亮度 = |sinθ|·ω 归一 */
+  {
+    const S=pr(bulbP), r=15;
+    P_(S.d+0.02, ()=>{ ctx.save();
+      if(bright>0.02){                                  /* 亮：暖光晕 */
+        const g=ctx.createRadialGradient(S.x,S.y,3, S.x,S.y,r*3.2);
+        g.addColorStop(0,'rgba(255,205,80,'+(0.55*bright).toFixed(3)+')');
+        g.addColorStop(1,'rgba(255,205,80,0)');
+        ctx.beginPath(); ctx.arc(S.x,S.y,r*3.2,0,7); ctx.fillStyle=g; ctx.fill();
+      }
+      /* 底座 */
+      ctx.fillStyle='#8A93A0';
+      ctx.fillRect(S.x-6, S.y+r*0.55, 12, 7);
+      ctx.strokeStyle='#6E7884'; ctx.lineWidth=1; ctx.strokeRect(S.x-6, S.y+r*0.55, 12, 7);
+      /* 玻璃泡 */
+      ctx.beginPath(); ctx.arc(S.x,S.y,r,0,7);
+      ctx.fillStyle = bright>0.02
+        ? 'rgba(255,214,90,'+(0.16+0.72*bright).toFixed(3)+')' : 'rgba(226,232,236,.5)';
+      ctx.fill();
+      ctx.strokeStyle= bright>0.02? '#D89A18' : '#A9B6BF'; ctx.lineWidth=1.8; ctx.stroke();
+      /* 灯丝（W 形） */
+      ctx.beginPath();
+      ctx.moveTo(S.x-r*0.45, S.y+r*0.5);
+      ctx.lineTo(S.x-r*0.22, S.y+r*0.05);
+      ctx.lineTo(S.x,        S.y+r*0.42);
+      ctx.lineTo(S.x+r*0.22, S.y+r*0.05);
+      ctx.lineTo(S.x+r*0.45, S.y+r*0.5);
+      ctx.strokeStyle= bright>0.02? '#B3720E' : '#9AA7B0'; ctx.lineWidth=1.6; ctx.stroke();
+      ctx.restore(); });
+    text(bulbP,'负载',{color: bright>0.02?'#B3720E':'#7A8F9B', size:11.5, bold:true, dx:22, dy:2});
   }
 
-  /* 读数 */
-  text(pt(0,0,1.78),'Φ = B·A·cosθ = '+phi.toFixed(2)+' Φ_{max}　（θ = '+state.magnetTilt+'°，穿过 '+through+' 条）',
-    {color:C.crimson, size:13, bold:true, align:'center'});
-  text(pt(0,0,-1.70),'线圈一转，穿过的磁力线条数随 θ 变 → Φ 变 → 线圈里感应出电流（发电机）',
+  /* 读数：Φ 与 ε 分行，点明「转动才有电」 */
+  const eps=Math.abs(Math.sin(th))*omega;
+  text(pt(0,0,1.78),'Φ = B·A·cosθ = '+phi.toFixed(2)+' Φ_{max}　（θ = '+(state.magnetTilt%360).toFixed(0)+'°，穿过 '+through+' 条）',
+    {color:C.crimson, size:12.5, bold:true, align:'center'});
+  text(pt(0,0,1.56),'ε ∝ |dΦ/dt| = '+eps.toFixed(0)+'　→　灯泡：'+(bright>0.04?'亮':(state.spin||Math.abs(state.omega)>2?'灭（正转过零点 θ=0°/180°）':'灭（没在转）')),
+    {color: bright>0.04?'#B3720E':'#7A8F9B', size:12.5, bold:true, align:'center'});
+  text(pt(0,0,-1.66),'拖 θ 滑块（转动）→ 灯亮；停在哪（哪怕 Φ 最大处）→ 灯灭：磁生电靠「变化」',
     {color:C.muted, size:11.5, align:'center'});
-  /* 转轴顶点提示 */
-  text(pt(0,.95,0),'转轴',{color:'#7A8F9B',size:11,align:'center'});
 }
-
 /* ---------- 场景④ 点电荷球 · 电通量 ---------- */
 function sceneCharge(){
   const R=0.85;
@@ -1131,6 +1157,14 @@ function draw(){ setupCamera(); ctx.clearRect(0,0,W,H); buildScene();
  *    这里兜住异常、复位 needsRender（避免每帧刷错），循环继续存活。 */
 function tick(){
   if(state.autoRotate){ cam.az+=0.0045; needsRender=true; }
+  /* 发电机：①匀速转动开关（4s/圈）②手动拖滑块松手后，角速度指数衰减 → 灯渐灭 */
+  const now=performance.now();
+  const dt=Math.min(0.05, (now-(tick._t||now))/1000); tick._t=now;
+  if(state.mode==='flux' && state.fluxScene==='magnet'){
+    if(state.spin){ state.magnetTilt+=90*dt; state.omega=90; needsRender=true; }  /* 匀速转动时角速度恒 90°/s，灯持续亮（θ 过 0/180 瞬间自然过零） */
+    if(Math.abs(state.omega)>1){ state.omega*=Math.pow(0.03, dt); needsRender=true; }
+    else if(state.omega!==0){ state.omega=0; needsRender=true; }
+  }
   if(needsRender){
     try{ draw(); }
     catch(e){ needsRender=false;
@@ -1172,7 +1206,7 @@ function renderSubSec(sec){
     sec.appendChild(h('<div class="sec-title">场景（都在讲「穿过即有通量」）</div>'));
     subChips(sec, FLUX_SCENES,
       it=>state.fluxScene===it.k,
-      it=>{ state.fluxScene=it.k; state.cardTab='1'; renderPanel(); updateAll(); });
+      it=>{ state.fluxScene=it.k; state.cardTab='1'; state.omega=0; state.spin=false; renderPanel(); updateAll(); });
     if(state.fluxScene==='bottle'||state.fluxScene==='lantern'){
       sec.appendChild(h('<div class="sec-title" style="margin-top:14px">光照</div>'));
       const bx=h('<div class="sub-chips"></div>').firstChild;
@@ -1246,9 +1280,11 @@ function updateQNote(){
 function updateMagNote(){
   const e=document.getElementById('magNote'); if(!e) return;
   const th=state.magnetTilt, cos=Math.cos(th*Math.PI/180);
-  e.innerHTML='Φ = B·A·cosθ = '+cos.toFixed(2)+' Φ<sub>max</sub>（θ = '+th+'°）'+
-    (th>82?'：线圈面几乎与磁力线平行，几乎没有磁力线穿过 → Φ ≈ 0':'')+
-    (th<3?'：线圈面与磁力线垂直，穿过的磁力线最多 → Φ = Φ<sub>max</sub>':'');
+  const spinning = state.spin || Math.abs(state.omega)>2;
+  e.innerHTML='Φ = B·A·cosθ = '+cos.toFixed(2)+' Φ<sub>max</sub>（θ = '+(th%360).toFixed(0)+'°）<br>'+
+    (spinning
+      ?'转动中：Φ 在变 → 有感应电动势 → <b>灯泡亮</b>（Φ=0 处反而最亮：变化最快）'
+      :'静止：Φ 不变 → ε = 0 → <b>灯泡不亮</b>（停在任意角度都一样）');
 }
 function renderSliders(sec){
   sec.innerHTML='';
@@ -1260,8 +1296,21 @@ function renderSliders(sec){
       sec.appendChild(h('<div class="ex-note" id="qNote"></div>'));
       updateQNote();
     } else if(state.fluxScene==='magnet'){
-      sec.appendChild(h('<div class="sec-title">线圈面与磁力线的夹角</div>'));
-      mkSlider(sec,'倾斜角 θ（度）','mTilt', 0,85,1, state.magnetTilt, v=>{ state.magnetTilt=v; });
+      sec.appendChild(h('<div class="sec-title">转动线圈（拖动 = 手摇发电）</div>'));
+      mkSlider(sec,'线圈角 θ（度）','mTilt', 0,359,1, state.magnetTilt, v=>{
+        const now=performance.now();
+        const dt=Math.max(0.008,(now-(state._lt||now-16))/1000); state._lt=now;
+        const inst=Math.abs(v-state.magnetTilt)/dt;          /* 瞬时角速度 °/s */
+        state.omega=state.omega*0.55+inst*0.45;              /* 指数平滑 */
+        state.magnetTilt=v;
+      });
+      const bx=h('<div class="sub-chips"></div>').firstChild;
+      const sb=h('<button class="chip'+(state.spin?' on':'')+'">'+(state.spin?'⏸ 停匀速转动':'▶ 匀速转动（4秒/圈）')+'</button>').firstChild;
+      sb.onclick=()=>{ state.spin=!state.spin; if(state.spin) state.omega=90;
+        sb.className='chip'+(state.spin?' on':'');
+        sb.textContent=state.spin?'⏸ 停匀速转动':'▶ 匀速转动（4秒/圈）';
+        updateAll(); };
+      bx.appendChild(sb); sec.appendChild(bx);
       sec.appendChild(h('<div class="ex-note" id="magNote"></div>'));
       updateMagNote();
     } else {
@@ -1430,10 +1479,14 @@ function updateReadout(){
       }
     } else if(state.fluxScene==='magnet'){
       const th=state.magnetTilt, cos=Math.cos(th*Math.PI/180);
+      const bright=Math.min(1, Math.abs(Math.sin(th*Math.PI/180))*Math.abs(state.omega||0)/90);
       html += kchip('场景 =','发电机 · 磁通量');
-      html += kchip('线圈转角 θ =', th+'°');
+      html += kchip('线圈转角 θ =', (th%360).toFixed(0)+'°');
       html += kchip('Φ = B·A·cosθ =', cos.toFixed(2)+' Φmax','acc');
-      lgTitle.textContent='通量 · 磁通量（发电机）'; lgNote.textContent='磁力线穿过线圈面：穿过的条数 = 磁通量';
+      const spinning2 = state.spin || Math.abs(state.omega||0)>2;
+      html += kchip('灯泡 =', bright>0.04?'亮（转 ✓）':(spinning2?'灭（转过零点）':'灭（静止）'), bright>0.04?'acc':'warn');
+      lgTitle.textContent='通量 · 磁通量（发电机）';
+      lgNote.textContent='红=磁力线 · 青=转轴 · 铜橙=线圈：转起来灯才亮，停下灯就灭';
     } else {
       const np=state.nPlus, nm=state.nMinus, Q=np-nm;
       html += kchip('球内 ＋q / −q =', np+' / '+nm);
