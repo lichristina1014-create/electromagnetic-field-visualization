@@ -614,51 +614,137 @@ function sceneLantern(){
   }
 }
 
-/* ---------- 场景② 瓶子 · 透光看液面 ---------- */
+/* ---------- 场景② 瓶子 · 透光看液面（实体玻璃瓶 + 开/关灯） ----------
+ * 关灯：瓶身是**不透光的暗实体**，瓶里什么都看不见 → 液面不标注（看不出来）
+ * 开灯：瓶身变**半透明玻璃**，外部光穿过瓶壁照进液体 → 液面显形并被标注
+ * ------------------------------------------------------------------- */
 function sceneBottle(){
-  const Rb=0.42, zBot=-0.66, zSh=0.26, zTop=0.74, Rn=0.16, liqZ=-0.14;
+  const Rb=0.44, zBot=-0.70, zSh=0.14, zNk=0.52, zTop=0.80, Rn=0.15, liqZ=-0.10;
   const lit=state.show.light;
-  /* 瓶身轮廓 */
-  ring(Rb, zBot, '#8FA6B2', 1.7, .9);
-  ring(Rb, zSh,  '#8FA6B2', 1.7, .9);
-  ring(Rn, zTop, '#8FA6B2', 1.7, .9);
-  ring(Rn, zSh,  '#AEC2CC', 1.2, .55);
-  for(let k=0;k<8;k++){
-    const a=2*Math.PI*k/8, c=Math.cos(a), s=Math.sin(a);
-    curve([pt(Rb*c,Rb*s,zBot), pt(Rb*c,Rb*s,zSh), pt(Rn*c,Rn*s,zTop)],
-      {color:'#B4C6CF', w:1.1, alpha:.5});
-  }
-  /* 液体 */
-  const liqCol  = lit? '#2F8FCB' : '#9AA6AE';
-  const liqFill = lit? '#7EC8EE' : '#C4CED4';
-  const NSEG=28, Rl=Rb*0.94;
-  const ptAt=(a,z)=>pt(Rl*Math.cos(a), Rl*Math.sin(a), z);
-  for(let i=0;i<NSEG;i++){
-    const a0=2*Math.PI*i/NSEG, a1=2*Math.PI*(i+1)/NSEG;
-    poly([ptAt(a0,zBot), ptAt(a1,zBot), ptAt(a1,liqZ), ptAt(a0,liqZ)],
-      {fill:liqFill, fillAlpha: lit?0.30:0.24});
-  }
-  const topDisk=[]; for(let i=0;i<=NSEG;i++) topDisk.push(ptAt(2*Math.PI*i/NSEG, liqZ));
-  poly(topDisk,{fill:liqFill, fillAlpha: lit?.5:.32, stroke:liqCol, w:1.4});
-  text(pt(Rb*0.62, Rb*0.62, liqZ), '液面', {color:liqCol, size:11.5, bold:true});
-  /* 外部光源与光线 */
+  /* 母线：瓶身圆筒 → 四分之一椭圆的圆角肩部 → 直瓶颈（真瓶子的比例） */
+  const rAt=z=>{
+    if(z<=zSh) return Rb;
+    if(z>=zNk) return Rn;
+    const t=(z-zSh)/(zNk-zSh);
+    return Rn+(Rb-Rn)*Math.sqrt(Math.max(0,1-t*t));
+  };
+  const L=vnorm(pt(-0.62,-0.55,0.55));                 /* 外部平行光方向 */
+  const CS=pr(pt(0,0,0));
+
+  /* 开灯：环境亮起来（整片暖白光晕铺在最底层） */
   if(lit){
-    const src=pt(-1.3,0,0);
+    P_(-50, ()=>{ ctx.save();
+      const g=ctx.createRadialGradient(CS.x,CS.y,10, CS.x,CS.y, 310);
+      g.addColorStop(0,'rgba(255,238,196,.46)');
+      g.addColorStop(.42,'rgba(255,242,212,.20)');
+      g.addColorStop(1,'rgba(255,246,226,0)');
+      ctx.beginPath(); ctx.arc(CS.x,CS.y,310,0,7); ctx.fillStyle=g; ctx.fill(); ctx.restore(); });
+  }
+  /* 瓶底落在桌面上的接触阴影（固定在最底层，避免被算进画家队列） */
+  {
+    const SB=pr(pt(0,0,zBot)), sr=Rb*camScale*1.62, sq=Math.max(.2,Math.sin(cam.el));
+    P_(-40, ()=>{ ctx.save(); ctx.translate(SB.x,SB.y); ctx.scale(1,sq);
+      const g=ctx.createRadialGradient(0,0,2, 0,0,sr);
+      g.addColorStop(0,  lit?'rgba(88,110,124,.50)':'rgba(88,110,124,.34)');
+      g.addColorStop(.62,'rgba(88,110,124,.16)');
+      g.addColorStop(1,  'rgba(88,110,124,0)');
+      ctx.beginPath(); ctx.arc(0,0,sr,0,7); ctx.fillStyle=g; ctx.fill(); ctx.restore(); });
+  }
+
+  /* ---- 瓶身：用旋转体的**屏幕轮廓**画剪影，内部铺横向光带做玻璃质感。
+   *      不做逐面填色（半透明时逐面描边会露出网格线），也不画任何经纬线。 ---- */
+  const ce=Math.cos(cam.el), se=Math.sin(cam.el);
+  const PX=CX+cam.px, PY=CY+cam.py;
+  const Y0=z=>PY-camScale*ce*z;
+  function bottlePath(o){
+    const NT=32, NS=52, HL=Math.PI/2;
+    const aT=Rn*camScale, bT=Rn*camScale*se, yT=Y0(zTop);
+    const aB=Rb*camScale, bB=Rb*camScale*se, yB=Y0(zBot);
+    o.beginPath();
+    for(let i=0;i<=NT;i++){ const f=1.5*Math.PI-Math.PI*i/NT;          /* 瓶口：上半椭圆 */
+      const x=PX+aT*Math.sin(f), y=yT+bT*Math.cos(f); i?o.lineTo(x,y):o.moveTo(x,y); }
+    for(let i=0;i<=NS;i++){ const z=zTop+(zBot-zTop)*i/NS;             /* 右母线 */
+      o.lineTo(PX+rAt(z)*camScale, Y0(z)); }
+    for(let i=0;i<=NT;i++){ const f=HL-HL*2*i/NT;                      /* 瓶底：下半椭圆 */
+      o.lineTo(PX+aB*Math.sin(f), yB+bB*Math.cos(f)); }
+    for(let i=0;i<=NS;i++){ const z=zBot+(zTop-zBot)*i/NS;             /* 左母线 */
+      o.lineTo(PX-rAt(z)*camScale, Y0(z)); }
+    o.closePath();
+  }
+  function glassGrad(o){
+    const g=o.createLinearGradient(PX-Rb*camScale, 0, PX+Rb*camScale, 0);
+    (lit
+      ? [[0,'122,170,196'],[.09,'196,226,240'],[.24,'242,251,255'],[.50,'204,231,244'],
+         [.72,'160,203,224'],[.88,'232,246,252'],[1,'118,166,193']]
+      : [[0,'26,36,44'],[.12,'58,74,88'],[.32,'88,108,126'],[.56,'50,64,76'],
+         [.78,'74,92,108'],[1,'24,34,42']]
+    ).forEach(st=>g.addColorStop(st[0],'rgb('+st[1]+')'));
+    return g;
+  }
+  /* 后壁（铺在液体之后，远早于光线的画家序） */
+  P_(-30, ()=>{ ctx.save(); ctx.globalAlpha= lit?0.82:1;
+    bottlePath(ctx); ctx.fillStyle=glassGrad(ctx); ctx.fill(); ctx.restore(); });
+
+  /* ---- 液体（只在开灯时画：关灯时瓶里看不出任何东西） ---- */
+  if(lit){
+    const Rl=Rb*0.88;
+    const aL=Rl*camScale, bL=Rl*camScale*se;
+    const yLt=Y0(liqZ), yLb=Y0(zBot), HL=Math.PI/2, NT=34;
+    function liqPath(o){                                   /* 液柱剪影：上缘是液面的近半椭圆 */
+      o.beginPath(); o.moveTo(PX-aL,yLt);
+      for(let i=1;i<=NT;i++){ const f=-HL+2*HL*i/NT; o.lineTo(PX+aL*Math.sin(f), yLt+bL*Math.cos(f)); }
+      o.lineTo(PX+aL,yLb);
+      for(let i=1;i<=NT;i++){ const f=HL-2*HL*i/NT; o.lineTo(PX+aL*Math.sin(f), yLb+bL*Math.cos(f)); }
+      o.closePath();
+    }
+    function liqGrad(o){                                   /* 横向光带：左亮 → 中透 → 右暗 */
+      const g=o.createLinearGradient(PX-Rl*camScale, 0, PX+Rl*camScale, 0);
+      [[0,'32,106,170'],[.13,'90,170,218'],[.30,'150,216,246'],[.55,'84,164,214'],
+       [.78,'50,132,188'],[.92,'114,190,232'],[1,'30,104,168']]
+        .forEach(st=>g.addColorStop(st[0],'rgb('+st[1]+')'));
+      return g;
+    }
+    P_(-25, ()=>{ ctx.save(); liqPath(ctx); ctx.fillStyle=liqGrad(ctx); ctx.fill(); ctx.restore(); });
+    /* 液面（水平圆盘）—— 这是"看得清有多少"的唯一依据 */
+    P_(-24, ()=>{ ctx.save(); ctx.beginPath();
+      ctx.ellipse(PX, yLt, aL, bL, 0, 0, Math.PI*2);
+      ctx.fillStyle='#B9E5F9'; ctx.fill();
+      ctx.strokeStyle='#2F8FCB'; ctx.lineWidth=1.8; ctx.stroke(); ctx.restore(); });
+    text(pt(Rl*0.58, Rl*0.58, liqZ), '液面', {color:'#0F5687', size:11.5, bold:true, dx:10, dy:-4});
+  }
+
+  /* ---- 前壁薄雾 + 清晰轮廓（压在内容之上，玻璃才有「透」的感觉） ---- */
+  if(lit) P_(45, ()=>{ ctx.save(); ctx.globalAlpha=0.16;
+    bottlePath(ctx); ctx.fillStyle=glassGrad(ctx); ctx.fill(); ctx.restore(); });
+  P_(46, ()=>{ ctx.save(); bottlePath(ctx);
+    ctx.strokeStyle= lit? 'rgba(92,142,172,.80)' : 'rgba(150,176,196,.45)';
+    ctx.lineWidth=1.8; ctx.lineJoin='round'; ctx.stroke(); ctx.restore(); });
+  P_(46.2, ()=>{ ctx.save(); ctx.beginPath();
+    ctx.ellipse(PX, Y0(zTop), Rn*camScale, Rn*camScale*se, 0, 0, Math.PI*2);
+    ctx.strokeStyle= lit? 'rgba(92,142,172,.85)' : 'rgba(150,176,196,.40)';
+    ctx.lineWidth=1.6; ctx.stroke(); ctx.restore(); });
+
+  /* ---- 外部光源与光线 ---- */
+  if(lit){
+    const src=pt(-1.40,0,0.03);
     glow(src,'#F6C544',7,4,.18);
-    marker(src,{r:5,color:'#F0A800',ring:'#FBE7A8',label:'外部光源',ldx:-10,ldy:-14,lsize:12});
-    [-0.22,0,0.22].forEach(y=> [-0.5,-0.28,-0.06].forEach(z=>{
-      curve([pt(-1.05,y,z), pt(0.7,y,z)], {color:'#F0A800', w:1.3, alpha:.75, arrowEnd:true});
-      const xin=-Math.sqrt(Math.max(0, Rb*Rb-y*y));
-      marker(pt(xin,y,z),{r:2.8,color:'#E07A1F',alpha:.95});
+    marker(src,{r:5,color:'#F0A800',ring:'#FBE7A8',label:'外部光源',ldx:-12,ldy:-16,lsize:12});
+    [-0.26,0,0.26].forEach(y=> [-0.58,-0.36,-0.14,0.06].forEach(z=>{
+      const dxw=Math.sqrt(Math.max(1e-4, Rb*Rb-y*y));
+      curve([pt(-1.20,y,z), pt(-dxw,y,z)], {color:'#F0A800', w:1.5, alpha:.88, arrowEnd:true});
+      marker(pt(-dxw,y,z),{r:2.9,color:'#E07A1F',alpha:.95});
+      curve([pt(-dxw,y,z), pt(dxw,y,z)], {color:'#FFC24A', w:1.1, alpha:.40});
     }));
-    text(pt(-0.6,0,-0.95),'光穿入瓶壁 → 照亮液体 → 看清液面',
+    text(pt(0,0,1.32),'光"穿过"瓶壁这个面 → 这个面就有光通量',
+      {color:C.ink, size:12.5, bold:true, align:'center'});
+    text(pt(0,0,-1.12),'光穿入瓶壁 → 照亮液体 → 液面显形，看清还剩多少',
       {color:'#B26A1E', size:12, bold:true, align:'center'});
   }else{
-    text(pt(-0.05,0,-0.95),'没有光照 → 液体暗、看不清有多少',
+    text(pt(0,0,1.32),'关灯：瓶身不透光，瓶里什么都看不见',
+      {color:C.ink, size:12.5, bold:true, align:'center'});
+    text(pt(0,0,-1.12),'没有光照 → 看不清瓶里还剩多少',
       {color:C.muted, size:12, bold:true, align:'center'});
   }
-  text(pt(0,0,1.18),'光"穿过"瓶壁这个面 → 这个面就有光通量',
-    {color:C.ink, size:12.5, bold:true, align:'center'});
 }
 
 /* ---------- 场景③ 磁力线穿面 · 磁通量 ---------- */
@@ -1231,8 +1317,17 @@ function updateReadout(){
     } else if(state.fluxScene==='bottle'){
       html += kchip('场景 =','瓶子 · 透光看液面');
       html += kchip('光照 =', state.show.light?'开':'关', state.show.light?'acc':'warn');
-      html += kchip('光穿入瓶壁 =','Φ ≠ 0','acc');
-      lgTitle.textContent='通量 · 光穿入瓶壁'; lgNote.textContent='光穿过瓶壁照进液体，于是看得见液面';
+      if(state.show.light){
+        html += kchip('光穿入瓶壁 =','Φ ≠ 0','acc');
+        html += kchip('液面 =','看得清');
+        lgTitle.textContent='通量 · 光穿入瓶壁';
+        lgNote.textContent='光穿过瓶壁照进液体，于是看得见液面还剩多少';
+      }else{
+        html += kchip('光穿入瓶壁 =','Φ = 0','warn');
+        html += kchip('液面 =','看不清','warn');
+        lgTitle.textContent='通量 · 无光穿入';
+        lgNote.textContent='关灯：瓶身不透光，瓶里看不见 → 液面不显形';
+      }
     } else if(state.fluxScene==='magnet'){
       const th=state.magnetTilt, cos=Math.cos(th*Math.PI/180);
       html += kchip('场景 =','磁力线穿面 · 磁通量');
