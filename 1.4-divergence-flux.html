@@ -104,6 +104,7 @@ body.panel-off .panel{width:0;border-left-width:0;border-right-width:0;overflow:
 .slider-row{display:flex;align-items:center;gap:10px;margin-bottom:9px;}
 .slider-row label{width:46px;font-size:13px;font-style:italic;font-family:Georgia,serif;color:var(--ink);text-align:right;flex-shrink:0;}
 .slider-row.w label{width:62px;font-style:normal;font-family:inherit;}
+.slider-row.xl label{width:112px;font-style:normal;font-family:inherit;font-size:12.5px;}
 .slider-row input[type=range]{flex:1;accent-color:var(--teal);height:4px;cursor:pointer;}
 .slider-row .val{width:62px;font-size:12px;color:var(--muted);font-family:Menlo,monospace;flex-shrink:0;}
 .ex-title{font-size:14.5px;font-weight:700;color:var(--teal-dark);margin-bottom:8px;line-height:1.45;}
@@ -228,12 +229,16 @@ const D3=p=>-3;
 
 /* ---------------- 全局状态 ---------------- */
 const state = {
-  mode:'theorem',                      /* flux | div | theorem */
+  mode:'flux',                         /* flux | div | theorem */
+  fluxScene:'lantern',                 /* lantern | bottle | magnet | charge */
+  theoremScene:'subdiv',               /* fieldlines | subdiv */
   field:2,                             /* 1 A1 2 A2 3 A3 */
   N:2,                                  /* 立方体剖分密度 */
   P:{x:.3, y:.2},                       /* modeDiv 观察点 */
   halfL:.25,                            /* modeDiv 小立方体半边长 */
-  show:{ flux:true, cancel:true, vec:true, labels:true, box:true },
+  nPlus:2, nMinus:0,                    /* 点电荷球：球心正 / 负电荷个数 */
+  magnetTilt:0,                         /* 磁通量场景：面与场线的夹角(度) */
+  show:{ flux:true, cancel:true, vec:true, labels:true, box:true, light:true },
   cardTab:'1',
   showReadout:true,
   autoRotate:false,
@@ -490,14 +495,212 @@ function drawAxes(){
 }
 
 /* =====================================================================
- * 模式 1：通量（Flux）—— 闭合球面 + 矢量线穿过
+ * 页签①：通量 —— 四个可切换的子场景，都在回答「什么是通量：穿过即有通量」
+ *   ① 灯笼（光通量） ② 瓶子（透光看液面） ③ 磁力线（磁通量） ④ 点电荷球（电通量）
+ * ===================================================================== */
+const FLUX_SCENES=[
+  {k:'lantern', t:'灯笼 · 光通量'},
+  {k:'bottle',  t:'瓶子 · 透光看液面'},
+  {k:'magnet',  t:'磁力线 · 磁通量'},
+  {k:'charge',  t:'点电荷球 · 电通量'},
+];
+const THEOREM_SCENES=[
+  {k:'fieldlines', t:'场线穿闭曲面'},
+  {k:'subdiv',     t:'立方体剖分'},
+];
+
+/* ---------- 通用小工具 ---------- */
+function ring(R,z,color,w,alpha,n){
+  n=n||44; const loop=[];
+  for(let i=0;i<=n;i++){ const a=2*Math.PI*i/n; loop.push(pt(R*Math.cos(a), R*Math.sin(a), z)); }
+  curve(loop,{color,w,alpha});
+}
+function glow(p,color,r0,layers,alphaMax){
+  const S=pr(p); layers=layers||4; alphaMax=alphaMax||.16;
+  for(let i=layers;i>=1;i--){
+    const rr=r0*(0.45+i*0.55), a=alphaMax*(layers-i+1)/layers;
+    P_(S.d-0.04, ()=>{ ctx.save(); ctx.globalAlpha=a;
+      ctx.beginPath(); ctx.arc(S.x,S.y,rr,0,7); ctx.fillStyle=color; ctx.fill(); ctx.restore(); });
+  }
+}
+/* 球面上均匀分布的单位方向（黄金角螺旋），用于灯笼光线 / 电荷场线 */
+function sphereDirs(n){
+  const out=[];
+  for(let k=0;k<n;k++){
+    const z=1-(2*k+1)/n, rr=Math.sqrt(Math.max(0,1-z*z)), a=k*2.399963229728653;
+    out.push(pt(rr*Math.cos(a), rr*Math.sin(a), z));
+  }
+  return out;
+}
+
+/* ---------- 场景① 灯笼 · 光通量 ---------- */
+function sceneLantern(){
+  const Hh=0.58, Rtop=0.30, Rb=0.60;
+  const prof=z=>{ const t=Math.max(-1,Math.min(1,z/Hh)); return Rtop+(Rb-Rtop)*(1-t*t); };
+  ring(Rtop, Hh, '#B4874A', 1.8, .95);
+  ring(Rtop,-Hh, '#B4874A', 1.8, .95);
+  [-0.42,-0.2,0,0.2,0.42].forEach(z=> ring(prof(z), z, '#D8AE72', 1.2, .5));
+  for(let k=0;k<8;k++){
+    const a=2*Math.PI*k/8, c=Math.cos(a), s=Math.sin(a);
+    const seq=[Hh,-0.42,-0.2,0,0.2,0.42,-Hh].map(z=> pt(prof(z)*c, prof(z)*s, z));
+    curve(seq,{color:'#C79A5B', w:1.4, alpha:.75});
+  }
+  const hd=[];
+  for(let i=0;i<=20;i++){ const a=Math.PI*i/20; hd.push(pt(0.26*Math.cos(a), 0, Hh+0.26*Math.sin(a))); }
+  curve(hd,{color:'#B4874A', w:2, alpha:.95});
+  /* 光源 + 光晕 */
+  glow(pt(0,0,0), '#F6C544', 9, 5, .20);
+  marker(pt(0,0,0),{r:5.5,color:'#F0A800',ring:'#FBE7A8',label:'光源',ldx:13,ldy:-13});
+  /* 光线：从光源射出、正好穿过灯罩表面（穿出点打点 + 外侧箭头） */
+  const tShell=d=>{
+    const f=t=>{ const p=vmul(d,t); return Math.hypot(p.x,p.y)-prof(p.z); };
+    let a=0.12, b=1.5;
+    if(f(a)*f(b)>0) return 0.62;
+    for(let i=0;i<26;i++){ const m=(a+b)/2; if(f(a)*f(m)<=0) b=m; else a=m; }
+    return (a+b)/2;
+  };
+  sphereDirs(14).forEach(d=>{
+    const ts=tShell(d);
+    curve([vmul(d, Rb*0.16), vmul(d, ts+0.26)],
+      {color:'#F0A800', w:1.6, alpha:.85, arrowEnd:true});
+    marker(vmul(d, ts),{r:2.7,color:'#E07A1F',alpha:.95});
+  });
+  text(pt(0,0,Rb*1.95),'光从光源射出，穿过灯罩表面 → 光通量 Φ > 0',
+    {color:C.ink, size:13, bold:true, align:'center'});
+  text(pt(0,0,-Rb*1.95),'灯罩 = 一个闭合面；"穿过的光的多少"就是光通量',
+    {color:C.muted, size:11.5, align:'center'});
+}
+
+/* ---------- 场景② 瓶子 · 透光看液面 ---------- */
+function sceneBottle(){
+  const Rb=0.42, zBot=-0.66, zSh=0.26, zTop=0.74, Rn=0.16, liqZ=-0.14;
+  const lit=state.show.light;
+  /* 瓶身轮廓 */
+  ring(Rb, zBot, '#8FA6B2', 1.7, .9);
+  ring(Rb, zSh,  '#8FA6B2', 1.7, .9);
+  ring(Rn, zTop, '#8FA6B2', 1.7, .9);
+  ring(Rn, zSh,  '#AEC2CC', 1.2, .55);
+  for(let k=0;k<8;k++){
+    const a=2*Math.PI*k/8, c=Math.cos(a), s=Math.sin(a);
+    curve([pt(Rb*c,Rb*s,zBot), pt(Rb*c,Rb*s,zSh), pt(Rn*c,Rn*s,zTop)],
+      {color:'#B4C6CF', w:1.1, alpha:.5});
+  }
+  /* 液体 */
+  const liqCol  = lit? '#2F8FCB' : '#9AA6AE';
+  const liqFill = lit? '#7EC8EE' : '#C4CED4';
+  const NSEG=28, Rl=Rb*0.94;
+  const ptAt=(a,z)=>pt(Rl*Math.cos(a), Rl*Math.sin(a), z);
+  for(let i=0;i<NSEG;i++){
+    const a0=2*Math.PI*i/NSEG, a1=2*Math.PI*(i+1)/NSEG;
+    poly([ptAt(a0,zBot), ptAt(a1,zBot), ptAt(a1,liqZ), ptAt(a0,liqZ)],
+      {fill:liqFill, fillAlpha: lit?0.30:0.24});
+  }
+  const topDisk=[]; for(let i=0;i<=NSEG;i++) topDisk.push(ptAt(2*Math.PI*i/NSEG, liqZ));
+  poly(topDisk,{fill:liqFill, fillAlpha: lit?.5:.32, stroke:liqCol, w:1.4});
+  text(pt(Rb*0.62, Rb*0.62, liqZ), '液面', {color:liqCol, size:11.5, bold:true});
+  /* 外部光源与光线 */
+  if(lit){
+    const src=pt(-1.3,0,0);
+    glow(src,'#F6C544',7,4,.18);
+    marker(src,{r:5,color:'#F0A800',ring:'#FBE7A8',label:'外部光源',ldx:-10,ldy:-14,lsize:12});
+    [-0.22,0,0.22].forEach(y=> [-0.5,-0.28,-0.06].forEach(z=>{
+      curve([pt(-1.05,y,z), pt(0.7,y,z)], {color:'#F0A800', w:1.3, alpha:.75, arrowEnd:true});
+      const xin=-Math.sqrt(Math.max(0, Rb*Rb-y*y));
+      marker(pt(xin,y,z),{r:2.8,color:'#E07A1F',alpha:.95});
+    }));
+    text(pt(-0.6,0,-0.95),'光穿入瓶壁 → 照亮液体 → 看清液面',
+      {color:'#B26A1E', size:12, bold:true, align:'center'});
+  }else{
+    text(pt(-0.05,0,-0.95),'没有光照 → 液体暗、看不清有多少',
+      {color:C.muted, size:12, bold:true, align:'center'});
+  }
+  text(pt(0,0,1.18),'光"穿过"瓶壁这个面 → 这个面就有光通量',
+    {color:C.ink, size:12.5, bold:true, align:'center'});
+}
+
+/* ---------- 场景③ 磁力线穿面 · 磁通量 ---------- */
+function sceneMagnet(){
+  const th=state.magnetTilt*Math.PI/180;
+  const A=0.62;
+  const u=pt(1,0,0), v=pt(0,Math.cos(th),Math.sin(th));
+  const nrm=vnorm(vcross(u,v));
+  const corners=[vadd(vmul(u,A),vmul(v,A)),  vadd(vmul(u,-A),vmul(v,A)),
+                 vadd(vmul(u,-A),vmul(v,-A)), vadd(vmul(u,A),vmul(v,-A))];
+  poly(corners,{fill:C.orange, fillAlpha:.18, stroke:C.orange, w:2});
+  arrow(pt(0,0,0), vmul(nrm,0.8), {color:C.orange, w:2.2, label:'@{n}'});
+  let through=0;
+  for(let i=-2;i<=2;i++) for(let j=-2;j<=2;j++){
+    const x=i*0.26, y=j*0.26;
+    let inside=false, pI=null;
+    if(Math.abs(nrm.z)>1e-6){
+      const t=-(nrm.x*x+nrm.y*y)/nrm.z;
+      if(t>-1.05 && t<1.05){
+        const p=pt(x,y,t);
+        if(Math.abs(vdot(p,u))<=A && Math.abs(vdot(p,v))<=A){ inside=true; pI=p; }
+      }
+    }
+    arrow(pt(x,y,-1.0), pt(x,y,1.0), {color: inside?'#D0452F':'#BCCAD3', w: inside?2.3:1.1, alpha: inside?1:.5});
+    if(inside){ through++; marker(pI,{r:3.4,color:'#D0452F'}); }
+  }
+  text(pt(0,0,1.32),'匀强磁场 @{B} 向上，穿过这块面', {color:C.ink, size:12.5, bold:true, align:'center'});
+  text(pt(0,0,-1.32),'穿过的场线越多 → 磁通量 Φ = @{B}·@{S} 越大（共 '+through+' 条穿过）',
+    {color:C.muted, size:11.5, align:'center'});
+}
+
+/* ---------- 场景④ 点电荷球 · 电通量 ---------- */
+function sceneCharge(){
+  const R=0.85;
+  sphereWire(R,'#9DB3BF',1.0,0.5);
+  text(pt(R*0.70, R*0.70, R*0.52),'高斯面（闭合球面）',{color:'#6E8490', size:11.5, bold:true});
+  const np=state.nPlus, nm=state.nMinus, Q=np-nm;
+  /* 球心电荷簇 */
+  const list=[];
+  for(let k=0;k<np;k++) list.push('#D9534F');
+  for(let k=0;k<nm;k++) list.push('#2F80C8');
+  const m=list.length;
+  if(m===0){ marker(pt(0,0,0),{r:4.6,color:'#9DB3BF',ring:'#D5DEE3'}); }
+  else list.forEach((col,k)=>{
+    const a=2*Math.PI*k/m;
+    marker(pt(0.11*Math.cos(a), 0.11*Math.sin(a), 0.035*(k%2?1:-1)),{r:4.4,color:col});
+  });
+  /* 场线：净电荷>0 向外、<0 向内、=0 不画 */
+  if(Q!==0){
+    const n=Math.max(8, Math.min(18, Math.abs(Q)*5));
+    sphereDirs(n).forEach(d=>{
+      const p0=vmul(d,R*0.14), p1=vmul(d,R*1.5);
+      if(Q>0) curve([p0,p1],{color:'#D9534F', w:1.8, alpha:.8, arrowEnd:true});
+      else    curve([p1,p0],{color:'#2F80C8', w:1.8, alpha:.8, arrowEnd:true});
+    });
+  }
+  const sign = Q>0? 'Φ > 0（净穿出）' : (Q<0? 'Φ < 0（净穿入）' : 'Φ = 0（穿出 = 穿入）');
+  const col  = Q>0? C.crimson : (Q<0? C.blue : '#7A8F9B');
+  text(pt(0,0,R*1.52),'球内：＋q ×'+np+'    −q ×'+nm,
+    {color:C.ink, size:12.5, bold:true, align:'center'});
+  text(pt(0,0,R*1.74),'净电荷 Q = '+((Q>0?'+':'')+Q)+'q',
+    {color:col, size:13, bold:true, align:'center'});
+  text(pt(0,0,R*1.96),'Φ = ∮@{E}·d@{S} = Q/ε₀   →   '+sign,
+    {color:col, size:12.5, bold:true, align:'center'});
+  text(pt(0,0,-R*1.5),'只要球内净电荷一定，通量就不变（与电荷怎么摆无关）',
+    {color:C.muted, size:11.5, align:'center'});
+}
+
+/* 通量页签的场景分发 */
+function sceneFluxTab(){
+  switch(state.fluxScene){
+    case 'lantern': return sceneLantern();
+    case 'bottle':  return sceneBottle();
+    case 'magnet':  return sceneMagnet();
+    default:        return sceneCharge();
+  }
+}
+
+/* =====================================================================
+ * 「高斯散度定理」页签 · 子演示A：矢量线穿入/穿出闭合曲面
  *   选 A2 中心源场（∇·A=3）：穿出 - 穿入 = 净通量 = 3·V
  * ===================================================================== */
-function modeFlux(){
+function sceneFieldLines(){
   const R=0.85;
-  /* 闭合球面：8 条纬线圈（用 sphereWireframe） */
   sphereWire(R, '#9DB3BF', 1.0, 0.55);
-  /* 8 条矢量线：沿 8 个方向穿过球面 */
   const dirs=[];
   for(let i=0;i<8;i++){
     const th=Math.PI*(i+0.5)/8;
@@ -506,25 +709,18 @@ function modeFlux(){
   }
   dirs.forEach(d=>{
     const inner=vmul(d,-R*1.15), outer=vmul(d, R*1.25);
-    /* 一根射线 + 若干箭头（表示矢量线） */
     curve([inner, outer], {color:C.teal, w:1.6, alpha:.7});
-    /* 起点（穿入）小箭头朝内 */
     const pIn=vmul(d,-R), pInMid=vmul(d,-R*1.06);
     arrow(pIn, pInMid, {color:C.blue, w:2.4, headScale:.85, label:'穿入'});
-    /* 终点（穿出）小箭头朝外 */
     const pOutMid=vmul(d,R*1.06), pOut=vmul(d,R);
     arrow(pOutMid, pOut, {color:C.orange, w:2.4, headScale:.85, label:'穿出'});
   });
-  /* 中心标记 */
   marker(pt(0,0,0),{r:6,color:C.crimson,ring:'#F6C9C2',label:'源（+q）'});
-  /* 通量数值 */
   const V=4/3*Math.PI*R*R*R;
   const flux = divF()*V;
   text(pt(0,0,1.6),'Φ = ∮ @{A}·d@{S} = '+flux.toFixed(2),
     {color:C.ink, size:13.5, bold:true, align:'center'});
-  const fluxTxt = (state.field===1?'@ A':(state.field===2?'@ A=(x,y,z)':'@ A=-(x,y,z)'))
-      .replace('@ A','@A')+' ， ∇·A = '+divF();
-  text(pt(0,0,-1.25),'∇·@{A} = '+divF()+' V = '+flux.toFixed(3),
+  text(pt(0,0,-1.25),'∇·@{A} = '+divF()+'  ，  V = '+V.toFixed(3),
     {color:C.muted, size:11.5, align:'center'});
 }
 function sphereWire(R,color,w,alpha){
@@ -695,9 +891,11 @@ function modeTheorem(){
 /* ---------------- 主场景构建 ---------------- */
 function buildScene(){
   prims=[];
-  drawAxes();
-  if(state.mode==='flux') modeFlux();
+  const objScene = (state.mode==='flux' && (state.fluxScene==='lantern'||state.fluxScene==='bottle'||state.fluxScene==='magnet'));
+  if(!objScene) drawAxes();
+  if(state.mode==='flux') sceneFluxTab();
   else if(state.mode==='div') modeDiv();
+  else if(state.theoremScene==='fieldlines') sceneFieldLines();
   else modeTheorem();
 }
 
@@ -729,120 +927,227 @@ const FIELD_OPTS=[
   {k:3, label:'@{A}=-(x, y, z)',    sub:'∇·A=-3 · 中心汇', col:'p'},
 ];
 
-function renderSubSec(sec){
-  sec.innerHTML='';
-  sec.appendChild(h('<div class="sec-title">选择矢量场</div>'));
+function subChips(parent, items, isOn, onPick){
   const box=h('<div class="sub-chips"></div>').firstChild;
-  FIELD_OPTS.forEach(it=>{
-    const fb=h('<button class="chip '+(it.col||'')+(state.field===it.k?' on':'')+'" data-k="'+it.k+'">'+richHTML(it.sub)+'</button>').firstChild;
-    fb.onclick=()=>{ state.field=it.k; updateAll(); renderPanel(); };
+  items.forEach(it=>{
+    const fb=h('<button class="chip '+(it.col||'')+(isOn(it)?' on':'')+'" data-k="'+it.k+'">'+it.t+'</button>').firstChild;
+    fb.onclick=()=>{ onPick(it); };
     box.appendChild(fb);
   });
-  sec.appendChild(box);
-  sec.appendChild(h('<div class="sec-title" style="margin-top:14px">图中显示</div>'));
-  const SHOW=[
-    {k:'cancel', label:'内部抵消面（灰化）'},
-    {k:'labels', label:'通量数字标注'},
-    {k:'box',    label:'坐标轴'},
-  ];
-  const bx=h('<div class="sub-chips"></div>').firstChild;
-  SHOW.forEach(it=>{
-    const sb=h('<button class="chip '+(state.show[it.k]?'on':'')+'" data-k="'+it.k+'">'+it.label+'</button>').firstChild;
-    sb.onclick=()=>{ state.show[it.k]=!state.show[it.k]; sb.classList.toggle('on',state.show[it.k]); updateAll(); };
-    bx.appendChild(sb);
-  });
-  sec.appendChild(bx);
+  parent.appendChild(box);
+  return box;
+}
+function renderSubSec(sec){
+  sec.innerHTML='';
+  if(state.mode==='flux'){
+    sec.appendChild(h('<div class="sec-title">场景（都在讲「穿过即有通量」）</div>'));
+    subChips(sec, FLUX_SCENES,
+      it=>state.fluxScene===it.k,
+      it=>{ state.fluxScene=it.k; state.cardTab='1'; renderPanel(); updateAll(); });
+    if(state.fluxScene==='bottle'){
+      sec.appendChild(h('<div class="sec-title" style="margin-top:14px">光照</div>'));
+      const bx=h('<div class="sub-chips"></div>').firstChild;
+      const sb=h('<button class="chip'+(state.show.light?' on':'')+'">'+(state.show.light?'开灯（看得清）':'关灯（看不清）')+'</button>').firstChild;
+      sb.onclick=()=>{ state.show.light=!state.show.light; renderPanel(); updateAll(); };
+      bx.appendChild(sb); sec.appendChild(bx);
+    }
+    sec.appendChild(h('<div class="sec-title" style="margin-top:14px">图中显示</div>'));
+    const box=h('<div class="sub-chips"></div>').firstChild;
+    const cb=h('<button class="chip '+(state.show.box?'on':'')+'">坐标轴</button>').firstChild;
+    cb.onclick=()=>{ state.show.box=!state.show.box; cb.classList.toggle('on',state.show.box); updateAll(); };
+    box.appendChild(cb); sec.appendChild(box);
+  } else if(state.mode==='div'){
+    sec.appendChild(h('<div class="sec-title">选择矢量场</div>'));
+    subChips(sec, FIELD_OPTS,
+      it=>state.field===it.k,
+      it=>{ state.field=it.k; updateAll(); renderPanel(); });
+    sec.appendChild(h('<div class="sec-title" style="margin-top:14px">图中显示</div>'));
+    const bx=h('<div class="sub-chips"></div>').firstChild;
+    [{k:'labels',t:'通量数字标注'},{k:'box',t:'坐标轴'}].forEach(it=>{
+      const sb=h('<button class="chip '+(state.show[it.k]?'on':'')+'" data-k="'+it.k+'">'+it.t+'</button>').firstChild;
+      sb.onclick=()=>{ state.show[it.k]=!state.show[it.k]; sb.classList.toggle('on',state.show[it.k]); updateAll(); };
+      bx.appendChild(sb);
+    });
+    sec.appendChild(bx);
+  } else {
+    sec.appendChild(h('<div class="sec-title">选择演示</div>'));
+    subChips(sec, THEOREM_SCENES,
+      it=>state.theoremScene===it.k,
+      it=>{ state.theoremScene=it.k; state.cardTab='1'; renderPanel(); updateAll(); });
+    sec.appendChild(h('<div class="sec-title" style="margin-top:14px">选择矢量场</div>'));
+    const box=h('<div class="sub-chips"></div>').firstChild;
+    FIELD_OPTS.forEach(it=>{
+      const fb=h('<button class="chip '+(it.col||'')+(state.field===it.k?' on':'')+'" data-k="'+it.k+'">'+richHTML(it.sub)+'</button>').firstChild;
+      fb.onclick=()=>{ state.field=it.k; updateAll(); renderPanel(); };
+      box.appendChild(fb);
+    });
+    sec.appendChild(box);
+    sec.appendChild(h('<div class="sec-title" style="margin-top:14px">图中显示</div>'));
+    const bx=h('<div class="sub-chips"></div>').firstChild;
+    const toggles = state.theoremScene==='subdiv'
+      ? [{k:'cancel',t:'内部抵消面（灰化）'},{k:'labels',t:'通量数字标注'},{k:'box',t:'坐标轴'}]
+      : [{k:'labels',t:'通量数字标注'},{k:'box',t:'坐标轴'}];
+    toggles.forEach(it=>{
+      const sb=h('<button class="chip '+(state.show[it.k]?'on':'')+'" data-k="'+it.k+'">'+it.t+'</button>').firstChild;
+      sb.onclick=()=>{ state.show[it.k]=!state.show[it.k]; sb.classList.toggle('on',state.show[it.k]); updateAll(); };
+      bx.appendChild(sb);
+    });
+    sec.appendChild(bx);
+  }
+}
+function mkSlider(sec,label,id,min,max,step,val,oninput,fmt){
+  const r=h('<div class="slider-row xl"><label>'+label+'</label>'+
+    '<input type="range" id="s_'+id+'" min="'+min+'" max="'+max+'" step="'+step+'" value="'+val+'">'+
+    '<span class="val" id="v_'+id+'">'+(fmt?fmt(val):val)+'</span></div>');
+  const inp=r.querySelector('input');
+  inp.oninput=()=>{ const v=parseFloat(inp.value); oninput(v);
+    document.getElementById('v_'+id).textContent = fmt? fmt(v) : v;
+    needsRender=true; updateReadout(); updateModeTag(); };
+  sec.appendChild(r);
+}
+function updateQNote(){
+  const e=document.getElementById('qNote'); if(!e) return;
+  const Q=state.nPlus-state.nMinus;
+  e.innerHTML='球内净电荷 Q = '+((Q>0?'+':'')+Q)+'q；Φ = Q/ε₀ '+
+    (Q>0?'&gt; 0（正源 → 净穿出）':(Q<0?'&lt; 0（负源 / 汇 → 净穿入）':'= 0（正负相等 → 穿出 = 穿入）'));
+}
+function updateMagNote(){
+  const e=document.getElementById('magNote'); if(!e) return;
+  const th=state.magnetTilt, cos=Math.cos(th*Math.PI/180);
+  e.innerHTML='Φ ∝ cos θ = '+cos.toFixed(2)+'（θ = '+th+'°）'+
+    (th>82?'：面几乎与场线平行，通量 ≈ 0':'')+
+    (th<3?'：面与场线垂直，穿过的场线最多':'');
 }
 function renderSliders(sec){
   sec.innerHTML='';
-  if(state.mode==='theorem'){
-    sec.appendChild(h('<div class="sec-title">立方体剖分密度</div>'));
-    const r=h('<div class="slider-row w"><label>N（每边）</label>'+
-      '<input type="range" id="s_N" min="2" max="5" step="1" value="'+state.N+'">'+
-      '<span class="val" id="v_N">'+state.N+'</span></div>');
-    const inp=r.querySelector('input');
-    inp.oninput=()=>{ state.N=parseInt(inp.value);
-      document.getElementById('v_N').textContent=state.N;
-      document.getElementById('nLbl').textContent='共 '+state.N*state.N*state.N+' 个体元';
-      needsRender=true; updateReadout(); updateModeTag(); };
-    sec.appendChild(r);
-    sec.appendChild(h('<div class="ex-note" id="nLbl">共 '+state.N*state.N*state.N+' 个体元</div>'));
-  }else if(state.mode==='div'){
+  if(state.mode==='flux'){
+    if(state.fluxScene==='charge'){
+      sec.appendChild(h('<div class="sec-title">球心的点电荷</div>'));
+      mkSlider(sec,'正电荷 +q 个数','nPlus', 0,6,1, state.nPlus, v=>{ state.nPlus=v; });
+      mkSlider(sec,'负电荷 −q 个数','nMinus',0,6,1, state.nMinus, v=>{ state.nMinus=v; });
+      sec.appendChild(h('<div class="ex-note" id="qNote"></div>'));
+      updateQNote();
+    } else if(state.fluxScene==='magnet'){
+      sec.appendChild(h('<div class="sec-title">面与场线的夹角</div>'));
+      mkSlider(sec,'倾斜角 θ（度）','mTilt', 0,85,1, state.magnetTilt, v=>{ state.magnetTilt=v; });
+      sec.appendChild(h('<div class="ex-note" id="magNote"></div>'));
+      updateMagNote();
+    } else {
+      sec.appendChild(h('<div class="ex-note">拖动画面可旋转观察。这个场景用「光」来类比通量：光源发出光线，穿过灯罩这个面 —— 穿过的光的多少，就是光通量。</div>'));
+    }
+  } else if(state.mode==='div'){
     sec.appendChild(h('<div class="sec-title">包围小立方体</div>'));
-    const r=h('<div class="slider-row w"><label>半边长 l</label>'+
-      '<input type="range" id="s_h" min="0.1" max="0.45" step="0.01" value="'+state.halfL+'">'+
-      '<span class="val" id="v_h">'+state.halfL.toFixed(2)+'</span></div>');
-    const inp=r.querySelector('input');
-    inp.oninput=()=>{ state.halfL=parseFloat(inp.value);
-      document.getElementById('v_h').textContent=state.halfL.toFixed(2);
-      needsRender=true; updateReadout(); updateModeTag(); };
-    sec.appendChild(r);
-    sec.appendChild(h('<div class="slider-group-label" style="margin-top:14px">观察点 P</div>'));
-    ['x','y'].forEach(k=>{
-      const r2=h('<div class="slider-row"><label>'+k+'</label>'+
-        '<input type="range" id="s_'+k+'" min="-1" max="1" step="0.02" value="'+state.P[k]+'">'+
-        '<span class="val" id="v_'+k+'">'+state.P[k].toFixed(2)+'</span></div>');
-      const inp2=r2.querySelector('input');
-      inp2.oninput=()=>{ state.P[k]=parseFloat(inp2.value);
-        document.getElementById('v_'+k).textContent=state.P[k].toFixed(2);
-        needsRender=true; updateReadout(); updateModeTag(); };
-      sec.appendChild(r2);
-    });
+    mkSlider(sec,'半边长 l','hL', 0.1,0.45,0.01, state.halfL, v=>{ state.halfL=v; }, v=>v.toFixed(2));
+    sec.appendChild(h('<div class="sec-title" style="margin-top:14px">观察点 P</div>'));
+    mkSlider(sec,'x','Px', -1,1,0.02, state.P.x, v=>{ state.P.x=v; }, v=>v.toFixed(2));
+    mkSlider(sec,'y','Py', -1,1,0.02, state.P.y, v=>{ state.P.y=v; }, v=>v.toFixed(2));
+  } else {
+    if(state.theoremScene==='subdiv'){
+      sec.appendChild(h('<div class="sec-title">立方体剖分密度</div>'));
+      mkSlider(sec,'N（每边）','N', 2,5,1, state.N, v=>{ state.N=v;
+        const e=document.getElementById('nLbl'); if(e) e.textContent='共 '+(v*v*v)+' 个体元'; });
+      sec.appendChild(h('<div class="ex-note" id="nLbl">共 '+(state.N*state.N*state.N)+' 个体元</div>'));
+    } else {
+      sec.appendChild(h('<div class="ex-note">矢量场线穿过一个闭合球面：净通量 = 穿出 − 穿入，只看面内有没有净源。</div>'));
+    }
   }
 }
 function syncSliders(){
-  if(state.mode==='theorem'){
-    const s=document.getElementById('s_N'); if(s) s.value=state.N;
-    const v=document.getElementById('v_N'); if(v) v.textContent=state.N;
-  }else if(state.mode==='div'){
-    const s=document.getElementById('s_h'); if(s) s.value=state.halfL;
-    const v=document.getElementById('v_h'); if(v) v.textContent=state.halfL.toFixed(2);
-    ['x','y'].forEach(k=>{
-      const s=document.getElementById('s_'+k); if(s) s.value=state.P[k];
-      const v=document.getElementById('v_'+k); if(v) v.textContent=state.P[k].toFixed(2);
-    });
+  const set=(id,val,fmt)=>{ const s=document.getElementById('s_'+id); if(s) s.value=val;
+    const v=document.getElementById('v_'+id); if(v) v.textContent = fmt? fmt(val) : val; };
+  if(state.mode==='flux'){
+    if(state.fluxScene==='charge'){ set('nPlus',state.nPlus); set('nMinus',state.nMinus); updateQNote(); }
+    else if(state.fluxScene==='magnet'){ set('mTilt',state.magnetTilt); updateMagNote(); }
+  } else if(state.mode==='div'){
+    set('hL',state.halfL,v=>v.toFixed(2)); set('Px',state.P.x,v=>v.toFixed(2)); set('Py',state.P.y,v=>v.toFixed(2));
+  } else if(state.theoremScene==='subdiv'){
+    set('N',state.N);
   }
 }
 function renderExplain(sec){
   sec.innerHTML='';
-  const cards=[
-    {k:'1', tab:'1. 通量', cls:'c1', body:
-      '<b>定义：</b>穿过曲面 @{S} 的矢量场通量'+
-      '<div class="frm">Φ = ∮<sub>S</sub> @{A}·d@{S}</div>'+
-      '<ul><li><b>开曲面</b>（由闭合回路围成）：通量"方向"由回路右手定则决定</li>'+
-      '<li><b>闭合曲面</b>：净通量 = ∮@{A}·@{n} dS</li>'+
-      '<li>净通量 = 0：闭合面内<b>无源</b>（矢量线进出相等）</li>'+
-      '<li>净通量 ≠ 0：闭合面内<b>有源</b>（正源=流出 > 穿入；负源=汇）</li></ul>'+
-      '<div class="ex-note">本演示的矢量线= <b>场线</b>，每条线箭头方向是场方向；穿过闭合面的"线数"反映通量大小。</div>'},
-    {k:'2', tab:'2. 散度', cls:'c2', body:
-      '<b>定义：</b>单位体积的通量'+
-      '<div class="frm">∇·@{A} = lim<sub>ΔV→0</sub> ∮<sub>ΔS</sub> @{A}·d@{S} / ΔV</div>'+
-      '<ul><li>它是<b>标量</b>，可正可负；正 = 该点是<b>正源</b>（流出 > 流入），负 = 汇</li>'+
-      '<li>计算（直角系）：∇·@{A} = ∂A_x/∂x + ∂A_y/∂y + ∂A_z/∂z</li>'+
-      '<li>本演示里把小立方体套在 P 点，6 面通量求和 ≈ ∇·A · ΔV</li>'+
-      '<li>半边长 l → 0 时，6 面求和 / ΔV 趋近 P 点的<b>真实散度值</b></li></ul>'},
-    {k:'3', tab:'3. 散度定理', cls:'c3', body:
-      '<b>高斯散度定理</b>（PPT slide 11 / 1.6 节）：闭合面通量 = 体积内散度积分'+
-      '<div class="frm">∮<sub>S</sub> @{A}·d@{S} = ∫<sub>V</sub> ∇·@{A} dV</div>'+
-      '<ul><li>把大闭合面包围的体积切成 N×N×N 个小体元</li>'+
-      '<li>每个体元的<b>内部分界面</b>，两侧通量一正一负相互<b>抵消</b></li>'+
-      '<li>只有最外壳面没有配对面，<b>净通量保留</b></li>'+
-      '<li>因此：体元散度求和（Σ∇·A · ΔV）= 整个外壳通量（∮A·dS）</li></ul>'+
-      '<div class="ex-note">本演示：右侧实时显示<b>外壳通量</b> ∮ 和 <b>体元散度累加</b> ∫，两者应当相等（误差 ~ 0）。</div>'},
-    {k:'4', tab:'4. 验证', cls:'c4', body:
-      '<b>数值验证（中央源场 A=(x,y,z)）：</b>'+
-      '<div class="frm">∇·A = 3（常数），立方体半边长 1 ⇒ V = 8 ⇒ ∮ = 3×8 = 24</div>'+
-      '<ul><li>切 2×2×2 = 8 个体元（边长 1）</li>'+
-      '<li>每个体元 ∇·A · ΔV = 3×1 = 3，累加 8 个 = 24</li>'+
-      '<li>每个外壳面 Φ = A·n · ΔS（具体数值取决于面位置）</li>'+
-      '<li>内部相邻面：法矢相反、通量相同 → <b>抵消</b></li></ul>'+
-      '<div class="ex-note">切得越细（N 越大），误差越小（理论上恒为零，数值误差来自四舍五入）。</div>'},
-  ];
+  let cards;
+  if(state.mode==='flux'){
+    cards=[
+      {k:'1', tab:'1. 什么是通量', cls:'c1', body:
+        '<b>一句话：</b>凡有东西「<b>穿过</b>」一个面，就有通量；穿过的越多，通量越大。'+
+        '<div class="frm">Φ = ∮<sub>S</sub> @{A}·d@{S}</div>'+
+        '<ul><li>这里的 @{A} 可以是任何"正在穿过"的东西 —— 光、磁力线、电场线</li>'+
+        '<li>通量是<b>标量</b>，可正可负：定了面的正方向，正向穿过为正、反向为负</li>'+
+        '<li>对<b>闭合面</b>：净通量 = 穿出 − 穿入</li></ul>'+
+        '<div class="ex-note">先用四个日常场景建立直觉，再到页签②③看"每一点的通量密度"（散度）与"总量守恒"（散度定理）。</div>'},
+      {k:'2', tab:'2. 光与磁的类比', cls:'c2', body:
+        '<b>① 灯笼（光通量）：</b>灯笼里有光源，光从里面射出来、<b>穿过灯罩表面</b>，我们才看得见它亮。<br>'+
+        '<b>② 瓶子（透光看液面）：</b>没有光时看不清瓶里剩多少；<b>对着光一照</b>，外部光线穿过瓶壁照进去，液面就显出来了 —— 光穿过瓶壁这个面，瓶壁就有光通量。<br>'+
+        '<b>③ 磁力线（磁通量）：</b>磁力线穿过一块面，穿过的条数越多，磁通量越大（Φ = B·A·cos θ）。'+
+        '<div class="ex-note">光本身也是电磁波 —— 所以"光通量"和"磁通量 / 电通量"在数学上是同一回事：都是矢量场穿过一个面的通量。</div>'},
+      {k:'3', tab:'3. 包围电荷的通量', cls:'c3', body:
+        '<b>闭合球面（高斯面）里的净电荷，决定净通量：</b>'+
+        '<div class="frm">Φ = ∮<sub>S</sub> @{E}·d@{S} = Q<sub>内</sub> / ε<sub>0</sub></div>'+
+        '<ul><li>球内净电荷 <b>Q &gt; 0</b>（正源）→ 场线净穿出 → <b>Φ &gt; 0</b></li>'+
+        '<li>球内 <b>Q = 0</b>（正负相等）→ 穿出 = 穿入 → <b>Φ = 0</b></li>'+
+        '<li>球内净电荷 <b>Q &lt; 0</b>（负源 / 汇）→ 场线净穿入 → <b>Φ &lt; 0</b></li>'+
+        '<li>通量只由<b>球内</b>净电荷决定；球外电荷、以及电荷摆在球内什么位置，都不影响</li></ul>'+
+        '<div class="ex-note">这就是高斯定律的雏形 —— 页签③把"通量"和"散度"用闭合面彻底联系起来。</div>'},
+    ];
+  } else if(state.mode==='div'){
+    cards=[
+      {k:'1', tab:'1. 散度定义', cls:'c1', body:
+        '<b>定义：</b>单位体积的通量（"通量的密度"）'+
+        '<div class="frm">∇·@{A} = lim<sub>ΔV→0</sub> ∮<sub>ΔS</sub> @{A}·d@{S} / ΔV</div>'+
+        '<ul><li>它是<b>标量</b>，可正可负；正 = 该点是<b>正源</b>（流出 &gt; 流入），负 = 汇</li>'+
+        '<li>本演示把小立方体套在 P 点，6 面通量求和 ≈ ∇·A · ΔV</li>'+
+        '<li>半边长 l → 0 时，6 面求和 / ΔV 趋近 P 点的<b>真实散度值</b></li></ul>'},
+      {k:'2', tab:'2. 直角系计算', cls:'c2', body:
+        '<b>直角坐标下的算法：</b>'+
+        '<div class="frm">∇·@{A} = ∂A<sub>x</sub>/∂x + ∂A<sub>y</sub>/∂y + ∂A<sub>z</sub>/∂z</div>'+
+        '<ul><li>散度是<b>标量场</b>：给空间每一点配一个数</li>'+
+        '<li>例：A=(1, 0.4, 0.6) → ∇·A = 0（无源场）</li>'+
+        '<li>A=(x, y, z) → ∇·A = 3（处处正源）；A = −(x, y, z) → ∇·A = −3</li></ul>'},
+      {k:'3', tab:'3. 用散度算通量', cls:'c3', body:
+        '<b>由散度得到通量：</b>均匀场下 净通量 = 散度 × 体积'+
+        '<div class="frm">∮<sub>S</sub> @{A}·d@{S} = (∇·@{A}) · V</div>'+
+        '<ul><li>演示：小立方体 6 个面的通量相加 ΣΦ ≈ ∇·A · ΔV</li>'+
+        '<li>l 越小，ΣΦ / ΔV 越接近真实散度（画布下方读数实时对比）</li></ul>'},
+    ];
+  } else {
+    if(state.theoremScene==='fieldlines'){
+      cards=[
+        {k:'1', tab:'1. 场线穿闭曲面', cls:'c1', body:
+          '<b>净通量 = 穿出 − 穿入：</b>'+
+          '<div class="frm">Φ = ∮<sub>S</sub> @{A}·d@{S}</div>'+
+          '<ul><li>闭合面内<b>无源</b>：矢量线穿进多少就穿出多少 → 净通量 = 0</li>'+
+          '<li>闭合面内<b>有正源</b>：穿出 &gt; 穿入 → 净通量 &gt; 0</li>'+
+          '<li>闭合面内有负源（汇）：净通量 &lt; 0</li></ul>'+
+          '<div class="ex-note">净通量只看"面内有没有净源"，与面的形状无关。</div>'},
+        {k:'2', tab:'2. 高斯散度定理', cls:'c3', body:
+          '<b>高斯散度定理</b>：闭合面通量 = 体积内散度的积分'+
+          '<div class="frm">∮<sub>S</sub> @{A}·d@{S} = ∫<sub>V</sub> ∇·@{A} dV</div>'+
+          '<div class="ex-note">它把"面上的通量"折算成"体积里的源强总和"。切到「立方体剖分」看它是怎么成立的。</div>'},
+      ];
+    } else {
+      cards=[
+        {k:'1', tab:'1. 剖分思想', cls:'c1', body:
+          '<b>把大闭合面里的体积切成 N×N×N 个小体元：</b>'+
+          '<ul><li>每个体元都有自己的 6 个面</li>'+
+          '<li><b>相邻体元的公共面</b>上，两侧法矢相反 → 通量一正一负，<b>相互抵消</b></li>'+
+          '<li>只有<b>最外壳面</b>没有配对面，净通量被保留下来</li></ul>'+
+          '<div class="frm">Σ（体元散度 × 体积） = 外壳净通量</div>'},
+        {k:'2', tab:'2. 定理与验证', cls:'c3', body:
+          '<b>高斯散度定理：</b>'+
+          '<div class="frm">∮<sub>S</sub> @{A}·d@{S} = ∫<sub>V</sub> ∇·@{A} dV</div>'+
+          '<ul><li>以中央源场 A=(x,y,z) 为例：∇·A = 3（常数），半边长 1 的立方体 V = 8 → ∮ = 24</li>'+
+          '<li>切 8 个体元：每个 ∇·A·ΔV = 3 × 1 = 3，累加 = 24 ✓</li>'+
+          '<li>切得越细（N 越大），数值误差越小</li></ul>'+
+          '<div class="ex-note">画布下方读数同时给出<b>外壳通量</b> ∮ 与<b>体元散度累加</b> ∫，两者应相等（误差 ≈ 0）。</div>'},
+      ];
+    }
+  }
   if(!cards.find(c=>c.k===state.cardTab)) state.cardTab='1';
   const cur=cards.find(c=>c.k===state.cardTab);
   sec.appendChild(h('<div class="ex-title">公式与解读</div>'+
     '<div class="card-tabs">'+cards.map(c=>'<button class="card-tab '+c.cls+(c.k===state.cardTab?' on':'')+'" data-k="'+c.k+'">'+c.tab+'</button>').join('')+'</div>'+
-    '<div class="card-body '+cur.cls+'"><div class="ex-body">'+cur.body+'</div></div>'));
+    '<div class="card-body '+cur.cls+'"><div class="ex-body">'+richHTML(cur.body)+'</div></div>'));
   sec.querySelectorAll('.card-tab').forEach(b=>{ b.onclick=()=>{ state.cardTab=b.dataset.k; renderPanel(); }; });
 }
 
@@ -869,34 +1174,32 @@ function updateReadout(){
   if(!strip) return;
   if(!state.showReadout){ strip.innerHTML=''; return; }
   let html='';
-  if(state.mode==='theorem'){
-    const N=state.N, l=CUBE_L/N;
-    const dV=(2*l)*(2*l)*(2*l);
-    const sumInt = divF() * dV * N*N*N;
-    /* 重新计算外壳通量 */
-    const A=field();
-    let sumSurf=0;
-    for(let i=0;i<N;i++) for(let j=0;j<N;j++) for(let k=0;k<N;k++){
-      const cx=(i+0.5)/N - 0.5, cy=(j+0.5)/N - 0.5, cz=(k+0.5)/N - 0.5;
-      const P=pt(cx,cy,cz);
-      const dirs=[pt(+1,0,0),pt(-1,0,0),pt(0,+1,0),pt(0,-1,0),pt(0,0,+1),pt(0,0,-1)];
-      dirs.forEach(n=>{
-        const fc=vadd(P, vmul(n,l));
-        const Phi=vdot(A(fc), n)*dV;
-        const ni=i+(n.x?Math.sign(n.x):0), nj=j+(n.y?Math.sign(n.y):0), nk=k+(n.z?Math.sign(n.z):0);
-        if(!(ni>=0&&ni<N&&nj>=0&&nj<N&&nk>=0&&nk<N)) sumSurf+=Phi;
-      });
+  const lgTitle=document.getElementById('lgTitle'), lgNote=document.getElementById('lgNote');
+  if(state.mode==='flux'){
+    if(state.fluxScene==='lantern'){
+      html += kchip('场景 =','灯笼 · 光通量');
+      html += kchip('穿过灯罩 =','Φ > 0','acc');
+      html += kchip('直觉 =','穿过的光越多，通量越大');
+      lgTitle.textContent='通量 · 光通量'; lgNote.textContent='光源在灯罩内，光穿过灯罩表面射出';
+    } else if(state.fluxScene==='bottle'){
+      html += kchip('场景 =','瓶子 · 透光看液面');
+      html += kchip('光照 =', state.show.light?'开':'关', state.show.light?'acc':'warn');
+      html += kchip('光穿入瓶壁 =','Φ ≠ 0','acc');
+      lgTitle.textContent='通量 · 光穿入瓶壁'; lgNote.textContent='光穿过瓶壁照进液体，于是看得见液面';
+    } else if(state.fluxScene==='magnet'){
+      const th=state.magnetTilt, cos=Math.cos(th*Math.PI/180);
+      html += kchip('场景 =','磁力线穿面 · 磁通量');
+      html += kchip('倾角 θ =', th+'°');
+      html += kchip('Φ ∝ cos θ =', cos.toFixed(2),'acc');
+      lgTitle.textContent='通量 · 磁通量'; lgNote.textContent='磁场线穿过一块面：穿过的条数 = 通量';
+    } else {
+      const np=state.nPlus, nm=state.nMinus, Q=np-nm;
+      html += kchip('球内 ＋q / −q =', np+' / '+nm);
+      html += kchip('净电荷 Q =', ((Q>0?'+':'')+Q)+'q');
+      html += kchip('Φ = Q/ε₀', Q>0?'> 0':(Q<0?'< 0':'= 0'), Q>0?'acc':(Q<0?'warn':''));
+      lgTitle.textContent='通量 · 包围电荷的球面'; lgNote.textContent='闭合面内的净电荷决定净通量：Φ = Q内/ε₀';
     }
-    html += kchip('场 '+richHTML('@{A}')+' =', richHTML(FIELD_OPTS[state.field-1].label.replace(/_o|_g|_p/g,'')));
-    html += kchip('∇·@{A} =', divF());
-    html += kchip('N =', N+'×'+N+'×'+N+'='+N*N*N);
-    html += kchip('∮<sub>S</sub> @{A}·d@{S} =', sumSurf.toFixed(3), 'acc');
-    html += kchip('∫<sub>V</sub> ∇·@{A} dV =', sumInt.toFixed(3), 'acc');
-    const err = sumSurf-sumInt;
-    html += kchip('误差 =', err.toFixed(3), Math.abs(err)<0.05?'':'warn');
-    document.getElementById('lgTitle').textContent='散度定理 · '+N+'×'+N+'×'+N+' 剖分';
-    document.getElementById('lgNote').textContent='内部相邻面 ±Φ 自动抵消，仅外壳净通量保留';
-  }else if(state.mode==='div'){
+  } else if(state.mode==='div'){
     const l=state.halfL, V=(2*l)*(2*l)*(2*l);
     const faces=[pt(1,0,0),pt(-1,0,0),pt(0,1,0),pt(0,-1,0),pt(0,0,1),pt(0,0,-1)];
     const P=pt(state.P.x, state.P.y, 0);
@@ -906,22 +1209,63 @@ function updateReadout(){
     html += kchip('小立方体边 =', (2*l).toFixed(2));
     html += kchip('ΣΦ ≈', sum.toFixed(3), 'acc');
     html += kchip('∇·@{A}·ΔV =', (divF()*V).toFixed(3), 'acc');
-    document.getElementById('lgTitle').textContent='散度的极限定义';
-    document.getElementById('lgNote').textContent='l → 0 时 ΣΦ/ΔV 趋近 ∇·A(P)';
-  }else{
-    html += kchip('矢量场 =', richHTML(FIELD_OPTS[state.field-1].label));
-    html += kchip('∇·@{A} =', divF());
-    document.getElementById('lgTitle').textContent='通量 · 闭合曲面';
-    document.getElementById('lgNote').textContent='净通量 Φ=∮A·dS = (∇·A)·V';
+    lgTitle.textContent='散度的极限定义';
+    lgNote.textContent='l → 0 时 ΣΦ/ΔV 趋近 ∇·A(P)';
+  } else {
+    if(state.theoremScene==='fieldlines'){
+      const V=4/3*Math.PI*0.85*0.85*0.85;
+      html += kchip('矢量场 =', richHTML(FIELD_OPTS[state.field-1].label));
+      html += kchip('∇·@{A} =', divF());
+      html += kchip('净通量 Φ =', (divF()*V).toFixed(3), 'acc');
+      lgTitle.textContent='通量 · 闭合曲面';
+      lgNote.textContent='净通量 Φ = ∮A·dS = (∇·A)·V';
+    } else {
+      const N=state.N, l=CUBE_L/N;
+      const dV=(2*l)*(2*l)*(2*l);
+      const sumInt = divF() * dV * N*N*N;
+      const A=field();
+      let sumSurf=0;
+      for(let i=0;i<N;i++) for(let j=0;j<N;j++) for(let k=0;k<N;k++){
+        const cx=(i+0.5)/N - 0.5, cy=(j+0.5)/N - 0.5, cz=(k+0.5)/N - 0.5;
+        const P=pt(cx,cy,cz);
+        const dirs=[pt(+1,0,0),pt(-1,0,0),pt(0,+1,0),pt(0,-1,0),pt(0,0,+1),pt(0,0,-1)];
+        dirs.forEach(n=>{
+          const fc=vadd(P, vmul(n,l));
+          const Phi=vdot(A(fc), n)*dV;
+          const ni=i+(n.x?Math.sign(n.x):0), nj=j+(n.y?Math.sign(n.y):0), nk=k+(n.z?Math.sign(n.z):0);
+          if(!(ni>=0&&ni<N&&nj>=0&&nj<N&&nk>=0&&nk<N)) sumSurf+=Phi;
+        });
+      }
+      html += kchip('场 '+richHTML('@{A}')+' =', richHTML(FIELD_OPTS[state.field-1].label.replace(/_o|_g|_p/g,'')));
+      html += kchip('∇·@{A} =', divF());
+      html += kchip('N =', N+'×'+N+'×'+N+'='+N*N*N);
+      html += kchip('∮<sub>S</sub> @{A}·d@{S} =', sumSurf.toFixed(3), 'acc');
+      html += kchip('∫<sub>V</sub> ∇·@{A} dV =', sumInt.toFixed(3), 'acc');
+      const err = sumSurf-sumInt;
+      html += kchip('误差 =', err.toFixed(3), Math.abs(err)<0.05?'':'warn');
+      lgTitle.textContent='散度定理 · '+N+'×'+N+'×'+N+' 剖分';
+      lgNote.textContent='内部相邻面 ±Φ 自动抵消，仅外壳净通量保留';
+    }
   }
   strip.innerHTML=html;
 }
 function updateModeTag(){
   const t=document.getElementById('modeTag');
-  if(state.mode==='theorem') t.innerHTML='散度定理 · '+state.N+'×'+state.N+'×'+state.N+' 剖分 · '+richHTML('@{A}')+'=' + (state.field===1?'(1, 0.4, 0.6)':(state.field===2?'(x, y, z)':'-(x, y, z)'));
-  else if(state.mode==='div') t.innerHTML='散度定义 · l='+state.halfL.toFixed(2)+'（越小越接近真实散度）';
-  else t.innerHTML='通量 · '+richHTML(FIELD_OPTS[state.field-1].sub);
-  document.getElementById('moduleSub').textContent=state.mode==='theorem'?'体元散度堆叠 = 外壳通量':(state.mode==='div'?'小立方体 6 面通量 ≈ ∇·A · ΔV':'矢量线穿入穿出闭曲面');
+  const sub=document.getElementById('moduleSub');
+  if(state.mode==='flux'){
+    t.innerHTML={lantern:'通量 · 灯笼（光通量）', bottle:'通量 · 瓶子（透光看液面）',
+      magnet:'通量 · 磁力线穿面（磁通量）', charge:'通量 · 包围电荷的球面（电通量）'}[state.fluxScene];
+    sub.textContent='凡"穿过"即有通量：光通量 / 磁通量 / 电通量';
+  } else if(state.mode==='div'){
+    t.innerHTML='散度定义 · l='+state.halfL.toFixed(2)+'（越小越接近真实散度）';
+    sub.textContent='小立方体 6 面通量 ≈ ∇·A · ΔV';
+  } else if(state.theoremScene==='fieldlines'){
+    t.innerHTML='高斯散度定理 · 场线穿闭曲面';
+    sub.textContent='净通量 = 穿出 − 穿入，只看面内净源';
+  } else {
+    t.innerHTML='高斯散度定理 · '+state.N+'×'+state.N+'×'+state.N+' 剖分';
+    sub.textContent='体元散度堆叠 = 外壳通量';
+  }
 }
 
 /* ---------------- 交互 ---------------- */
@@ -965,9 +1309,9 @@ window.addEventListener('keydown',e=>{
 
 /* modeTabs */
 const MT=[
-  {k:'flux', t:'① 通量（穿入穿出）'},
-  {k:'div',  t:'② 散度（定义/极限）'},
-  {k:'theorem', t:'③ 散度定理（立方体剖分）'},
+  {k:'flux',    t:'① 通量'},
+  {k:'div',     t:'② 散度'},
+  {k:'theorem', t:'③ 高斯散度定理'},
 ];
 const modeTabs=document.getElementById('modeTabs');
 MT.forEach(m=>{ const b=document.createElement('button'); b.textContent=m.t; b.dataset.k=m.k;
