@@ -642,7 +642,7 @@ function sceneBottle(){
   }
   /* 瓶底落在桌面上的接触阴影（固定在最底层，避免被算进画家队列） */
   {
-    const SB=pr(pt(0,0,zBot)), sr=Rb*camScale*1.62, sq=Math.max(.2,Math.sin(cam.el));
+    const SB=pr(pt(0,0,zBot)), sr=Rb*camScale*1.62, sq=Math.max(.08,Math.abs(Math.sin(cam.el)));
     P_(-40, ()=>{ ctx.save(); ctx.translate(SB.x,SB.y); ctx.scale(1,sq);
       const g=ctx.createRadialGradient(0,0,2, 0,0,sr);
       g.addColorStop(0,  lit?'rgba(88,110,124,.50)':'rgba(88,110,124,.34)');
@@ -653,7 +653,10 @@ function sceneBottle(){
 
   /* ---- 瓶身：用旋转体的**屏幕轮廓**画剪影，内部铺横向光带做玻璃质感。
    *      不做逐面填色（半透明时逐面描边会露出网格线），也不画任何经纬线。 ---- */
-  const ce=Math.cos(cam.el), se=Math.sin(cam.el);
+  /* ⚠️ se 必须取绝对值：cam.el 可为负（视角拖到地平线以下），而椭圆的竖向半轴
+   *    是 r·camScale·|sin el|。直接传 sin(el) 会给 ctx.ellipse 一个负半径 →
+   *    抛 IndexSizeError → 渲染循环被打断、画面永久卡住（开关点了也没反应）。 */
+  const ce=Math.cos(cam.el), se=Math.abs(Math.sin(cam.el));
   const PX=CX+cam.px, PY=CY+cam.py;
   const Y0=z=>PY-camScale*ce*z;
   function bottlePath(o){
@@ -1034,9 +1037,18 @@ function draw(){ setupCamera(); ctx.clearRect(0,0,W,H); buildScene();
   prims.sort((a,b)=>a.z-b.z); for(const p of prims) p.draw(ctx);
   const t=document.getElementById('panTag'); if(t) t.classList.toggle('show', Math.abs(cam.px)>2||Math.abs(cam.py)>2);
   needsRender=false; }
+/* ⚠️ draw() 必须包 try/catch：一旦某帧抛异常，若直接冒泡出 tick，
+ *    requestAnimationFrame 就再也不会被排上 —— 整个渲染循环永久停摆，
+ *    表现为「画面卡住 + 点什么都没反应」，排查时极难定位。
+ *    这里兜住异常、复位 needsRender（避免每帧刷错），循环继续存活。 */
 function tick(){
   if(state.autoRotate){ cam.az+=0.0045; needsRender=true; }
-  if(needsRender) draw();
+  if(needsRender){
+    try{ draw(); }
+    catch(e){ needsRender=false;
+      if(!tick._last || tick._last!==e.message){ tick._last=e.message;
+        console.error('[draw] 渲染异常（已跳过该帧，循环继续）：', e); } }
+  }
   requestAnimationFrame(tick);
 }
 function updateAll(){
