@@ -367,8 +367,8 @@ function drawPinwheel(p, spin, angle, o={}){
     const n=spin>0.5?0.02:(0.05);          /* 慢转时叶片略虚 */
     /* 中心轴 */
     ctx.beginPath(); ctx.arc(S.x,S.y,R*0.14,0,7); ctx.fillStyle='#8A6A3A'; ctx.fill();
-    /* 4 片叶片 */
-    const A=angle*Math.PI/180;
+    /* 4 片叶片（角度取负：canvas 屏幕 y 向下，angle 递增会呈顺时针；水流在世界系是逆时针） */
+    const A=-angle*Math.PI/180;
     for(let k=0;k<4;k++){
       const a=A+k*Math.PI/2;
       const ex=S.x+Math.cos(a)*R*0.82, ey=S.y+Math.sin(a)*R*0.82;
@@ -432,31 +432,42 @@ function modeCirc(){
     {color:C.muted, size:11.5, align:'center'});
 }
 
-/* 杯子子视图：一杯水，静止 vs 搅动（旋转流场） */
+/* 杯子子视图：轴测圆柱玻璃杯（斜俯视），水绕竖直轴旋转 */
+function arcPts(cx,cy,z,r,a0,a1,n){
+  const out=[]; for(let i=0;i<=n;i++){ const a=a0+(a1-a0)*i/n;
+    out.push(pt(cx+r*Math.cos(a), cy+r*Math.sin(a), z)); } return out; }
 function modeCircCup(){
-  const R=0.85, cx=0, cy=0;
-  /* 杯壁（圆）+ 杯底 */
-  for(let k=0;k<48;k++){
-    const a0=2*Math.PI*k/48, a1=2*Math.PI*(k+1)/48;
-    line(pt(cx+R*Math.cos(a0), cy+R*Math.sin(a0), 0), pt(cx+R*Math.cos(a1), cy+R*Math.sin(a1), 0), {color:'#A9BCC7', w:2.4});
-  }
-  /* 杯底阴影椭圆（立体感） */
-  poly(loopSamples(cx,cy,R*0.72,0,40), {fill:'#EAF2F6', fillAlpha:0.5, stroke:'#D6E3EA', strokeAlpha:0.6, w:1});
-  /* 水：旋转流场箭头（绕杯心） */
-  const spin=state.cupSpinSpeed;    /* °/s */
-  const n=Math.max(0,Math.min(1,Math.abs(spin)/90));   /* 0~1 旋转强度 */
-  for(let r=0.15;r<=R*0.82;r+=0.16){
-    for(let k=0;k<10;k++){
-      const a=2*Math.PI*k/10;
-      const x=cx+r*Math.cos(a), y=cy+r*Math.sin(a);
-      const t=pt(-Math.sin(a), Math.cos(a), 0);
-      const len=0.06 + 0.07*n;
-      if(n<0.05){ continue; }   /* 静止不画流线箭头 */
-      arrow(pt(x-t.x*len,y-t.y*len,0), pt(x+t.x*len,y+t.y*len,0), {color:'#3E93BE', w:1.9, headScale:0.7, alpha:0.3+0.68*n});
+  const R=0.85, H=0.42, zW=H*0.8;        /* 杯半径 / 杯高 / 水面高度 */
+  const spin=state.cupSpinSpeed;         /* °/s */
+  const n=Math.max(0,Math.min(1,Math.abs(spin)/90));
+  /* 杯底前半弧（下半可见） */
+  curve(arcPts(0,0,0,R,Math.PI,2*Math.PI,20), {color:'#8FA6B3', w:2});
+  /* 两条侧壁 */
+  line(pt(-R,0,0), pt(-R,0,H), {color:'#8FA6B3', w:2});
+  line(pt( R,0,0), pt( R,0,H), {color:'#8FA6B3', w:2});
+  /* 水面：淡蓝填充 + 轮廓 */
+  poly(arcPts(0,0,zW,R*0.985,0,2*Math.PI,32), {fill:'#BFDEEC', fillAlpha:0.35});
+  curve(arcPts(0,0,zW,R*0.985,0,2*Math.PI,32), {color:'#4FA3C7', w:1.8});
+  /* 水流箭头：水面上的两个同心环（绕竖直轴旋转 → 俯视逆时针） */
+  if(n>=0.05){
+    for(const rr of [0.34*R, 0.66*R]){
+      for(let k=0;k<8;k++){
+        const a=2*Math.PI*k/8;
+        const x=rr*Math.cos(a), y=rr*Math.sin(a);
+        const t=pt(-Math.sin(a), Math.cos(a), 0);
+        const len=0.05+0.05*n;
+        arrow(pt(x-t.x*len,y-t.y*len,zW), pt(x+t.x*len,y+t.y*len,zW),
+          {color:'#2E86B5', w:2, headScale:0.75, alpha:0.35+0.6*n});
+      }
     }
   }
-  /* 杯中风车 */
-  drawPinwheel(pt(cx,cy,0), spin, state.cupAngle, {r:20});
+  /* 杯中风车（立于水面中心） */
+  drawPinwheel(pt(0,0,zW), spin, state.cupAngle, {r:20});
+  /* 杯口椭圆（最上层：玻璃口沿）+ 内口沿 */
+  curve(arcPts(0,0,H,R,0,2*Math.PI,40), {color:'#7A93A2', w:2.4});
+  curve(arcPts(0,0,H,R*0.9,0,2*Math.PI,40), {color:'#A9BCC7', w:1, alpha:0.7});
+  /* 标签 */
+  text(pt(1.05,-0.55,0.15),'玻璃杯',{color:'#6B8290',size:12,bold:true});
   /* 读数（压缩两行） */
   const verdict = n>0.05 ? '转（有旋场：有漩涡源）' : '不转（静止水：无旋场）';
   text(pt(0,-1.12,0),'杯中水流 '+(n>0.05?'正以 '+Math.abs(spin).toFixed(0)+'°/s 旋转':'静止')+'　→　风车 '+verdict,
@@ -653,7 +664,10 @@ function renderSubSec(sec){
     const box=h('<div class="sub-chips"></div>').firstChild;
     [['stream','小溪 · 漩涡 · 风车'],['cup','杯子 · 旋转的水']].forEach(([k,t])=>{
       const b=h('<button class="chip'+(state.circView===k?' on':'')+'" data-k="'+k+'">'+t+'</button>').firstChild;
-      b.onclick=()=>{state.circView=k;renderPanel();updateAll();};
+      b.onclick=()=>{state.circView=k;
+        /* 杯子=轴测圆柱杯需斜俯视（看到杯内水面）；小溪=正俯视平面 */
+        cam.az=-Math.PI/2; cam.el=(k==='cup')?0.95:1.35; cam.px=0; cam.py=0;
+        renderPanel();updateAll();};
       box.appendChild(b);
     });
     sec.appendChild(box);
