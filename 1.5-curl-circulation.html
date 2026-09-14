@@ -200,7 +200,7 @@ const V3=p=>pt(-p.y, p.x, p.z*0.3);
 const curlV3=p=>pt(0,0,2);
 
 const state = {
-  mode:'circ',                            /* circ | curl | stokes */
+  mode:'circ',                            /* circ | circdens | curl | stokes */
   field:1,                                /* 1 V1 2 V2 3 V3 */
   loopR:0.7,                              /* 主闭合回路半径 */
   loopCx:0, loopCy:0,                     /* 回路中心 */
@@ -209,6 +209,13 @@ const state = {
   cardTab:'1',
   showReadout:true,
   autoRotate:false,
+  /* --- 环量页（小溪 + 风车 + 杯子）--- */
+  circView:'stream',                      /* stream | cup：环量页两个子视图 */
+  pinX:0.55, pinY:0.0,                    /* 风车位置（世界坐标，可拖动） */
+  cupSpin:false,                          /* 杯子：是否在搅动（旋转） */
+  cupSpinSpeed:0,                         /* 杯子：当前旋转角速度（°/s，衰减用） */
+  pinAngle:0,                             /* 风车叶片累积角度（动画） */
+  cupAngle:0,                             /* 杯水累积角度（动画） */
 };
 
 function field(){ return state.field===1?V1:(state.field===2?V2:V3); }
@@ -254,7 +261,7 @@ function wrapSqrt(html){const out=[];let i=0;while(i<html.length){const k=html.i
 const C = {teal:'#156082',orange:'#E97132',green:'#3E9B4F',purple:'#9B59B6',crimson:'#D04A3A',blue:'#0F9ED5',gray:'#8CA0AC',light:'#C9D6DD',ink:'#22414F',grid:'#EAF0F4',muted:'#7A8F9B'};
 
 let canvas,ctx,W=800,H=600,DPR=1;
-const cam={az:.62,el:.46,zoom:1,px:0,py:0};
+const cam={az:-Math.PI/2,el:1.35,zoom:1,px:0,py:0};   /* 默认环量页：俯视平面（az=-90° 使 +x→屏幕右、+y→屏幕上） */
 let camU,camV,camD,camScale,CX2,CY;
 function setupCamera(){const ca=Math.cos(cam.az),sa=Math.sin(cam.az);const ce=Math.cos(cam.el),se=Math.sin(cam.el);camD={x:ce*ca,y:ce*sa,z:se};camU={x:-sa,y:ca,z:0};camV={x:-ca*se,y:-sa*se,z:ce};camScale=Math.min(W,H)/3.2*cam.zoom;CX2=W/2;CY=H*0.55;}
 function pr(p){return{x:CX2+cam.px+camScale*vdot(p,camU),y:CY+cam.py-camScale*vdot(p,camV),d:vdot(p,camD)};}
@@ -333,12 +340,136 @@ function drawFieldGrid(z){
   }
 }
 
-/* =========== 模式 1：环量（Circulation）—— 闭合回路 + 线积分 =========== */
+/* =========== 模式 1：环量（Circulation）—— 小溪 + 风车 + 杯子 直觉 =========== */
+/* 小溪流场：直流 + 高斯型局部漩涡。风车转速 ∝ 该点涡量 curl（直觉：环量密度） */
+const STREAM_CX=0, STREAM_CY=0;      /* 漩涡中心 */
+const STREAM_SIG=0.42;               /* 漩涡高斯宽度 */
+const STREAM_OM=0.85;                /* 漩涡强度 */
+const STREAM_U0=0.45;                /* 直流流速 */
+function streamV(p){                 /* 小溪流场（2D，z 忽略） */
+  const dx=p.x-STREAM_CX, dy=p.y-STREAM_CY, r2=dx*dx+dy*dy;
+  const g=Math.exp(-r2/(STREAM_SIG*STREAM_SIG));
+  return pt(STREAM_U0 - STREAM_OM*g*dy, STREAM_OM*g*dx, 0);
+}
+function streamCurl(p){              /* 小溪流场的涡量（z 分量） */
+  const dx=p.x-STREAM_CX, dy=p.y-STREAM_CY, r2=dx*dx+dy*dy;
+  const s2=STREAM_SIG*STREAM_SIG;
+  const g=Math.exp(-r2/s2);
+  return 2*STREAM_OM*g*(1 - r2/s2);
+}
+
+/* 风车：屏幕空间手绘，spin 为当前角速度（°/s，正=逆时针），angle 为累积相位 */
+function drawPinwheel(p, spin, angle, o={}){
+  const S=pr(p);
+  const R=o.r||20;
+  P_(S.d+0.03, ()=>{
+    ctx.save();
+    const n=spin>0.5?0.02:(0.05);          /* 慢转时叶片略虚 */
+    /* 中心轴 */
+    ctx.beginPath(); ctx.arc(S.x,S.y,R*0.14,0,7); ctx.fillStyle='#8A6A3A'; ctx.fill();
+    /* 4 片叶片 */
+    const A=angle*Math.PI/180;
+    for(let k=0;k<4;k++){
+      const a=A+k*Math.PI/2;
+      const ex=S.x+Math.cos(a)*R*0.82, ey=S.y+Math.sin(a)*R*0.82;
+      const px=S.x-Math.sin(a)*R*0.30, py=S.y+Math.cos(a)*R*0.30;
+      ctx.beginPath();
+      ctx.moveTo(S.x+Math.cos(a)*R*0.10, S.y+Math.sin(a)*R*0.10);
+      ctx.lineTo(px,py); ctx.lineTo(ex,ey); ctx.lineTo(S.x-Math.sin(a)*R*0.10, S.y+Math.cos(a)*R*0.10);
+      ctx.closePath();
+      ctx.fillStyle='rgba(230,140,60,'+Math.max(0.35,Math.min(1,Math.abs(spin)/90*0.9+0.35)).toFixed(3)+')';
+      ctx.fill();
+      ctx.lineWidth=1.2; ctx.strokeStyle='#A8622A'; ctx.stroke();
+    }
+    /* 底座小竖线（示意立在地上） */
+    ctx.beginPath(); ctx.moveTo(S.x,S.y+R*0.14); ctx.lineTo(S.x,S.y+R*0.5);
+    ctx.strokeStyle='#8A6A3A'; ctx.lineWidth=2; ctx.stroke();
+    /* 转动指示：快转时外圈虚线 */
+    if(Math.abs(spin)>8){ ctx.beginPath(); ctx.arc(S.x,S.y,R+4,0,7); ctx.strokeStyle='rgba(200,120,50,.5)'; ctx.setLineDash([3,3]); ctx.lineWidth=1.2; ctx.stroke(); ctx.setLineDash([]); }
+    ctx.restore();
+  });
+}
+
 function modeCirc(){
+  if(state.circView==='cup'){ modeCircCup(); return; }
+  /* ---- 小溪视图 ---- */
+  /* 河岸（两条水平虚线） */
+  line(pt(-1.35, 0.95, 0), pt(1.35, 0.95, 0), {color:'#B9C9D2', dash:[6,4], w:1.3});
+  line(pt(-1.35,-0.95, 0), pt(1.35,-0.95, 0), {color:'#B9C9D2', dash:[6,4], w:1.3});
+  text(pt(-1.30, 1.08, 0),'河岸',{color:'#8CA0AC',size:11,dy:0});
+  /* 直流区水流箭头（避开漩涡核心区，让画面分清「直流」与「漩涡」） */
+  for(let i=-5;i<=5;i++) for(let j=-4;j<=4;j++){
+    const x=0.28*i, y=0.24*j;
+    if(Math.abs(x)<0.55 && Math.abs(y)<0.55) continue;   /* 漩涡核心区不画直流 */
+    if(Math.abs(y)>0.92) continue;
+    const v=streamV(pt(x,y,0));
+    const L=vlen(v); if(L<0.03) continue;
+    const a=vnorm(v), s=0.055;
+    arrow(pt(x-a.x*s,y-a.y*s,0), pt(x+a.x*s,y+a.y*s,0), {color:'#7FB3C8', w:1.0, headScale:0.5, alpha:0.6});
+  }
+  /* 漩涡区：绕中心旋转的箭头（半径 0.12~0.45） */
+  for(let r=0.13;r<=0.45;r+=0.08){
+    for(let k=0;k<8;k++){
+      const a=2*Math.PI*k/8;
+      const x=STREAM_CX+r*Math.cos(a), y=STREAM_CY+r*Math.sin(a);
+      const t=pt(-Math.sin(a), Math.cos(a), 0);      /* 切向（逆时针） */
+      arrow(pt(x-t.x*0.055,y-t.y*0.055,0), pt(x+t.x*0.055,y+t.y*0.055,0), {color:C.crimson, w:1.4, headScale:0.62, alpha:0.85});
+    }
+  }
+  /* 漩涡中心标记 + 标注 */
+  marker(pt(STREAM_CX,STREAM_CY,0), {r:5, color:C.crimson, ring:'#F0D5D0', label:'漩涡（涡量源）', ldx:12, ldy:-8, lsize:12.5});
+  /* 风车（可拖动） */
+  const curlHere=streamCurl(pt(state.pinX,state.pinY,0));
+  const spinDeg=Math.max(0,curlHere)*55;    /* 涡量→转速（°/s），负涡量（外围反旋）视为 0 */
+  drawPinwheel(pt(state.pinX,state.pinY,0), spinDeg, state.pinAngle, {r:22});
+  text(pt(state.pinX,state.pinY,0.01),'风车',{color:'#A8622A',size:12.5,bold:true,dy:34,align:'center'});
+  /* 读数（压缩两行，避免俯视下超出画布下缘） */
+  const c=curlHere;
+  const verdict = c>0.15?'转（有漩涡）':(c>0.02?'微转':'不转（直流区）');
+  text(pt(0,-1.12,0),'风车处涡量 = '+curlHere.toFixed(2)+'　→　风车 '+verdict,
+    {color: c>0.15?C.crimson:C.muted, size:13, bold:true, align:'center'});
+  text(pt(0,-1.36,0),'拖动风车：直流区不转 · 拖进漩涡转起来　　环量 Γ = 绕一圈切向累计（随位置而变）',
+    {color:C.muted, size:11.5, align:'center'});
+}
+
+/* 杯子子视图：一杯水，静止 vs 搅动（旋转流场） */
+function modeCircCup(){
+  const R=0.85, cx=0, cy=0;
+  /* 杯壁（圆）+ 杯底 */
+  for(let k=0;k<48;k++){
+    const a0=2*Math.PI*k/48, a1=2*Math.PI*(k+1)/48;
+    line(pt(cx+R*Math.cos(a0), cy+R*Math.sin(a0), 0), pt(cx+R*Math.cos(a1), cy+R*Math.sin(a1), 0), {color:'#A9BCC7', w:2.4});
+  }
+  /* 杯底阴影椭圆（立体感） */
+  poly(loopSamples(cx,cy,R*0.72,0,40), {fill:'#EAF2F6', fillAlpha:0.5, stroke:'#D6E3EA', strokeAlpha:0.6, w:1});
+  /* 水：旋转流场箭头（绕杯心） */
+  const spin=state.cupSpinSpeed;    /* °/s */
+  const n=Math.max(0,Math.min(1,Math.abs(spin)/90));   /* 0~1 旋转强度 */
+  for(let r=0.15;r<=R*0.82;r+=0.16){
+    for(let k=0;k<10;k++){
+      const a=2*Math.PI*k/10;
+      const x=cx+r*Math.cos(a), y=cy+r*Math.sin(a);
+      const t=pt(-Math.sin(a), Math.cos(a), 0);
+      const len=0.06 + 0.07*n;
+      if(n<0.05){ continue; }   /* 静止不画流线箭头 */
+      arrow(pt(x-t.x*len,y-t.y*len,0), pt(x+t.x*len,y+t.y*len,0), {color:'#3E93BE', w:1.9, headScale:0.7, alpha:0.3+0.68*n});
+    }
+  }
+  /* 杯中风车 */
+  drawPinwheel(pt(cx,cy,0), spin, state.cupAngle, {r:20});
+  /* 读数（压缩两行） */
+  const verdict = n>0.05 ? '转（有旋场：有漩涡源）' : '不转（静止水：无旋场）';
+  text(pt(0,-1.12,0),'杯中水流 '+(n>0.05?'正以 '+Math.abs(spin).toFixed(0)+'°/s 旋转':'静止')+'　→　风车 '+verdict,
+    {color: n>0.05?C.crimson:C.muted, size:13, bold:true, align:'center'});
+  text(pt(0,-1.36,0),'搅动 → 水转成旋转流速场 → 绕圈环量非零；停手 → 水渐停 → 环量归零（漩涡源消失）',
+    {color:C.muted, size:11.5, align:'center'});
+}
+
+/* =========== 模式 2：环量密度（Circ. density）—— 闭合回路 + 线积分 =========== */
+function modeCircDens(){
   const cx=state.loopCx, cy=state.loopCy, r=state.loopR;
-  /* 矢量场（取 z=0 平面） */
   drawFieldGrid(0);
-  /* 闭合回路（按矢量方向带箭头 + 通量数字） */
+  /* 闭合回路（按矢量方向带箭头 + 环量数字） */
   const pts=loopSamples(cx,cy,r,0,72);
   for(let i=0;i<72;i++){
     const a=pts[i], b=pts[i+1];
@@ -355,24 +486,15 @@ function modeCirc(){
         {color:col,size:9,bold:true,align:'center',dy:-4});
     }
   }
-  /* 回路整体外观 */
   curve(pts.slice(0,-1), {color:C.ink, w:1.4, dash:[4,3], alpha:0.6});
-  /* 回路面积 + 旋度 × 面积（粗略） */
   const A=Math.PI*r*r;
-  const curlVal = curlF()(pt(cx,cy,0)).z;
-  const surfInt = curlVal*A;
   const circ = circulation(cx, cy, r, 0, field(), 96);
-  /* 显示数值 */
-  text(pt(cx, cy, -1.0),'∮ A·dl = '+circ.toFixed(2)+'   (∇×A)·S = '+surfInt.toFixed(2),
+  text(pt(cx, cy, -1.0),'∮ A·dl = '+circ.toFixed(2)+'　环量面密度 = '+circ.toFixed(2)+' / '+A.toFixed(2)+' = '+(circ/A).toFixed(2),
     {color:C.crimson, size:12, bold:true, align:'center'});
   text(pt(cx, cy, -1.22),'环量方向：'+(circ>0?'逆时针（+）':(circ<0?'顺时针（-）':'为零')),
     {color:C.muted, size:11, align:'center'});
-  /* 旋度箭头（z 方向） */
-  if(Math.abs(curlVal)>0.05){
-    const Lc=Math.min(0.4, 0.18*Math.abs(curlVal));
-    const tip=pt(cx, cy, Lc);
-    arrow(pt(cx,cy,0), tip, {color:C.purple, w:2.6, label:'∇×A', lsize:13});
-  }
+  text(pt(cx, cy, -1.42),'环量密度（每单位面积）→ 下一页「旋度」取 r→0 的极限',
+    {color:C.teal, size:11, align:'center'});
 }
 
 /* =========== 模式 2：旋度（Curl）—— 点 P + 小回路，求最大环量面密度 =========== */
@@ -479,15 +601,38 @@ function modeStokes(){
 
 function buildScene(){
   prims=[];
+  if(state.mode==='circ'){ modeCirc(); return; }
+  if(state.mode==='circdens'){ drawAxes(); modeCircDens(); return; }
   drawAxes();
-  if(state.mode==='circ') modeCirc();
-  else if(state.mode==='curl') modeCurl();
+  if(state.mode==='curl') modeCurl();
   else modeStokes();
 }
 
 let needsRender=true;
 function draw(){setupCamera();ctx.clearRect(0,0,W,H);buildScene();prims.sort((a,b)=>a.z-b.z);for(const p of prims)p.draw(ctx);const t=document.getElementById('panTag');if(t)t.classList.toggle('show',Math.abs(cam.px)>2||Math.abs(cam.py)>2);needsRender=false;}
-function tick(){if(state.autoRotate){cam.az+=0.0045;needsRender=true;}if(needsRender)draw();requestAnimationFrame(tick);}
+let _lastT=performance.now();
+function tick(){
+  const now=performance.now(); const dt=Math.min(0.05,(now-_lastT)/1000); _lastT=now;
+  if(state.autoRotate){cam.az+=0.0045;needsRender=true;}
+  /* 环量页动画：风车 / 杯水 */
+  if(state.mode==='circ'){
+    if(state.circView==='stream'){
+      const c=streamCurl(pt(state.pinX,state.pinY,0));
+      const spinDeg=Math.max(0,c)*55;
+      state.pinAngle+=spinDeg*dt;
+      if(Math.abs(spinDeg)>0.1) needsRender=true;
+    }else{
+      /* 杯水：搅动则加速到 90，停手则指数衰减 */
+      if(state.cupSpin){ state.cupSpinSpeed += (90-state.cupSpinSpeed)*Math.min(1,dt*4); }
+      else if(Math.abs(state.cupSpinSpeed)>1){ state.cupSpinSpeed*=Math.pow(0.02,dt); }
+      else if(state.cupSpinSpeed!==0){ state.cupSpinSpeed=0; }
+      state.cupAngle += state.cupSpinSpeed*dt;
+      if(Math.abs(state.cupSpinSpeed)>0.2) needsRender=true;
+    }
+  }
+  if(needsRender)draw();
+  requestAnimationFrame(tick);
+}
 function updateAll(){needsRender=true;syncSliders();updateReadout();updateModeTag();}
 
 const panel=document.getElementById('panel');
@@ -502,6 +647,28 @@ const FIELD_OPTS=[
 
 function renderSubSec(sec){
   sec.innerHTML='';
+  if(state.mode==='circ'){
+    /* 环量页：小溪 / 杯子 子视图切换 */
+    sec.appendChild(h('<div class="sec-title">环量直觉</div>'));
+    const box=h('<div class="sub-chips"></div>').firstChild;
+    [['stream','小溪 · 漩涡 · 风车'],['cup','杯子 · 旋转的水']].forEach(([k,t])=>{
+      const b=h('<button class="chip'+(state.circView===k?' on':'')+'" data-k="'+k+'">'+t+'</button>').firstChild;
+      b.onclick=()=>{state.circView=k;renderPanel();updateAll();};
+      box.appendChild(b);
+    });
+    sec.appendChild(box);
+    if(state.circView==='stream'){
+      sec.appendChild(h('<div class="ex-note">拖动画布中的<b>风车</b>：把它从直流区拖进漩涡，看风车从「不转」变成「转」——环量是随位置变化的「绕圈累计」。</div>'));
+    }else{
+      const bx=h('<div class="sub-chips" style="margin-top:12px"></div>').firstChild;
+      const cb=h('<button class="chip'+(state.cupSpin?' on':'')+'">'+(state.cupSpin?'⏸ 停手（水渐停）':'▶ 搅动（给旋转的力）')+'</button>').firstChild;
+      cb.onclick=()=>{state.cupSpin=!state.cupSpin; cb.className='chip'+(state.cupSpin?' on':''); cb.textContent=state.cupSpin?'⏸ 停手（水渐停）':'▶ 搅动（给旋转的力）'; updateAll();};
+      bx.appendChild(cb); sec.appendChild(bx);
+      sec.appendChild(h('<div class="ex-note">按「搅动」给杯子一个旋转的力 → 水转成旋转流速场 → 风车转（<b>有旋场 / 有漩涡源</b>）；停手水渐停 → 风车停（<b>无旋场</b>）。</div>'));
+    }
+    return;
+  }
+  /* 其余三页：选择矢量场 + 图中显示 */
   sec.appendChild(h('<div class="sec-title">选择矢量场</div>'));
   const box=h('<div class="sub-chips"></div>').firstChild;
   FIELD_OPTS.forEach(it=>{
@@ -530,6 +697,27 @@ function renderSubSec(sec){
 
 function renderSliders(sec){
   sec.innerHTML='';
+  if(state.mode==='circ'){
+    /* 环量页：仅小溪视图给风车位置滑块（风车也可直接拖画布）；杯子视图风车固定杯心 */
+    if(state.circView!=='stream'){
+      sec.appendChild(h('<div class="ex-note">杯中风车固定在杯心。用上方「搅动 / 停手」按钮控制水流旋转，观察风车转不转。</div>'));
+      return;
+    }
+    sec.appendChild(h('<div class="sec-title">风车位置（也可直接拖画布）</div>'));
+    const SL=[
+      {k:'pinX',  label:'风车 x', min:-1.25, max:1.25, step:0.02, dec:2, get:()=>state.pinX, set:v=>state.pinX=v},
+      {k:'pinY',  label:'风车 y', min:-0.85, max:0.85, step:0.02, dec:2, get:()=>state.pinY, set:v=>state.pinY=v},
+    ];
+    SL.forEach(d=>{
+      const r=h('<div class="slider-row"><label>'+d.label+'</label>'+
+        '<input type="range" id="s_'+d.k+'" min="'+d.min+'" max="'+d.max+'" step="'+d.step+'" value="'+d.get()+'">'+
+        '<span class="val" id="v_'+d.k+'">'+d.get().toFixed(d.dec)+'</span></div>');
+      const inp=r.querySelector('input');
+      inp.oninput=()=>{d.set(parseFloat(inp.value));document.getElementById('v_'+d.k).textContent=parseFloat(inp.value).toFixed(d.dec);needsRender=true;updateReadout();updateModeTag();};
+      sec.appendChild(r);
+    });
+    return;
+  }
   sec.appendChild(h('<div class="sec-title">回路参数</div>'));
   const SL=[
     {k:'r',  label:'半径 R', min:0.15, max:1.05, step:0.02, dec:2, get:()=>state.loopR, set:v=>state.loopR=v},
@@ -556,7 +744,7 @@ function renderSliders(sec){
 }
 
 function syncSliders(){
-  const SL=[{k:'r',v:state.loopR,d:2},{k:'cx',v:state.loopCx,d:2},{k:'cy',v:state.loopCy,d:2}];
+  const SL=[{k:'r',v:state.loopR,d:2},{k:'cx',v:state.loopCx,d:2},{k:'cy',v:state.loopCy,d:2},{k:'pinX',v:state.pinX,d:2},{k:'pinY',v:state.pinY,d:2}];
   SL.forEach(d=>{const s=document.getElementById('s_'+d.k);if(s)s.value=d.v;const v=document.getElementById('v_'+d.k);if(v)v.textContent=d.v.toFixed(d.d);});
   const sN=document.getElementById('s_N'); if(sN) sN.value=state.N;
   const vN=document.getElementById('v_N'); if(vN) vN.textContent=state.N;
@@ -567,13 +755,21 @@ function renderExplain(sec){
   const cards=[
     {k:'1', tab:'1. 环量', cls:'c1', body:
       '<b>环量（Circulation）：</b>沿闭合回路 C 的线积分'+
-      '<div class="frm">Γ = ∮<sub>C</sub> @{A}·d@{l}</</div>'+
-      '<ul><li>衡量矢量场沿闭合回路"<b>绕圈</b>"的趋势</li>'+
-      '<li><b>正环量</b>：场沿回路呈<b>逆时针</b>旋涡（沿 +n 看）</li>'+
-      '<li><b>零环量</b>：场是<b>保守场 / 无旋场</b>（如 V2）</li>'+
-      '<li>回路越大、场越<b>旋转</b>，环量越大</li></ul>'+
-      '<div class="ex-note">本演示：每段 d@{l} 的贡献 A·dl 正=橙、负=蓝，叠加即总环量。</div>'},
-    {k:'2', tab:'2. 旋度', cls:'c2', body:
+      '<div class="frm">Γ = ∮<sub>C</sub> @{V}·d@{l}</div>'+
+      '<ul><li>衡量矢量场沿闭合回路"<b>绕圈</b>"的趋势：沿一圈把<b>切向分量</b>累加起来</li>'+
+      '<li>直觉：回路里放一个<b>小风车</b>，会不会转、转多快，就是环量</li>'+
+      '<li><b>小溪</b>：直流区风车不转（环量=0），漩涡处风车转（环量≠0）</li>'+
+      '<li><b>杯子</b>：水静止→风车不转；给旋转的力→水转起来→风车转（有旋场）</li>'+
+      '<li>环量是<b>全局量</b>（整圈累计），随位置、回路大小而变</li></ul>'+
+      '<div class="ex-note">正环量=逆时针旋涡；零环量=无旋/保守。下一张「环量密度」把它归一化到单位面积。</div>'},
+    {k:'2', tab:'2. 环量密度', cls:'c2', body:
+      '<b>环量面密度：</b>环量 ÷ 回路面积'+
+      '<div class="frm">环量密度 = ∮ V·dl / ΔS</div>'+
+      '<ul><li>把环量<b>除以</b>回路包围的面积，得到"<b>每单位面积的环量</b>"</li>'+
+      '<li>去掉"回路越大环量越大"的尺寸效应，反映<b>局部</b>旋转强弱</li>'+
+      '<li>同一场、不同位置，环量密度可以不同 → 引出"某一点的旋转密度"</li></ul>'+
+      '<div class="ex-note">本演示：拖动回路半径与位置，观察环量与环量/面积。下一步「旋度」就是让回路 r→0 取极限。</div>'},
+    {k:'3', tab:'3. 旋度', cls:'c3', body:
       '<b>旋度（Curl）：</b>环量面密度极限'+
       '<div class="frm">∇×@{A} = lim<sub>ΔS→0</sub> (∮ A·dl @{n}) / ΔS</div>'+
       '<ul><li>它是<b>矢量</b>，大小=最大环量面密度，方向=右手螺旋</li>'+
@@ -581,7 +777,7 @@ function renderExplain(sec){
       '<li>本演示里：缩小回路 r，环量/面积 → |∇×A(P)|</li>'+
       '<li>纯旋转场（V1/V3）：∇×A = (0,0,2) 恒定</li>'+
       '<li>无旋场（V2）：∇×A = 0</li></ul>'},
-    {k:'3', tab:'3. 斯托克斯', cls:'c3', body:
+    {k:'4', tab:'4. 斯托克斯', cls:'c4', body:
       '<b>斯托克斯定理：</b>闭合回路的环量 = 曲面的旋度通量'+
       '<div class="frm">∮<sub>C</sub> @{A}·d@{l} = ∫<sub>S</sub> (∇×@{A})·d@{S}</div>'+
       '<ul><li>把大回路包围的开曲面切成<b>同心环 × 扇形</b>的小面片</li>'+
@@ -589,14 +785,6 @@ function renderExplain(sec){
       '<li>只有最外边界没有配对面 → <b>净环量保留</b></li>'+
       '<li>Σ(∇×A)·ΔS ≈ ∮A·dl，剖分越细越精确</li></ul>'+
       '<div class="ex-note">本演示实时显示<b>边界环量</b>与<b>面片旋度累加</b>的对比，与 1.4 散度定理的"体元抵消"对称。</div>'},
-    {k:'4', tab:'4. 对照', cls:'c4', body:
-      '<b>与散度定理对照（1.6 节 / 1.4 ↔ 1.5）：</b>'+
-      '<div class="frm">高斯散度：∮<sub>S</sub> A·dS = ∫<sub>V</sub> (∇·A) dV</div>'+
-      '<div class="frm">斯托克斯：∮<sub>C</sub> A·dl = ∫<sub>S</sub> (∇×A)·dS</div>'+
-      '<ul><li>高斯：<b>闭曲面通量</b> ↔ <b>体积分（散度）</b>，内部面抵消</li>'+
-      '<li>斯托克斯：<b>闭合回路环量</b> ↔ <b>面积分（旋度）</b>，内部边抵消</li>'+
-      '<li>两者都是"<b>积分体抵消 → 仅边界/外壳非零</b>"的统一原理</li></ul>'+
-      '<div class="ex-note">散度 = 体源密度的极限；旋度 = 面旋涡密度的极限。</div>'},
   ];
   if(!cards.find(c=>c.k===state.cardTab)) state.cardTab='1';
   const cur=cards.find(c=>c.k===state.cardTab);
@@ -628,16 +816,33 @@ function updateReadout(){
   if(!strip)return;
   if(!state.showReadout){strip.innerHTML='';return;}
   let html='';
-  html += kchip('场', richHTML(FIELD_OPTS[state.field-1].label));
-  html += kchip('∇×@{A} =', vstr(curlF()(pt(0,0,0))));
   if(state.mode==='circ'){
+    /* 环量页：小溪/杯子，显示涡量读数 */
+    if(state.circView==='stream'){
+      const c=streamCurl(pt(state.pinX,state.pinY,0));
+      html += kchip('风车位置 =', '('+state.pinX.toFixed(2)+', '+state.pinY.toFixed(2)+')');
+      html += kchip('涡量 ∇×V =', c.toFixed(2), c>0.15?'acc':'');
+      html += kchip('风车 =', c>0.15?'转（有漩涡）':(c>0.02?'微转':'不转'), c>0.15?'acc':'warn');
+    }else{
+      const n=Math.max(0,Math.min(1,Math.abs(state.cupSpinSpeed)/90));
+      html += kchip('杯中水流 =', n>0.05?('旋转 '+Math.abs(state.cupSpinSpeed).toFixed(0)+'°/s'):'静止');
+      html += kchip('风车 =', n>0.05?'转（有旋场）':'不转（无旋场）', n>0.05?'acc':'warn');
+    }
+    document.getElementById('lgTitle').textContent='环量 · 直觉';
+    document.getElementById('lgNote').textContent='环量 Γ = ∮V·dl：绕一圈切向累计，风车转不转就是它';
+  }
+  else if(state.mode==='circdens'){
+    html += kchip('场', richHTML(FIELD_OPTS[state.field-1].label));
     const circ=circulation(state.loopCx,state.loopCy,state.loopR,0,field(),96);
+    const A=Math.PI*state.loopR*state.loopR;
     html += kchip('回路 =', 'R='+state.loopR.toFixed(2)+' 圆心 ('+state.loopCx.toFixed(2)+', '+state.loopCy.toFixed(2)+')');
-    html += kchip('∮ @{A·dl} =', circ.toFixed(3), 'acc');
-    html += kchip('(∇×A)·S =', (curlF()(pt(state.loopCx,state.loopCy,0)).z*Math.PI*state.loopR*state.loopR).toFixed(3), 'acc');
-    document.getElementById('lgTitle').textContent='环量 · 闭合回路';
-    document.getElementById('lgNote').textContent='环量 Γ = ∮A·dl 反映场的"绕圈"趋势';
-  }else if(state.mode==='curl'){
+    html += kchip('∮ @{V·dl} =', circ.toFixed(3), 'acc');
+    html += kchip('环量密度 =', (circ/A).toFixed(3), 'acc');
+    document.getElementById('lgTitle').textContent='环量密度 · 环量 ÷ 面积';
+    document.getElementById('lgNote').textContent='除以面积，去掉尺寸效应，反映局部旋转强弱';
+  }
+  else if(state.mode==='curl'){
+    html += kchip('场', richHTML(FIELD_OPTS[state.field-1].label));
     const r=state.loopR*0.5;
     const circ=circulation(state.loopCx,state.loopCy,r,0,field(),48);
     const A=Math.PI*r*r;
@@ -648,6 +853,7 @@ function updateReadout(){
     document.getElementById('lgTitle').textContent='旋度定义 · 环量面密度';
     document.getElementById('lgNote').textContent='r → 0 时，环量/面积 → |∇×A(P)|';
   }else{
+    html += kchip('场', richHTML(FIELD_OPTS[state.field-1].label));
     const N=state.N, NP=Math.max(8, 4*N);
     const circ=circulation(0,0,state.loopR,0,field(),96);
     html += kchip('边界 R =', state.loopR.toFixed(2));
@@ -672,19 +878,44 @@ function updateReadout(){
 
 function updateModeTag(){
   const t=document.getElementById('modeTag');
-  if(state.mode==='circ') t.innerHTML='环量 · '+richHTML(FIELD_OPTS[state.field-1].sub);
+  if(state.mode==='circ') t.innerHTML='环量 · '+(state.circView==='stream'?'小溪漩涡 · 风车':'杯子 · 旋转的水');
+  else if(state.mode==='circdens') t.innerHTML='环量密度 · '+richHTML(FIELD_OPTS[state.field-1].sub);
   else if(state.mode==='curl') t.innerHTML='旋度 · P = ('+state.loopCx.toFixed(2)+', '+state.loopCy.toFixed(2)+')';
   else t.innerHTML='斯托克斯 · '+state.N+' 环 × '+Math.max(8,4*state.N)+' 扇区';
-  document.getElementById('moduleSub').textContent=state.mode==='circ'?'∮ A·dl 沿闭合回路':(state.mode==='curl'?'环量面密度极限 = |∇×A|':'边界环量 = 面片旋度累加');
+  document.getElementById('moduleSub').textContent=
+    state.mode==='circ'?'环量 Γ = ∮V·dl：绕圈累计（风车转不转）'
+    :(state.mode==='circdens'?'环量 ÷ 面积 = 环量密度（局部旋转强弱）'
+    :(state.mode==='curl'?'环量面密度极限 = |∇×A|'
+    :'边界环量 = 面片旋度累加'));
 }
 
 let drag=null;
 function localPos(ev){const r=canvas.getBoundingClientRect();return{x:ev.clientX-r.left,y:ev.clientY-r.top};}
+/* 屏幕坐标 → 世界坐标（z=0 平面，反解 pr） */
+function screenToWorld(mx,my){
+  /* pr(p) = (CX2+px+camScale*(p·camU), CY+py-camScale*(p·camV), p·camD)；
+     求 p=(x,y,0) 使投影落在 (mx,my)：解 2×2 线性方程 */
+  const ux=camU.x, uy=camU.y, vx=camV.x, vy=camV.y;
+  const bx=(mx-CX2-cam.px)/camScale, by=(CY+cam.py-my)/camScale;
+  const det=ux*vy-uy*vx;
+  if(Math.abs(det)<1e-9) return null;
+  const x=(bx*vy-by*vx)/det, y=(ux*by-uy*bx)/det;
+  return pt(x,y,0);
+}
 canvas=document.getElementById('cv');
 ctx=canvas.getContext('2d');
 canvas.addEventListener('pointerdown',ev=>{
   canvas.setPointerCapture(ev.pointerId);
   const m=localPos(ev);
+  /* 环量页·小溪视图：点中/靠近风车 → 拖风车 */
+  if(state.mode==='circ' && state.circView==='stream' && ev.button===0){
+    const wp=pr(pt(state.pinX,state.pinY,0));
+    if(Math.hypot(m.x-wp.x, m.y-wp.y) < 34){
+      drag={x:m.x,y:m.y,btn:0,mode:'pin'};
+      ev.preventDefault();
+      return;
+    }
+  }
   drag={x:m.x,y:m.y,btn:ev.button,mode:(ev.button===2||ev.ctrlKey)?'pan':'rot'};
   ev.preventDefault();
 });
@@ -692,15 +923,22 @@ canvas.addEventListener('pointermove',ev=>{
   const m=localPos(ev);
   if(!drag)return;
   const dx=m.x-drag.x,dy=m.y-drag.y;drag.x=m.x;drag.y=m.y;
-  if(drag.mode==='pan'){cam.px+=dx;cam.py+=dy;needsRender=true;}
+  if(drag.mode==='pin'){
+    const w=screenToWorld(m.x,m.y);
+    if(w){ state.pinX=Math.max(-1.25,Math.min(1.25,w.x)); state.pinY=Math.max(-0.85,Math.min(0.85,w.y)); needsRender=true; updateReadout(); updateModeTag(); }
+  }
+  else if(drag.mode==='pan'){cam.px+=dx;cam.py+=dy;needsRender=true;}
   else{cam.az-=dx*0.0075;cam.el=Math.max(-1.45,Math.min(1.45,cam.el+dy*0.0062));needsRender=true;}
 });
-canvas.addEventListener('pointerup',()=>{drag=null;});
-canvas.addEventListener('pointercancel',()=>{drag=null;});
+canvas.addEventListener('pointerup',()=>{if(drag&&drag.mode==='pin')syncSliders();drag=null;});
+canvas.addEventListener('pointercancel',()=>{if(drag&&drag.mode==='pin')syncSliders();drag=null;});
 canvas.addEventListener('contextmenu',e=>e.preventDefault());
 canvas.addEventListener('wheel',e=>{e.preventDefault();cam.zoom=Math.max(.45,Math.min(3.2,cam.zoom*(e.deltaY<0?1.09:1/1.09)));needsRender=true;},{passive:false});
 
-document.getElementById('btnReset').onclick=()=>{cam.az=.62;cam.el=.46;cam.zoom=1;cam.px=0;cam.py=0;needsRender=true;};
+document.getElementById('btnReset').onclick=()=>{
+  if(state.mode==='circ'){ cam.az=-Math.PI/2; cam.el=1.35; } else { cam.az=.62; cam.el=.46; }
+  cam.zoom=1;cam.px=0;cam.py=0;needsRender=true;
+};
 document.getElementById('btnRotate').onclick=e=>{state.autoRotate=!state.autoRotate;e.target.classList.toggle('on',state.autoRotate);};
 document.getElementById('btnPanReset').onclick=()=>{cam.px=0;cam.py=0;needsRender=true;};
 function bindFold(bid,cls){document.getElementById(bid).onclick=()=>{document.body.classList.toggle(cls);setTimeout(resize,60);setTimeout(resize,260);};}
@@ -709,9 +947,14 @@ document.getElementById('tglNav').onclick=()=>{document.body.classList.toggle('n
 document.getElementById('tglPanel').onclick=()=>{document.body.classList.toggle('panel-off');setTimeout(resize,260);};
 window.addEventListener('keydown',e=>{if(e.target.tagName==='INPUT')return;if(e.key==='['){document.body.classList.toggle('nav-off');setTimeout(resize,260);}if(e.key===']'){document.body.classList.toggle('panel-off');setTimeout(resize,260);}});
 
-const MT=[{k:'circ',t:'① 环量'},{k:'curl',t:'② 旋度'},{k:'stokes',t:'③ 斯托克斯定理'}];
+const MT=[{k:'circ',t:'① 环量'},{k:'circdens',t:'② 环量密度'},{k:'curl',t:'③ 旋度'},{k:'stokes',t:'④ 斯托克斯定理'}];
 const modeTabs=document.getElementById('modeTabs');
-MT.forEach(m=>{const b=document.createElement('button');b.textContent=m.t;b.dataset.k=m.k;b.onclick=()=>{state.mode=m.k;syncModeTabs();renderPanel();updateAll();};modeTabs.appendChild(b);});
+MT.forEach(m=>{const b=document.createElement('button');b.textContent=m.t;b.dataset.k=m.k;b.onclick=()=>{
+  state.mode=m.k;syncModeTabs();
+  /* 环量页（小溪/杯子是平面直觉场景）自动切俯视；其余页恢复 3/4 斜视角 */
+  if(m.k==='circ'){ cam.az=-Math.PI/2; cam.el=1.35; cam.px=0; cam.py=0; }
+  else{ cam.az=.62; cam.el=.46; cam.px=0; cam.py=0; }
+  renderPanel();updateAll();};modeTabs.appendChild(b);});
 function syncModeTabs(){Array.from(modeTabs.children).forEach(b=>b.classList.toggle('on',b.dataset.k===state.mode));}
 
 function resize(){
