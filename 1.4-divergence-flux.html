@@ -533,42 +533,85 @@ function sphereDirs(n){
   return out;
 }
 
-/* ---------- 场景① 灯笼 · 光通量 ---------- */
+/* ---------- 场景① 灯笼 · 光通量（实体曲面 + 开/关灯） ---------- */
 function sceneLantern(){
-  const Hh=0.58, Rtop=0.30, Rb=0.60;
+  const Hh=0.60, Rtop=0.30, Rb=0.62;
   const prof=z=>{ const t=Math.max(-1,Math.min(1,z/Hh)); return Rtop+(Rb-Rtop)*(1-t*t); };
-  ring(Rtop, Hh, '#B4874A', 1.8, .95);
-  ring(Rtop,-Hh, '#B4874A', 1.8, .95);
-  [-0.42,-0.2,0,0.2,0.42].forEach(z=> ring(prof(z), z, '#D8AE72', 1.2, .5));
-  for(let k=0;k<8;k++){
-    const a=2*Math.PI*k/8, c=Math.cos(a), s=Math.sin(a);
-    const seq=[Hh,-0.42,-0.2,0,0.2,0.42,-Hh].map(z=> pt(prof(z)*c, prof(z)*s, z));
-    curve(seq,{color:'#C79A5B', w:1.4, alpha:.75});
+  const on=state.show.light;
+  const CS=pr(pt(0,0,0));
+  /* 开灯：整片暖色光晕铺在最后面（照亮周围） */
+  if(on){
+    P_(-50, ()=>{ ctx.save();
+      const g=ctx.createRadialGradient(CS.x,CS.y,8, CS.x,CS.y, 320);
+      g.addColorStop(0,'rgba(255,192,80,.55)');
+      g.addColorStop(.38,'rgba(255,203,116,.26)');
+      g.addColorStop(1,'rgba(255,214,150,0)');
+      ctx.beginPath(); ctx.arc(CS.x,CS.y,320,0,7); ctx.fillStyle=g; ctx.fill(); ctx.restore(); });
   }
+  /* 灯罩：旋转曲面逐面填充 + 按法向做伪光照（不再画一堆经纬线） */
+  const L=vnorm(pt(-0.5,-0.45,0.74));
+  const na=28, nz=12, zs=[];
+  for(let i=0;i<=nz;i++) zs.push(-Hh+2*Hh*i/nz);
+  for(let j=0;j<na;j++){
+    const a0=2*Math.PI*j/na, a1=2*Math.PI*(j+1)/na, am=(a0+a1)/2;
+    for(let i=0;i<nz;i++){
+      const zA=zs[i], zB=zs[i+1], rA=prof(zA), rB=prof(zB);
+      const P00=pt(rA*Math.cos(a0), rA*Math.sin(a0), zA);
+      const P10=pt(rA*Math.cos(a1), rA*Math.sin(a1), zA);
+      const P11=pt(rB*Math.cos(a1), rB*Math.sin(a1), zB);
+      const P01=pt(rB*Math.cos(a0), rB*Math.sin(a0), zB);
+      let nx=Math.cos(am), ny=Math.sin(am), nz2=(zB>zA? -(rB-rA)/(zB-zA) : 0);
+      const nl=Math.hypot(nx,ny,nz2)||1; nx/=nl; ny/=nl; nz2/=nl;
+      const lam=Math.max(0, nx*L.x+ny*L.y+nz2*L.z);
+      let col;
+      if(on){ const s=0.80+0.20*lam;
+        col='rgb('+Math.round(255*s)+','+Math.round(206*s)+','+Math.round(124*s)+')'; }
+      else  { const s=0.18+0.50*lam;
+        col='rgb('+Math.round(170*s)+','+Math.round(128*s)+','+Math.round(84*s)+')'; }
+      poly([P00,P10,P11,P01],{fill:col, fillAlpha:1, stroke:col, strokeAlpha:1, w:1});
+    }
+  }
+  /* 开灯：灯罩内生出一团亮核 → 显出"透亮" */
+  if(on){
+    P_(0.9, ()=>{ ctx.save();
+      const g=ctx.createRadialGradient(CS.x,CS.y,4, CS.x,CS.y, 135);
+      g.addColorStop(0,'rgba(255,246,214,.80)');
+      g.addColorStop(.34,'rgba(255,223,152,.40)');
+      g.addColorStop(1,'rgba(255,210,130,0)');
+      ctx.beginPath(); ctx.arc(CS.x,CS.y,135,0,7); ctx.fillStyle=g; ctx.fill(); ctx.restore(); });
+  }
+  /* 上下口沿 + 提手 */
+  const rimCol = on? '#8A5A24' : '#241A10';
+  ring(Rtop, Hh, rimCol, 2.0, .85);
+  ring(Rtop,-Hh, rimCol, 2.0, .85);
   const hd=[];
-  for(let i=0;i<=20;i++){ const a=Math.PI*i/20; hd.push(pt(0.26*Math.cos(a), 0, Hh+0.26*Math.sin(a))); }
-  curve(hd,{color:'#B4874A', w:2, alpha:.95});
-  /* 光源 + 光晕 */
-  glow(pt(0,0,0), '#F6C544', 9, 5, .20);
-  marker(pt(0,0,0),{r:5.5,color:'#F0A800',ring:'#FBE7A8',label:'光源',ldx:13,ldy:-13});
-  /* 光线：从光源射出、正好穿过灯罩表面（穿出点打点 + 外侧箭头） */
-  const tShell=d=>{
-    const f=t=>{ const p=vmul(d,t); return Math.hypot(p.x,p.y)-prof(p.z); };
-    let a=0.12, b=1.5;
-    if(f(a)*f(b)>0) return 0.62;
-    for(let i=0;i<26;i++){ const m=(a+b)/2; if(f(a)*f(m)<=0) b=m; else a=m; }
-    return (a+b)/2;
-  };
-  sphereDirs(14).forEach(d=>{
-    const ts=tShell(d);
-    curve([vmul(d, Rb*0.16), vmul(d, ts+0.26)],
-      {color:'#F0A800', w:1.6, alpha:.85, arrowEnd:true});
-    marker(vmul(d, ts),{r:2.7,color:'#E07A1F',alpha:.95});
-  });
-  text(pt(0,0,Rb*1.95),'光从光源射出，穿过灯罩表面 → 光通量 Φ > 0',
-    {color:C.ink, size:13, bold:true, align:'center'});
-  text(pt(0,0,-Rb*1.95),'灯罩 = 一个闭合面；"穿过的光的多少"就是光通量',
-    {color:C.muted, size:11.5, align:'center'});
+  for(let i=0;i<=20;i++){ const a=Math.PI*i/20; hd.push(pt(0.26*Math.cos(a),0,Hh+0.26*Math.sin(a))); }
+  curve(hd,{color: on?'#8A5A24':'#241A10', w:2.4, alpha:.95});
+  /* 开灯：光线穿出灯罩 */
+  if(on){
+    text(pt(0,0,0),'光源',{color:'#9A5A12', size:11.5, bold:true, dx:12, dy:-9});
+    const tShell=d=>{
+      const f=t=>{ const p=vmul(d,t); return Math.hypot(p.x,p.y)-prof(p.z); };
+      let a=0.12,b=1.5;
+      if(f(a)*f(b)>0) return 0.62;
+      for(let i=0;i<24;i++){ const m=(a+b)/2; if(f(a)*f(m)<=0) b=m; else a=m; }
+      return (a+b)/2;
+    };
+    sphereDirs(10).forEach(d=>{
+      const ts=tShell(d);
+      curve([vmul(d, Rb*0.18), vmul(d, ts+0.5)], {color:'#F2A81E', w:1.9, alpha:.9, arrowEnd:true});
+      marker(vmul(d, ts),{r:2.8, color:'#E8860F', alpha:.95});
+    });
+    text(pt(0,0,Rb*1.72),'开灯：光透过灯罩射出，周围被点亮 → 灯罩表面有光通量 Φ > 0',
+      {color:C.ink, size:13, bold:true, align:'center'});
+    text(pt(0,0,-Rb*1.82),'光"穿过"灯罩这个闭合面 —— 穿过的光的多少就是光通量',
+      {color:C.muted, size:11.5, align:'center'});
+  }else{
+    text(pt(0,0,Rb*1.72),'关灯：灯罩不透光，光出不来 → 外面是暗的',
+      {color:'#5F7482', size:13, bold:true, align:'center'});
+    text(pt(0,0,-Rb*1.82),'把灯点亮 → 灯罩整面透亮、四周被照亮',
+      {color:C.muted, size:11.5, align:'center'});
+  }
 }
 
 /* ---------- 场景② 瓶子 · 透光看液面 ---------- */
@@ -944,10 +987,13 @@ function renderSubSec(sec){
     subChips(sec, FLUX_SCENES,
       it=>state.fluxScene===it.k,
       it=>{ state.fluxScene=it.k; state.cardTab='1'; renderPanel(); updateAll(); });
-    if(state.fluxScene==='bottle'){
+    if(state.fluxScene==='bottle'||state.fluxScene==='lantern'){
       sec.appendChild(h('<div class="sec-title" style="margin-top:14px">光照</div>'));
       const bx=h('<div class="sub-chips"></div>').firstChild;
-      const sb=h('<button class="chip'+(state.show.light?' on':'')+'">'+(state.show.light?'开灯（看得清）':'关灯（看不清）')+'</button>').firstChild;
+      const lbl = state.fluxScene==='lantern'
+        ? (state.show.light?'开灯（透亮 · 有光通量）':'关灯（灯罩暗 · 无光出）')
+        : (state.show.light?'开灯（看得清）':'关灯（看不清）');
+      const sb=h('<button class="chip'+(state.show.light?' on':'')+'">'+lbl+'</button>').firstChild;
       sb.onclick=()=>{ state.show.light=!state.show.light; renderPanel(); updateAll(); };
       bx.appendChild(sb); sec.appendChild(bx);
     }
@@ -1033,7 +1079,7 @@ function renderSliders(sec){
       sec.appendChild(h('<div class="ex-note" id="magNote"></div>'));
       updateMagNote();
     } else {
-      sec.appendChild(h('<div class="ex-note">拖动画面可旋转观察。这个场景用「光」来类比通量：光源发出光线，穿过灯罩这个面 —— 穿过的光的多少，就是光通量。</div>'));
+      sec.appendChild(h('<div class="ex-note">拖动画面可旋转观察。用「光」类比通量：灯罩是一个闭合面，光从里面的光源穿出来 —— 穿过的光的多少就是光通量。<br>用上面的「光照」开关对比：<b>关灯</b>时灯罩暗、没有光穿过（Φ = 0）；<b>开灯</b>后灯罩整面透亮、光穿出、四周被照亮。</div>'));
     }
   } else if(state.mode==='div'){
     sec.appendChild(h('<div class="sec-title">包围小立方体</div>'));
@@ -1178,9 +1224,10 @@ function updateReadout(){
   if(state.mode==='flux'){
     if(state.fluxScene==='lantern'){
       html += kchip('场景 =','灯笼 · 光通量');
-      html += kchip('穿过灯罩 =','Φ > 0','acc');
-      html += kchip('直觉 =','穿过的光越多，通量越大');
-      lgTitle.textContent='通量 · 光通量'; lgNote.textContent='光源在灯罩内，光穿过灯罩表面射出';
+      html += kchip('光照 =', state.show.light?'开':'关', state.show.light?'acc':'warn');
+      html += kchip('穿过灯罩 =', state.show.light?'Φ > 0':'Φ = 0（不透光）', state.show.light?'acc':'warn');
+      lgTitle.textContent='通量 · 光通量';
+      lgNote.textContent= state.show.light? '光源在灯罩内，光穿过灯罩表面射出' : '关灯：灯罩不透光，光出不来，外面是暗的';
     } else if(state.fluxScene==='bottle'){
       html += kchip('场景 =','瓶子 · 透光看液面');
       html += kchip('光照 =', state.show.light?'开':'关', state.show.light?'acc':'warn');
