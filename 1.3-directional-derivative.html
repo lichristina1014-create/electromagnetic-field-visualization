@@ -446,15 +446,20 @@ function gradAt(p){
 
 /* ---------------- 场值 → 颜色（冷蓝 → 热红） ---------------- */
 const RAMP=[[46,111,183],[79,169,196],[127,194,155],[242,193,78],[233,113,50],[208,74,58]];
-function rampColor(t){
+function rampRGB(t){
   t=Math.max(0,Math.min(1,t));
   const x=t*(RAMP.length-1), i=Math.floor(x), f=x-i;
   const a=RAMP[i], b=RAMP[Math.min(RAMP.length-1,i+1)];
-  return `rgb(${Math.round(a[0]+(b[0]-a[0])*f)},${Math.round(a[1]+(b[1]-a[1])*f)},${Math.round(a[2]+(b[2]-a[2])*f)})`;
+  return [Math.round(a[0]+(b[0]-a[0])*f), Math.round(a[1]+(b[1]-a[1])*f), Math.round(a[2]+(b[2]-a[2])*f)];
 }
+function rampColor(t){ return 'rgb('+rampRGB(t).join(',')+')'; }
 function phiColor(v){
   const S=SCENES[state.scene];
   return rampColor((v-S.lo)/(S.hi-S.lo));
+}
+function phiRGB(v){
+  const S=SCENES[state.scene];
+  return rampRGB((v-S.lo)/(S.hi-S.lo));
 }
 
 /* ---------------- 全局状态 ---------------- */
@@ -772,13 +777,15 @@ function isoRadius(center, level, dir){
   }
   return null;
 }
-const ISO_NTH=13, ISO_NPH=26;
+/* 采样密度：直接决定"轮廓圆不圆"。抽稀/去掉极点会让正球面的轮廓半径起伏
+ * 百分之几（看起来是个多边形）。isoMesh 有缓存，加密的成本只在切场景时付一次。 */
+const ISO_NTH=16, ISO_NPH=36;
 let isoCache={};
 function isoMesh(center, level){
   const key=state.scene+'|'+level.toFixed(4)+'|'+center.x.toFixed(2);
   if(isoCache[key]) return isoCache[key];
   const rows=[];
-  for(let i=1;i<ISO_NTH;i++){
+  for(let i=0;i<=ISO_NTH;i++){          /* 含 i=0 与 i=ISO_NTH：把 ±z 两个极点也采上 */
     const th=Math.PI*i/ISO_NTH;
     const row=[];
     for(let j=0;j<ISO_NPH;j++){
@@ -792,29 +799,70 @@ function isoMesh(center, level){
   isoCache[key]=rows;
   return rows;
 }
-/* 画一族等值面：用经纬 quad 填色（每个 quad 由相邻 4 个顶点组成）——
-   关键：绝对不能按纬线圈 fill，否则水平角度看就是"一堆堆叠圆盘" */
+/* 画一族等值面：**半透明玻璃壳，不画任何经纬线**。
+ * 做法（与 1.4 的高斯面同源）：
+ *   ① 用点云的「支撑函数」直接求出等值面的屏幕轮廓（凸包）——对球面就是正圆，
+ *      对两个点电荷那种被扭曲的蛋形等值面也能如实描出来；
+ *   ② 每个壳画两层：背面 z=dmin 铺极淡体色、正面 z=dmax 用偏心径向渐变做
+ *      Fresnel 厚边 + 镜面高光，中间正好夹住壳内的电荷 / 梯度箭头 / 更小的壳；
+ *   ③ 描一圈同色轮廓——读作"等值面的边界"，不是经纬线。
+ * 嵌套壳按 dmin/dmax 排序，前后遮挡关系自动正确（外层背面最先画、外层正面最后画）。 */
+const ISO_OUTLINE_NB=96;
+function isoOutline(rows, center){
+  const S0=pr(center), xs=[], ys=[];
+  for(const row of rows) for(const p of row){
+    if(!p) continue;
+    const s=pr(p); xs.push(s.x-S0.x); ys.push(s.y-S0.y);
+  }
+  const out=[], nb=ISO_OUTLINE_NB;
+  for(let k=0;k<nb;k++){
+    const a=-Math.PI+2*Math.PI*k/nb, ux=Math.cos(a), uy=Math.sin(a);
+    let best=0;
+    /* ⚠️ 必须遍历**全部**采样点：抽稀(如 i+=2)会把角向采样密度砍半，
+     *    正球面的轮廓半径就会起伏 ~3%，看起来是个"多边形"而不是正圆。 */
+    for(let i=0;i<xs.length;i++){ const v=xs[i]*ux+ys[i]*uy; if(v>best) best=v; }
+    out.push([S0.x+ux*best, S0.y+uy*best]);
+  }
+  return {pts:out, S0};
+}
 function drawIsoSurface(center, level, emph){
   const rows=isoMesh(center, level);
-  const col=phiColor(level);
-  const nth=rows.length, nph=ISO_NPH;
-  for(let i=0;i<nth-1;i++){
-    for(let j=0;j<nph;j++){
-      const jp=(j+1)%nph;
-      const a=rows[i][j], b=rows[i+1][j], c=rows[i+1][jp], d=rows[i][jp];
-      if(!a||!b||!c||!d) continue;
-      /* quad 填色（真正在球面上）+ 微弱 stroke 让 quad 边界可见（球面纹理感） */
-      poly([a,b,c,d],{fill:col, fillAlpha:emph?0.26:0.14,
-        stroke:col, strokeAlpha:emph?0.85:0.35, w:emph?1.5:0.85});
-    }
+  const rgb=phiRGB(level), col='rgb('+rgb.join(',')+')', kk=rgb.join(',');
+  /* 该壳在相机深度方向的范围 → 背面 / 正面两层的 z */
+  let dmin=1e9, dmax=-1e9, n=0;
+  for(const row of rows) for(const p of row){
+    if(!p) continue;
+    const d=vdot(p,camD); if(d<dmin) dmin=d; if(d>dmax) dmax=d; n++;
   }
-  /* 高亮层加一条赤道纬线圈（虚线）作"腰带"，让球面有"经纬线"暗示 */
-  const mi=Math.floor(nth/2);
-  if(emph){
-    const ring=[];
-    for(let j=0;j<nph;j++){ const p=rows[mi][j]; if(p) ring.push(p); }
-    if(ring.length>=3) poly(ring,{stroke:col, strokeAlpha:0.7, w:1.4, dash:[5,4]});
-  }
+  if(!n) return;
+  const {pts:outline, S0}=isoOutline(rows, center);
+  let rr=0; for(const q of outline){ const d=Math.hypot(q[0]-S0.x,q[1]-S0.y); if(d>rr) rr=d; }
+  const path=o=>{ o.beginPath(); o.moveTo(outline[0][0],outline[0][1]);
+    for(let i=1;i<outline.length;i++) o.lineTo(outline[i][0],outline[i][1]); o.closePath(); };
+  const aBody = emph? 0.085 : 0.045;
+  const aRim  = emph? 0.46  : 0.28;
+  /* ① 背面：极淡的一层体色（透过它才看得见壳里的东西） */
+  P_(dmin-0.002, ()=>{ ctx.save();
+    const g=ctx.createRadialGradient(S0.x,S0.y,rr*0.05, S0.x,S0.y,rr);
+    g.addColorStop(0,'rgba('+kk+','+(aBody*0.50).toFixed(3)+')');
+    g.addColorStop(1,'rgba('+kk+','+(aBody*1.40).toFixed(3)+')');
+    path(ctx); ctx.fillStyle=g; ctx.fill(); ctx.restore(); });
+  /* ② 正面：中心高透 → 掠射边缘变厚（Fresnel）+ 镜面高光 + 轮廓 */
+  P_(dmax+0.002, ()=>{ ctx.save();
+    const g=ctx.createRadialGradient(S0.x-rr*0.32, S0.y-rr*0.36, rr*0.06, S0.x, S0.y, rr*1.02);
+    g.addColorStop(0,   'rgba(255,255,255,'+(emph?0.20:0.13)+')');
+    g.addColorStop(0.44,'rgba('+kk+','+(aBody*0.30).toFixed(3)+')');
+    g.addColorStop(0.82,'rgba('+kk+','+(aRim*0.32).toFixed(3)+')');
+    g.addColorStop(1,   'rgba('+kk+','+aRim.toFixed(3)+')');
+    path(ctx); ctx.fillStyle=g; ctx.fill();
+    const hx=S0.x-rr*0.42, hy=S0.y-rr*0.46, hr=rr*0.24;
+    const gh=ctx.createRadialGradient(hx,hy,0, hx,hy,hr);
+    gh.addColorStop(0,'rgba(255,255,255,'+(emph?0.52:0.34)+')');
+    gh.addColorStop(1,'rgba(255,255,255,0)');
+    ctx.beginPath(); ctx.arc(hx,hy,hr,0,7); ctx.fillStyle=gh; ctx.fill();
+    path(ctx); ctx.strokeStyle=col; ctx.lineWidth=emph?1.9:1.3;
+    ctx.globalAlpha=emph?0.92:0.52; ctx.stroke();
+    ctx.restore(); });
 }
 
 /* ---------- 坐标轴与底面网格 ---------- */
