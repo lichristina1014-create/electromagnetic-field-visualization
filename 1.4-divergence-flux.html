@@ -782,7 +782,7 @@ function sceneMagnet(){
 /* ---------- 场景④ 点电荷球 · 电通量 ---------- */
 function sceneCharge(){
   const R=0.85;
-  sphereWire(R,'#9DB3BF',1.0,0.5);
+  sphereGlass(R,{tint:'116,156,180', line:'#8AA6B6'});
   text(pt(R*0.70, R*0.70, R*0.52),'高斯面（闭合球面）',{color:'#6E8490', size:11.5, bold:true});
   const np=state.nPlus, nm=state.nMinus, Q=np-nm;
   /* 球心电荷簇 */
@@ -871,6 +871,41 @@ function sphereWire(R,color,w,alpha){
       loop.push(pt(R*Math.sin(th)*Math.cos(ph), R*Math.sin(th)*Math.sin(ph), R*Math.cos(th))); }
     curve(loop,{color,w,alpha});
   }
+}
+
+/* 半透明球壳（**不画任何经纬线**）：球在正交投影下恒为一个屏幕圆，
+ * 所以只用一个圆 + 径向渐变就能做出"玻璃球壳"的体积感：
+ *   后半球(zBack) 铺一层极淡体色 → 前半球(zFront) 迎光面微亮、中心通透、掠射边缘变厚(Fresnel) + 一点镜面高光。
+ * 前后各一层，中间夹着的电荷与场线就成了"球内"的东西。 */
+function sphereGlass(R,o){
+  o=o||{};
+  const tint=o.tint||'116,156,180', line=o.line||'#8AA6B6';
+  const S=pr(pt(0,0,0)), rr=R*camScale;
+  const zB=o.zBack!=null?o.zBack:-2.5, zF=o.zFront!=null?o.zFront:2.5;
+  /* 后半球 */
+  P_(zB, ()=>{ ctx.save();
+    const g=ctx.createRadialGradient(S.x,S.y,rr*0.05, S.x,S.y,rr);
+    g.addColorStop(0,'rgba('+tint+','+(o.aBack0!=null?o.aBack0:0.035)+')');
+    g.addColorStop(1,'rgba('+tint+','+(o.aBack1!=null?o.aBack1:0.10)+')');
+    ctx.beginPath(); ctx.arc(S.x,S.y,rr,0,7); ctx.fillStyle=g; ctx.fill(); ctx.restore(); });
+  /* 前半球 */
+  P_(zF, ()=>{ ctx.save();
+    const g=ctx.createRadialGradient(S.x-rr*0.34, S.y-rr*0.38, rr*0.06, S.x, S.y, rr*1.02);
+    g.addColorStop(0,   'rgba(255,255,255,'+(o.aSpec!=null?o.aSpec:0.20)+')');
+    g.addColorStop(0.42,'rgba('+tint+','+(o.aMid !=null?o.aMid :0.025)+')');
+    g.addColorStop(0.80,'rgba('+tint+','+(o.aRim1!=null?o.aRim1:0.115)+')');
+    g.addColorStop(1,   'rgba('+tint+','+(o.aRim2!=null?o.aRim2:0.40)+')');
+    ctx.beginPath(); ctx.arc(S.x,S.y,rr,0,7); ctx.fillStyle=g; ctx.fill();
+    /* 掠射镜面高光 */
+    const hx=S.x-rr*0.42, hy=S.y-rr*0.46, hr=rr*0.26;
+    const gh=ctx.createRadialGradient(hx,hy,0, hx,hy,hr);
+    gh.addColorStop(0,'rgba(255,255,255,.58)'); gh.addColorStop(1,'rgba(255,255,255,0)');
+    ctx.beginPath(); ctx.arc(hx,hy,hr,0,7); ctx.fillStyle=gh; ctx.fill();
+    /* 轮廓圆——全图唯一的"线"，读作球面边缘而非经纬线 */
+    ctx.beginPath(); ctx.arc(S.x,S.y,rr,0,7);
+    ctx.strokeStyle=line; ctx.lineWidth=o.w||1.7;
+    ctx.globalAlpha=(o.aLine!=null?o.aLine:0.72); ctx.stroke();
+    ctx.restore(); });
 }
 
 /* =====================================================================
