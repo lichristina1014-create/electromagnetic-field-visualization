@@ -217,7 +217,8 @@ const state = {
   pinAngle:0,                             /* 风车叶片累积角度（动画） */
   cupAngle:0,                             /* 杯水累积角度（动画） */
   /* --- 环量密度页 --- */
-  loopDir:1,                              /* 绕行方向：1=逆时针(n=+z) -1=顺时针(n=−z) */
+  loopTilt:0,                             /* 面元法线倾角 θn（度，0=水平 +z，180=−z） */
+  loopAzim:0,                             /* 面元法线方位 φn（度，倾斜方向） */
   circShrink:false,                       /* 「缩小到 P」动画开关 */
 };
 
@@ -515,43 +516,72 @@ function modeCircCup(){
     {color:C.muted, size:11.5, align:'center'});
 }
 
-/* =========== 模式 2：环量密度（Circ. density）—— 大环缩小到 P + 绕行方向/法线 =========== */
+/* =========== 模式 2：环量密度（Circ. density）—— 面元法线任意取向，最大密度=旋度 =========== */
+/* 倾斜回路：法线 n=(sinθcosφ, sinθsinφ, cosθ)，回路点 P + r(cos t·e1 + sin t·e2) */
+function tiltedLoopPts(cx,cy,cz,r,tiltDeg,azimDeg,nPts){
+  const T=tiltDeg*D2R, F=azimDeg*D2R;
+  const ct=Math.cos(T), st=Math.sin(T), cf=Math.cos(F), sf=Math.sin(F);
+  /* 罗德里格斯旋转（绕轴 a=(-sf,cf,0) 转 T）作用于 x̂/ŷ，含第三项 a(a·v)(1-ct) */
+  const e1=pt(ct + sf*sf*(1-ct), -sf*cf*(1-ct), -st*cf);
+  const e2=pt(-sf*cf*(1-ct), ct + cf*cf*(1-ct), -st*sf);
+  const out=[];
+  for(let i=0;i<=nPts;i++){
+    const t=2*Math.PI*i/nPts, c=Math.cos(t)*r, s=Math.sin(t)*r;
+    out.push(pt(cx+e1.x*c+e2.x*s, cy+e1.y*c+e2.y*s, cz+e1.z*c+e2.z*s));
+  }
+  return out;
+}
+function normalVec(tiltDeg,azimDeg){
+  const T=tiltDeg*D2R, F=azimDeg*D2R;
+  return pt(Math.sin(T)*Math.cos(F), Math.sin(T)*Math.sin(F), Math.cos(T));
+}
+/* 任意空间回路的中点法线积分 ∮B·dl */
+function circAny(pts,A,nPts){
+  let sum=0;
+  for(let i=0;i<nPts;i++){
+    const a=pts[i], b=pts[i+1];
+    const Av=A(vmul(vadd(a,b),0.5));
+    sum += vdot(Av, vsub(b,a));
+  }
+  return sum;
+}
 function modeCircDens(){
-  const cx=state.loopCx, cy=state.loopCy, r=state.loopR, dir=state.loopDir;
+  const cx=state.loopCx, cy=state.loopCy, r=state.loopR;
+  const nrm=normalVec(state.loopTilt, state.loopAzim);
   drawFieldGrid(0);
-  /* 面元：环包围的开曲面（圆盘，淡紫填充） */
-  if(r>0.05) poly(loopSamples(cx,cy,r,0,48), {fill:'#B08BD4', fillAlpha:0.14});
-  /* 闭合回路（按绕行方向画箭头，段贡献正=橙/负=蓝） */
-  const n=72, pts=loopSamples(cx,cy,r,0,n);
+  /* 面元：环包围的开曲面（倾斜圆盘，淡紫填充） */
+  const n=72, pts=tiltedLoopPts(cx,cy,0,r,state.loopTilt,state.loopAzim,n);
+  if(r>0.05) poly(pts.slice(0,48), {fill:'#B08BD4', fillAlpha:0.14});
+  /* 闭合回路（段贡献正=橙/负=蓝） */
   for(let i=0;i<n;i++){
     const a=pts[i], b=pts[i+1];
-    const A1=dir>0?a:b, B1=dir>0?b:a;             /* dir=-1 时反向绘制 */
-    const mid=vmul(vadd(A1,B1),0.5);
-    const Av=field()(mid);
-    const dphi=vdot(Av, vsub(B1,A1));
-    const col = dphi*dir>0?C.orange:(dphi*dir<0?C.blue:'#A0AFB8');
-    arrow(A1, B1, {color:col, w:2.2, headScale:0.75, alpha:0.95});
+    const mid=vmul(vadd(a,b),0.5);
+    const dphi=vdot(field()(mid), vsub(b,a));
+    const col = dphi>0?C.orange:(dphi<0?C.blue:'#A0AFB8');
+    arrow(a, b, {color:col, w:2.2, headScale:0.75, alpha:0.95});
   }
   curve(pts.slice(0,-1), {color:C.ink, w:1.4, dash:[4,3], alpha:0.6});
   /* P 点（环缩小所包围的那一点） */
   marker(pt(cx,cy,0),{r:6,color:C.teal,ring:'#BBD9E6',label:'P'});
-  /* 面元法线箭头（绕行方向 ↔ 法线方向，右手螺旋） */
-  const nl=0.42+0.12*r;
-  arrow(pt(cx,cy,0), pt(cx,cy,nl*dir),
-    {color:C.purple, w:2.8, label:dir>0?'@{n}（+z）':'@{n}（−z）', lsize:12.5, ldy:dir>0?-6:14});
+  /* 面元法线箭头（沿任意方向 n） */
+  const nl=0.42+0.35*r;
+  const nTip=pt(cx+nrm.x*nl, cy+nrm.y*nl, nrm.z*nl);
+  arrow(pt(cx,cy,0), nTip, {color:C.purple, w:2.8, label:'@{n}', lsize:13, ldy:-6});
   /* 数值 */
-  const circ1=circulation(cx,cy,r,0,field(),96);   /* 逆时针（+n）环量 */
-  const circ=circ1*dir;                             /* 当前绕行方向环量 */
+  const circ=circAny(pts, field(), n);
   const S=Math.PI*r*r;
   const dens=circ/S;
-  const cz=curlF()(pt(cx,cy,0)).z;
-  text(pt(cx, cy, -0.92),'∮ @{B}·d@{l} = '+circ.toFixed(2)+'　（绕行方向：'+(dir>0?'逆时针 → @{n}=+z':'顺时针 → @{n}=−z')+'）',
+  const cv=curlF()(pt(cx,cy,0));               /* ∇×B(P) */
+  const thDot=vdot(cv,nrm);                     /* 理论 (∇×B)·n */
+  const maxD=vlen(cv);
+  const ang=Math.acos(Math.max(-1,Math.min(1,vdot(vnorm(cv),nrm))))*R2D;
+  text(pt(cx, cy, -0.98),'∮ @{B}·d@{l} = '+circ.toFixed(2)+'　（法线 @{n}：倾角 '+state.loopTilt.toFixed(0)+'° / 方位 '+state.loopAzim.toFixed(0)+'°）',
     {color:C.crimson, size:12.5, bold:true, align:'center'});
-  text(pt(cx, cy, -1.12),'ΔS = πR² = '+S.toFixed(3)+'　　环量面密度 = ∮@{B}·d@{l} / ΔS = '+dens.toFixed(2),
+  text(pt(cx, cy, -1.18),'ΔS = πR² = '+S.toFixed(3)+'　　环量面密度 = ∮@{B}·d@{l} / ΔS = '+dens.toFixed(2),
     {color:C.teal, size:12, bold:true, align:'center'});
-  text(pt(cx, cy, -1.34),'换绕行方向 → 密度 '+(-cz*dir).toFixed(2)+'　　最大环量面密度 = |∇×@{B}| = '+Math.abs(cz).toFixed(2),
+  text(pt(cx, cy, -1.38),'理论 (∇×@{B})·@{n} = '+thDot.toFixed(2)+'　　⟂分量不贡献 → n 转动时密度连续变',
     {color:C.purple, size:11.5, bold:true, align:'center'});
-  text(pt(cx, cy, -1.56),'让环缩小到包围某点 P：最大环量面密度就定义为旋度（方向 = 使密度最大的 @n）',
+  text(pt(cx, cy, -1.58),'密度最大 = |∇×@{B}| = '+maxD.toFixed(2)+'（@{n} 与 ∇×@{B} 夹角 '+ang.toFixed(0)+'°，0° 时最大）→ 定义为旋度',
     {color:C.muted, size:11, align:'center'});
 }
 
@@ -800,7 +830,7 @@ function renderSliders(sec){
   }
   sec.appendChild(h('<div class="sec-title">回路参数</div>'));
   if(state.mode==='circdens'){
-    /* 缩小动画 + 绕行方向（= 面元法线方向） */
+    /* 缩小动画 + 法线翻转（n→−n：倾角取补、方位转 180°） */
     const bx=h('<div class="sub-chips" style="margin-bottom:10px"></div>').firstChild;
     const sb=h('<button class="chip'+(state.circShrink?' on':'')+'">'+(state.circShrink?'⏸ 停止缩小':'▶ 让环缩小到 P 点')+'</button>').firstChild;
     sb.onclick=()=>{state.circShrink=!state.circShrink; sb.className='chip'+(state.circShrink?' on':''); sb.textContent=state.circShrink?'⏸ 停止缩小':'▶ 让环缩小到 P 点'; updateAll();};
@@ -808,16 +838,23 @@ function renderSliders(sec){
     const rb=h('<button class="chip">↺ 恢复大环</button>').firstChild;
     rb.onclick=()=>{state.circShrink=false; state.loopR=0.7; renderPanel(); updateAll();};
     bx.appendChild(rb);
+    const fb=h('<button class="chip">翻转法线 n → −n</button>').firstChild;
+    fb.onclick=()=>{state.loopTilt=(180-state.loopTilt+360)%360; state.loopAzim=(state.loopAzim+180)%360; renderPanel(); updateAll();};
+    bx.appendChild(fb);
     sec.appendChild(bx);
-    const db=h('<button class="chip'+(state.loopDir<0?' on':'')+'" style="width:100%;margin-bottom:10px">绕行方向：'+(state.loopDir>0?'逆时针（法线 n = +z）':'顺时针（法线 n = −z）')+'　点击切换</button>').firstChild;
-    db.onclick=()=>{state.loopDir=-state.loopDir; renderPanel(); updateAll();};
-    sec.appendChild(db);
   }
-  const SL=[
+  const SL=[];
+  if(state.mode==='circdens'){
+    SL.push(
+      {k:'tilt', label:'法线倾角θ', min:0, max:180, step:1, dec:0, get:()=>state.loopTilt, set:v=>state.loopTilt=v, int:true},
+      {k:'azim', label:'法线方位φ', min:0, max:360, step:1, dec:0, get:()=>state.loopAzim, set:v=>state.loopAzim=v, int:true}
+    );
+  }
+  SL.push(
     {k:'r',  label:'半径 R', min:0.03, max:1.05, step:0.01, dec:2, get:()=>state.loopR, set:v=>state.loopR=v},
     {k:'cx', label:'圆心 x', min:-0.7, max:0.7, step:0.02, dec:2, get:()=>state.loopCx, set:v=>state.loopCx=v},
-    {k:'cy', label:'圆心 y', min:-0.7, max:0.7, step:0.02, dec:2, get:()=>state.loopCy, set:v=>state.loopCy=v},
-  ];
+    {k:'cy', label:'圆心 y', min:-0.7, max:0.7, step:0.02, dec:2, get:()=>state.loopCy, set:v=>state.loopCy=v}
+  );
   SL.forEach(d=>{
     const r=h('<div class="slider-row"><label>'+d.label+'</label>'+
       '<input type="range" id="s_'+d.k+'" min="'+d.min+'" max="'+d.max+'" step="'+d.step+'" value="'+d.get()+'">'+
@@ -838,7 +875,7 @@ function renderSliders(sec){
 }
 
 function syncSliders(){
-  const SL=[{k:'r',v:state.loopR,d:2},{k:'cx',v:state.loopCx,d:2},{k:'cy',v:state.loopCy,d:2},{k:'pinX',v:state.pinX,d:2},{k:'pinY',v:state.pinY,d:2}];
+  const SL=[{k:'r',v:state.loopR,d:2},{k:'cx',v:state.loopCx,d:2},{k:'cy',v:state.loopCy,d:2},{k:'pinX',v:state.pinX,d:2},{k:'pinY',v:state.pinY,d:2},{k:'tilt',v:state.loopTilt,d:0},{k:'azim',v:state.loopAzim,d:0}];
   SL.forEach(d=>{const s=document.getElementById('s_'+d.k);if(s)s.value=d.v;const v=document.getElementById('v_'+d.k);if(v)v.textContent=d.v.toFixed(d.d);});
   const sN=document.getElementById('s_N'); if(sN) sN.value=state.N;
   const vN=document.getElementById('v_N'); if(vN) vN.textContent=state.N;
@@ -857,14 +894,14 @@ function renderExplain(sec){
       '<li>环量是<b>全局量</b>（整圈累计），随位置、回路大小而变</li></ul>'+
       '<div class="ex-note">正环量=逆时针旋涡；零环量=无旋/保守。下一张「环量密度」把它归一化到单位面积。</div>'},
     {k:'2', tab:'2. 环量密度', cls:'c2', body:
-      '<b>环量面密度：</b>从大环缩小到一点'+
-      '<div class="frm">环量面密度 = ∮ B·dl / ΔS</div>'+
-      '<ul><li>沿<b>大环</b>对矢量 B 积分得环量；让环<b>缩小</b>，包围其中某一点 P</li>'+
-      '<li>环围成一个<b>开曲面</b>（面元 ΔS）——环量是同一个，密度却随面元而变</li>'+
-      '<li><b>改变绕行方向</b> = 翻转面元法线 n（右手螺旋）→ 密度<b>变号</b></li>'+
-      '<li>面元取向不同，密度不同：其中<b>最大的环量面密度</b>，就定义为<b>旋度</b>的大小</li>'+
-      '<li>使密度最大的 n 方向 = 旋度方向（右手螺旋）</li></ul>'+
-      '<div class="ex-note">操作：点「让环缩小到 P 点」看密度变化；点「绕行方向」翻转法线，密度 +↔−；最大值 = |∇×B|。</div>'},
+      '<b>环量面密度：</b>面元法线可任意取向'+
+      '<div class="frm">环量面密度(@{n}) = ∮ B·dl / ΔS　→　lim = (∇×B)·@{n}</div>'+
+      '<ul><li>沿<b>大环</b>对 B 积分得环量；让环<b>缩小</b>，包围其中某一点 P</li>'+
+      '<li>环围成一个<b>开曲面</b>（面元 ΔS）——面元可以<b>任意翻转</b>（倾角 θ、方位 φ 两个自由度）</li>'+
+      '<li>法线 @{n} 方向不同，密度不同：只有 ∇×B 在 @{n} 上的投影贡献</li>'+
+      '<li>其中<b>最大的环量面密度</b> = |∇×B|，取最大时的 @{n} 方向 = ∇×B 方向</li>'+
+      '<li>这个「最大环量面密度」及其方向，就定义为<b>旋度矢量</b></li></ul>'+
+      '<div class="ex-note">操作：拖「法线倾角 θ / 方位 φ」翻转面元，看密度连续变化；θ=0（n=+z）时最大；点「翻转法线 n→−n」看密度变号；「缩小到 P」观察极限。</div>'},
     {k:'3', tab:'3. 旋度', cls:'c3', body:
       '<b>旋度（Curl）：</b>环量面密度极限'+
       '<div class="frm">∇×@{A} = lim<sub>ΔS→0</sub> (∮ A·dl @{n}) / ΔS</div>'+
@@ -928,19 +965,20 @@ function updateReadout(){
     document.getElementById('lgNote').textContent='环量 Γ = ∮V·dl：绕一圈切向累计，风车转不转就是它';
   }
   else if(state.mode==='circdens'){
-    const dir=state.loopDir;
-    const circ1=circulation(state.loopCx,state.loopCy,state.loopR,0,field(),96);
-    const circ=circ1*dir;
-    const A=Math.PI*state.loopR*state.loopR;
-    const cz=curlF()(pt(state.loopCx,state.loopCy,0)).z;
+    const nrm=normalVec(state.loopTilt,state.loopAzim);
+    const r0=state.loopR;
+    const pts0=tiltedLoopPts(state.loopCx,state.loopCy,0,r0,state.loopTilt,state.loopAzim,96);
+    const circ=circAny(pts0,field(),96);
+    const A=Math.PI*r0*r0;
+    const cv=curlF()(pt(state.loopCx,state.loopCy,0));
     html += kchip('场 B', richHTML(FIELD_OPTS[state.field-1].label.replace(/\{A\}/g,'{B}')));
-    html += kchip('绕行方向 =', dir>0?'逆时针（n=+z）':'顺时针（n=−z）');
+    html += kchip('法线 n =', '('+nrm.x.toFixed(2)+', '+nrm.y.toFixed(2)+', '+nrm.z.toFixed(2)+')');
     html += kchip('∮ @{B·dl} =', circ.toFixed(3), 'acc');
     html += kchip('环量面密度 =', (circ/A).toFixed(3), 'acc');
-    html += kchip('R→0 极限 (∇×B)·n =', (cz*dir).toFixed(3), 'acc');
-    html += kchip('最大密度 |∇×B| =', Math.abs(cz).toFixed(3), 'acc');
-    document.getElementById('lgTitle').textContent='环量密度 · 大环缩小到 P';
-    document.getElementById('lgNote').textContent='换绕行方向=翻转法线，密度变号；最大者定义为旋度';
+    html += kchip('(∇×B)·n =', vdot(cv,nrm).toFixed(3), 'acc');
+    html += kchip('最大 |∇×B| =', vlen(cv).toFixed(3), 'acc');
+    document.getElementById('lgTitle').textContent='环量密度 · 法线任意取向';
+    document.getElementById('lgNote').textContent='n 转动密度连续变，最大者=|∇×B|，定义为旋度';
   }
   else if(state.mode==='curl'){
     html += kchip('场', richHTML(FIELD_OPTS[state.field-1].label));
