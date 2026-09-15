@@ -1478,7 +1478,7 @@ function renderExplain(sec){
         '把 '+richHTML('@{e_l}')+' 转到<b>沿等高线</b>时，竖直段缩成 0，方向导数就是 0。</div>'},
     {k:'3', tab:'3. 梯度', cls:'c3', body:
       '<b>定义：</b>大小取方向导数的<b>最大值</b>、方向取<b>取得最大值的方向</b>的矢量'+
-      '<div class="frm">grad '+vn+' = ∇'+vn+' = @{e_x}∂'+vn+'/∂x + @{e_y}∂'+vn+'/∂y + @{e_z}∂'+vn+'/∂z</div>'+
+      '<div class="frm">grad '+vn+' = ∇'+vn+' = '+richHTML('@{e_x}')+'∂'+vn+'/∂x + '+richHTML('@{e_y}')+'∂'+vn+'/∂y + '+richHTML('@{e_z}')+'∂'+vn+'/∂z</div>'+
       '<ul><li>∇'+vn+' <b>垂直于过该点的等值面</b>，并指向场值<b>增大</b>的方向</li>'+
       '<li>当前 ∇'+vn+' = <b>'+vstr(g)+'</b>，|∇'+vn+'| = <b>'+gl.toFixed(3)+'</b></li>'+
       '<li>等值面越密的地方 |∇'+vn+'| 越大 —— 地图上等高线越密坡越陡</li></ul>'+
@@ -1487,7 +1487,7 @@ function renderExplain(sec){
         '，电场方向与它<b>相反</b>。</div>':'')},
     {k:'4', tab:'4. 三者关系', cls:'c4', body:
       '<b>核心公式（一句话记住全部）：</b>'+
-      '<div class="frm">∂'+vn+'/∂l = ∇'+vn+' · @{e_l} = |∇'+vn+'| cos θ</div>'+
+      '<div class="frm">∂'+vn+'/∂l = ∇'+vn+' · '+richHTML('@{e_l}')+' = |∇'+vn+'| cos θ</div>'+
       '<ul><li>沿<b>等值线（面）切线</b>方向：θ = 90° ⇒ ∂'+vn+'/∂l = <b>0</b>（不升不降）</li>'+
       '<li>沿<b>梯度方向</b>：θ = 0° ⇒ ∂'+vn+'/∂l = |∇'+vn+'|，取<b>最大值</b></li>'+
       '<li>沿<b>反梯度</b>方向：θ = 180° ⇒ ∂'+vn+'/∂l = −|∇'+vn+'|，取<b>最小值</b></li>'+
