@@ -1413,7 +1413,7 @@ function renderSliders(sec){
     sec.appendChild(r);
   });
 
-  sec.appendChild(h('<div class="slider-group-label" style="margin-top:14px">方向 @{e_l}（单位矢量）</div>'));
+  sec.appendChild(h('<div class="slider-group-label" style="margin-top:14px">方向 '+richHTML('@{e_l}')+'（单位矢量）</div>'));
   const SL2=[
     {k:'az', label:'方位角', min:0, max:360, step:1, dec:0, unit:'°', get:()=>state.dirAz, set:v=>state.dirAz=v},
   ];

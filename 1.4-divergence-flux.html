@@ -1193,7 +1193,10 @@ const FIELD_OPTS=[
 function subChips(parent, items, isOn, onPick){
   const box=h('<div class="sub-chips"></div>').firstChild;
   items.forEach(it=>{
-    const fb=h('<button class="chip '+(it.col||'')+(isOn(it)?' on':'')+'" data-k="'+it.k+'">'+it.t+'</button>').firstChild;
+    /* ⚠️ 标签字段不统一：FLUX_SCENES/THEOREM_SCENES 用 t，FIELD_OPTS 用 sub。
+     *    只读 it.t 会让 FIELD_OPTS 的按钮渲染成字面「undefined」（散度页曾踩）。 */
+    const lb = (it.t!=null) ? it.t : (it.sub!=null ? it.sub : it.label);
+    const fb=h('<button class="chip '+(it.col||'')+(isOn(it)?' on':'')+'" data-k="'+it.k+'">'+richHTML(lb)+'</button>').firstChild;
     fb.onclick=()=>{ onPick(it); };
     box.appendChild(fb);
   });
