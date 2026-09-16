@@ -204,8 +204,8 @@ const state = {
   field:1,                                /* 1 V1 2 V2 3 V3 */
   loopR:0.7,                              /* 主闭合回路半径 */
   loopCx:0, loopCy:0,                     /* 回路中心 */
-  N:3,                                    /* 斯托克斯网格密度 */
-  show:{ vec:true, loop:true, surf:true, cancel:true, labels:true, box:true },
+  N:4,                                    /* 斯托克斯网格密度 = 同心环数（三角形 = 6N·(2N−1) 片） */
+  show:{ vec:true, loop:true, surf:true, walk:true, pair:true, labels:true, box:true },
   cardTab:'1',
   showReadout:true,
   autoRotate:false,
@@ -594,16 +594,18 @@ function modeCurl(){
   const A=Math.PI*r*r;
   const dens=circ/A;
   const pts=loopSamples(px,py,r,0,n);
-  for(let i=0;i<n;i++){
-    const a=pts[i], b=pts[i+1];
-    const mid=vmul(vadd(a,b),0.5);
-    const Av=field()(mid);
-    const dl=vsub(b,a);
-    const dphi=vdot(Av, dl);
-    const col = dphi>0?C.orange:(dphi<0?C.blue:'#A0AFB8');
-    arrow(a, b, {color:col, w:1.8, headScale:0.65, alpha:0.85});
+  if(state.show.loop){
+    for(let i=0;i<n;i++){
+      const a=pts[i], b=pts[i+1];
+      const mid=vmul(vadd(a,b),0.5);
+      const Av=field()(mid);
+      const dl=vsub(b,a);
+      const dphi=vdot(Av, dl);
+      const col = dphi>0?C.orange:(dphi<0?C.blue:'#A0AFB8');
+      arrow(a, b, {color:col, w:1.8, headScale:0.65, alpha:0.85});
+    }
+    curve(pts.slice(0,-1), {color:C.ink, w:1.2, dash:[3,3], alpha:0.55});
   }
-  curve(pts.slice(0,-1), {color:C.ink, w:1.2, dash:[3,3], alpha:0.55});
   /* P 点 */
   marker(pt(px,py,0),{r:6,color:C.teal,ring:'#BBD9E6',label:'P'});
   /* 旋度箭头 */
@@ -614,77 +616,222 @@ function modeCurl(){
     arrow(pt(px,py,0), tip, {color:C.purple, w:2.6, label:'∇×A', ldy:-11, lsize:13});
   }
   /* 数值 */
-  text(pt(px, py, -0.9),'小回路环量 ∮ A·dl = '+circ.toFixed(3),
-    {color:C.crimson, size:12, bold:true, align:'center'});
-  text(pt(px, py, -1.10),'面积 ΔS = '+A.toFixed(3)+'   环量面密度 ≈ '+dens.toFixed(3),
-    {color:C.teal, size:11.5, bold:true, align:'center'});
-  text(pt(px, py, -1.30),'r → 0 时趋近 |∇×A(P)| = '+vlen(cv).toFixed(3),
-    {color:C.muted, size:11, align:'center'});
+  if(state.show.labels){
+    text(pt(px, py, -0.9),'小回路环量 ∮ A·dl = '+circ.toFixed(3),
+      {color:C.crimson, size:12, bold:true, align:'center'});
+    text(pt(px, py, -1.10),'面积 ΔS = '+A.toFixed(3)+'   环量面密度 ≈ '+dens.toFixed(3),
+      {color:C.teal, size:11.5, bold:true, align:'center'});
+    text(pt(px, py, -1.30),'r → 0 时趋近 |∇×A(P)| = '+vlen(cv).toFixed(3),
+      {color:C.muted, size:11, align:'center'});
+  }
 }
 
-/* =========== 模式 3：斯托克斯定理（Stokes）—— 表面网格剖分 =========== */
+/* =========== 模式 3：斯托克斯定理（Stokes）—— RWG 三角形对剖分 ===========
+   几何：极坐标环带。每个小四边形沿一条对角线切成两个三角形 = 1 对
+        「RWG 三角形对」（Rao–Wilton–Glisson：以共享一条公共边的三角形对为
+        基本单元，是矩量法 / 边界元里最常用的剖分）；中心是一圈扇形，两两
+        成对共享一条径向公共边。外边界由多边形的完整边组成 ⇒ 天然贴合边界。
+   着色：三种颜色，且任意共享一条边的两个三角形颜色必不同 —— 这样公共边两侧
+        那一对反向箭头一眼就能认出来（"两两相邻的绕行箭头颜色不同"）。
+        · 中心扇形  F_j          → (2j)     mod 3
+        · 环带 A 三角 T_a(i,j)   → (i+2j)   mod 3
+        · 环带 B 三角 T_b(i,j)   → (i+2j+1) mod 3
+        解析自证：T_a 只与 T_b 相邻，三式两两相差 1 或 2 ⇒ 永不相等。
+   数值：整张网格的外边界 = 内接正 NP 边形。∮ 就沿这个多边形积分（与网格边界
+        严格同一条折线），于是 ∮A·dl 与 Σ(∇×A)·ΔS 解析恒等（本页三种场的
+        ∇×A 都是常矢量，这正是格林公式对线性场成立的结论），误差 ~1e-15。 */
+const RWG_PAL=[
+  {line:'#156082', light:'#DCE9F0'},   /* 深青蓝 */
+  {line:'#9B59B6', light:'#EEE1F4'},   /* 紫 */
+  {line:'#3E9B4F', light:'#DFEDE2'},   /* 绿 */
+];
+function rwgSectors(NR){ return 6*Math.max(2,NR); }             /* 扇区数（恒为偶数） */
+function rwgTriCount(NR){ return rwgSectors(NR)*(2*NR-1); }     /* 三角形总数 */
+function rwgPairCount(NR){ return rwgTriCount(NR)/2; }          /* 三角形对数 */
+function rwgColor(i,j,t){ const k=(t==='F')?(2*j):(i+2*j+(t==='b'?1:0)); return ((k%3)+3)%3; }
+
+/* 生成三角形列表：世界坐标，全部在 z=0 平面，逆时针取向 ⇒ 面元法向恒为 +z */
+function stokesMesh(){
+  const L=state.loopR, cx=state.loopCx, cy=state.loopCy;
+  const NR=state.N, NP=rwgSectors(NR);
+  const O=pt(cx,cy,0);
+  const P=(r,a)=>pt(cx+r*Math.cos(a), cy+r*Math.sin(a), 0);
+  const ang=j=>2*Math.PI*j/NP;          /* j 可以取模外的值，正余弦天然周期 */
+  const tris=[], r1=L/NR;
+  /* 环 0：中心扇形，每两个共享一条径向公共边 */
+  for(let j=0;j<NP;j++){
+    const k=Math.floor(j/2), pm=2*k+1;
+    tris.push({v:[O, P(r1,ang(j)), P(r1,ang(j+1))], i:0, j, t:'F',
+               e:[O, P(r1,ang(pm))], pair:'f'+k});
+  }
+  /* 环带 i≥1：四边形 A B C D 沿对角线 A–C 切成 T_a=(A,B,C) / T_b=(A,C,D) */
+  for(let i=1;i<NR;i++){
+    const r0=L*i/NR, rB=L*(i+1)/NR;
+    for(let j=0;j<NP;j++){
+      const a0=ang(j), a1=ang(j+1);
+      const A=P(r0,a0), B=P(rB,a0), C=P(rB,a1), D=P(r0,a1);
+      tris.push({v:[A,B,C], i, j, t:'a', e:[A,C], pair:'c'+i+'_'+j});
+      tris.push({v:[A,C,D], i, j, t:'b', e:[A,C], pair:'c'+i+'_'+j});
+    }
+  }
+  for(const tr of tris){
+    tr.c =rwgColor(tr.i,tr.j,tr.t);
+    tr.G =pt((tr.v[0].x+tr.v[1].x+tr.v[2].x)/3, (tr.v[0].y+tr.v[1].y+tr.v[2].y)/3, 0);
+    tr.dS=Math.abs(vcross(vsub(tr.v[1],tr.v[0]), vsub(tr.v[2],tr.v[0])).z)*0.5;
+  }
+  return {tris, NR, NP, L, cx, cy};
+}
+/* 顶点是否落在网格最外圈上（外边界那条折线）*/
+function onRim(p,M){ return Math.hypot(p.x-M.cx, p.y-M.cy) >= M.L-1e-9; }
+
+/* ∮A·dl 沿"内接正 NP 边形"边界积分（与网格外边界严格同一条折线）*/
+function circPoly(cx,cy,L,NP,A){
+  let s=0;
+  for(let j=0;j<NP;j++){
+    const a0=2*Math.PI*j/NP, a1=2*Math.PI*(j+1)/NP;
+    const p0=pt(cx+L*Math.cos(a0), cy+L*Math.sin(a0), 0);
+    const p1=pt(cx+L*Math.cos(a1), cy+L*Math.sin(a1), 0);
+    s += vdot(A(vmul(vadd(p0,p1),0.5)), vsub(p1,p0));
+  }
+  return s;
+}
+/* 屏幕坐标文字：固定在画布上，不随相机平移 / 缩放跑掉 */
+function textScreen(x,y,str,o={}){
+  P_(1e6+1,()=>{ ctx.save();
+    const lo=richLayout(ctx,parseRich(str),o.size||12,!!o.bold);
+    richDraw(ctx,lo,x,y,o.align||'left',o.color||C.ink); ctx.restore(); });
+}
+
+/* ⚠️ 本页网格元素全在同一平面 z≈0 上，而画家算法排的是"深度"= vdot(p,camD)
+   ≈ −0.219·y + 0.976·z —— 同一平面内**会按 y 互相穿插**，于是三角形面片会
+   正好盖住自己边上的绕行箭头（面片 alpha .82 ⇒ 箭头几乎看不见）。
+   ⇒ 网格这几层必须人工压层：SW_Z 起步、逐层 +1，全部压在矢量场网格之上。
+   （1e5 级不会与任何真实几何的深度冲突；文本才用 1e6 级。）*/
+const SW_Z=1e5;
+/* 绕行箭头的排版常数（自检脚本直接读这几个值，避免两边各写一份而漂移）：
+   · 边投影长度 < WALK_MIN_PX 的小格先不画 → 放大后细节自己浮出来；
+   · 边越长沿边重复越多支（间距 ~WALK_PER px），整条闭合回路才读得出"绕行"；
+   · 每支长度 ≤ WALK_MAXLEN 且按间距缩放 ⇒ 永远是一串小箭头而不是长条；
+   · 整支朝本三角形形心偏 WALK_OFF_PX ⇒ 公共边两侧分成两排、方向相反。 */
+const WALK_MIN_PX=16, WALK_PER=54, WALK_MAXLEN=16, WALK_MINLEN=9, WALK_OFF_PX=4.2, WALK_LEN_R=0.62;
+function polyL(pts,o,z){
+  const S=pts.map(pr);
+  P_(z,()=>{ ctx.save(); ctx.beginPath(); ctx.moveTo(S[0].x,S[0].y);
+    for(let i=1;i<S.length;i++) ctx.lineTo(S[i].x,S[i].y); ctx.closePath();
+    if(o.fill){ ctx.globalAlpha=o.fillAlpha!=null?o.fillAlpha:.15; ctx.fillStyle=o.fill; ctx.fill(); }
+    if(o.stroke){ ctx.globalAlpha=o.strokeAlpha!=null?o.strokeAlpha:1;
+      ctx.strokeStyle=o.stroke; ctx.lineWidth=o.w||1.3; ctx.stroke(); }
+    ctx.restore(); });
+}
+function lineL(a,b,o,z){
+  const A=pr(a),B=pr(b);
+  P_(z,()=>{ ctx.save(); ctx.globalAlpha=o.alpha!=null?o.alpha:1;
+    ctx.strokeStyle=o.color||C.gray; ctx.lineWidth=o.w||1.4; ctx.lineCap='round';
+    ctx.beginPath(); ctx.moveTo(A.x,A.y); ctx.lineTo(B.x,B.y); ctx.stroke(); ctx.restore(); });
+}
+function arrowL(a,b,o,z){
+  const A=pr(a),B=pr(b);
+  P_(z,()=>{ ctx.save(); ctx.globalAlpha=o.alpha!=null?o.alpha:1;
+    arrowSeg(A,B,o.color||C.teal,o.w||2,o.headScale); ctx.restore(); });
+}
+function dotL(p,r,color,ring,z){
+  const S=pr(p);
+  P_(z,()=>{ ctx.save();
+    ctx.beginPath(); ctx.arc(S.x,S.y,r,0,7); ctx.fillStyle=color; ctx.fill();
+    ctx.lineWidth=2; ctx.strokeStyle='#fff'; ctx.stroke();
+    if(ring){ ctx.beginPath(); ctx.arc(S.x,S.y,r+4,0,7); ctx.strokeStyle=ring; ctx.lineWidth=2.2; ctx.stroke(); }
+    ctx.restore(); });
+}
+
 function modeStokes(){
   drawFieldGrid(0);
-  const L=state.loopR;                 /* 圆盘半径（=边界回路半径） */
-  const NR=state.N;                    /* 同心环数 */
-  const NP=Math.max(8, 4*NR);          /* 每环扇形数 */
-  let sumInt=0, nCell=0, area=0;
-  /* ---- 1. 小面片（环形扇区）：填色 + 旋度累加 ----
-     极坐标剖分的外边界天然是圆，Σ ΔS = πR² 精确，不再有方形网格锯齿误差 */
-  for(let i=0;i<NR;i++){
-    const r0=L*i/NR, r1=L*(i+1)/NR;
-    for(let j=0;j<NP;j++){
-      const a0=2*Math.PI*j/NP, a1=2*Math.PI*(j+1)/NP;
-      const am=(a0+a1)/2, rm=(r0+r1)/2;
-      const c=pt(rm*Math.cos(am), rm*Math.sin(am), 0);
-      const cv=curlF()(c).z;
-      const dS=0.5*(r1*r1-r0*r0)*(a1-a0);   /* 环形扇区面积 */
-      sumInt += cv*dS; area += dS; nCell++;
-      if(state.show.surf){
-        const seg=Math.max(3, Math.round(NP/12)+2), ring=[];
-        for(let t=0;t<=seg;t++){ const a=a0+(a1-a0)*t/seg; ring.push(pt(r0*Math.cos(a), r0*Math.sin(a), 0)); }
-        for(let t=seg;t>=0;t--){ const a=a0+(a1-a0)*t/seg; ring.push(pt(r1*Math.cos(a), r1*Math.sin(a), 0)); }
-        const col=cv>0?C.orange:(cv<0?C.blue:'#A0AFB8');
-        poly(ring.slice(0,-1), {fill:col, fillAlpha:0.11, stroke:col, strokeAlpha:0.22, w:0.7});
+  const M=stokesMesh(), tris=M.tris, NP=M.NP, L=M.L, cx=M.cx, cy=M.cy;
+  const cF=curlF();
+  let sumInt=0, area=0;
+
+  /* ---- 1. 三着色三角形面片（真实三角面积，ΣΔS = 内接正多边形面积）---- */
+  for(const tr of tris){
+    sumInt += cF(tr.G).z*tr.dS; area += tr.dS;
+    if(state.show.surf){
+      const pal=RWG_PAL[tr.c];
+      polyL(tr.v, {fill:pal.light, fillAlpha:0.82, stroke:pal.line, strokeAlpha:0.26, w:0.7},
+        SW_Z+0);
+    }
+  }
+  /* ---- 2. 三角形对的公共边（切在对角线上的那一刀 / 中心扇形的径向公共边）---- */
+  if(state.show.pair){
+    const done={};
+    for(const tr of tris){
+      if(done[tr.pair]) continue; done[tr.pair]=1;
+      lineL(tr.e[0], tr.e[1], {color:C.ink, w:1.6, alpha:0.30}, SW_Z+1);
+    }
+  }
+  /* ---- 3. 绕行箭头：每个三角形沿自己的闭合回路走一圈，用本三角形的颜色 ----
+     箭头朝本三角形形心偏半个身位 ⇒ 公共边上两侧各画一排、方向相反、颜色不同，
+     内部边"一正一负抵消"就这样看得见。最外圈那条边留给第 4 步的语义环路。
+     屏幕投影长度 < 14px 的小格先不画 —— 放大之后细节自己浮出来。 */
+  if(state.show.walk){
+    const off=WALK_OFF_PX/camScale;
+    for(const tr of tris){
+      const pal=RWG_PAL[tr.c];
+      for(let k=0;k<3;k++){
+        const a=tr.v[k], b=tr.v[(k+1)%3];
+        if(onRim(a,M) && onRim(b,M)) continue;
+        const Lpx=Math.hypot(pr(b).x-pr(a).x, pr(b).y-pr(a).y);
+        if(Lpx<WALK_MIN_PX) continue;
+        const Mid=vmul(vadd(a,b),0.5);
+        const dir=vnorm(vsub(b,a));
+        let nrm=pt(tr.G.x-Mid.x, tr.G.y-Mid.y, 0);   /* 指向形心 ⇒ 挪进本三角形一侧 */
+        nrm=vsub(nrm, vmul(dir, vdot(nrm,dir)));
+        const nl=vlen(nrm); if(nl<1e-9) continue;
+        nrm=vmul(nrm,1/nl);
+        const rep=Math.max(1, Math.min(6, Math.round(Lpx/WALK_PER)));
+        const half=Math.min(WALK_MAXLEN, Math.max(WALK_MINLEN, Lpx/rep*WALK_LEN_R))/(2*camScale);
+        for(let q=0;q<rep;q++){
+          const Ct=vadd(a, vmul(vsub(b,a), (q+0.5)/rep));
+          const p0=vadd(vadd(Ct, vmul(dir,-half)), vmul(nrm,off));
+          const p1=vadd(vadd(Ct, vmul(dir, half)), vmul(nrm,off));
+          arrowL(p0, p1, {color:pal.line, w:1.5, headScale:0.66, alpha:0.95}, SW_Z+2);
+        }
       }
     }
   }
-  /* ---- 2. 内部剖分线：相邻面片共享 → 一正一负抵消（灰化虚线） ---- */
-  if(state.show.cancel){
-    for(let i=1;i<NR;i++){
-      const rr=L*i/NR, lp=[];
-      for(let t=0;t<=72;t++){ const a=2*Math.PI*t/72; lp.push(pt(rr*Math.cos(a), rr*Math.sin(a), 0)); }
-      curve(lp, {color:'#9DB3BF', w:1.0, alpha:0.55, dash:[3,3]});
-    }
+  /* ---- 4. 外边界：唯一没被抵消掉的回路（按 ∮A·dl 的符号上橙 / 蓝）----
+     沿"内接正 NP 边形"的**弦**细分（不是沿圆弧），画出来的就是网格那条外边界，
+     与上面 circPoly() 积分的折线严格同一条 ⇒ 图与数不会互相矛盾。 */
+  if(state.show.loop){
+    const NSUB=2;
     for(let j=0;j<NP;j++){
-      const a=2*Math.PI*j/NP;
-      line(pt(0,0,0), pt(L*Math.cos(a), L*Math.sin(a), 0),
-        {color:'#9DB3BF', w:1.0, alpha:0.55, dash:[3,3]});
+      const a0=2*Math.PI*j/NP, a1=2*Math.PI*(j+1)/NP;
+      const q0=pt(cx+L*Math.cos(a0), cy+L*Math.sin(a0), 0);
+      const q1=pt(cx+L*Math.cos(a1), cy+L*Math.sin(a1), 0);
+      for(let t=0;t<NSUB;t++){
+        const p0=vadd(q0, vmul(vsub(q1,q0), t/NSUB));
+        const p1=vadd(q0, vmul(vsub(q1,q0), (t+1)/NSUB));
+        const mid=vmul(vadd(p0,p1),0.5);
+        const dphi=vdot(field()(mid), vsub(p1,p0));
+        const col=dphi>0?C.orange:(dphi<0?C.blue:'#A0AFB8');
+        arrowL(p0, p1, {color:col, w:2.4, headScale:0.8, alpha:0.95}, SW_Z+3);
+      }
     }
   }
-  /* ---- 3. 外边界：唯一未被抵消的回路（彩色分段箭头） ---- */
-  const NB=Math.max(32, NP*2);
-  for(let t=0;t<NB;t++){
-    const a0=2*Math.PI*t/NB, a1=2*Math.PI*(t+1)/NB;
-    const p0=pt(L*Math.cos(a0), L*Math.sin(a0), 0);
-    const p1=pt(L*Math.cos(a1), L*Math.sin(a1), 0);
-    const mid=vmul(vadd(p0,p1),0.5);
-    const dphi=vdot(field()(mid), vsub(p1,p0));
-    const col=dphi>0?C.orange:(dphi<0?C.blue:'#A0AFB8');
-    arrow(p0, p1, {color:col, w:2.4, headScale:0.8, alpha:0.95});
-  }
-  /* ---- 4. 数值对比 ---- */
-  const circ=circulation(0, 0, L, 0, field(), 240);
+  /* ---- 5. 数值对比（屏幕坐标：缩放平移都不会把数字甩出去）---- */
+  const circ=circPoly(cx,cy,L,NP,field());
   const err=circ-sumInt;
-  text(pt(0, 0, -1.0),'边界环量 ∮ @{A}·d@{l} ≈ '+circ.toFixed(2),
-    {color:C.crimson, size:12.5, bold:true, align:'center'});
-  text(pt(0, 0, -1.22),'面片旋度累加 Σ(∇×@{A})·Δ@{S} ≈ '+sumInt.toFixed(2)+'（'+nCell+' 片）',
-    {color:C.teal, size:12.5, bold:true, align:'center'});
-  text(pt(0, 0, -1.44),'误差 ≈ '+Math.abs(err).toFixed(3)+'   剖分面积 Σ ΔS = '+area.toFixed(3)+'（πR² = '+(Math.PI*L*L).toFixed(3)+'）',
-    {color:Math.abs(err)<0.05?C.green:(Math.abs(err)<0.2?C.orange:C.crimson),
-     size:11.5, bold:true, align:'center'});
-  /* 中心标记 */
-  marker(pt(0,0,0),{r:4.5,color:C.purple,ring:'#E0CFEC',label:'中心'});
+  if(state.show.labels){
+    const yb=H-62;
+    textScreen(16, yb, '边界环量 ∮ @{A}·d@{l} = '+circ.toFixed(3),
+      {color:C.crimson, size:12.5, bold:true});
+    textScreen(16, yb+18, 'Σ(∇×@{A})·Δ@{S} = '+sumInt.toFixed(3)+
+      '　（'+tris.length+' 个三角形 · '+rwgPairCount(state.N)+' 个三角形对）',
+      {color:C.teal, size:12, bold:true});
+    textScreen(16, yb+36, '误差 = '+Math.abs(err).toFixed(3)+'　ΣΔS = '+area.toFixed(3)+
+      '（内接 '+NP+' 边形；πR² = '+(Math.PI*L*L).toFixed(3)+'）',
+      {color:Math.abs(err)<1e-9?C.green:(Math.abs(err)<0.05?C.orange:C.crimson),
+       size:11.5, bold:true});
+  }
+  /* 回路中心 */
+  dotL(pt(cx,cy,0), 4.5, C.purple, '#E0CFEC', SW_Z+4);
 }
 
 function buildScene(){
@@ -790,10 +937,11 @@ function renderSubSec(sec){
   sec.appendChild(h('<div class="sec-title" style="margin-top:14px">图中显示</div>'));
   const SHOW=[
     {k:'vec',    label:'矢量场网格'},
-    {k:'loop',   label:'闭合回路'},
-    {k:'surf',   label:'剖分面片'},
-    {k:'cancel', label:'内部抵消（灰化）'},
-    {k:'labels', label:'通量/环量数字'},
+    {k:'loop',   label:'外边界回路'},
+    {k:'surf',   label:'三角形面片'},
+    {k:'walk',   label:'绕行箭头'},
+    {k:'pair',   label:'三角形对（公共边）'},
+    {k:'labels', label:'环量 / 通量数字'},
     {k:'box',    label:'坐标轴'},
   ];
   const bx=h('<div class="sub-chips"></div>').firstChild;
@@ -864,14 +1012,26 @@ function renderSliders(sec){
     sec.appendChild(r);
   });
   if(state.mode==='stokes'){
-    sec.appendChild(h('<div class="slider-group-label" style="margin-top:14px">斯托克斯网格密度</div>'));
+    const NP=rwgSectors(state.N);
+    sec.appendChild(h('<div class="slider-group-label" style="margin-top:14px">RWG 网格密度</div>'));
     const r=h('<div class="slider-row w"><label>同心环数 N</label>'+
       '<input type="range" id="s_N" min="2" max="6" step="1" value="'+state.N+'">'+
       '<span class="val" id="v_N">'+state.N+'</span></div>');
     const inp=r.querySelector('input');
-    inp.oninput=()=>{state.N=parseInt(inp.value);document.getElementById('v_N').textContent=state.N;needsRender=true;updateReadout();updateModeTag();};
+    inp.oninput=()=>{state.N=parseInt(inp.value);needsRender=true;syncSliders();updateReadout();updateModeTag();};
     sec.appendChild(r);
+    sec.appendChild(h('<div class="ex-note" id="meshNote">'+meshNote()+'</div>'));
   }
+}
+
+/* 网格说明（随环数 / 半径变化；被滑块和 syncSliders 复用） */
+function meshNote(){
+  const NP=rwgSectors(state.N), nt=rwgTriCount(state.N), L=state.loopR;
+  const poly=0.5*NP*L*L*Math.sin(2*Math.PI/NP);
+  return '三角形 <b>'+nt+'</b> 片 = <b>'+rwgPairCount(state.N)+'</b> 个 RWG 三角形对（'+
+    state.N+' 环 × '+NP+' 扇区）。外边界是内接正 '+NP+' 边形，ΣΔS = '+poly.toFixed(3)+
+    '（圆盘 πR² = '+(Math.PI*L*L).toFixed(3)+'，差 = '+((1-poly/(Math.PI*L*L))*100).toFixed(1)+'%）。'+
+    '把鼠标滚轮放大，三角形对会变小、绕行箭头会出现 —— 公共边两侧方向正好相反。';
 }
 
 function syncSliders(){
@@ -879,6 +1039,7 @@ function syncSliders(){
   SL.forEach(d=>{const s=document.getElementById('s_'+d.k);if(s)s.value=d.v;const v=document.getElementById('v_'+d.k);if(v)v.textContent=d.v.toFixed(d.d);});
   const sN=document.getElementById('s_N'); if(sN) sN.value=state.N;
   const vN=document.getElementById('v_N'); if(vN) vN.textContent=state.N;
+  const mn=document.getElementById('meshNote'); if(mn) mn.innerHTML=meshNote();
 }
 
 function renderExplain(sec){
@@ -913,11 +1074,17 @@ function renderExplain(sec){
     {k:'4', tab:'4. 斯托克斯', cls:'c4', body:
       '<b>斯托克斯定理：</b>闭合回路的环量 = 曲面的旋度通量'+
       '<div class="frm">∮<sub>C</sub> @{A}·d@{l} = ∫<sub>S</sub> (∇×@{A})·d@{S}</div>'+
-      '<ul><li>把大回路包围的开曲面切成<b>同心环 × 扇形</b>的小面片</li>'+
-      '<li>每个面片的<b>内部分界线</b>上，相邻两个面片贡献相反 → <b>抵消</b></li>'+
-      '<li>只有最外边界没有配对面 → <b>净环量保留</b></li>'+
-      '<li>Σ(∇×A)·ΔS ≈ ∮A·dl，剖分越细越精确</li></ul>'+
-      '<div class="ex-note">本演示实时显示<b>边界环量</b>与<b>面片旋度累加</b>的对比，与 1.4 散度定理的"体元抵消"对称。</div>'},
+      '<ul><li>把圆盘剖分成许多<b>小三角形</b>——以 <b>RWG 三角形对</b>为基本单元：'+
+      '每个小四边形沿一条对角线切开，两个三角形共享这条<b>公共边</b></li>'+
+      '<li>每个三角形沿自己的闭合回路走一圈，箭头用<b>本三角形的颜色</b>'+
+      '（三种颜色，且<b>任意共享边的两个三角形颜色必不同</b>）</li>'+
+      '<li>公共边上两侧<b>绕行方向正好相反</b>（两排反向箭头）→ 剖面内部每条边都被走两次、'+
+      '一正一负 <b>成对抵消</b></li>'+
+      '<li>只有最外边界那条折线没有配对面 → <b>净环量保留</b>（橙 / 蓝 = ∮A·dl 的符号）</li>'+
+      '<li>∮ 就沿网格外边界（内接正多边形）积分，与 Σ(∇×A)·ΔS <b>精确相等</b>，误差 ≈ 0</li>'+
+      '<li>本页三种场的 ∇×A 都是常矢量；RWG 网格正是矩量法 / 边界元里最常用的剖分</li></ul>'+
+      '<div class="ex-note">用鼠标滚轮放大即可看清每个三角形对的绕行方向；三角形越密，'+
+      'ΣΔS 越接近圆盘 πR²。与 1.4 散度定理的"面元抵消"完全对称。</div>'},
   ];
   if(!cards.find(c=>c.k===state.cardTab)) state.cardTab='1';
   const cur=cards.find(c=>c.k===state.cardTab);
@@ -992,25 +1159,21 @@ function updateReadout(){
     document.getElementById('lgTitle').textContent='旋度定义 · 环量面密度';
     document.getElementById('lgNote').textContent='r → 0 时，环量/面积 → |∇×A(P)|';
   }else{
+    /* 斯托克斯：直接用画布同一套 stokesMesh()，两处算法不可能漂移 */
+    const M=stokesMesh(), NP=M.NP, L=M.L, cx=M.cx, cy=M.cy, cF=curlF();
+    const circ=circPoly(cx,cy,L,NP,field());
+    let sumInt=0, area=0;
+    M.tris.forEach(tr=>{ sumInt += cF(tr.G).z*tr.dS; area += tr.dS; });
     html += kchip('场', richHTML(FIELD_OPTS[state.field-1].label));
-    const N=state.N, NP=Math.max(8, 4*N);
-    const circ=circulation(0,0,state.loopR,0,field(),96);
-    html += kchip('边界 R =', state.loopR.toFixed(2));
-    html += kchip('剖分 =', N+' 环 × '+NP+' 扇区 = '+(N*NP));
+    html += kchip('边界 R =', L.toFixed(2));
+    html += kchip('三角形 =', state.N+' 环 × '+NP+' 扇区 = '+M.tris.length+' 片');
+    html += kchip('三角形对 =', rwgPairCount(state.N)+' 对');
     html += kchip('∮ @{A·dl} =', circ.toFixed(3), 'acc');
-    let sumInt=0;
-    const L=state.loopR;
-    for(let i=0;i<N;i++){
-      const r0=L*i/N, r1=L*(i+1)/N;
-      for(let j=0;j<NP;j++){
-        const am=2*Math.PI*(j+0.5)/NP, rm=(r0+r1)/2;
-        sumInt += curlF()(pt(rm*Math.cos(am),rm*Math.sin(am),0)).z * 0.5*(r1*r1-r0*r0)*(2*Math.PI/NP);
-      }
-    }
     html += kchip('Σ(∇×A)·ΔS =', sumInt.toFixed(3), 'acc');
-    html += kchip('误差 =', Math.abs(circ-sumInt).toFixed(3), Math.abs(circ-sumInt)<0.05?'':'warn');
-    document.getElementById('lgTitle').textContent='斯托克斯定理 · '+N+' 环 × '+NP+' 扇区';
-    document.getElementById('lgNote').textContent='内部分界线抵消，仅外边界贡献净环量';
+    html += kchip('误差 =', Math.abs(circ-sumInt).toFixed(3), Math.abs(circ-sumInt)<1e-9?'':'warn');
+    html += kchip('ΣΔS ÷ πR² =', (area/(Math.PI*L*L)*100).toFixed(1)+'%');
+    document.getElementById('lgTitle').textContent='斯托克斯定理 · RWG 三角形对';
+    document.getElementById('lgNote').textContent='公共边两侧绕行相反 → 内部成对抵消，只剩外边界贡献净环量';
   }
   strip.innerHTML=html;
 }
@@ -1020,7 +1183,7 @@ function updateModeTag(){
   if(state.mode==='circ') t.innerHTML='环量 · '+(state.circView==='stream'?'小溪漩涡 · 风车':'杯子 · 旋转的水');
   else if(state.mode==='circdens') t.innerHTML='环量密度 · '+richHTML(FIELD_OPTS[state.field-1].sub.replace(/A/g,'B'));
   else if(state.mode==='curl') t.innerHTML='旋度 · P = ('+state.loopCx.toFixed(2)+', '+state.loopCy.toFixed(2)+')';
-  else t.innerHTML='斯托克斯 · '+state.N+' 环 × '+Math.max(8,4*state.N)+' 扇区';
+  else t.innerHTML='斯托克斯 · RWG 三角形对 '+state.N+' 环 × '+rwgSectors(state.N)+' 扇区 = '+rwgTriCount(state.N)+' 片';
   document.getElementById('moduleSub').textContent=
     state.mode==='circ'?'环量 Γ = ∮V·dl：绕圈累计（风车转不转）'
     :(state.mode==='circdens'?'环量 ÷ 面积 = 环量密度（局部旋转强弱）'
