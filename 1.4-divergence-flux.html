@@ -234,13 +234,13 @@ const state = {
   theoremScene:'subdiv',               /* fieldlines | subdiv */
   field:2,                             /* 1 A1 2 A2 3 A3 */
   N:2,                                  /* 立方体剖分密度 */
-  P:{x:.3, y:.2},                       /* modeDiv 观察点 */
-  halfL:.25,                            /* modeDiv 小立方体半边长 */
+  src:'all',                            /* modeDiv 选中的源：1|2|3|'all'(总源) */
+  cubeL:0.62,                           /* modeDiv 立方体半边长 */
   nPlus:2, nMinus:0,                    /* 点电荷球：球心正 / 负电荷个数 */
   magnetTilt:0,                         /* 磁通量场景：面与场线的夹角(度) */
   spin:false,                           /* 发电机：匀速转动开关 */
   omega:0,                              /* 发电机：角速度估计(°/s)，拖滑块时更新、松手衰减 */
-  show:{ flux:true, cancel:true, vec:true, labels:true, box:true, light:true },
+  show:{ flux:true, cancel:true, vec:true, labels:true, box:true, light:true, fld:true },
   cardTab:'1',
   showReadout:true,
   autoRotate:false,
@@ -252,10 +252,88 @@ function field(){
 function divF(){
   return state.field===1 ? 0 : (state.field===2 ? 3 : -3);
 }
-function fieldName(){
-  return state.field===1 ? '@{A}=(1, 0.4, 0.6)' :
-         (state.field===2 ? '@{A}=(x, y, z)' : '@{A}=-(x, y, z)');
+
+/* =====================================================================
+ * ② 散度页的物理模型：多个离散「源」（平滑源团）
+ *   每个源负责一块团状的散度：∇·A = q·g(r)，g 为归一化高斯（∫g dV = 1）
+ *   ⇒ 任意**完全包住**该源的闭合面，其净通量恒 = q（与面的大小/形状无关）
+ *   ⇒ ΔV 越小，Φ 不变而 Φ/ΔV 越大 —— 这正是「散度 = 单位体积的通量」的由来
+ *   A 取该散度对应的径向解析解（含 erf），处处光滑无奇点，故可精确求值。
+ *   ⚠️ 显示用的通量走**散度体积分** Φ = ∫_V ∇·A dV（与面积分严格等价），
+ *      好处：① 数值上精确，缩小时不会因面元取样误差抖动；② 直接体现"面内源强之和"。
+ * ===================================================================== */
+const SRC_SIG=0.012; /* 源团尺度 σ。取得很小有两个好处：
+  · 最小立方体（l=0.10 = 8σ）里 Φ 精确 = q（误差 ~1e-30），缩小过程中读数纹丝不动；
+  · 源的"边界"很锐利 —— 立方体跨过另一颗源时 Φ 几乎阶跃，而不是拖一条长尾巴。
+  代价：A 在 r≈σ 处峰值很大（~200），所以场箭头只表方向、长度固定。 */
+const SOURCES=[
+  {k:1, t:'源 1', q:+1, x:-0.52, y: 0.32, z:0},
+  {k:2, t:'源 2', q:+2, x: 0.54, y:-0.34, z:0},
+  {k:3, t:'源 3', q:-1, x:-0.30, y:-0.46, z:0},
+];
+const SRC_TARGETS=[
+  {k:1, t:'源 1（+1）', col:'o'},
+  {k:2, t:'源 2（+2）', col:'o'},
+  {k:3, t:'源 3（−1）', col:'p'},
+  {k:'all', t:'总源（全部）'},
+];
+const CUBE_L_MIN=0.10, CUBE_L_MAX=0.90;
+function defaultCubeL(k){ return k==='all' ? 0.62 : 0.26; }
+const S2R=1.1283791670955126;   /* 2/√π */
+function erf(x){
+  /* Abramowitz & Stegun 7.1.26：|误差| < 1.5e-7，足够本页所有数值用途 */
+  const s=x<0?-1:1; x=Math.abs(x);
+  const t=1/(1+0.3275911*x);
+  const p=((((1.061405429*t-1.453152027)*t+1.421413741)*t-0.284496736)*t+0.254829592);
+  return s*(1-p*t*Math.exp(-x*x));
 }
+function srcOneField(p, s){
+  /* 单源矢量场：径向，大小 Q(r)/(4πr²)，Q(r) = 半径 r 球内包住的源强 */
+  const dx=p.x-s.x, dy=p.y-s.y, dz=p.z-(s.z||0);
+  const r2=dx*dx+dy*dy+dz*dz, r=Math.sqrt(r2);
+  if(r<1e-9) return pt(0,0,0);
+  const R=r/SRC_SIG;
+  const Q=s.q*(erf(R) - S2R*R*Math.exp(-R*R));
+  const ar=Q/(4*Math.PI*r2);
+  return pt(ar*dx/r, ar*dy/r, ar*dz/r);
+}
+function srcA(p){
+  let v=pt(0,0,0);
+  for(const s of SOURCES) v=vadd(v, srcOneField(p,s));
+  return v;
+}
+/* Φ(立方体) = ∫_V ∇·A dV = Σ q_i ×（该源团落在立方体内的比例）
+ * 高斯在立方体内的比例 = ∏_轴 ½[erf((c+l−s)/σ) − erf((c−l−s)/σ)]  —— 解析可算 */
+function cubeFlux(center, half){
+  let Phi=0;
+  for(const s of SOURCES){
+    let f=1;
+    for(const a of ['x','y','z']){
+      const d=s[a]||0, c=center[a];
+      f *= 0.5*( erf((c+half-d)/SRC_SIG) - erf((c-half-d)/SRC_SIG) );
+      if(f<1e-12) break;
+    }
+    Phi += s.q*f;
+  }
+  return Phi;
+}
+function cubeVolume(half){ return (2*half)*(2*half)*(2*half); }
+function sourcesInside(center, half){
+  return SOURCES.filter(s=> Math.abs(s.x-center.x)<=half &&
+                            Math.abs(s.y-center.y)<=half &&
+                            Math.abs((s.z||0)-center.z)<=half);
+}
+function cubeSpec(){
+  /* 当前选中对象 ⇒ 立方体中心 / 显示名 */
+  if(state.src==='all'){
+    const xs=SOURCES.map(s=>s.x), ys=SOURCES.map(s=>s.y);
+    return { c:pt((Math.min(...xs)+Math.max(...xs))/2, (Math.min(...ys)+Math.max(...ys))/2, 0),
+             t:'总源' };
+  }
+  const s=SOURCES.find(x=>x.k===state.src)||SOURCES[0];
+  return { c:pt(s.x,s.y,s.z||0), t:s.t };
+}
+function signed(v,d){ return (v>=0?'+':'−')+(d==null?Math.abs(v).toFixed(2):Math.abs(v).toFixed(d)); }
 
 /* ---------------- 富文本引擎（与 1.3 同源） ---------------- */
 function parseRich(s){
@@ -910,7 +988,7 @@ function sceneFluxTab(){
  *   选 A2 中心源场（∇·A=3）：穿出 - 穿入 = 净通量 = 3·V
  * ===================================================================== */
 function sceneFieldLines(){
-  const R=0.85;
+  const R=0.85, dv=divF();
   sphereWire(R, '#9DB3BF', 1.0, 0.55);
   const dirs=[];
   for(let i=0;i<8;i++){
@@ -918,21 +996,27 @@ function sceneFieldLines(){
     const ph=i*Math.PI*0.25;
     dirs.push(pt(Math.sin(th)*Math.cos(ph), Math.sin(th)*Math.sin(ph), Math.cos(th)));
   }
+  /* ⚠️ 箭头方向必须跟着 ∇·A 的符号走（原代码两侧都朝同一方向，等于把"源"画成了"汇"）：
+   *   ∇·A > 0（正源）→ 场线**全部朝外穿出**；< 0（汇）→ 全部朝里穿入；
+   *   = 0（无源场）→ 线从一侧进、另一侧出（穿入 = 穿出，净通量为 0）。
+   *   原来在每支箭头旁写「穿入/穿出」字标签（8×2 个，太乱）已删，
+   *   概念改由**颜色 + 图例**承接（橙=穿出、蓝=穿入、青=一进一出）。 */
+  const col = dv>0 ? C.orange : (dv<0 ? C.blue : C.teal);
   dirs.forEach(d=>{
-    const inner=vmul(d,-R*1.15), outer=vmul(d, R*1.25);
-    curve([inner, outer], {color:C.teal, w:1.6, alpha:.7});
-    const pIn=vmul(d,-R), pInMid=vmul(d,-R*1.06);
-    arrow(pIn, pInMid, {color:C.blue, w:2.4, headScale:.85, label:'穿入'});
-    const pOutMid=vmul(d,R*1.06), pOut=vmul(d,R);
-    arrow(pOutMid, pOut, {color:C.orange, w:2.4, headScale:.85, label:'穿出'});
+    curve([vmul(d,-R*1.15), vmul(d, R*1.25)], {color:C.teal, w:1.5, alpha:.55});
+    if(dv>0){
+      arrow(vmul(d, R), vmul(d, R*1.15), {color:col, w:2.4, headScale:.85});
+      arrow(vmul(d,-R), vmul(d,-R*1.15), {color:col, w:2.4, headScale:.85});
+    }else if(dv<0){
+      arrow(vmul(d, R*1.15), vmul(d, R), {color:col, w:2.4, headScale:.85});
+      arrow(vmul(d,-R*1.15), vmul(d,-R), {color:col, w:2.4, headScale:.85});
+    }else{
+      arrow(vmul(d,-R*1.15), vmul(d,-R), {color:col, w:2.2, headScale:.8});
+      arrow(vmul(d, R*1.15), vmul(d, R), {color:col, w:2.2, headScale:.8});
+    }
   });
-  marker(pt(0,0,0),{r:6,color:C.crimson,ring:'#F6C9C2',label:'源（+q）'});
-  const V=4/3*Math.PI*R*R*R;
-  const flux = divF()*V;
-  text(pt(0,0,1.6),'Φ = ∮ @{A}·d@{S} = '+flux.toFixed(2),
-    {color:C.ink, size:13.5, bold:true, align:'center'});
-  text(pt(0,0,-1.25),'∇·@{A} = '+divF()+'  ，  V = '+V.toFixed(3),
-    {color:C.muted, size:11.5, align:'center'});
+  if(dv!==0) marker(pt(0,0,0),{r:6, color: dv>0? C.crimson : C.blue, ring: dv>0? '#F6C9C2' : '#C9E4F2',
+    label: dv>0? '源（+q）' : '汇（−q）'});
 }
 function sphereWire(R,color,w,alpha){
   /* 4 条纬线圈 + 4 条经线圈 */
@@ -990,75 +1074,151 @@ function sphereGlass(R,o){
 /* =====================================================================
  * 模式 2：散度（Divergence）—— 点 P 周围小立方体包围，6 面通量求和
  * ===================================================================== */
+/* 源周围的一圈径向场箭头：+ 源朝外、− 源（汇）朝里
+ * ⚠️ 箭头长度固定（只表达方向），场强的大小交给发光强度与面的深浅去表达 */
+function drawSourceArrows(s, on){
+  const dirs=sphereDirs(8), out=s.q>0, col=out? C.orange : C.blue;
+  dirs.forEach(d=>{
+    const a=vadd(s,vmul(d,0.14)), b=vadd(s,vmul(d,0.27));
+    if(out) arrow(a,b,{color:col,w:1.5,alpha:on?.95:.64,headScale:.6});
+    else    arrow(b,a,{color:col,w:1.5,alpha:on?.95:.64,headScale:.6});
+  });
+}
+/* 源的光晕：一个径向渐变画完（比叠同心圆干净，不会出现"靶环"）
+ * ⚠️ 渐变的透明端必须用 rgba，不能给十六进制色加 alpha */
+function hexA(hex,a){
+  const n=parseInt(hex.slice(1),16);
+  return 'rgba('+((n>>16)&255)+','+((n>>8)&255)+','+(n&255)+','+a+')';
+}
+function srcGlow(p, color, R, alphaMax){
+  const S=pr(p);
+  P_(S.d-0.04, ()=>{ ctx.save();
+    const g=ctx.createRadialGradient(S.x,S.y,0, S.x,S.y,R);
+    g.addColorStop(0,   hexA(color,.85));
+    g.addColorStop(0.35,hexA(color,.34));
+    g.addColorStop(1,   hexA(color,0));
+    ctx.globalAlpha=alphaMax;
+    ctx.beginPath(); ctx.arc(S.x,S.y,R,0,7); ctx.fillStyle=g; ctx.fill();
+    ctx.restore(); });
+}
+/* 源标签：白底药丸 + 彩字 —— 叠在立方体面上也读得清。
+ * ⚠️ 同一个屏幕区域放多个标签必须避让（纯按几何偏移必撞）：这里在 8 个候选偏移里
+ *    挑「既不越出画布、又不和已放标签相交」的第一个，全部候选不合格才退回默认偏移。 */
+let tagRects=[];   /* 最近一次源标签的屏幕矩形（供自检用） */
+function drawSrcTags(list){
+  const placed=[];
+  tagRects=placed;
+  const cand=[[13,-24],[13,12],[-13,-24],[-13,12],[30,-4],[-30,-4],[0,-36],[0,26]];
+  list.forEach(it=>{
+    const P=pr(it.p);
+    const lo=richLayout(ctx, parseRich(it.t), 12.5, true);
+    const w=lo.w+14, h=21;
+    let best=null;
+    for(const c of cand){
+      const r={x:P.x+c[0], y:P.y+c[1], w:w, h:h};
+      if(r.x<4 || r.x+r.w>W-4 || r.y<74 || r.y+r.h>H-4) continue;
+      if(placed.some(q=>r.x<q.x+q.w+6 && q.x<r.x+r.w+6 && r.y<q.y+q.h+6 && q.y<r.y+r.h+6)) continue;
+      best=r; break;
+    }
+    if(!best) best={x:P.x+13, y:P.y-24, w:w, h:h};
+    placed.push(best);
+    P_(1e6+1, ()=>{ ctx.save();
+      rrPath(best.x, best.y, best.w, best.h, 7);
+      ctx.fillStyle='rgba(255,255,255,.90)'; ctx.fill();
+      ctx.strokeStyle=hexA(it.c,.40); ctx.lineWidth=1; ctx.stroke();
+      richDraw(ctx, lo, best.x+7, best.y+best.h/2, 'left', it.c);
+      ctx.restore(); });
+  });
+}
+/* ---------- 模式② 散度：多个源 + 一个可以缩放的立方体（高斯面） ----------
+ * 教学主线：Φ **只由面内的源决定** —— 立方体缩小到源上时 Φ 保持不变（= 该源强度），
+ * 而 Φ/ΔV 随 ΔV 变小而增大 ⇒ 这就是「散度 = 单位体积的通量」。
+ * ⚠️ 面上**不再**标逐面通量数字（太乱），通量统一走画布顶部居中的 HUD。 */
 function modeDiv(){
-  /* P 点（拖动，xy 平面内） */
-  const P=pt(state.P.x, state.P.y, 0);
-  const l=state.halfL;       /* 小立方体半边长 */
-  /* 小立方体的 6 个面：每个面标注通量 */
+  const spec=cubeSpec(), Cc=spec.c, l=state.cubeL;
+  const Phi=cubeFlux(Cc,l), inside=sourcesInside(Cc,l);
+  const tags=[];
+
+  /* ---- 源：光晕 + 径向场箭头 + 标签 ---- */
+  SOURCES.forEach(s=>{
+    const on=(state.src!=='all' && state.src===s.k);
+    const col=s.q>0? C.orange : C.blue;
+    if(state.show.fld) drawSourceArrows(s,on);
+    srcGlow(s, col, on?30:22, on?.95:.62);
+    marker(s,{r:on?7:5.5, color:col, ring:on?'#F3C9A8':null});
+    tags.push({p:s, t:s.t+'（'+(s.q>0?'+':'−')+Math.abs(s.q)+'）', c:col});
+  });
+
+  /* ---- 高斯面：6 个面按该面 A·n 的**符号与大小**着色（不再写数字） ---- */
   const faces=[
-    {n:pt(1,0,0),  c:vadd(P,pt(l,0,0)),  off:pt(l*0.7,0,0),  lab:'(+x) 面'},
-    {n:pt(-1,0,0), c:vadd(P,pt(-l,0,0)), off:pt(-l*0.7,0,0), lab:'(-x) 面'},
-    {n:pt(0,1,0),  c:vadd(P,pt(0,l,0)),  off:pt(0,l*0.7,0),  lab:'(+y) 面'},
-    {n:pt(0,-1,0), c:vadd(P,pt(0,-l,0)), off:pt(0,-l*0.7,0), lab:'(-y) 面'},
-    {n:pt(0,0,1),  c:vadd(P,pt(0,0,l)),  off:pt(0,0,l*0.7),  lab:'(+z) 面'},
-    {n:pt(0,0,-1), c:vadd(P,pt(0,0,-l)), off:pt(0,0,-l*0.7), lab:'(-z) 面'},
+    {n:pt( 1,0,0), c:vadd(Cc,pt( l,0,0))},
+    {n:pt(-1,0,0), c:vadd(Cc,pt(-l,0,0))},
+    {n:pt(0, 1,0), c:vadd(Cc,pt(0, l,0))},
+    {n:pt(0,-1,0), c:vadd(Cc,pt(0,-l,0))},
+    {n:pt(0,0, 1), c:vadd(Cc,pt(0,0, l))},
+    {n:pt(0,0,-1), c:vadd(Cc,pt(0,0,-l))},
   ];
-  let sum=0;
   faces.forEach(f=>{
-    const A=field()(f.c);
-    const dS=(2*l)*(2*l);
-    const Phi=vdot(A,f.n)*dS;
-    sum += Phi;
-    const col=Phi>0? C.orange : (Phi<0? C.blue : '#A0AFB8');
-    const a=Math.abs(Phi)*0.25;
-    /* 面的四边形（绕法矢旋转） */
+    const den=vdot(srcA(f.c), f.n);                       /* 该面中心的通量密度 A·n */
+    const col = den>0 ? C.orange : (den<0 ? C.blue : '#A0AFB8');
+    const a   = 0.09 + 0.26*(1-Math.exp(-Math.abs(den)/0.9));
     let t1=vnorm(vcross(f.n, Math.abs(f.n.z)<.9?pt(0,0,1):pt(1,0,0)));
     const t2=vnorm(vcross(f.n,t1));
-    const q=[vadd(vadd(f.c,vmul(t1,l)),vmul(t2,l)),
-             vadd(vadd(f.c,vmul(t1,-l)),vmul(t2,l)),
+    const q=[vadd(vadd(f.c,vmul(t1, l)),vmul(t2, l)),
+             vadd(vadd(f.c,vmul(t1,-l)),vmul(t2, l)),
              vadd(vadd(f.c,vmul(t1,-l)),vmul(t2,-l)),
-             vadd(vadd(f.c,vmul(t1,l)),vmul(t2,-l))];
-    poly(q,{fill:col, fillAlpha:Math.min(.55,.45+a), stroke:col, w:1.6});
-    /* 外向法矢箭头 */
-    arrow(vadd(f.c,vmul(f.n,l*0.35)), vadd(f.c,vmul(f.n,l*1.05)), {color:col, w:2});
-    /* 通量数字 */
-    text(vadd(f.c,vmul(f.n,l*1.45)), (Phi>=0?'+':'')+Phi.toFixed(2),
-      {color:col, size:12.5, bold:true, align:'center', dy:0});
+             vadd(vadd(f.c,vmul(t1, l)),vmul(t2,-l))];
+    poly(q,{fill:col, fillAlpha:a, stroke:col, strokeAlpha:.62, w:1.2});
+    /* 外向法矢：只表方向（长度不随场强变），说明「外法矢朝哪、A·n 定正负」 */
+    arrow(vadd(f.c,vmul(f.n,l*0.26)), vadd(f.c,vmul(f.n,l*0.88)),
+      {color:col, w:1.9, headScale:.8, alpha:.8});
   });
-  /* 小立方体棱（淡） */
-  drawCube(P, l*2, '#B9C9D2', 0.55);
-  /* P 点 */
-  marker(P,{r:6,color:C.teal,ring:'#BBD9E6',label:'P'});
-  /* 6 面通量求和 vs 解析 ∇·A·ΔV */
-  const V=(2*l)*(2*l)*(2*l);
-  const exact=divF()*V;
-  text(vadd(P,pt(0,0,-l*1.7)),
-    'ΣΦ ≈ '+sum.toFixed(3)+'     ∇·A·ΔV = '+exact.toFixed(3),
-    {color:C.ink, size:12.5, bold:true, align:'center'});
-  text(vadd(P,pt(0,0,l*1.95)),
-    'div '+fieldName()+' = '+divF()+'（常数）',
-    {color:C.muted, size:11.5, align:'center'});
+
+  /* ---- 棱：颜色跟着**总通量**的符号走，一眼看出这个面里有没有净源 ---- */
+  const ec = Phi>0.02 ? C.orange : (Phi<-0.02 ? C.blue : '#93A7B3');
+  drawCube(Cc, l*2, ec, 1, 2.2);
+
+  /* ---- 源标签最后画（白底药丸，压在任何东西之上都读得清） ---- */
+  drawSrcTags(tags);
 }
-function drawCube(c, side, color, alpha){
+function drawCube(c, side, color, alpha, w){
   const a=side/2;
   const v=[pt(-a,-a,-a),pt(a,-a,-a),pt(a,a,-a),pt(-a,a,-a),
            pt(-a,-a,a),pt(a,-a,a),pt(a,a,a),pt(-a,a,a)];
   const edges=[[0,1],[1,2],[2,3],[3,0],[4,5],[5,6],[6,7],[7,4],[0,4],[1,5],[2,6],[3,7]];
-  edges.forEach(([i,j])=>line(vadd(c,v[i]),vadd(c,v[j]),{color,w:1.2,alpha}));
+  edges.forEach(([i,j])=>line(vadd(c,v[i]),vadd(c,v[j]),{color,w:w||1.2,alpha}));
 }
 
 /* =====================================================================
  * 模式 3：散度定理（Theorem）—— 立方体网格剖分演示 ★ 用户最强调
  *   内部相邻面的通量一正一负相互抵消，只剩最外侧表面未被抵消
  * ===================================================================== */
+/* ---- 散度定理的数值：外壳通量 ∮A·dS 与体元散度累加 ∫∇·A dV（解析），
+ *      ⚠️ 只算一次、HUD 与底部读数条共用（不在画布上写逐面数字） ---- */
+function theoremFlux(){
+  const N=state.N, l=CUBE_L/N, A=field();
+  const dS=(2*l)*(2*l);            /* ⚠️ 面元面积（不是体积！）——外层面积分用 */
+  const dV=dS*(2*l);               /* 体元体积 —— 内层散度累加用 */
+  let sumSurf=0;
+  const DIRS=[[1,0,0],[-1,0,0],[0,1,0],[0,-1,0],[0,0,1],[0,0,-1]];
+  for(let i=0;i<N;i++) for(let j=0;j<N;j++) for(let k=0;k<N;k++){
+    const P=pt((2*(i+0.5)/N-1)*CUBE_L, (2*(j+0.5)/N-1)*CUBE_L, (2*(k+0.5)/N-1)*CUBE_L);
+    DIRS.forEach(([ax,ay,az])=>{
+      const ni=i+ax, nj=j+ay, nk=k+az;
+      if(ni>=0&&ni<N&&nj>=0&&nj<N&&nk>=0&&nk<N) return;   /* 内部面：两侧抵消，不计 */
+      const n=pt(ax,ay,az);
+      sumSurf += vdot(A(vadd(P,vmul(n,l))), n)*dS;
+    });
+  }
+  const sumInt=divF()*dV*N*N*N;
+  return {N, l, dS, dV, sumSurf, sumInt, err:sumSurf-sumInt};
+}
 function modeTheorem(){
   const N=state.N, l=CUBE_L/N;          /* 小立方体半边长 = 1/N */
   const A=field();
   /* 外壳 12 棱 */
-  drawCube(pt(0,0,0), CUBE_L*2, C.ink, 0.95);
+  drawCube(pt(0,0,0), CUBE_L*2, C.ink, 0.95, 1.6);
   /* 内部 N×N×N 个体元 */
-  let sumInt=0, sumSurf=0;
-  /* 用 map 记录每个面是否已被相邻体元绘制（避免重复画内部面） */
   for(let i=0;i<N;i++) for(let j=0;j<N;j++) for(let k=0;k<N;k++){
     /* 体元中心：整个大立方体跨 [-CUBE_L, +CUBE_L]，N 等分 → 半边长 l=CUBE_L/N */
     const cx=(2*(i+0.5)/N - 1)*CUBE_L;
@@ -1077,15 +1237,12 @@ function modeTheorem(){
     dirs.forEach(d=>{
       /* 面中心 */
       const fc=vadd(P, vmul(d.n, l));
-      const Aa=A(fc);
-      const dS=(2*l)*(2*l);
-      const Phi=vdot(Aa, d.n)*dS;
+      const Phi=vdot(A(fc), d.n)*(2*l)*(2*l);
       /* 判断是否为内部面（与 i+sgn*step 方向的体元相邻） */
       const ni=i+(d.axis==='x'?d.sgn:0);
       const nj=j+(d.axis==='y'?d.sgn:0);
       const nk=k+(d.axis==='z'?d.sgn:0);
       const isInner = (ni>=0&&ni<N && nj>=0&&nj<N && nk>=0&&nk<N);
-      sumSurf += isInner? 0 : Phi;
       if(isInner){
         if(state.show.cancel){
           /* 内部抵消面：灰化 + 半透明 */
@@ -1097,9 +1254,9 @@ function modeTheorem(){
                    vadd(vadd(fc,vmul(t1,l*0.95)),vmul(t2,-l*0.95))];
           poly(q,{fill:'#D5DEE3', fillAlpha:0.45, stroke:'#9DB3BF', strokeAlpha:0.55, w:1, dash:[3,2]});
         }
-        /* 不计入 sumSurf，但相邻体元反过来也会有这一面，sumInt 也跳过（避免双计） */
+        /* 内部面不计入外壳通量（相邻体元各出一半、方向相反，正好抵消） */
       }else{
-        /* 外壳面：按通量上色 */
+        /* 外壳面：按通量上色；**不再写逐面数字**（通量统一见画布顶部 HUD） */
         const col=Phi>0?C.orange:(Phi<0?C.blue:'#A0AFB8');
         const a=Math.min(0.7, 0.18+Math.abs(Phi)*0.30);
         let t1=vnorm(vcross(d.n, Math.abs(d.n.z)<.9?pt(0,0,1):pt(1,0,0)));
@@ -1111,27 +1268,9 @@ function modeTheorem(){
         poly(q,{fill:col, fillAlpha:a, stroke:col, w:1.6});
         /* 外向法矢 */
         arrow(vadd(fc,vmul(d.n,l*0.4)), vadd(fc,vmul(d.n,l*1.05)), {color:col, w:1.8, headScale:.7});
-        if(state.show.labels){
-          const lab = (Phi>=0?'+':'')+Phi.toFixed(2);
-          const pos=vadd(fc,vmul(d.n,l*1.5));
-          text(pos, lab, {color:col, size:11.5, bold:true, align:'center', dy:0});
-        }
       }
     });
-    /* 体元散度（解析）累加：∇·A · ΔV */
-    sumInt += divF() * (2*l)*(2*l)*(2*l);
   }
-  /* 注解文字 */
-  const err = sumSurf - sumInt;
-  text(pt(0,0,CUBE_L+0.35),'N = '+N+'×'+N+'×'+N+' 体元',
-    {color:C.muted, size:11.5, align:'center', dy:0});
-  text(pt(0,0,CUBE_L+0.55),'外壳通量 ∮ @{A}·d@{S} ≈ '+sumSurf.toFixed(2),
-    {color:C.crimson, size:12.5, bold:true, align:'center', dy:0});
-  text(pt(0,0,CUBE_L+0.78),'体元散度累加 ∫<sub>V</sub> ∇·@{A} dV ≈ '+sumInt.toFixed(2),
-    {color:C.teal, size:12.5, bold:true, align:'center', dy:0});
-  text(pt(0,0,CUBE_L+1.02),'误差 ≈ '+Math.abs(err).toFixed(2),
-    {color:Math.abs(err)<0.05?C.green:(Math.abs(err)<0.2?C.orange:C.crimson),
-     size:12, bold:true, align:'center'});
 }
 
 /* ---------------- 主场景构建 ---------------- */
@@ -1145,10 +1284,76 @@ function buildScene(){
   else modeTheorem();
 }
 
+/* =====================================================================
+ * 画布顶部居中的「统一总通量」HUD
+ *   —— 散度页 / 散度定理页都不再在画布上写逐面通量数字，只在这里显示一个总通量
+ *   ⚠️ 这是**屏幕空间**的覆盖层（不参与 prims 的 z 排序），所以随画布缩放/平移都钉在顶部中间
+ * ===================================================================== */
+function hudInfo(){
+  if(state.mode==='div'){
+    const spec=cubeSpec(), l=state.cubeL;
+    const Phi=cubeFlux(spec.c,l), V=cubeVolume(l), inside=sourcesInside(spec.c,l);
+    const ratio=V>1e-9 ? Phi/V : 0;
+    const names = inside.length
+      ? '内含 '+inside.length+' 个源：'+inside.map(s=>s.t+'('+(s.q>0?'+':'−')+Math.abs(s.q)+')').join(' ')
+      : '面内无源';
+    return { main:'Φ = '+signed(Phi), label:'总通量',
+      sub: names+'　·　Φ/ΔV = '+(Math.abs(ratio)<1e4? ratio.toFixed(2) : ratio.toExponential(1)),
+      color: Phi>0.02? C.orange : (Phi<-0.02? C.blue : '#7A8F9B') };
+  }
+  if(state.mode==='theorem'){
+    if(state.theoremScene==='fieldlines'){
+      const R=0.85, V=4/3*Math.PI*R*R*R, Phi=divF()*V;
+      return { main:'Φ = '+signed(Phi), label:'总通量',
+        sub:'∇·@{A} = '+divF()+'　·　V = '+V.toFixed(3),
+        color: Phi>0.02? C.orange : (Phi<-0.02? C.blue : '#7A8F9B') };
+    }
+    const t=theoremFlux();
+    return { main:'Φ = '+signed(t.sumSurf), label:'总通量',
+      sub:'= ∫_V ∇·@{A} dV = '+signed(t.sumInt)+'　·　误差 = '+Math.abs(t.err).toFixed(3),
+      color: t.sumSurf>0.02? C.orange : (t.sumSurf<-0.02? C.blue : '#7A8F9B') };
+  }
+  return null;
+}
+let hudRect=null;   /* 最近一次 HUD 的屏幕矩形（供自检用） */
+function drawHUD(){
+  const info=hudInfo(); if(!info){ hudRect=null; return; }
+  const numSize=25, subSize=11.5, labSize=11;
+  const loN=richLayout(ctx, parseRich(info.main), numSize, true);
+  const loS=richLayout(ctx, parseRich(info.sub), subSize, false);
+  ctx.save(); ctx.font='600 '+labSize+'px '+RICHFONT;
+  const labW=ctx.measureText(info.label).width; ctx.restore();
+  const innerW=Math.max(loN.w+labW+12, loS.w);
+  const padX=16, top=11, h=62;
+  const w=innerW+padX*2, x0=W/2-w/2;
+  hudRect={x:x0, y:top, w:w, h:h};
+  ctx.save();
+  rrPath(x0, top, w, h, 11);
+  ctx.fillStyle='rgba(255,255,255,.93)'; ctx.fill();
+  ctx.strokeStyle='#D8E4EA'; ctx.lineWidth=1; ctx.stroke();
+  /* 左侧一道竖色条：颜色 = 通量符号 */
+  ctx.save(); rrPath(x0+7, top+11, 3.2, h-22, 1.6); ctx.fillStyle=info.color; ctx.fill(); ctx.restore();
+  /* 第 1 行：「总通量」小标签 + 大号 Φ */
+  const y1=top+23;
+  ctx.font='600 '+labSize+'px '+RICHFONT; ctx.fillStyle='#7A8F9B';
+  ctx.textAlign='left'; ctx.textBaseline='middle';
+  ctx.fillText(info.label, x0+padX, y1);
+  richDraw(ctx, loN, x0+padX+labW+12, y1, 'left', info.color);
+  /* 第 2 行：面内源 / 分解说明 */
+  richDraw(ctx, loS, W/2, top+47, 'center', '#5F7482');
+  ctx.restore();
+}
+function rrPath(x,y,w,h,r){
+  ctx.beginPath();
+  ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r);
+  ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath();
+}
+
 /* ---------------- 渲染循环 ---------------- */
 let needsRender=true;
 function draw(){ setupCamera(); ctx.clearRect(0,0,W,H); buildScene();
   prims.sort((a,b)=>a.z-b.z); for(const p of prims) p.draw(ctx);
+  drawHUD();
   const t=document.getElementById('panTag'); if(t) t.classList.toggle('show', Math.abs(cam.px)>2||Math.abs(cam.py)>2);
   needsRender=false; }
 /* ⚠️ draw() 必须包 try/catch：一旦某帧抛异常，若直接冒泡出 tick，
@@ -1226,13 +1431,15 @@ function renderSubSec(sec){
     cb.onclick=()=>{ state.show.box=!state.show.box; cb.classList.toggle('on',state.show.box); updateAll(); };
     box.appendChild(cb); sec.appendChild(box);
   } else if(state.mode==='div'){
-    sec.appendChild(h('<div class="sec-title">选择矢量场</div>'));
-    subChips(sec, FIELD_OPTS,
-      it=>state.field===it.k,
-      it=>{ state.field=it.k; updateAll(); renderPanel(); });
+    sec.appendChild(h('<div class="sec-title">选中对象 —— 立方体套住谁？</div>'));
+    subChips(sec, SRC_TARGETS,
+      it=>state.src===it.k,
+      it=>{ state.src=it.k; state.cubeL=defaultCubeL(it.k); renderPanel(); updateAll(); });
+    sec.appendChild(h('<div class="ex-note">选中<b>某个源</b>：立方体套住它 —— 把边长缩到这一点，'+
+      '通量仍然是<b>这一个源</b>的强度（Φ 不随面大小变）。选<b>总源</b>：大方块包住全部源，显示总通量。</div>'));
     sec.appendChild(h('<div class="sec-title" style="margin-top:14px">图中显示</div>'));
     const bx=h('<div class="sub-chips"></div>').firstChild;
-    [{k:'labels',t:'通量数字标注'},{k:'box',t:'坐标轴'}].forEach(it=>{
+    [{k:'fld',t:'源周围场箭头'},{k:'box',t:'坐标轴'}].forEach(it=>{
       const sb=h('<button class="chip '+(state.show[it.k]?'on':'')+'" data-k="'+it.k+'">'+it.t+'</button>').firstChild;
       sb.onclick=()=>{ state.show[it.k]=!state.show[it.k]; sb.classList.toggle('on',state.show[it.k]); updateAll(); };
       bx.appendChild(sb);
@@ -1254,8 +1461,8 @@ function renderSubSec(sec){
     sec.appendChild(h('<div class="sec-title" style="margin-top:14px">图中显示</div>'));
     const bx=h('<div class="sub-chips"></div>').firstChild;
     const toggles = state.theoremScene==='subdiv'
-      ? [{k:'cancel',t:'内部抵消面（灰化）'},{k:'labels',t:'通量数字标注'},{k:'box',t:'坐标轴'}]
-      : [{k:'labels',t:'通量数字标注'},{k:'box',t:'坐标轴'}];
+      ? [{k:'cancel',t:'内部抵消面（灰化）'},{k:'box',t:'坐标轴'}]
+      : [{k:'box',t:'坐标轴'}];
     toggles.forEach(it=>{
       const sb=h('<button class="chip '+(state.show[it.k]?'on':'')+'" data-k="'+it.k+'">'+it.t+'</button>').firstChild;
       sb.onclick=()=>{ state.show[it.k]=!state.show[it.k]; sb.classList.toggle('on',state.show[it.k]); updateAll(); };
@@ -1289,6 +1496,17 @@ function updateMagNote(){
       ?'转动中：Φ 在变 → 有感应电动势 → <b>灯泡亮</b>（Φ=0 处反而最亮：变化最快）'
       :'静止：Φ 不变 → ε = 0 → <b>灯泡不亮</b>（停在任意角度都一样）');
 }
+function updateDivNote(){
+  const e=document.getElementById('divNote'); if(!e) return;
+  const spec=cubeSpec(), l=state.cubeL, V=cubeVolume(l);
+  const Phi=cubeFlux(spec.c,l), inside=sourcesInside(spec.c,l), ratio=Phi/V;
+  const names = inside.length
+    ? inside.map(s=>s.t+'('+(s.q>0?'+':'−')+Math.abs(s.q)+')').join(' + ')
+    : '一个都没有';
+  e.innerHTML='面内源：'+names+'（共 '+inside.length+' 个）<br>'+
+    'ΔV = '+V.toFixed(3)+'　→　Φ/ΔV = '+ratio.toFixed(2)+'<br>'+
+    '<b>ΔV 越小 Φ/ΔV 越大</b> —— 所以「散度」要定义成单位体积的通量。';
+}
 function renderSliders(sec){
   sec.innerHTML='';
   if(state.mode==='flux'){
@@ -1320,11 +1538,10 @@ function renderSliders(sec){
       sec.appendChild(h('<div class="ex-note">拖动画面可旋转观察。用「光」类比通量：灯罩是一个闭合面，光从里面的光源穿出来 —— 穿过的光的多少就是光通量。<br>用上面的「光照」开关对比：<b>关灯</b>时灯罩暗、没有光穿过（Φ = 0）；<b>开灯</b>后灯罩整面透亮、光穿出、四周被照亮。</div>'));
     }
   } else if(state.mode==='div'){
-    sec.appendChild(h('<div class="sec-title">包围小立方体</div>'));
-    mkSlider(sec,'半边长 l','hL', 0.1,0.45,0.01, state.halfL, v=>{ state.halfL=v; }, v=>v.toFixed(2));
-    sec.appendChild(h('<div class="sec-title" style="margin-top:14px">观察点 P</div>'));
-    mkSlider(sec,'x','Px', -1,1,0.02, state.P.x, v=>{ state.P.x=v; }, v=>v.toFixed(2));
-    mkSlider(sec,'y','Py', -1,1,0.02, state.P.y, v=>{ state.P.y=v; }, v=>v.toFixed(2));
+    sec.appendChild(h('<div class="sec-title">立方体边长（往源上缩）</div>'));
+    mkSlider(sec,'半边长 l','cL', CUBE_L_MIN, CUBE_L_MAX, 0.01, state.cubeL, v=>{ state.cubeL=v; }, v=>v.toFixed(2));
+    sec.appendChild(h('<div class="ex-note" id="divNote"></div>'));
+    updateDivNote();
   } else {
     if(state.theoremScene==='subdiv'){
       sec.appendChild(h('<div class="sec-title">立方体剖分密度</div>'));
@@ -1343,7 +1560,7 @@ function syncSliders(){
     if(state.fluxScene==='charge'){ set('nPlus',state.nPlus); set('nMinus',state.nMinus); updateQNote(); }
     else if(state.fluxScene==='magnet'){ set('mTilt',state.magnetTilt); updateMagNote(); }
   } else if(state.mode==='div'){
-    set('hL',state.halfL,v=>v.toFixed(2)); set('Px',state.P.x,v=>v.toFixed(2)); set('Py',state.P.y,v=>v.toFixed(2));
+    set('cL',state.cubeL,v=>v.toFixed(2)); updateDivNote();
   } else if(state.theoremScene==='subdiv'){
     set('N',state.N);
   }
@@ -1379,20 +1596,23 @@ function renderExplain(sec){
       {k:'1', tab:'1. 散度定义', cls:'c1', body:
         '<b>定义：</b>单位体积的通量（"通量的密度"）'+
         '<div class="frm">∇·@{A} = lim<sub>ΔV→0</sub> ∮<sub>ΔS</sub> @{A}·d@{S} / ΔV</div>'+
-        '<ul><li>它是<b>标量</b>，可正可负；正 = 该点是<b>正源</b>（流出 &gt; 流入），负 = 汇</li>'+
-        '<li>本演示把小立方体套在 P 点，6 面通量求和 ≈ ∇·A · ΔV</li>'+
-        '<li>半边长 l → 0 时，6 面求和 / ΔV 趋近 P 点的<b>真实散度值</b></li></ul>'},
+        '<ul><li>它是<b>标量</b>，可正可负：正 = 该点是<b>正源</b>（场从这里往外流），负 = <b>汇</b></li>'+
+        '<li>演示里有 3 个源。立方体套住谁，Φ 就只由<b>面内的源</b>决定</li>'+
+        '<li>把半边长 l 一路缩小到源上：<b>Φ 不变</b>，而 Φ/ΔV 越来越大 —— 这就是"单位体积的通量"</li></ul>'+
+        '<div class="ex-note">⚠️ 别把散度和通量混起来：<b>通量</b>是某个面上一共穿过多少（一个总量），<b>散度</b>是每一点处"单位体积里的通量"（一个密度）。把 ΔV 缩到一点，后者才等于前者 ÷ ΔV。</div>'},
       {k:'2', tab:'2. 直角系计算', cls:'c2', body:
         '<b>直角坐标下的算法：</b>'+
         '<div class="frm">∇·@{A} = ∂A<sub>x</sub>/∂x + ∂A<sub>y</sub>/∂y + ∂A<sub>z</sub>/∂z</div>'+
         '<ul><li>散度是<b>标量场</b>：给空间每一点配一个数</li>'+
-        '<li>例：A=(1, 0.4, 0.6) → ∇·A = 0（无源场）</li>'+
-        '<li>A=(x, y, z) → ∇·A = 3（处处正源）；A = −(x, y, z) → ∇·A = −3</li></ul>'},
-      {k:'3', tab:'3. 用散度算通量', cls:'c3', body:
-        '<b>由散度得到通量：</b>均匀场下 净通量 = 散度 × 体积'+
-        '<div class="frm">∮<sub>S</sub> @{A}·d@{S} = (∇·@{A}) · V</div>'+
-        '<ul><li>演示：小立方体 6 个面的通量相加 ΣΦ ≈ ∇·A · ΔV</li>'+
-        '<li>l 越小，ΣΦ / ΔV 越接近真实散度（画布下方读数实时对比）</li></ul>'},
+        '<li>无源场例：A=(1, 0.4, 0.6) → ∇·A = 0（处处无源）</li>'+
+        '<li>本页的场是几个源的叠加：∇·A = Σ q<sub>i</sub>·g(r−r<sub>i</sub>)，<b>只在源附近明显不为零</b> —— 那些点就是"源"</li></ul>'},
+      {k:'3', tab:'3. 由源算通量', cls:'c3', body:
+        '<b>闭合面的净通量 = 面内所有源强的代数和：</b>'+
+        '<div class="frm">Φ = ∮<sub>S</sub> @{A}·d@{S} = Σ q<sub>i</sub>（面内） = ∫<sub>V</sub> ∇·@{A} dV</div>'+
+        '<ul><li>套住<b>源 1</b>：边长无论缩到多小，Φ 始终 = <b>+1</b></li>'+
+        '<li>套住<b>源 2</b>（+2）：Φ = <b>+2</b>；套住<b>源 3</b>（−1，汇）：Φ = <b>−1</b></li>'+
+        '<li>套住<b>总源</b>：Φ = +1 +2 −1 = <b>+2</b>；把大方块缩到正中间（面内没有源）：Φ = <b>0</b></li></ul>'+
+        '<div class="ex-note">"面内没源 ⇒ Φ = 0" 很值得停一下：这时<b>面上明明有场在穿</b>，但一进一出互相抵消。所以净通量只认面内有没有源。</div>'},
     ];
   } else {
     if(state.theoremScene==='fieldlines'){
@@ -1498,17 +1718,17 @@ function updateReadout(){
       lgTitle.textContent='通量 · 包围电荷的球面'; lgNote.textContent='闭合面内的净电荷决定净通量：Φ = Q内/ε₀';
     }
   } else if(state.mode==='div'){
-    const l=state.halfL, V=(2*l)*(2*l)*(2*l);
-    const faces=[pt(1,0,0),pt(-1,0,0),pt(0,1,0),pt(0,-1,0),pt(0,0,1),pt(0,0,-1)];
-    const P=pt(state.P.x, state.P.y, 0);
-    let sum=0;
-    faces.forEach(n=>{ const fc=vadd(P,vmul(n,l)); sum += vdot(field()(fc), n)*V; });
-    html += kchip('P =', '('+P.x.toFixed(2)+', '+P.y.toFixed(2)+', 0)');
-    html += kchip('小立方体边 =', (2*l).toFixed(2));
-    html += kchip('ΣΦ ≈', sum.toFixed(3), 'acc');
-    html += kchip('∇·@{A}·ΔV =', (divF()*V).toFixed(3), 'acc');
-    lgTitle.textContent='散度的极限定义';
-    lgNote.textContent='l → 0 时 ΣΦ/ΔV 趋近 ∇·A(P)';
+    const spec=cubeSpec(), l=state.cubeL, V=cubeVolume(l);
+    const Phi=cubeFlux(spec.c,l), inside=sourcesInside(spec.c,l), ratio=Phi/V;
+    const qin=inside.reduce((s,x)=>s+x.q,0);
+    html += kchip('立方体套住 =', spec.t);
+    html += kchip('半边长 l =', l.toFixed(2));
+    html += kchip('ΔV =', V.toFixed(3));
+    html += kchip('面内源 =', inside.length+' 个（Σq = '+signed(qin)+'）', inside.length?'acc':'warn');
+    html += kchip('Φ =', signed(Phi), Phi>0.02?'acc':(Phi<-0.02?'warn':''));
+    html += kchip('Φ/ΔV =', ratio.toFixed(2));
+    lgTitle.textContent='散度 · 单位体积的通量';
+    lgNote.textContent='Φ 只由面内的源决定；ΔV 越小，Φ/ΔV 越接近该点的 ∇·A';
   } else {
     if(state.theoremScene==='fieldlines'){
       const V=4/3*Math.PI*0.85*0.85*0.85;
@@ -1516,33 +1736,20 @@ function updateReadout(){
       html += kchip('∇·@{A} =', divF());
       html += kchip('净通量 Φ =', (divF()*V).toFixed(3), 'acc');
       lgTitle.textContent='通量 · 闭合曲面';
-      lgNote.textContent='净通量 Φ = ∮A·dS = (∇·A)·V';
+      const dv=divF();
+      lgNote.textContent = dv>0 ? '球内有正源 → 场线全部朝外穿出（橙）→ 净通量 > 0'
+        : (dv<0 ? '球内是汇 → 场线全部朝里穿入（蓝）→ 净通量 < 0'
+                : '球内无源 → 线一进一出（青），穿入 = 穿出 → 净通量 = 0');
     } else {
-      const N=state.N, l=CUBE_L/N;
-      const dV=(2*l)*(2*l)*(2*l);
-      const sumInt = divF() * dV * N*N*N;
-      const A=field();
-      let sumSurf=0;
-      for(let i=0;i<N;i++) for(let j=0;j<N;j++) for(let k=0;k<N;k++){
-        const cx=(i+0.5)/N - 0.5, cy=(j+0.5)/N - 0.5, cz=(k+0.5)/N - 0.5;
-        const P=pt(cx,cy,cz);
-        const dirs=[pt(+1,0,0),pt(-1,0,0),pt(0,+1,0),pt(0,-1,0),pt(0,0,+1),pt(0,0,-1)];
-        dirs.forEach(n=>{
-          const fc=vadd(P, vmul(n,l));
-          const Phi=vdot(A(fc), n)*dV;
-          const ni=i+(n.x?Math.sign(n.x):0), nj=j+(n.y?Math.sign(n.y):0), nk=k+(n.z?Math.sign(n.z):0);
-          if(!(ni>=0&&ni<N&&nj>=0&&nj<N&&nk>=0&&nk<N)) sumSurf+=Phi;
-        });
-      }
+      const t=theoremFlux();
       html += kchip('场 '+richHTML('@{A}')+' =', richHTML(FIELD_OPTS[state.field-1].label.replace(/_o|_g|_p/g,'')));
       html += kchip('∇·@{A} =', divF());
-      html += kchip('N =', N+'×'+N+'×'+N+'='+N*N*N);
-      html += kchip('∮<sub>S</sub> @{A}·d@{S} =', sumSurf.toFixed(3), 'acc');
-      html += kchip('∫<sub>V</sub> ∇·@{A} dV =', sumInt.toFixed(3), 'acc');
-      const err = sumSurf-sumInt;
-      html += kchip('误差 =', err.toFixed(3), Math.abs(err)<0.05?'':'warn');
-      lgTitle.textContent='散度定理 · '+N+'×'+N+'×'+N+' 剖分';
-      lgNote.textContent='内部相邻面 ±Φ 自动抵消，仅外壳净通量保留';
+      html += kchip('N =', t.N+'×'+t.N+'×'+t.N+'='+t.N*t.N*t.N);
+      html += kchip('∮<sub>S</sub> @{A}·d@{S} =', t.sumSurf.toFixed(3), 'acc');
+      html += kchip('∫<sub>V</sub> ∇·@{A} dV =', t.sumInt.toFixed(3), 'acc');
+      html += kchip('误差 =', t.err.toFixed(3), Math.abs(t.err)<0.05?'':'warn');
+      lgTitle.textContent='散度定理 · '+t.N+'×'+t.N+'×'+t.N+' 剖分';
+      lgNote.textContent='内部相邻面 ±Φ 自动抵消，仅外壳净通量保留（通量见画布顶部）';
     }
   }
   strip.innerHTML=html;
@@ -1555,8 +1762,9 @@ function updateModeTag(){
       magnet:'通量 · 发电机（磁通量）', charge:'通量 · 包围电荷的球面（电通量）'}[state.fluxScene];
     sub.textContent='凡"穿过"即有通量：光通量 / 磁通量 / 电通量';
   } else if(state.mode==='div'){
-    t.innerHTML='散度定义 · l='+state.halfL.toFixed(2)+'（越小越接近真实散度）';
-    sub.textContent='小立方体 6 面通量 ≈ ∇·A · ΔV';
+    const spec=cubeSpec();
+    t.innerHTML='散度 · 立方体套住 '+spec.t+'（l='+state.cubeL.toFixed(2)+'）';
+    sub.textContent='Φ 只由面内的源决定 · ΔV 越小 Φ/ΔV 越大';
   } else if(state.theoremScene==='fieldlines'){
     t.innerHTML='高斯散度定理 · 场线穿闭曲面';
     sub.textContent='净通量 = 穿出 − 穿入，只看面内净源';
