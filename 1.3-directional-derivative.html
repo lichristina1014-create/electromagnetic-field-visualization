@@ -465,9 +465,9 @@ function phiRGB(v){
 /* ---------------- 全局状态 ---------------- */
 const state = {
   scene:'terrain',
-  P:{x:.30, y:.22, z:0},     // 观察点（二维场时 z 由曲面决定）
+  P:{x:.48, y:.03, z:0},     // 观察点（二维场时 z 由曲面决定）
   zc:0,                       // 三维场时 P 的 z（二维场忽略）
-  dirAz:91,                   // e_l 方位角（°）—— 与默认 P 的 ∇h 大约夹 55°，θ 弧/投影一眼可见
+  dirAz:15,                   // e_l 方位角（°）—— 与默认 P 的 ∇h 夹 ~68°，投影不为零、θ 弧一眼可见
   dirEl:0,                    // e_l 仰角（°），二维场锁定为 0
   show:{ iso:true, grad:true, dir:true },
   cardTab:'1',
@@ -484,7 +484,10 @@ function eDir(){
 /* P 点的真实三维坐标（二维场贴在曲面上） */
 function Ppos(){
   const S=SCENES[state.scene];
-  if(S.f2) return pt(state.P.x, state.P.y, hTerrain(state.P.x,state.P.y));
+  /* ⚠️ 二维场要按**本场景自己的场**取高度：篝火场的地面是平的（z=0），
+     若错用 hTerrain，把 P 拖到"山的位置"会让小人凭空飘起来。 */
+  if(S.kind==='terrain') return pt(state.P.x, state.P.y, hTerrain(state.P.x,state.P.y));
+  if(S.kind==='campfire') return pt(state.P.x, state.P.y, 0);
   return pt(state.P.x, state.P.y, state.zc);
 }
 
@@ -620,6 +623,10 @@ const C = {
 
 /* ---------------- 画布与相机 ---------------- */
 let canvas, ctx, W=800, H=600, DPR=1;
+/* 默认视角：az=35.5°（.62 rad），与全站其余页保持一致。
+   ⚠️ 曾经试过 60°，想让地形 ∇h 的投影更长，但它会把次峰与洼地一起带进画面、
+   还让偶极子那一页的球壳跑出画布边界 —— 不值当。地形场景改由<b>默认 P</b> 保证可读
+   （见 setDefaultP 里 terrain 的注释）。 */
 const cam={az:.62, el:.46, zoom:1, px:0, py:0};
 let camU, camV, camD, camScale, CX, CY;
 function setupCamera(){
@@ -1102,50 +1109,135 @@ function fmtN(v){
    只画四个东西，一眼能对上下面的公式：
      · 蓝箭头  = 方向 @{e_l}（单位矢量，由「方位角 / 仰角」滑块控制）
      · 红箭头  = 梯度 ∇φ（由右侧「梯度 ∇φ」开关控制，长度按 |∇φ| 单调增长）
-     · 橙弧    = @{e_l} 与 ∇φ 的夹角 θ
-     · 灰虚线  = @{e_l} 端点向 ∇φ 作的垂线 —— 这段<b>投影长度 ∝ cos θ</b>
+                 ⚠️ 地形场景里这条箭头贴着坡面（方向见 buildScene 的说明），
+                    因此它<b>不是</b> θ 的起算边；θ 一律从 `gh`（传进来的参考方向）起算，
+                    地形场景的参考方向就是水平的 ∇h，并在画布上用细虚线标出。
+     · 橙弧    = @{e_l} 与参考方向 gh 的夹角 θ
+     · 灰虚线  = @{e_l} 端点向 gh 作的垂线 —— 这段<b>投影长度 ∝ cos θ</b>
    于是公式 ∂φ/∂l = |∇φ| cos θ 的三件事同时可见：
      θ = 0°   （@{e_l} ∥ ∇φ） ⇒ 投影最长 ⇒ ∂φ/∂l = +|∇φ| 最大
      θ = 90°  （@{e_l} ⊥ ∇φ） ⇒ 投影缩成 0 ⇒ ∂φ/∂l = 0
      θ = 180° （@{e_l} ∥ −∇φ）⇒ 投影反向最长 ⇒ ∂φ/∂l = −|∇φ| 最小 */
-function drawDirViz(P,g,gh,Lg,e){
+function drawDirViz(P,gh,Lg,e,arrowTip){
   if(!e) return;
   const _before=prims.length;          // 之后统一加 z 偏置，画在曲面之上
+  const ARC_R=0.23;                    // θ 弧半径（世界单位）
 
   /* ① @{e_l} 单位矢量箭头（长度与 ∇φ 箭头一致，夹角才看得出来） */
-  arrow(P, vadd(P, vmul(e, Lg)),
-    {color:C.blue, w:2.8, label:'@{e_l}', ldy:16, lsize:12.5});
+  arrow(P, vadd(P, vmul(e, Lg)), {color:C.blue, w:2.8});
 
   const c=Math.max(-1, Math.min(1, vdot(gh,e)));
   const th=Math.acos(c);
 
+  const tipE=vadd(P, vmul(e,  Lg));
+  const foot=vadd(P, vmul(gh, Lg*c));
+  const sT=pr(tipE), sP=pr(P);
+  /* ⚠️ P 的标签是 marker() 画的，落点在 pr(P)+(10,−10)（见 marker 的 label 默认偏移），
+     避让时要拿这个真实落点，不是 pr(P)。 */
+  const pLbl={x:sP.x+10, y:sP.y-10};
+
+  /* ★ P 点周围的标签实在太多（P、@{e_l}、θ、|∇φ|cos θ 全从 P 辐射出来），
+     纯按几何位置放一定会撞：实测 @{e_l}↔|∇φ|cos θ 只差 5px、
+     ∇φ 箭头↔|∇φ|cos θ 差 0px、θ↔@{e_l} 差 4px、P↔@{e_l} 差 4px。
+     所以除 P 之外的两个标签都"绕锚点一圈找最空的方向"：
+     16 个候选方向 × 给定半径，取「离其它已知标签最远」的那个，并剔除跑出画布的。 */
+  const aE={x:(sT.x+sP.x)/2, y:(sT.y+sP.y)/2+16};          // @{e_l} 标签落点
+  const aA=arrowTip ? (()=>{ const a=pr(arrowTip);
+                            return {x:(a.x+sP.x)/2, y:(a.y+sP.y)/2-12}; })()
+                    : {x:-9e3, y:-9e3};                     // ∇φ 箭头标签落点
+  const place=(anchor,avoid,rad,fb)=>{
+    let bx=fb?fb[0]:0, by=fb?fb[1]:0, bd=-1;
+    for(let i=0;i<16;i++){
+      const a=i*Math.PI/8, cx=anchor.x+Math.cos(a)*rad, cy=anchor.y+Math.sin(a)*rad;
+      if(cx<44||cx>W-72||cy<30||cy>H-22) continue;
+      let dm=1e9;
+      for(const o of avoid) dm=Math.min(dm, Math.hypot(cx-o.x, cy-o.y));
+      if(dm>bd){ bd=dm; bx=Math.cos(a)*rad; by=Math.sin(a)*rad; }
+    }
+    return {dx:bx, dy:by};
+  };
+  {
+    const anchor=vmul(vadd(P,tipE),.5);
+    const d=place(pr(anchor), [pLbl], 26, [0,16]);
+    text(anchor, '@{e_l}', {color:C.blue, size:12.5, bold:true, dx:d.dx, dy:d.dy});
+    const ap=pr(anchor); aE.x=ap.x+d.dx; aE.y=ap.y+d.dy;
+  }
+
   /* ② θ 角弧（在 ∇φ 与 @{e_l} 张成的平面内，从 ∇φ 转到 @{e_l}） */
   let ep=vsub(e, vmul(gh,c));          // @{e_l} 中垂直于 ∇φ 的分量
   const epl=vlen(ep);
+  let aT=null;                         // θ 标签最终屏幕落点（供 ③ 避让）
   if(epl>1e-6 && th>0.03){
     ep=vmul(ep, 1/epl);
-    const r=0.23, N=18, pts=[];
+    const N=18, pts=[];
     for(let i=0;i<=N;i++){
       const t=th*i/N;
-      pts.push(vadd(P, vmul(vadd(vmul(gh,Math.cos(t)), vmul(ep,Math.sin(t))), r)));
+      pts.push(vadd(P, vmul(vadd(vmul(gh,Math.cos(t)), vmul(ep,Math.sin(t))), ARC_R)));
     }
     curve(pts,{color:C.orange, w:2});
-    const t2=th/2;
-    text(vadd(P, vmul(vadd(vmul(gh,Math.cos(t2)), vmul(ep,Math.sin(t2))), r*1.34)),
-      'θ='+(th*R2D).toFixed(0)+'°', {color:C.orange, size:11.5, bold:true});
+    const tm=th/2;
+    const anchor=vadd(P, vmul(vadd(vmul(gh,Math.cos(tm)), vmul(ep,Math.sin(tm))), ARC_R*1.34));
+    /* 也要避开 ③ 那个投影标签的锚点（它在下面才画，这里先算出来） */
+    const projAnchor=pr(vmul(vadd(tipE,foot),.5));
+    const d=place(pr(anchor), [pLbl,aE,aA,projAnchor], 30, [0,-18]);
+    text(anchor, 'θ='+(th*R2D).toFixed(0)+'°',
+      {color:C.orange, size:11.5, bold:true, dx:d.dx, dy:d.dy});
+    const ap=pr(anchor); aT={x:ap.x+d.dx, y:ap.y+d.dy};
   }
 
   /* ③ 投影：@{e_l} 端点向 ∇φ 作垂线，垂足在 ∇φ 上距 P 为 Lg·cos θ */
-  const tipE=vadd(P, vmul(e,  Lg));
-  const foot=vadd(P, vmul(gh, Lg*c));
   if(th>0.03 && th<Math.PI-0.03){
     line(tipE, foot, {color:'#9FB3BE', w:1.2, dash:[4,4]});
     marker(foot,{r:3.4, color:C.crimson, alpha:.95});
+    const avoid=[pLbl,aE,aA]; if(aT) avoid.push(aT);
+    const d=place(pr(vmul(vadd(tipE,foot),.5)), avoid, 36, [0,-28]);
     text(vmul(vadd(tipE,foot),.5), '|∇'+SCENES[state.scene].varName+'|cos θ',
-      {color:C.crimson, size:11, bold:true, dx:7, dy:13});
+      {color:C.crimson, size:11, bold:true, dx:d.dx, dy:d.dy});
   }
 
   for(let i=_before;i<prims.length;i++) prims[i].z += 5;
+}
+
+/* ---------- 梯度/参考方向怎么取 —— 必须按「具体问题」定，四类场各不相同 ----------
+   ★ gradArrowDir(g)：画出来的红色梯度箭头方向
+     · 地形 h(x,y)：场值本身就是高度。站在山坡上"上升最快"是一条
+       <b>切于坡面、又垂直于等高线</b>的斜线，不是躺在水平面里的 ∇h。
+       推法：水平沿 @{e_up}=∇h/|∇h| 走 1 个单位水平距离，高度升高 |∇h|，
+       故三维切向 ∝ (@{e_up}_x, @{e_up}_y, |∇h|) ∝ (∇h_x, ∇h_y, |∇h|²)。
+       · 与坡面法矢 (−∇h_x, −∇h_y, 1) 点积 = −|∇h|² + |∇h|² = 0 ⇒ <b>确实切于坡面</b>
+       · 与等高线切向 (−∇h_y, ∇h_x, 0) 点积 = 0            ⇒ <b>确实 ⊥ 等高线</b>
+       · |∇h|→0（平地）时退化为水平 ⇒ 平地没有"上坡方向"，正确
+     · 篝火 T(x,y)：温度场只定义在地面上、人也在地面上走 ⇒ 方向仍是<b>水平</b> ∇T
+     · 点电荷 / 偶极子 φ(r)：三维场，∇φ 本身就是三维径向 ⇒ 直接用 ∇φ */
+function gradArrowDir(g){
+  const S=SCENES[state.scene], gl=vlen(g);
+  if(gl<1e-9) return g;
+  if(S.kind==='terrain') return vnorm({x:g.x, y:g.y, z:gl*gl});
+  return vnorm(g);
+}
+/* gradRefDir(g)：θ 角弧与投影的<b>参考方向</b>。
+   本页的方向导数按<b>水平距离</b>量 l（读数 = ∇φ·e_l 且 e_l 水平锁定），
+   所以地形场景的参考方向是<b>水平</b> ∇h（也就是梯度箭头在地面上的投影），
+   其余场景箭头本来就水平/径向，参考方向即箭头方向。 */
+function gradRefDir(g){
+  const S=SCENES[state.scene];
+  if(S.kind==='terrain') return vnorm({x:g.x, y:g.y, z:0});
+  return vnorm(g);
+}
+/* terrainReach(P,g,gl,Lmax)：地形场景里梯度箭头允许的"水平伸出量"上限。
+   ⚠️ 坡面是<b>凸</b>的：切平面一旦离开切点就比真实地形越抬越高，箭头伸出太远就会
+   <b>飘到山顶上空</b>，学生读到的是"竖直向上"而不是"贴坡向上"。所以沿 ∇h 一步步往外
+   走，当「切平面高度 − 真实地形高度」超过 CAP 就收住。
+   CAP 取 0.30（≈50 px）：只是<b>兜底</b>，不是把箭头一律截短 —— 选定的默认 P 处
+   漂浮量本来就在 CAP 以内，长度不受影响；只有把 P 拖到离山顶很近时才真正起作用。 */
+function terrainReach(P,g,gl,Lmax){
+  if(!(gl>1e-6)) return Lmax;
+  const h0=hTerrain(P.x,P.y), ux=g.x/gl, uy=g.y/gl, N=26, CAP=0.30;
+  for(let i=1;i<=N;i++){
+    const t=Lmax*i/N;
+    if(h0+gl*t-hTerrain(P.x+ux*t, P.y+uy*t) > CAP) return Lmax*(i-1)/N;
+  }
+  return Lmax;
 }
 
 /* =====================================================================
@@ -1222,20 +1314,55 @@ function buildScene(){
 
   /* ---- P 点、梯度 ∇φ、方向 @{e_l} 与夹角 θ ---- */
   const P=Ppos();
-  const g=gradAt(P), gl=vlen(g), gh=vnorm(g);
+  const g=gradAt(P), gl=vlen(g);
   const S3=SCENES[state.scene];
 
-  /* 梯度 ∇φ：长度随模值单调增长但永不爆炸 */
-  let Lg=0.62;
+  /* ★★ 梯度箭头的方向按「具体问题」取（四类场各不相同，推导见 gradArrowDir 上方注释）：
+     · 地形：贴坡面斜着向上（切坡面 + ⊥等高线）
+     · 篝火：水平 ∇T（人在地面上走）
+     · 点电荷 / 偶极子：三维 ∇φ
+     θ 与投影的参考边另取（地形 = 水平 ∇h），保证与读数 ∂φ/∂l = |∇φ|cos θ 一致。 */
+  const isTerrain = (S3.kind==='terrain');
+  const ghArrow = gradArrowDir(g);    // 箭头方向
+  const ghRef   = gradRefDir(g);      // θ / 投影的参考方向
+
+  /* 梯度箭头：长度随模值单调增长但永不爆炸 */
+  let Lg=0.62, arrowTip=null;
   if(gl>1e-6){
     const gref = S3.f2?1.2 : (state.scene==='point'?3.0 : state.scene==='dipole'?6.0 : 1.0);
     Lg = 0.34 + 0.72*(gl/(gl+gref));
     if(state.show.grad){
-      arrow(P, vadd(P, vmul(gh, Lg)), {color:C.crimson, w:2.6, label:'∇'+S3.varName, ldy:-12, lsize:13});
+      /* ★ 地形：箭头的<b>水平伸出量</b>要按坡面凸率裁一刀（terrainReach），否则会飘到山顶上空；
+         其余场景没有"贴坡"问题，直接用 Lg。
+         ⚠️ 裁的是<b>伸出量</b>不是三维长度：三维长 = 伸出量·√(1+|∇h|²)，
+           所以陡坡上"水平走一点、高度升不少"，箭头看上去仍是贴着坡面的斜线。
+         ⚠️ 地形这一支还要加 z 偏置画在曲面之上：山坡是三维实体，箭头既可能<b>飘出坡面</b>
+           （凸处）、也可能<b>扎进山体</b>（鞍部/洼地，切平面低于地形），
+           按画家算法排序时会忽隐忽现。当"注记"画在最上层最稳，学生一眼能看到方向。 */
+      if(isTerrain){
+        const reach = terrainReach(P, g, gl, Lg/Math.sqrt(1+gl*gl));
+        const gz = gl*reach;                       // 沿切平面上升的高度
+        arrowTip = pt(P.x+ghRef.x*reach, P.y+ghRef.y*reach, P.z+gz);
+        const z0=prims.length;
+        arrow(P, arrowTip, {color:C.crimson, w:2.8});
+        /* 标签顺手放到箭头 70% 处（沿坡往上），不占 P 点周围的空位 —— 那里还要放
+           @{e_l}、θ、|∇h|cos θ 三个标签，挤在箭头中点会连成一片。 */
+        text(vadd(P, vmul(vsub(arrowTip,P), .70)), '∇'+S3.varName,
+          {color:C.crimson, size:13, bold:true, dy:-11});
+        /* 最陡上升方向在<b>水平面</b>内的方向 = 水平 ∇h（同时也是 θ 的起算边） */
+        line(P, vadd(P, vmul(ghRef, Lg)), {color:'#C4673F', w:1.6, dash:[5,4], alpha:.95});
+        text(vadd(P, vmul(ghRef, Lg)), '水平 ∇'+S3.varName,
+          {color:'#9C4E2C', size:10.5, bold:true, dx:6, dy:12});
+        for(let i=z0;i<prims.length;i++) prims[i].z += 4;
+      }else{
+        arrowTip = vadd(P, vmul(ghArrow, Lg));
+        arrow(P, arrowTip,
+          {color:C.crimson, w:2.6, label:'∇'+S3.varName, ldy:-12, lsize:13});
+      }
     }
   }
   /* 方向 @{e_l} + θ 夹角 + 投影：∂φ/∂l = |∇φ|cos θ 的几何图示 */
-  if(state.show.dir && gl>1e-6) drawDirViz(P,g,gh,Lg,eDir());
+  if(state.show.dir && gl>1e-6) drawDirViz(P,ghRef,Lg,eDir(),arrowTip);
 
   /* P 点：篝火场景画成"主角小人"（可拖动，表情随温度变化），其余场景画圆点 */
   if(S3.kind==='campfire'){
@@ -1384,8 +1511,12 @@ function renderSliders(sec){
       needsRender=true; updateReadout(); updateModeTag(); };
     sec.appendChild(r);
   });
-  if(S.f2) sec.appendChild(h('<div class="ex-note">地形是定义在水平面上的二维场，方向 '+
-    richHTML('@{e_l}')+' 只能水平取（仰角锁定 0°）；Δh 就是沿该方向走一步的<b>高度变化</b>。</div>'));
+  if(S.f2) sec.appendChild(h('<div class="ex-note">本场定义在水平面上，方向 '+
+    richHTML('@{e_l}')+' 只能水平取（仰角锁定 0°）；Δ'+S.varName+' 就是沿该方向走一步的场值变化。'+
+    (S.kind==='terrain'
+      ? ' ⚠️ 要区分两个方向：<b>红色粗箭头</b>是站在山坡上"上升最快"的方向 —— 它<b>贴着坡面斜着向上</b>、'+
+        '垂直于等高线；它的<b>水平投影方向</b>才是水平 ∇'+S.varName+'（图中细橙虚线），θ 从这条虚线起算。'
+      : '')+'</div>'));
 }
 
 function syncSliders(){
@@ -1440,7 +1571,13 @@ function renderExplain(sec){
       '<li>等值面越密的地方 |∇'+vn+'| 越大 —— 地图上等高线越密坡越陡</li></ul>'+
       (state.scene==='point'||state.scene==='dipole'?
         '<div class="ex-note">电势的负梯度就是电场强度：<b>E</b> = −∇'+vn+'。图中红色箭头是 ∇'+vn+
-        '，电场方向与它<b>相反</b>。</div>':'')},
+        '，电场方向与它<b>相反</b>。</div>'
+       : state.scene==='terrain'?
+        '<div class="ex-note"><b>地形场景要点：</b>站在山坡上，"上升最快"的方向是<b>切于坡面、又垂直于等高线</b>'+
+        '的那条斜线 —— 所以图中红箭头是<b>斜着贴住山坡</b>的，而不是躺在水平面上。'+
+        '<br>它在水平面内的方向就是 ∇'+vn+'（细橙虚线）：<b>坡越陡、|∇'+vn+'| 越大，这条虚线也越长</b>。'+
+        '因为本页按<b>水平距离</b>量 l，θ、投影与读数 ∂'+vn+'/∂l 都从这条水平虚线起算。</div>'
+       : '')},
     {k:'4', tab:'4. 三者关系', cls:'c4', body:
       '<b>核心公式（一句话记住全部）：</b>'+
       '<div class="frm">∂'+vn+'/∂l = ∇'+vn+' · '+richHTML('@{e_l}')+' = |∇'+vn+'| cos θ</div>'+
@@ -1615,7 +1752,13 @@ function syncTabs(){
   Array.from(sceneTabs.children).forEach(b=>b.classList.toggle('on', b.dataset.k===state.scene));
 }
 function setDefaultP(k){
-  if(k==='terrain'){ state.P.x=.30; state.P.y=.22; state.dirAz=91; state.dirEl=0; }
+  /* ⚠️ 地形默认 P 不是随便挑的：P 处 ∇h 的方位角（= 指向山头的方向）要<b>偏离默认视线
+     35.5° 约 40°~50°</b>。若两者接近（旧默认 (0.30,0.22) 的 ∇h 方位角恰好 36°），
+     水平 ∇h 会沿视线方向缩成 55px 的小段、屏幕上还与贴坡箭头正好反向（夹角 179°），
+     看上去就像"梯度指错了方向"。取 (0.48,0.03)：∇h 方位角 83°，影子 98px、箭头 93px、
+     e_l 67px，三者屏幕上两两分开 88°/108°/164°（旧默认是 179° —— 反向共线）。
+     dirAz=15 ⇒ θ≈68°、∂h/∂l≈0.80：投影不为零，|∇h|cos θ 这一段看得见。 */
+  if(k==='terrain'){ state.P.x=.48; state.P.y=.03; state.dirAz=15; state.dirEl=0; }
   else if(k==='temp'){ state.P.x=.72; state.P.y=-.58; state.dirAz=210; state.dirEl=0; }
   else if(k==='point'){ state.P.x=.55; state.P.y=.25; state.zc=.20; state.dirAz=25; state.dirEl=0; }
   else if(k==='dipole'){ state.P.x=.05; state.P.y=.35; state.zc=.28; state.dirAz=90; state.dirEl=0; }
