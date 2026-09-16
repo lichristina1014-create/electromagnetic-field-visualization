@@ -467,9 +467,9 @@ const state = {
   scene:'terrain',
   P:{x:.30, y:.22, z:0},     // 观察点（二维场时 z 由曲面决定）
   zc:0,                       // 三维场时 P 的 z（二维场忽略）
-  dirAz:35,                   // e_l 方位角（°）
+  dirAz:91,                   // e_l 方位角（°）—— 与默认 P 的 ∇h 大约夹 55°，θ 弧/投影一眼可见
   dirEl:0,                    // e_l 仰角（°），二维场锁定为 0
-  show:{ iso:true, grad:true, compass:true },
+  show:{ iso:true, grad:true, dir:true },
   cardTab:'1',
   showReadout:true,
   autoRotate:false,
@@ -1098,99 +1098,53 @@ function fmtN(v){
   return a>=100 ? v.toFixed(0) : (a>=10 ? v.toFixed(1) : v.toFixed(3));
 }
 
-/* ---------- 方向导数罗盘：「方向导数球」+ 等值面切平面 ----------
-   统一规律（与场景无关）：∂φ/∂l = ∇φ·@{e_l} = |∇φ|·cos θ，只取决于 @{e_l} 与 ∇φ 的夹角 θ
-     · θ = 0°   （沿 +∇φ）      → 最大 = +|∇φ|
-     · θ = 180° （沿 −∇φ）      → 最小 = −|∇φ|
-     · θ = 90°  （⊥∇φ，切平面）→ 0，<b>整个切平面内所有方向都是 0</b>
-   把每个方向的端点画在 P + (∂φ/∂l)·@{e_l} 处，所有端点构成一个<b>球</b>
-   （直径 = |∇φ|，过 P，最远点 = P + ∇φ 方向）。
-   这里画这个球的两个正交大圆 + 切平面零圆盘 —— 各场景的差别自然显现：
-     · 地形 h(x,y)：∇h 水平 ⇒ 球平躺，切平面是<b>竖直</b>的（含竖直方向与等高线切向）
-     · 篝火 T(d)  ：∇T 水平沿径向 ⇒ 同上，人沿地面走的方向都在水平截面里
-     · 点电荷 φ(r)：∇φ 沿<b>三维径向</b> ⇒ 球沿径向躺着，切平面正是<b>球面切平面</b>
-                   （沿球面走 ∂φ/∂l = 0，沿径向 ∂φ/∂l = |∇φ| 最大）
-   ───────────────────────────────────────────────────────────────────
-   【地形场景特别处理】（用户教学诉求）：
-   严格按 h(x,y) 数学，∂h/∂z = 0，竖直 e_z 方向是 0（不是最大），
-   沿水平 ∇h 方向才是真最大。
-   但学生爬坡时身体方向 = 3D 真实山的<b>最陡上坡方向</b> = (∇h + e_z) 归一化
-   （在 3D 中是斜上的，看着像"竖直向上"）。
-   所以地形场景把 gh 改为这个 3D 上坡方向 —— 极值射线沿斜上方向，**符合学生直觉**。*/
-function drawCompass(P,g,e){
-  const _before = prims.length;             // 罗盘 prims 起点，之后统一加 z 偏置画在最上层
-  const gl=vlen(g);
-  if(gl<1e-9) return;
-  const S=SCENES[state.scene];
+/* ---------- 方向 e_l 与夹角 θ：把 ∂φ/∂l = ∇φ·@{e_l} = |∇φ|·cos θ 直接画出来 ----------
+   只画四个东西，一眼能对上下面的公式：
+     · 蓝箭头  = 方向 @{e_l}（单位矢量，由「方位角 / 仰角」滑块控制）
+     · 红箭头  = 梯度 ∇φ（由右侧「梯度 ∇φ」开关控制，长度按 |∇φ| 单调增长）
+     · 橙弧    = @{e_l} 与 ∇φ 的夹角 θ
+     · 灰虚线  = @{e_l} 端点向 ∇φ 作的垂线 —— 这段<b>投影长度 ∝ cos θ</b>
+   于是公式 ∂φ/∂l = |∇φ| cos θ 的三件事同时可见：
+     θ = 0°   （@{e_l} ∥ ∇φ） ⇒ 投影最长 ⇒ ∂φ/∂l = +|∇φ| 最大
+     θ = 90°  （@{e_l} ⊥ ∇φ） ⇒ 投影缩成 0 ⇒ ∂φ/∂l = 0
+     θ = 180° （@{e_l} ∥ −∇φ）⇒ 投影反向最长 ⇒ ∂φ/∂l = −|∇φ| 最小 */
+function drawDirViz(P,g,gh,Lg,e){
+  if(!e) return;
+  const _before=prims.length;          // 之后统一加 z 偏置，画在曲面之上
 
-  /* 地形场景：gh = 3D 真实山最陡上坡方向 = (∇h + e_z|∇h|) 归一化（在 3D 中是斜上的） */
-  let gh, maxDL, ghLabel;
-  if (S.kind === 'terrain') {
-    gh = vnorm({ x: g.x, y: g.y, z: gl });   // = (∇h_x, ∇h_y, |∇h|) / |∇h|√2
-    maxDL = gl;                              // 罗盘大小 = |∇h|（沿 3D 上坡方向实际 ∂h/∂l = |∇h|/√2）
-    ghLabel = '上坡方向';
-  } else {
-    /* 篝火 / 点电荷 / 偶极子：严格按 ∇φ */
-    gh = vnorm(g);
-    maxDL = gl;
-    ghLabel = '∇' + S.varName;
-  }
+  /* ① @{e_l} 单位矢量箭头（长度与 ∇φ 箭头一致，夹角才看得出来） */
+  arrow(P, vadd(P, vmul(e, Lg)),
+    {color:C.blue, w:2.8, label:'@{e_l}', ldy:16, lsize:12.5});
 
-  /* 切平面的一组正交基（都 ⊥ gh） */
-  let u=vcross(gh, pt(0,0,1));
-  if(vlen(u)<1e-4) u=vcross(gh, pt(1,0,0));   // gh 竖直时退化处理
-  u=vnorm(u);
-  const w=vnorm(vcross(gh,u));
-  const L=0.50;                                // 罗盘长度（粗线在远景也清晰可见）
-  const R0=0.18;                               // 零圆盘半径（标示切平面）
+  const c=Math.max(-1, Math.min(1, vdot(gh,e)));
+  const th=Math.acos(c);
 
-  /* ① 方向导数球的两个正交大圆（在 gh-u 与 gh-w 截面内）。
-        截面内方向 dir(θ)=gh·cosθ + a·sinθ，端点 = P + dir·(cosθ·L)
-        ⇒ 恰好是半径 L/2 的圆，过 P，最远点 P + L·gh */
-  const N=56;
-  const section=(a,wd,al)=>{
-    const pts=[];
+  /* ② θ 角弧（在 ∇φ 与 @{e_l} 张成的平面内，从 ∇φ 转到 @{e_l}） */
+  let ep=vsub(e, vmul(gh,c));          // @{e_l} 中垂直于 ∇φ 的分量
+  const epl=vlen(ep);
+  if(epl>1e-6 && th>0.03){
+    ep=vmul(ep, 1/epl);
+    const r=0.23, N=18, pts=[];
     for(let i=0;i<=N;i++){
-      const th=2*Math.PI*i/N;
-      const dir=vadd(vmul(gh,Math.cos(th)), vmul(a,Math.sin(th)));
-      pts.push(vadd(P, vmul(dir, Math.cos(th)*L)));
+      const t=th*i/N;
+      pts.push(vadd(P, vmul(vadd(vmul(gh,Math.cos(t)), vmul(ep,Math.sin(t))), r)));
     }
-    curve(pts,{color:C.teal,w:wd,alpha:al,_compass:1});   // _compass: 自检用的标记，不参与渲染
-  };
-  section(u, 2.8, 1);                // 主圆：深色加粗，远景也清晰
-  section(w, 1.7, .55);              // 次圆：浅一些表示另一个正交截面
-
-  /* ② 等值面切平面：这个平面内<b>所有</b>方向 ∂φ/∂l = 0 */
-  const ring=[];
-  for(let i=0;i<=48;i++){
-    const a=2*Math.PI*i/48;
-    ring.push(vadd(P, vadd(vmul(u,Math.cos(a)*R0), vmul(w,Math.sin(a)*R0))));
+    curve(pts,{color:C.orange, w:2});
+    const t2=th/2;
+    text(vadd(P, vmul(vadd(vmul(gh,Math.cos(t2)), vmul(ep,Math.sin(t2))), r*1.34)),
+      'θ='+(th*R2D).toFixed(0)+'°', {color:C.orange, size:11.5, bold:true});
   }
-  poly(ring,{fill:'#8FA6B2',fillAlpha:.18,stroke:'#7A8F9B',strokeAlpha:.6,w:1.2,dash:[3,3]});
-  text(vadd(P, vmul(u,R0)), '等值面切平面（⊥'+ghLabel+'）：∂'+S.varName+'/∂l = 0',
-    {color:'#6B8290',size:10.5,dx:8,dy:-3});
 
-  /* ③ 两个极值方向 —— 沿 gh（地形是 3D 上坡，3D 场是严格 ∇φ） */
-  arrow(P, vadd(P,vmul(gh, L)), {color:C.crimson,w:3.4,
-    label:'沿 '+ghLabel+' 最大：∂'+S.varName+'/∂l = +'+fmtN(maxDL), ldy:-12, lsize:11.5});
-  arrow(P, vadd(P,vmul(gh,-L)), {color:C.green,w:3.4,
-    label:'沿 −'+ghLabel+' 最小：= −'+fmtN(maxDL), ldy:15, lsize:11.5});
-  /* 极值端点 marker 让"最远点"在球面上一眼可见 */
-  marker(vadd(P,vmul(gh, L)),{r:5.5,color:C.crimson,alpha:1});
-  marker(vadd(P,vmul(gh,-L)),{r:5.5,color:C.green,  alpha:1});
-
-  /* ④ 当前 @{e_l} 高亮：端点同样落在方向导数球面上 */
-  if(e){
-    const t=vdot(gh,e);                       // = cos θ ∈[-1,1]（地形用 gh 而不是 g）
-    const tip=vadd(P, vmul(e, t*L));
-    const col=t>=0? C.crimson : C.green;
-    arrow(P, tip, {color:col, w:3.2, alpha:.95});
-    marker(tip,{r:5.0,color:col,alpha:1});
-    marker(tip,{r:2.2,color:'#fff',alpha:1});
-    text(tip,'@{e_l}：∂'+S.varName+'/∂l = '+fmtN(vdot(g,e)),
-      {color:col,size:11.5,bold:true,dx:9,dy:-3});
+  /* ③ 投影：@{e_l} 端点向 ∇φ 作垂线，垂足在 ∇φ 上距 P 为 Lg·cos θ */
+  const tipE=vadd(P, vmul(e,  Lg));
+  const foot=vadd(P, vmul(gh, Lg*c));
+  if(th>0.03 && th<Math.PI-0.03){
+    line(tipE, foot, {color:'#9FB3BE', w:1.2, dash:[4,4]});
+    marker(foot,{r:3.4, color:C.crimson, alpha:.95});
+    text(vmul(vadd(tipE,foot),.5), '|∇'+SCENES[state.scene].varName+'|cos θ',
+      {color:C.crimson, size:11, bold:true, dx:7, dy:13});
   }
-  /* 罗盘所有 prims 加 z 偏置，避免被地形曲面/篝火等不透明元素覆盖 */
+
   for(let i=_before;i<prims.length;i++) prims[i].z += 5;
 }
 
@@ -1266,20 +1220,22 @@ function buildScene(){
     });
   }
 
-  /* ---- P 点、梯度、罗盘 ---- */
+  /* ---- P 点、梯度 ∇φ、方向 @{e_l} 与夹角 θ ---- */
   const P=Ppos();
   const g=gradAt(P), gl=vlen(g), gh=vnorm(g);
   const S3=SCENES[state.scene];
 
-  if(state.show.compass) drawCompass(P,g,eDir());
-
   /* 梯度 ∇φ：长度随模值单调增长但永不爆炸 */
-  if(state.show.grad && gl>1e-6){
+  let Lg=0.62;
+  if(gl>1e-6){
     const gref = S3.f2?1.2 : (state.scene==='point'?3.0 : state.scene==='dipole'?6.0 : 1.0);
-    const Lg = 0.28 + 0.62*(gl/(gl+gref));
-    const G=vadd(P, vmul(gh, Lg));
-    arrow(P, G, {color:C.crimson, w:2.6, label:'∇'+S3.varName, ldy:-12, lsize:13});
+    Lg = 0.34 + 0.72*(gl/(gl+gref));
+    if(state.show.grad){
+      arrow(P, vadd(P, vmul(gh, Lg)), {color:C.crimson, w:2.6, label:'∇'+S3.varName, ldy:-12, lsize:13});
+    }
   }
+  /* 方向 @{e_l} + θ 夹角 + 投影：∂φ/∂l = |∇φ|cos θ 的几何图示 */
+  if(state.show.dir && gl>1e-6) drawDirViz(P,g,gh,Lg,eDir());
 
   /* P 点：篝火场景画成"主角小人"（可拖动，表情随温度变化），其余场景画圆点 */
   if(S3.kind==='campfire'){
@@ -1337,7 +1293,7 @@ function chipHtml(k,label,on,cls){
 const SHOW_ITEMS=[
   {k:'iso',     label:'等值面 / 等值线'},
   {k:'grad',    label:'梯度 ∇φ'},
-  {k:'compass', label:'方向导数罗盘'},
+  {k:'dir',     label:'方向 @{e_l} 与夹角 θ'},
 ];
 
 function renderSubSec(sec){
@@ -1464,7 +1420,7 @@ function renderExplain(sec){
       '<div class="frm">∂'+vn+'/∂l = lim<sub>Δl→0</sub> Δ'+vn+'/Δl</div>'+
       '<ul><li>它是<b>标量</b>，可正可负：正=沿该方向场值上升，负=下降</li>'+
       '<li>几何意义就是<b>坡度</b>：沿 '+richHTML('@{e_l}')+' 走一小段 d'+richHTML('@{l}')+
-        '，场值变化 Δ'+vn+' —— 罗盘里每根折线的<b>竖直段</b>就是这个 Δ'+vn+'</li>'+
+        '，场值变化就是 Δ'+vn+' —— 图中蓝箭头向红箭头作垂线的那段<b>投影越长，坡度越陡</b></li>'+
       '<li>当前 '+richHTML('@{e_l}')+'（方位角 '+state.dirAz.toFixed(0)+'°'+
         (S.f2?'':'，仰角 '+state.dirEl.toFixed(0)+'°')+'）：∂'+vn+'/∂l = <b>'+
         dfdl.toFixed(3)+'</b></li></ul>'+
@@ -1472,10 +1428,10 @@ function renderExplain(sec){
         ' 确实躺在<b>水平面</b>里——它是<b>定义域（xy 平面）中的位移方向</b>。'+
         '但 '+vn+' 是定义在水平面上的函数：<b>在水平面里走 dl，对应的点高度就变了 Δ'+vn+'</b>。'+
         '所以 ∂'+vn+'/∂l = Δ'+vn+'/dl ≠ 0。'+
-        '<br>打开「方向导数罗盘」可以看到：'+
-        '一圈 36 根折线，每根都<b>从 P 出发</b>——水平段是方向、竖直段是该方向的 Δ'+vn+'；'+
-        '加粗那一根就是你选中的 '+richHTML('@{e_l}')+'。'+
-        '把 '+richHTML('@{e_l}')+' 转到<b>沿等高线</b>时，竖直段缩成 0，方向导数就是 0。</div>'},
+        '<br>图中<b>蓝箭头</b>就是 '+richHTML('@{e_l}')+'：它是<b>定义域里的位移方向</b>，'+
+        '与红箭头 ∇'+vn+' 的夹角 θ 决定了一切 —— 橙弧标出 θ，'+
+        '蓝箭头端点向红箭头作垂线，那段<b>虚线长度 ∝ cos θ</b>（投影）。'+
+        '把 '+richHTML('@{e_l}')+' 转到<b>沿等高线</b>时，虚线缩成 0，方向导数就是 0。</div>'},
     {k:'3', tab:'3. 梯度', cls:'c3', body:
       '<b>定义：</b>大小取方向导数的<b>最大值</b>、方向取<b>取得最大值的方向</b>的矢量'+
       '<div class="frm">grad '+vn+' = ∇'+vn+' = '+richHTML('@{e_x}')+'∂'+vn+'/∂x + '+richHTML('@{e_y}')+'∂'+vn+'/∂y + '+richHTML('@{e_z}')+'∂'+vn+'/∂z</div>'+
@@ -1494,7 +1450,8 @@ function renderExplain(sec){
       '<li>其他方向：都是 ∇'+vn+' 在该方向上的<b>投影</b></li></ul>'+
       '<div class="ex-note">当前 θ = <b>'+(ang*R2D).toFixed(1)+'°</b>，|∇'+vn+'|cos θ = <b>'+
         (gl*Math.cos(ang)).toFixed(3)+'</b>，与 ∂'+vn+'/∂l = <b>'+dfdl.toFixed(3)+'</b> 一致。'+
-        '打开「方向导数罗盘」可以一眼看到：红箭头最长处 = 梯度方向，绿箭头 = 下降方向。</div>'},
+        '拖动右侧「方位角 / 仰角」滑块转动<b>蓝箭头</b> '+richHTML('@{e_l}')+
+        '，可以直接看到橙弧 θ、虚线投影长度与 ∂'+vn+'/∂l 三者同步变化。</div>'},
   ];
   if(!cards.find(c=>c.k===state.cardTab)) state.cardTab='1';
   const cur=cards.find(c=>c.k===state.cardTab);
@@ -1658,7 +1615,7 @@ function syncTabs(){
   Array.from(sceneTabs.children).forEach(b=>b.classList.toggle('on', b.dataset.k===state.scene));
 }
 function setDefaultP(k){
-  if(k==='terrain'){ state.P.x=.30; state.P.y=.22; }
+  if(k==='terrain'){ state.P.x=.30; state.P.y=.22; state.dirAz=91; state.dirEl=0; }
   else if(k==='temp'){ state.P.x=.72; state.P.y=-.58; state.dirAz=210; state.dirEl=0; }
   else if(k==='point'){ state.P.x=.55; state.P.y=.25; state.zc=.20; state.dirAz=25; state.dirEl=0; }
   else if(k==='dipole'){ state.P.x=.05; state.P.y=.35; state.zc=.28; state.dirAz=90; state.dirEl=0; }
