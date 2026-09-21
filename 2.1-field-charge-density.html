@@ -1,0 +1,1498 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>2.1 电场强度与电荷密度 · 电磁场可视化平台</title>
+<style>
+
+:root{--teal:#156082;--teal-dark:#0E4A66;--teal-light:#E3EFF4;--orange:#E97132;--orange-light:#FDF0E7;--green:#3E9B4F;--green-light:#EAF5EC;--purple:#9B59B6;--crimson:#D04A3A;--blue:#0F9ED5;--ink:#1F3D4C;--muted:#5F7482;--line:#DCE6EB;--bg:#F2F6F8;}
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{height:100%;}
+body{font-family:"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--ink);overflow:hidden;}
+header{height:76px;background:#fff;border-bottom:1px solid var(--line);display:flex;align-items:center;padding:0 22px;gap:14px;}
+.logo{width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,var(--teal),#2E86AB);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:15px;text-decoration:none;}
+header h1{font-size:18px;font-weight:700;letter-spacing:.5px;}
+header .sub{font-size:12px;color:var(--muted);margin-top:2px;}
+header .badge{margin-left:auto;display:flex;flex-direction:column;align-items:flex-end;gap:4px;}
+header .badge .chip{font-size:12px;color:var(--teal);background:var(--teal-light);border:1px solid #C5DEE9;padding:4px 12px;border-radius:20px;white-space:nowrap;}
+header .badge .owner{font-size:11px;color:#5C6B73;background:#F4F7F9;border:1px solid #E2E8EC;padding:3px 10px;border-radius:20px;white-space:nowrap;display:inline-flex;align-items:center;gap:5px;}
+header .badge .owner b{color:var(--teal);font-weight:600;letter-spacing:.3px;}
+header .badge .owner::before{content:"";display:inline-block;width:5px;height:5px;background:var(--teal);border-radius:50%;}
+.layout{display:flex;height:calc(100vh - 76px);}
+aside{width:236px;background:#fff;border-right:1px solid var(--line);overflow-y:auto;padding:14px 0;flex-shrink:0;}
+aside::-webkit-scrollbar{width:6px;} aside::-webkit-scrollbar-thumb{background:#D5E0E6;border-radius:3px;}
+.nav-ch{font-size:12px;color:var(--muted);padding:12px 18px 6px;font-weight:600;letter-spacing:.5px;}
+.nav-item{display:flex;align-items:center;gap:8px;padding:9px 18px;font-size:13.5px;cursor:pointer;color:#3D5A68;border-left:3px solid transparent;transition:background .15s;text-decoration:none;}
+.nav-item:hover{background:#F5F9FB;}
+.nav-item.active{background:var(--teal-light);color:var(--teal-dark);font-weight:600;border-left-color:var(--teal);}
+.nav-item .dot{width:6px;height:6px;border-radius:50%;background:#C6D4DB;flex-shrink:0;}
+.nav-item.active .dot{background:var(--teal);}
+.nav-item.soon{color:#A5B6C0;cursor:not-allowed;}
+.nav-item.soon .dot{background:#E1E9ED;}
+.nav-item.soon::after{content:"建设中";font-size:10px;color:#B7C6CE;margin-left:auto;border:1px solid #DCE6EB;border-radius:8px;padding:1px 6px;}
+main{flex:1;display:flex;flex-direction:column;padding:14px 16px 12px;overflow:hidden;min-width:0;}
+.module-head{display:flex;align-items:center;gap:16px;margin-bottom:10px;flex-wrap:wrap;}
+.module-title{font-size:17px;font-weight:700;}
+.module-title small{font-weight:400;color:var(--muted);font-size:12px;margin-left:8px;}
+.seg{display:flex;background:#fff;border:1px solid var(--line);border-radius:10px;padding:3px;gap:2px;flex-wrap:wrap;}
+.seg button{border:none;background:transparent;padding:7px 15px;font-size:13px;border-radius:8px;cursor:pointer;color:var(--muted);font-family:inherit;transition:all .15s;white-space:nowrap;}
+.seg button:hover{color:var(--teal);}
+.seg button.on{background:var(--teal);color:#fff;font-weight:600;box-shadow:0 2px 6px rgba(21,96,130,.3);}
+.content-row{flex:1;display:flex;gap:14px;min-height:0;}
+.canvas-card{flex:1;background:#fff;border:1px solid var(--line);border-radius:14px;position:relative;overflow:hidden;min-width:0;display:flex;flex-direction:column;box-shadow:0 1px 4px rgba(30,60,80,.05);}
+#cv{width:100%;flex:1;min-height:0;min-width:0;display:block;cursor:grab;touch-action:none;}
+#cv:active{cursor:grabbing;}
+.cv-toolbar{position:absolute;top:12px;right:12px;display:flex;gap:8px;z-index:5;}
+.cv-toolbar button{border:1px solid var(--line);background:rgba(255,255,255,.92);border-radius:8px;padding:5px 12px;font-size:12px;color:var(--muted);cursor:pointer;font-family:inherit;backdrop-filter:blur(4px);transition:all .15s;}
+.cv-toolbar button:hover{color:var(--teal);border-color:var(--teal);}
+.cv-toolbar button.on{background:var(--teal);color:#fff;border-color:var(--teal);}
+.cv-mode-tag{position:absolute;top:12px;left:12px;font-size:12px;color:var(--teal-dark);background:rgba(227,239,244,.92);border:1px solid #C9E0EA;border-radius:8px;padding:5px 12px;z-index:4;pointer-events:none;font-weight:600;max-width:56%;}
+aside,.panel{transition:width .22s ease,padding .22s ease,border-width .22s ease;}
+body.nav-off aside{width:0;padding-top:0;padding-bottom:0;border-right-width:0;overflow:hidden;}
+body.panel-off .panel{width:0;border-left-width:0;border-right-width:0;overflow:hidden;}
+.fold-handle{position:absolute;top:50%;transform:translateY(-50%);z-index:6;width:15px;height:58px;padding:0;line-height:1;border:1px solid var(--line);background:rgba(255,255,255,.94);color:#A3B7C2;font-size:11px;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px);transition:all .15s;}
+.fold-handle:hover{color:var(--teal);border-color:var(--teal);background:#fff;}
+#foldNav{left:0;border-left:none;border-radius:0 9px 9px 0;}
+#foldPanel{right:0;border-right:none;border-radius:9px 0 0 9px;}
+.view-toggles{display:flex;gap:6px;margin-right:6px;}
+.view-toggles button{border:1px solid var(--line);background:#fff;border-radius:8px;padding:5px 11px;font-size:12px;color:var(--muted);cursor:pointer;font-family:inherit;transition:all .15s;}
+.view-toggles button:hover{border-color:var(--teal);color:var(--teal);}
+.view-toggles button.on{background:var(--teal);color:#fff;border-color:var(--teal);}
+.cv-pan-tag{position:absolute;top:12px;left:50%;transform:translateX(-50%);z-index:6;font-size:11.5px;color:#8A5A20;background:rgba(255,248,236,.95);border:1px solid #E7C48F;border-radius:8px;padding:5px 12px;display:none;align-items:center;gap:8px;}
+.cv-pan-tag.show{display:flex;}
+.cv-pan-tag button{border:1px solid #E0BE8C;background:#fff;border-radius:6px;padding:2px 9px;font-size:11.5px;color:#8A5A20;cursor:pointer;font-family:inherit;}
+.cv-pan-tag button:hover{background:#8A5A20;color:#fff;border-color:#8A5A20;}
+.cv-legend{position:absolute;bottom:14px;right:14px;z-index:5;background:rgba(255,255,255,.94);border:1px solid var(--line);border-radius:9px;padding:7px 11px 8px;font-size:11px;color:var(--muted);backdrop-filter:blur(4px);pointer-events:none;min-width:130px;}
+.cv-legend .lg-t{font-size:11px;color:var(--ink);font-weight:600;margin-bottom:5px;}
+.cv-legend .lg-note{font-size:10.5px;color:var(--muted);line-height:1.55;margin-top:4px;}
+.coord-strip{display:flex;gap:8px;padding:10px 12px;border-top:1px solid var(--line);background:#FBFDFE;flex-wrap:nowrap;overflow-x:auto;overflow-y:hidden;}
+.coord-strip::-webkit-scrollbar{height:5px;}
+.coord-strip::-webkit-scrollbar-thumb{background:#D5E0E6;border-radius:3px;}
+.coord-strip:empty{padding:0;border-top:none;}
+.coord-chip{font-size:12px;color:var(--muted);background:#F3F8FA;border:1px solid #E2ECF1;border-radius:8px;padding:5px 12px;white-space:nowrap;}
+.coord-chip b{color:var(--teal-dark);font-weight:600;margin-left:5px;font-family:Menlo,monospace;}
+.coord-chip i{font-style:italic;font-family:Georgia,serif;color:var(--ink);}
+.coord-chip.acc{background:#F5F0FA;border-color:#E2D4F0;}
+.coord-chip.acc b{color:#6B4E8A;}
+.coord-chip.warn{background:#FFF6EC;border-color:#F3DCC0;}
+.coord-chip.warn b{color:#B26A1E;}
+.panel{width:398px;flex-shrink:0;background:#fff;border:1px solid var(--line);border-radius:14px;display:flex;flex-direction:column;overflow-y:auto;box-shadow:0 1px 4px rgba(30,60,80,.05);}
+.panel::-webkit-scrollbar{width:6px;} .panel::-webkit-scrollbar-thumb{background:#D5E0E6;border-radius:3px;}
+.panel-sec{padding:14px 16px;border-bottom:1px solid #EEF3F6;}
+.panel-sec:last-child{border-bottom:none;}
+.readout-toggle{display:flex;align-items:center;gap:8px;padding:8px 10px;margin-bottom:12px;background:#F3F8FA;border:1px solid #E2ECF1;border-radius:8px;cursor:pointer;font-size:12.5px;line-height:1.5;color:var(--muted);}
+.readout-toggle:hover{border-color:#C6DAE3;background:#EDF4F7;}
+.readout-toggle input{accent-color:var(--teal);cursor:pointer;margin:0;}
+.readout-toggle b{color:var(--ink);}
+.sec-title{font-size:12px;color:var(--muted);font-weight:600;letter-spacing:1px;margin-bottom:10px;display:flex;align-items:center;gap:6px;}
+.sec-title::before{content:"";width:3px;height:12px;background:var(--teal);border-radius:2px;}
+.sub-chips{display:flex;gap:6px;flex-wrap:wrap;}
+.chip{border:1px solid var(--line);background:#fff;border-radius:16px;padding:4px 13px;font-size:12.5px;line-height:1.5;cursor:pointer;font-family:inherit;color:var(--muted);transition:all .15s;}
+.chip:hover{border-color:var(--teal);color:var(--teal);}
+.chip.on{background:var(--teal);border-color:var(--teal);color:#fff;font-weight:600;}
+.chip.pre{border-style:dashed;border-color:#C9D6DD;color:#7A8F9B;}
+.chip.pre:hover{border-color:var(--orange);color:var(--orange);background:#FFF8F2;}
+.chip.g.on{background:var(--green);border-color:var(--green);}
+.chip.o.on{background:var(--orange);border-color:var(--orange);}
+.chip.p.on{background:var(--purple);border-color:var(--purple);}
+.slider-row{display:flex;align-items:center;gap:10px;margin-bottom:9px;}
+.slider-row label{width:46px;font-size:13px;font-style:italic;font-family:Georgia,serif;color:var(--ink);text-align:right;flex-shrink:0;}
+.slider-row.w label{width:62px;font-style:normal;font-family:inherit;}
+.slider-row input[type=range]{flex:1;accent-color:var(--teal);height:4px;cursor:pointer;}
+.slider-row .val{width:62px;font-size:12px;color:var(--muted);font-family:Menlo,monospace;flex-shrink:0;}
+.ex-title{font-size:14.5px;font-weight:700;color:var(--teal-dark);margin-bottom:8px;line-height:1.45;}
+.ex-body{font-size:14px;line-height:1.7;color:#3A5462;}
+.ex-body b{color:var(--ink);}
+.ex-body ul{padding-left:18px;margin:6px 0;}
+.ex-body li{margin-bottom:3px;}
+.ex-note{font-size:12.5px;line-height:1.65;color:#6B8290;background:#F7FAFB;border:1px solid #E7EFF3;border-radius:8px;padding:8px 11px;margin-top:9px;}
+.frm{display:block;background:#F4F9FB;border:1px solid #DDE9EF;border-left:3px solid var(--teal);border-radius:8px;padding:10px 14px 10px 18px;margin:10px 0;font-size:14px;line-height:1.7;font-family:Georgia,"Times New Roman",serif;color:var(--ink);overflow-x:auto;white-space:nowrap;}
+.vec{position:relative;font-style:italic;font-weight:700;white-space:nowrap;}
+.vec::before,.vec::after{content:'';position:absolute;pointer-events:none;}
+.vec::before{left:0;right:.24em;top:-.28em;height:1px;background:currentColor;opacity:.9;}
+.vec::after{right:0;top:-.42em;width:0;height:0;border-left:.26em solid currentColor;border-top:.14em solid transparent;border-bottom:.14em solid transparent;}
+sub{font-size:.72em;vertical-align:-.24em;}
+.vec sub{font-style:normal;font-weight:600;}
+.sqrt{display:inline-block;position:relative;padding-left:.62em;margin-left:.05em;font-style:normal;}
+.sqrt::before{content:"√";position:absolute;left:.02em;top:-.12em;font-size:1.1em;font-family:"Cambria Math","STIX Two Math","Latin Modern Math","Times New Roman",Georgia,serif;}
+.sqrt .in{display:inline-block;border-top:1.15px solid currentColor;padding:.10em .06em .02em .06em;border-radius:4px 4px 0 0;line-height:1.1;}
+.card-tabs{display:flex;gap:6px;flex-wrap:wrap;margin:4px 0 10px;}
+.card-tab{cursor:pointer;font-family:inherit;font-size:12.5px;padding:5px 9px;border-radius:9px;border:1px solid var(--line);background:#fff;color:var(--muted);transition:all .15s;line-height:1.4;white-space:nowrap;flex:1;text-align:center;min-width:0;}
+.card-tab:hover{border-color:var(--teal);color:var(--teal);}
+.card-tab.c1.on{background:#156082;border-color:#156082;color:#fff;font-weight:600;}
+.card-tab.c2.on{background:#0F9ED5;border-color:#0F9ED5;color:#fff;font-weight:600;}
+.card-tab.c3.on{background:#E97132;border-color:#E97132;color:#fff;font-weight:600;}
+.card-tab.c4.on{background:#9B59B6;border-color:#9B59B6;color:#fff;font-weight:600;}
+.card-body{background:#FCFEFE;border:1px solid #E2ECF1;border-radius:8px;padding:12px 16px 8px;border-left:4px solid var(--teal);}
+.card-body.c1{border-left-color:#156082;} .card-body.c2{border-left-color:#0F9ED5;}
+.card-body.c3{border-left-color:#E97132;} .card-body.c4{border-left-color:#9B59B6;}
+#toast{position:fixed;bottom:26px;left:50%;transform:translateX(-50%);background:rgba(31,61,76,.94);color:#fff;font-size:13px;padding:9px 20px;border-radius:22px;opacity:0;pointer-events:none;transition:opacity .25s;z-index:99;}
+#toast.show{opacity:1;}
+
+/* 2.1 追加：滑块分组标签（1.3 有定义、1.5 漏了，这里补齐） */
+.slider-group-label{font-size:12px;font-weight:600;color:var(--crimson);margin:4px 0 8px;}
+.slider-group-label.q{color:var(--blue);}
+.slider-group-label.g{color:var(--green);}
+.slider-group-label.o{color:var(--orange);}
+/* 2.1 追加：画布内小面板（1/R² 曲线 / 收敛曲线）的标题用不着额外样式，坐标条已够 */
+</style>
+</head>
+<body>
+<header>
+  <a class="logo" href="index.html" title="返回平台首页">E&M</a>
+  <div><h1>2.1 电场强度与电荷密度</h1><div class="sub">场强的定义 · 点电荷的场 · 体/面/线电荷密度 · 点电荷的连续累加</div></div>
+  <div class="view-toggles" id="viewToggles"><button id="tglNav" title="折叠 / 展开左侧目录（快捷键 [ ）">☰ 目录</button><button id="tglPanel" title="折叠 / 展开右侧控制面板（快捷键 ] ）">☰ 面板</button></div>
+  <div class="badge"><div class="chip">《工程电磁场》 ×《电磁场与电磁波》</div><div class="owner"><b>© 2026 Li Chenlu</b> All Rights Reserved</div></div>
+</header>
+<div class="layout">
+  <aside id="nav"></aside>
+  <main>
+    <div class="module-head">
+      <div class="module-title" id="moduleTitle">电场强度与电荷密度<small id="moduleSub">场强的定义</small></div>
+      <div class="seg" id="modeTabs"></div>
+    </div>
+    <div class="content-row">
+      <div class="canvas-card">
+        <canvas id="cv"></canvas>
+        <div class="cv-mode-tag" id="modeTag"></div>
+        <div class="cv-pan-tag" id="panTag"><span>画面已平移</span><button id="btnPanReset">回到原点</button></div>
+        <div class="cv-toolbar"><button id="btnReset">复位视角</button><button id="btnRotate">自动旋转</button></div>
+        <div class="cv-legend" id="legend"><div class="lg-t" id="lgTitle">电场强度</div><div class="lg-note" id="lgNote">E = lim(q_t→0) F/q_t</div></div>
+        <button class="fold-handle" id="foldNav" title="折叠 / 展开左侧目录">‹</button>
+        <button class="fold-handle" id="foldPanel" title="折叠 / 展开右侧面板">›</button>
+        <div class="coord-strip" id="coordStrip"></div>
+      </div>
+      <div class="panel" id="panel"></div>
+    </div>
+  </main>
+</div>
+<div id="toast"></div>
+
+<script>
+'use strict';
+/* ============================================================================
+   2.1 电场强度与电荷密度 —— 复用 1.1/1.3/1.4/1.5 同源引擎（单文件、零依赖、纯 Canvas 2D）
+
+   ★ 单位约定（本页特有的一个重要决定）：
+       长度 m ，电荷 nC ，场强 V/m ，力 nN ，密度 nC/m³ · nC/m² · nC/m
+     于是 KC = 1/(4πε₀)·1e-9 ≈ 8.9876 ，有   E[V/m] = KC · q[nC] / R[m]²
+     好处：1 nC 的点电荷在 1 m 处产生 8.99 V/m —— 读数就是能直接讲的物理量，
+     不用“归一化单位”糊弄学生。
+   ============================================================================ */
+
+/* ============================== 目录 ============================== */
+const NAV = [
+  { ch:'第 1 章 · 矢量分析', items:[
+    { id:'coord',  t:'1.1 三种常见坐标系', ready:true, href:'index.html' },
+    { id:'ch1-2',  t:'1.2 矢量的代数运算', ready:true, href:'1.2-vector-algebra.html' },
+    { id:'ch1-3',  t:'1.3 方向导数与梯度', ready:true, href:'1.3-directional-derivative.html' },
+    { id:'ch1-4',  t:'1.4 通量与散度',     ready:true, href:'1.4-divergence-flux.html' },
+    { id:'ch1-5',  t:'1.5 环量与旋度',     ready:true, href:'1.5-curl-circulation.html' },
+  ]},
+  { ch:'第 2 章 · 静电场', items:[
+    { id:'ch2-1', t:'2.1 电场强度与电荷密度', ready:true, active:true },
+    { t:'2.2 高斯定理及其应用' },
+    { t:'2.3 导体与电介质' },
+  ]},
+  { ch:'第 3 章 · 恒定磁场', items:[ {t:'3.1 比奥-萨伐尔定律'}, {t:'3.2 安培环路定理'} ]},
+  { ch:'第 4 章 · 时变电磁场', items:[ {t:'4.1 麦克斯韦方程组'}, {t:'4.2 均匀平面波'} ]},
+];
+
+/* ============================== 向量工具 ============================== */
+const pt=(x,y,z)=>({x,y,z});
+const vadd=(a,b)=>({x:a.x+b.x,y:a.y+b.y,z:a.z+b.z});
+const vsub=(a,b)=>({x:a.x-b.x,y:a.y-b.y,z:a.z-b.z});
+const vmul=(a,s)=>({x:a.x*s,y:a.y*s,z:a.z*s});
+const vdot=(a,b)=>a.x*b.x+a.y*b.y+a.z*b.z;
+const vlen=a=>Math.hypot(a.x,a.y,a.z);
+const vnorm=a=>{const l=vlen(a)||1;return vmul(a,1/l);};
+const vcross=(a,b)=>({x:a.y*b.z-a.z*b.y, y:a.z*b.x-a.x*b.z, z:a.x*b.y-a.y*b.x});
+const D2R=Math.PI/180, R2D=180/Math.PI;
+
+/* ============================== 富文本引擎（同源） ============================== */
+function parseRich(s){
+  const items=[], groups=[]; const st={g:-1};
+  (function walk(str){
+    let buf='';
+    const flush=()=>{ if(buf){ items.push({t:'n',s:buf,g:st.g}); buf=''; } };
+    for(let i=0;i<str.length;){
+      const c=str[i];
+      if(c==='@' && str[i+1]==='{'){
+        const j=str.indexOf('}', i+2);
+        if(j<0){ buf+=c; i++; continue; }
+        flush();
+        const save=st.g; st.g=groups.length; groups.push(1);
+        walk(str.slice(i+2,j)); st.g=save; i=j+1; continue;
+      }
+      if(c==='_'){
+        flush();
+        if(str[i+1]==='{'){ const j=str.indexOf('}',i+2);
+          if(j>=0){ items.push({t:'s',s:str.slice(i+2,j),g:st.g}); i=j+1; continue; } }
+        items.push({t:'s',s:str[i+1]||'',g:st.g}); i+=2; continue;
+      }
+      if(c==='<'){ const j=str.indexOf('>',i);
+        if(j>=0){ buf+=str.slice(i,j+1); i=j+1; continue; } }
+      buf+=c; i++;
+    }
+    flush();
+  })(String(s));
+  return {items, groups};
+}
+const RICHFONT='"PingFang SC","Microsoft YaHei",sans-serif';
+const RICHFONT_M='Georgia,"Times New Roman",serif';
+function richLayout(ctx,rich,size,bold){const subSize=size*0.74;const wM=bold?'700 ':'';const fN=wM+size+'px '+RICHFONT;const fNs=wM+subSize+'px '+RICHFONT;const fV='italic '+wM+size+'px '+RICHFONT_M;const fVs=wM+subSize+'px '+RICHFONT_M;const groups=rich.groups.map(()=>({x0:1e9,x1:-1e9,locked:false,top:1e9}));const out=[];let x=0;const oldBL=ctx.textBaseline;ctx.textBaseline='middle';rich.items.forEach(it=>{const sub=it.t==='s',vec=it.g>=0;const font=sub?(vec?fVs:fNs):(vec?fV:fN);ctx.font=font;const m=ctx.measureText(it.s),w=m.width;const dy=sub?size*0.20:0;const asc=(m.actualBoundingBoxAscent!=null)?m.actualBoundingBoxAscent:size*0.38;if(vec){const g=groups[it.g];if(!g.locked){if(sub)g.locked=true;else{if(x<g.x0)g.x0=x;g.x1=x+w;}}const top=dy-asc;if(top<g.top)g.top=top;}out.push({s:it.s,sub,x,w,font,dy});x+=w;});ctx.textBaseline=oldBL;return{items:out,groups,w:x,size,subSize};}
+function richDraw(ctx,lo,cx,cy,align,color){let ox=align==='center'?cx-lo.w/2:align==='right'?cx-lo.w:cx;const dy=it=>cy+it.dy;const ay=g=>cy+g.top-Math.max(2.2,lo.size*0.13);const span=g=>[ox+g.x0-0.6,ox+g.x1+0.6];ctx.save();ctx.textAlign='left';ctx.textBaseline='middle';ctx.lineJoin='round';ctx.lineCap='butt';ctx.lineWidth=3.4;ctx.strokeStyle='rgba(255,255,255,.92)';lo.items.forEach(it=>{ctx.font=it.font;ctx.strokeText(it.s,ox+it.x,dy(it));});lo.groups.forEach(g=>{if(g.x1<=g.x0)return;const y=ay(g),s=span(g);ctx.beginPath();ctx.moveTo(s[0],y);ctx.lineTo(s[1],y);ctx.stroke();});lo.groups.forEach(g=>{if(g.x1<=g.x0)return;const y=ay(g),s=span(g),ax=s[0],bx=s[1];ctx.strokeStyle=color;ctx.lineWidth=1.15;ctx.beginPath();ctx.moveTo(ax,y);ctx.lineTo(bx-1.2,y);ctx.stroke();const h=Math.min(3.6,Math.max(2.6,(bx-ax)*0.40));ctx.beginPath();ctx.moveTo(bx,y);ctx.lineTo(bx-h,y-h*0.52);ctx.lineTo(bx-h,y+h*0.52);ctx.closePath();ctx.fillStyle=color;ctx.fill();});lo.items.forEach(it=>{ctx.font=it.font;ctx.fillStyle=color;ctx.fillText(it.s,ox+it.x,dy(it));});ctx.restore();}
+function richHTML(s){const r=parseRich(s);let h='',gi=-1;r.items.forEach(it=>{const body=it.t==='s'?'<sub>'+it.s+'</sub>':it.s;if(it.g!==gi){if(gi>=0)h+='</span>';if(it.g>=0)h+='<span class="vec">';gi=it.g;}h+=body;});if(gi>=0)h+='</span>';return wrapSqrt(h);}
+function wrapSqrt(html){const out=[];let i=0;while(i<html.length){const k=html.indexOf('√(',i);if(k<0){out.push(html.slice(i));break;}out.push(html.slice(i,k));out.push('<span class="sqrt"><span class="in">');let j=k+2,depth=1;while(j<html.length&&depth>0){const c=html[j];if(c==='(')depth++;else if(c===')'){depth--;if(depth===0)break;}j++;}if(depth!==0){out.push(html.slice(k));return out.join('');}out.push(html.slice(k+2,j));out.push('</span></span>');i=j+1;}return out.join('');}
+
+/* ============================== 颜色 / 相机 / 图元 ============================== */
+const C = {teal:'#156082',orange:'#E97132',green:'#3E9B4F',purple:'#9B59B6',crimson:'#D04A3A',blue:'#0F9ED5',gray:'#8CA0AC',light:'#C9D6DD',ink:'#22414F',grid:'#EAF0F4',muted:'#7A8F9B'};
+
+let canvas,ctx,W=800,H=600,DPR=1;
+const cam={az:0.62,el:0.46,zoom:1,px:0,py:0};
+let camU,camV,camD,camScale,CX2,CY;
+function setupCamera(){const ca=Math.cos(cam.az),sa=Math.sin(cam.az);const ce=Math.cos(cam.el),se=Math.sin(cam.el);camD={x:ce*ca,y:ce*sa,z:se};camU={x:-sa,y:ca,z:0};camV={x:-ca*se,y:-sa*se,z:ce};camScale=Math.min(W,H)/3.2*cam.zoom;CX2=W/2;CY=H*0.55;}
+function pr(p){return{x:CX2+cam.px+camScale*vdot(p,camU),y:CY+cam.py-camScale*vdot(p,camV),d:vdot(p,camD)};}
+
+let prims=[];
+function P_(z,fn){prims.push({z,draw:fn});}
+function line(a,b,o={}){const A=pr(a),B=pr(b);P_((A.d+B.d)/2,()=>{ctx.save();ctx.globalAlpha=o.alpha!=null?o.alpha:1;ctx.strokeStyle=o.color||C.gray;ctx.lineWidth=o.w||1.4;if(o.dash)ctx.setLineDash(o.dash);ctx.beginPath();ctx.moveTo(A.x,A.y);ctx.lineTo(B.x,B.y);ctx.stroke();ctx.restore();});}
+function arrowSeg(A,B,color,w,headScale){const dx=B.x-A.x,dy=B.y-A.y,L=Math.hypot(dx,dy);if(L<0.5)return;const ux=dx/L,uy=dy/L,hs=(headScale||1)*9;ctx.strokeStyle=color;ctx.lineWidth=w;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(A.x,A.y);ctx.lineTo(B.x-ux*hs*.55,B.y-uy*hs*.55);ctx.stroke();const ang=Math.atan2(dy,dx);ctx.beginPath();ctx.moveTo(B.x,B.y);ctx.lineTo(B.x-hs*Math.cos(ang-.42),B.y-hs*Math.sin(ang-.42));ctx.lineTo(B.x-hs*Math.cos(ang+.42),B.y-hs*Math.sin(ang+.42));ctx.closePath();ctx.fillStyle=color;ctx.fill();}
+function arrow(a,b,o={}){const A=pr(a),B=pr(b);P_((A.d+B.d)/2,()=>{ctx.save();ctx.globalAlpha=o.alpha!=null?o.alpha:1;if(o.dash)ctx.setLineDash(o.dash);arrowSeg(A,B,o.color||C.teal,o.w||2,o.headScale);ctx.restore();});if(o.label)text(vmul(vadd(a,b),.5),o.label,{color:o.color||C.teal,dx:o.ldx||0,dy:o.ldy!==undefined?o.ldy:-10,size:o.lsize||12.5,bold:true,align:o.lalign});}
+function curve(ptsArr,o={}){if(ptsArr.length<2)return;const S=ptsArr.map(pr);P_(S.reduce((s,p)=>s+p.d,0)/S.length,()=>{ctx.save();ctx.globalAlpha=o.alpha!=null?o.alpha:1;ctx.strokeStyle=o.color||C.gray;ctx.lineWidth=o.w||1.8;ctx.lineCap='round';if(o.dash)ctx.setLineDash(o.dash);ctx.beginPath();ctx.moveTo(S[0].x,S[0].y);for(let i=1;i<S.length;i++)ctx.lineTo(S[i].x,S[i].y);ctx.stroke();if(o.arrowEnd){const a=S[S.length-2],b=S[S.length-1];ctx.setLineDash([]);arrowSeg(a,b,o.color||C.gray,o.w||1.8,.75);}ctx.restore();});}
+function poly(ptsArr,o={}){if(ptsArr.length<3)return;const S=ptsArr.map(pr);P_(S.reduce((s,p)=>s+p.d,0)/S.length,()=>{ctx.save();ctx.beginPath();ctx.moveTo(S[0].x,S[0].y);for(let i=1;i<S.length;i++)ctx.lineTo(S[i].x,S[i].y);ctx.closePath();if(o.fill){ctx.globalAlpha=o.fillAlpha!=null?o.fillAlpha:.15;ctx.fillStyle=o.fill;ctx.fill();}if(o.stroke!==false){ctx.globalAlpha=o.strokeAlpha!=null?o.strokeAlpha:(o.fillAlpha!=null?o.fillAlpha:1);ctx.strokeStyle=o.stroke||o.fill||C.gray;ctx.lineWidth=o.w||1;if(o.dash)ctx.setLineDash(o.dash);ctx.stroke();}ctx.restore();});}
+function marker(p,o={}){
+  const S=pr(p);
+  P_(S.d+0.02, ()=>{ ctx.save();
+    ctx.globalAlpha=o.alpha!=null?o.alpha:1;
+    ctx.beginPath(); ctx.arc(S.x,S.y,o.r||5,0,7);
+    ctx.fillStyle=o.color||C.orange; ctx.fill();
+    ctx.lineWidth=2; ctx.strokeStyle='#fff'; ctx.stroke();
+    if(o.ring){ ctx.beginPath(); ctx.arc(S.x,S.y,(o.r||5)+4,0,7);
+      ctx.strokeStyle=o.ring; ctx.lineWidth=2.2; ctx.stroke(); }
+    ctx.restore(); });
+  if(o.label) text(p, o.label, {color:o.color||C.orange,
+    dx:o.ldx!=null?o.ldx:10, dy:o.ldy!=null?o.ldy:-10, size:o.lsize||13, bold:true, align:o.lalign});
+}
+function text(p,str,o={}){const S=pr(p);P_(1e6,()=>{ctx.save();const size=o.size||12.5,bold=!!o.bold;const lo=richLayout(ctx,parseRich(str),size,bold);richDraw(ctx,lo,S.x+(o.dx||0),S.y+(o.dy||0),o.align||'left',o.color||C.ink);ctx.restore();});}
+/* 屏幕坐标文本（不随平移缩放跑掉） */
+function textScreen(x,y,str,o={}){P_(1e6+1,()=>{ctx.save();const lo=richLayout(ctx,parseRich(str),o.size||12,!!o.bold);richDraw(ctx,lo,x,y,o.align||'left',o.color||C.ink);ctx.restore();});}
+/* 距离标注（★ 规范：距离一律用 dimLine，绝不用箭头） */
+function dimLine(a,b,o={}){
+  line(a,b,o);
+  const A=pr(a),B=pr(b);
+  const dx=B.x-A.x,dy=B.y-A.y,L=Math.hypot(dx,dy);
+  if(L<1)return;
+  const px=-dy/L,py=dx/L,t=o.tick||6;
+  const tk=P=>{P_((A.d+B.d)/2,()=>{ctx.save();ctx.strokeStyle=o.color||C.gray;ctx.lineWidth=o.w||1.4;ctx.setLineDash([]);ctx.beginPath();ctx.moveTo(P.x+px*t,P.y+py*t);ctx.lineTo(P.x-px*t,P.y-py*t);ctx.stroke();ctx.restore();});};
+  tk(A);tk(B);
+  if(o.label)text(vmul(vadd(a,b),.5),o.label,{color:o.color||C.gray,dx:o.ldx||0,dy:o.ldy!==undefined?o.ldy:-10,size:o.lsize||12.5,bold:true,align:o.lalign});
+}
+function screenDot(p,rad,fill,alpha,z){const S=pr(p);P_(z!=null?z:S.d+0.02,()=>{ctx.save();ctx.globalAlpha=alpha!=null?alpha:1;ctx.beginPath();ctx.arc(S.x,S.y,rad,0,7);ctx.fillStyle=fill;ctx.fill();ctx.restore();});}
+function hexA(hex,a){const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);return 'rgba('+r+','+g+','+b+','+a+')';}
+
+/* 坐标轴（ext = 轴长） */
+function drawAxes(ext){
+  if(!state.show.box) return;
+  const g=ext*0.86;
+  for(let v=-g;v<=g+1e-9;v+=ext*0.30){line(pt(v,-g,-ext*0.86),pt(v,g,-ext*0.86),{color:C.grid,w:1});line(pt(-g,v,-ext*0.86),pt(g,v,-ext*0.86),{color:C.grid,w:1});}
+  line(pt(0,0,0),pt(-ext,0,0),{color:'#B9C9D2',dash:[5,4],w:1.2});
+  line(pt(0,0,0),pt(0,-ext,0),{color:'#B9C9D2',dash:[5,4],w:1.2});
+  line(pt(0,0,0),pt(0,0,-ext),{color:'#B9C9D2',dash:[5,4],w:1.2});
+  arrow(pt(0,0,0),pt(ext,0,0),{color:C.teal,w:2});
+  arrow(pt(0,0,0),pt(0,ext,0),{color:C.orange,w:2});
+  arrow(pt(0,0,0),pt(0,0,ext),{color:C.green,w:2.2});
+  text(pt(ext*1.05,0,0),'x',{color:C.teal,bold:true,size:13,dy:-4});
+  text(pt(0,ext*1.05,0),'y',{color:C.orange,bold:true,size:13,dy:-4});
+  text(pt(0,0,ext*1.05),'z',{color:C.green,bold:true,size:13,dx:-4});
+  text(pt(0,0,0),'O',{color:'#7A8F9B',size:12,dx:-13,dy:13});
+}
+
+/* 球线框（可指定球心；r=0 时自动跳过） */
+function sphereWireAt(c,R,color,w,alpha){
+  if(R<=1e-6) return;
+  for(let k=0;k<3;k++){
+    const th=Math.PI*(k+1)/4;
+    const loop=[];
+    for(let i=0;i<=48;i++){const ph=2*Math.PI*i/48;
+      loop.push(pt(c.x+R*Math.sin(th)*Math.cos(ph), c.y+R*Math.sin(th)*Math.sin(ph), c.z+R*Math.cos(th)));}
+    curve(loop,{color,w,alpha});
+  }
+  for(let k=0;k<4;k++){
+    const ph=Math.PI*k/4;
+    const loop=[];
+    for(let i=0;i<=48;i++){const th=Math.PI*i/48;
+      loop.push(pt(c.x+R*Math.sin(th)*Math.cos(ph), c.y+R*Math.sin(th)*Math.sin(ph), c.z+R*Math.cos(th)));}
+    curve(loop,{color,w,alpha});
+  }
+}
+
+/* ============================================================================
+   物理模型
+   ============================================================================ */
+const EPS0 = 8.8541878128e-12;        /* 真空介电常数 F/m */
+const KC   = 1e-9/(4*Math.PI*EPS0);   /* = 8.987551787368176 ⇒ E[V/m] = KC·q[nC]/R[m]² */
+const GA   = 0.60;                    /* 带电体特征尺寸（球半径 / 圆盘半径 / 线半长） m */
+const NL_K = 0.70;                    /* 非均匀剖面系数：ρ ∝ 1 + 0.7·ξ² */
+const KD   = 0.35;                    /* 「实验电荷自身扰动」示意系数 1/nC */
+const RHO0 = 1.00, SIG0 = 1.00, TAU0 = 1.00;   /* 密度基值 nC/m³ · nC/m² · nC/m */
+
+function kE(qnC, R){ return KC*Math.abs(qnC)/(R*R); }          /* 点电荷场强大小 V/m */
+function prof(xi){ return 1 + (state.nonuni?NL_K:0)*xi*xi; }    /* 归一化密度剖面 */
+function sgnTxt(v,d){ return (v>=0?'+':'−')+Math.abs(v).toFixed(d==null?2:d); }
+/* 与 a 方向垂直、尽量落在屏幕平面内的单位向量（用来把两条箭头并排错开） */
+function perpOf(d){
+  let a=pt(0,0,1);
+  if(Math.abs(vdot(d,a))>0.95) a=pt(1,0,0);
+  return vnorm(vsub(a, vmul(d, vdot(a,d))));
+}
+
+/* ============================================================================
+   全局状态
+   ============================================================================ */
+const state = {
+  mode:'def',                 /* def | point | rho | super */
+  autoRotate:false,
+  cardTab:'1',
+  showReadout:true,
+  show:{ box:true, fld:true, shells:true, prof:true, micro:true,
+         dots:true, links:true, anl:true, conv:true },
+  /* --- ① 电场强度的定义 --- */
+  q:1.5,                      /* 源电荷 nC */
+  qt:1.00,                    /* 实验电荷 nC */
+  tp:{x:0.62, y:0.26, z:0.10},/* 实验电荷位置（可拖） */
+  disturb:true,               /* 是否计入「实验电荷自身扰动」示意模型 */
+  shrink:false,               /* 「让 q_t → 0」动画 */
+  /* --- ② 点电荷的场 --- */
+  qP:1.00,                    /* 点电荷电量 nC */
+  pp:{x:0.72, y:0.34, z:0.00},/* 场点 P（可拖） */
+  /* --- ③ 电荷密度 --- */
+  geo:'vol',                  /* vol | surf | line */
+  nonuni:true,                /* 非均匀分布 ρ ∝ 1+0.7ξ² */
+  mu:0.45,                    /* 微元归一化位置 ξ ∈ [−1,1] */
+  mh:0.34,                    /* 微元归一化尺寸 */
+  /* --- ④ 连续叠加 --- */
+  NS:24,                      /* 离散点电荷元个数 N */
+  sd:1.20,                    /* 场点位置参数 d (m) */
+};
+
+const SD_RANGE={ vol:[0.75,1.50], surf:[0.20,1.50], line:[0.20,1.40] };
+const MT=[{k:'def',t:'① 电场强度的定义'},{k:'point',t:'② 点电荷的场'},
+          {k:'rho',t:'③ 电荷密度'},{k:'super',t:'④ 点电荷的连续叠加'}];
+const GEO_OPTS=[{k:'vol',t:'体电荷 ρ'},{k:'surf',t:'面电荷 σ'},{k:'line',t:'线电荷 τ'}];
+
+function geoWord(){ return state.geo==='vol'?'体电荷':(state.geo==='surf'?'面电荷':'线电荷'); }
+function geoUnit(){ return state.geo==='vol'?'nC/m³':(state.geo==='surf'?'nC/m²':'nC/m'); }
+function geoSym(){ return state.geo==='vol'?'ρ':(state.geo==='surf'?'σ':'τ'); }
+function geoBase(){ return state.geo==='vol'?RHO0:(state.geo==='surf'?SIG0:TAU0); }
+function geoMeas(){ return state.geo==='vol'?'ΔV′':(state.geo==='surf'?'ΔS′':'Δl′'); }
+function geoMeasUnit(){ return state.geo==='vol'?'m³':(state.geo==='surf'?'m²':'m'); }
+function microLimit(){ return 1 - state.mh/2; }
+function clampMicro(){
+  const lo = (state.geo==='surf') ? 0 : -microLimit();
+  state.mu = Math.max(lo, Math.min(microLimit(), state.mu));
+}
+function clampSd(){ const r=SD_RANGE[state.geo]; state.sd=Math.max(r[0],Math.min(r[1],state.sd)); }
+
+/* ============================================================================
+   伪光照 / 密度色阶（③ 用）
+   ============================================================================ */
+const L_DIR = vnorm(pt(0.36,-0.52,0.78));
+function shade(hex,n){
+  const lam=Math.abs(vdot(n,L_DIR)), f=0.80+0.20*lam;
+  const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);
+  return 'rgb('+Math.min(255,Math.round(r*f))+','+Math.min(255,Math.round(g*f))+','+Math.min(255,Math.round(b*f))+')';
+}
+const DENS_HEX='#2E7FA6';
+/* 归一化剖面 prof(ξ) ∈ [1, 1+0.7] ⇒ 透明度 0.12 → 0.48 */
+function densAlpha(t){ const u=Math.max(0,Math.min(1,(t-1)/NL_K)); return 0.12+0.36*u; }
+function densHex(t){ const u=Math.max(0,Math.min(1,(t-1)/NL_K)); return 'rgba(46,127,166,'+(0.20+0.62*u).toFixed(3)+')'; }
+
+/* ============================================================================
+   ③ 微元：测度 / 微元内电量 Δq（对微元做数值积分 ⇒ 三种几何都精确）
+   ============================================================================ */
+function microInfo(){
+  const xi=state.mu, h=state.mh, k=state.nonuni?NL_K:0;
+  const f=t=>1+k*t*t;
+  let meas, dq, pointDens;
+  if(state.geo==='line'){
+    const n=64; let s=0;
+    for(let i=0;i<n;i++) s+=f(xi+(i+0.5)/n*h - h/2);
+    meas = h*GA;                                    /* Δl′ (m) */
+    dq   = TAU0*(s/n)*meas;                         /* nC */
+    pointDens = TAU0*f(xi);                         /* τ(ξ) nC/m */
+  } else if(state.geo==='surf'){
+    const n=36; let s=0;
+    for(let i=0;i<n;i++) for(let j=0;j<n;j++){
+      const xx=-h/2+(i+0.5)/n*h;                    /* 微元内 x 偏移（归一化） */
+      const yy=xi+(-h/2+(j+0.5)/n*h);               /* 微元内 y（归一化，= ρ′/GA） */
+      s += f(Math.hypot(xx,yy));
+    }
+    meas = (h*GA)*(h*GA);                           /* ΔS′ (m²) */
+    dq   = SIG0*(s/(n*n))*meas;                     /* nC */
+    pointDens = SIG0*f(xi);                         /* σ(ξ) nC/m² */
+  } else {
+    const n=14; let s=0;
+    for(let i=0;i<n;i++) for(let j=0;j<n;j++) for(let l=0;l<n;l++){
+      /* ρ 只随 x 变 ⇒ 只需对 x 求平均（与三维平均等价）；区间 = [ξ−h/2, ξ+h/2] */
+      s += f(xi + (i+0.5)/n*h - h/2);
+    }
+    meas = Math.pow(h*GA,3);                        /* ΔV′ (m³) */
+    dq   = RHO0*(s/(n*n*n))*meas;                   /* nC */
+    pointDens = RHO0*f(xi);                         /* ρ(ξ) nC/m³ */
+  }
+  const dens = dq/meas;
+  return {xi, h, meas, dq, dens, pointDens,
+          dev:dens-pointDens, devRel:(dens-pointDens)/pointDens};
+}
+
+/* 总电量 Q = ∫ 密度 d(测度)。
+   ★ 剖面取 ρ ∝ 1+kξ² 时三种几何都有**初等闭式解**（就不必数值积分了，读数才是精确的）：
+     线：Q = τ₀·2L·(1 + k/3)        （∫_{−L}^{L} x² dx = 2L³/3）
+     面：Q = σ₀·πa²·(1 + k/2)       （∫_盘 ρ′² dS = πa⁴/2）
+     体：Q = ρ₀·(4/3)πa³·(1 + k/5)  （∫_球 x² dV = 4πa⁵/15）
+   k=0 即均匀情形，退化为 Q = ρ₀V′ / σ₀S′ / τ₀l′。 */
+const Q_KF={ line:1/3, surf:1/2, vol:1/5 };
+let _Qcache={};
+/* 均匀分布的 Q（④ 页固定用均匀分布，才有初等解析场强当裁判） */
+function uniformQ(){
+  const a=GA, L=GA;
+  if(state.geo==='line') return TAU0*2*L;
+  if(state.geo==='surf') return SIG0*Math.PI*a*a;
+  return RHO0*(4/3)*Math.PI*a*a*a;
+}
+/* ③ 页用：含非均匀剖面 */
+function totalQ(){
+  const key=state.geo+'|'+(state.nonuni?1:0);
+  if(_Qcache[key]!=null) return _Qcache[key];
+  const k=state.nonuni?NL_K:0;
+  const Q = uniformQ()*(1 + k*Q_KF[state.geo]);
+  _Qcache[key]=Q; return Q;
+}
+
+/* ============================================================================
+   ③ 带电体绘制
+   ============================================================================ */
+function rhoSphere(){
+  const nT=12,nP=24,R=GA;
+  const V=(t,p)=>pt(R*Math.sin(t)*Math.cos(p), R*Math.sin(t)*Math.sin(p), R*Math.cos(t));
+  for(let i=0;i<nT;i++){
+    const t0=Math.PI*i/nT, t1=Math.PI*(i+1)/nT;
+    for(let j=0;j<nP;j++){
+      const p0=2*Math.PI*j/nP, p1=2*Math.PI*(j+1)/nP;
+      const q=[V(t0,p0),V(t1,p0),V(t1,p1),V(t0,p1)];
+      const c=vmul(vadd(vadd(q[0],q[1]),vadd(q[2],q[3])),0.25);
+      const n=vnorm(c);
+      const al=state.show.prof?densAlpha(prof(c.x/GA)):0.07;
+      const col=state.show.prof?shade(DENS_HEX,n):'#C2D5E0';
+      poly(q,{fill:col,fillAlpha:al,stroke:col,strokeAlpha:Math.min(0.95,al+0.22),w:1});
+    }
+  }
+  const eq=[]; for(let i=0;i<=72;i++){const ph=2*Math.PI*i/72; eq.push(pt(R*Math.cos(ph),R*Math.sin(ph),0));}
+  curve(eq,{color:'#1F5F7C',w:1.2,alpha:.55,dash:[6,5]});
+}
+function rhoDisk(){
+  const nR=12,nP=40,a=GA;
+  const V=(r,p)=>pt(r*Math.cos(p), r*Math.sin(p), 0);
+  for(let i=0;i<nR;i++){
+    const r0=a*i/nR, r1=a*(i+1)/nR;
+    for(let j=0;j<nP;j++){
+      const p0=2*Math.PI*j/nP, p1=2*Math.PI*(j+1)/nP;
+      const al=state.show.prof?densAlpha(prof(((r0+r1)/2)/a)):0.07;
+      poly([V(r0,p0),V(r1,p0),V(r1,p1),V(r0,p1)],
+           {fill:DENS_HEX,fillAlpha:al,stroke:DENS_HEX,strokeAlpha:Math.min(0.92,al+0.20),w:1});
+    }
+  }
+  const rim=[]; for(let i=0;i<=72;i++){const ph=2*Math.PI*i/72; rim.push(pt(a*Math.cos(ph),a*Math.sin(ph),0));}
+  curve(rim,{color:'#1F5F7C',w:1.5,alpha:.9});
+}
+function rhoLine(){
+  const n=60,L=GA;
+  for(let i=0;i<n;i++){
+    const x0=-L+2*L*i/n, x1=-L+2*L*(i+1)/n;
+    const al=state.show.prof?densAlpha(prof(((x0+x1)/2)/L)):0.20;
+    line(pt(x0,0,0),pt(x1+2*L/n*0.3,0,0),{color:hexA('#2E7FA6',Math.min(0.95,al+0.38)),w:10});
+  }
+  screenDot(pt(-L,0,0),3.4,'#1F5F7C',0.95); screenDot(pt(L,0,0),3.4,'#1F5F7C',0.95);
+}
+function cubeAt(c,hs,color,alpha,w){
+  const V=(a,b,d)=>pt(c.x+a*hs,c.y+b*hs,c.z+d*hs);
+  const F=[[[-1,-1,-1],[1,-1,-1],[1,1,-1],[-1,1,-1]],[[-1,-1,1],[1,-1,1],[1,1,1],[-1,1,1]],
+           [[-1,-1,-1],[-1,1,-1],[-1,1,1],[-1,-1,1]],[[1,-1,-1],[1,1,-1],[1,1,1],[1,-1,1]],
+           [[-1,-1,-1],[1,-1,-1],[1,-1,1],[-1,-1,1]],[[-1,1,-1],[1,1,-1],[1,1,1],[-1,1,1]]];
+  F.forEach(q=>poly(q.map(v=>V(v[0],v[1],v[2])),{fill:color,fillAlpha:alpha,stroke:color,strokeAlpha:Math.min(1,alpha+0.42),w:w||1.3}));
+}
+function drawMicro(){
+  if(!state.show.micro) return;
+  const xi=state.mu, hb=state.mh*GA, hs=hb/2;
+  const OC='#E97132';
+  if(state.geo==='vol'){
+    const c=pt(xi*GA,0,0);
+    cubeAt(c,hs,OC,0.26,1.4);
+    text(vadd(c,pt(0,0,hs)),'ΔV′',{color:'#B25D18',size:12,bold:true,dy:-14,align:'center'});
+  } else if(state.geo==='surf'){
+    const c=pt(0,xi*GA,0);
+    poly([pt(c.x-hs,c.y-hs,0),pt(c.x+hs,c.y-hs,0),pt(c.x+hs,c.y+hs,0),pt(c.x-hs,c.y+hs,0)],
+         {fill:OC,fillAlpha:0.30,stroke:OC,strokeAlpha:0.95,w:1.8});
+    text(vadd(c,pt(hs,0,0)),'ΔS′',{color:'#B25D18',size:12,bold:true,dx:8,dy:-12});
+  } else {
+    line(pt(xi*GA-hs,0,0),pt(xi*GA+hs,0,0),{color:OC,w:11,alpha:0.42});
+    line(pt(xi*GA-hs,0,0),pt(xi*GA+hs,0,0),{color:OC,w:2,alpha:0.95});
+    text(pt(xi*GA,0,0),'Δl′',{color:'#B25D18',size:12,bold:true,dy:-18,align:'center'});
+  }
+  /* 位置指示：从原点沿几何轴线到微元中心的一条虚线 */
+  const target = state.geo==='surf' ? pt(0,xi*GA,0) : pt(xi*GA,0,0);
+  line(pt(0,0,0),target,{color:'#E0B48C',w:1.1,alpha:.85,dash:[4,4]});
+}
+function modeRho(){
+  if(state.geo==='vol') rhoSphere();
+  else if(state.geo==='surf') rhoDisk();
+  else rhoLine();
+  drawMicro();
+  /* 几何轴线 + 原点 */
+  marker(pt(0,0,0),{r:3.2,color:'#8FB3C6',ring:null});
+  text(pt(0,0,0),'O',{color:'#7A8F9B',size:11.5,dx:-14,dy:13});
+  /* 坐标方向标 */
+  const axis = state.geo==='surf' ? pt(0,GA*1.10,0) : pt(GA*1.10,0,0);
+  text(axis, state.geo==='surf'?'ρ′':'x′',{color:'#5F7482',size:12,bold:true,align:'center'});
+}
+
+/* ============================================================================
+   ① 电场强度的定义
+   ============================================================================ */
+const SRC_P = pt(-0.62,-0.14,0.00);        /* 源点电荷位置（固定） */
+function defModel(){
+  const rT=pt(state.tp.x,state.tp.y,state.tp.z);
+  const R=vsub(rT,SRC_P), Rn=vlen(R), eR=vnorm(R);
+  const E=kE(state.q,Rn);                   /* V/m，真实场强 */
+  const kd=state.disturb?(1+KD*state.qt):1;  /* 扰动因子（示意） */
+  const F=E*state.qt*kd;                    /* nN，实际测到的力 */
+  const se=(state.q>=0)?1:-1;               /* E 方向：单位正电荷受力方向 */
+  const sf=((state.q*state.qt)>=0)?1:-1;    /* F 方向：同号相斥 */
+  return {rT,R,Rn,eR,E,kd,F,Fraw:F,eE:vmul(eR,se),eF:vmul(eR,sf),Fq:E*kd};
+}
+function modeDef(){
+  const d=defModel();
+  const qs=Math.abs(state.q);
+  /* 源电荷 */
+  marker(SRC_P,{r:5+2.0*Math.min(2,qs), color:state.q>=0?C.crimson:C.blue,
+    ring:state.q>=0?'#F6C9C2':'#C9E4F2', label:'q = '+sgnTxt(state.q,2)+' nC',
+    ldx:14, ldy:-14, lsize:12.5});
+  /* 实验电荷 */
+  marker(d.rT,{r:5.4, color:C.purple, ring:'#E6D6F0', label:'q_t = '+state.qt.toFixed(2)+' nC',
+    ldx:14, ldy:-13, lsize:12.5});
+  /* 距离 R（★ 距离用 dimLine） */
+  dimLine(SRC_P,d.rT,{color:'#9DB3BF',w:1.3,dash:[5,4],label:'R = '+d.Rn.toFixed(2)+' m',
+    ldx:0,ldy:16,lsize:12});
+  /* e_R 单位矢量 */
+  const erLen=Math.min(0.30, d.Rn*0.34);
+  arrow(SRC_P, vadd(SRC_P, vmul(d.eR,erLen)), {color:'#3E9B4F',w:1.9,headScale:.8,
+    label:'@{e_R}', ldx:6, ldy:-11, lsize:12});
+  /* E 与 F 两条并排箭头：E 固定长、F ∝ q_t（★ 核心对照） */
+  const np=perpOf(d.eE);
+  /* E 箭头长度固定（0.70 ⇒ 屏幕上约 70px）——它是"F 缩短而 E 不动"的参照物，
+     太短就看不出对照（曾踩：0.42 时只投影出 43px）。 */
+  const LE=0.70;
+  const LF=Math.min(0.95, 0.95*state.qt*(state.disturb?(d.kd/(1+KD)):1));
+  const pE=vadd(d.rT, vmul(np,-0.085));
+  const pF=vadd(d.rT, vmul(np, 0.085));
+  arrow(pE, vadd(pE, vmul(d.eE,LE)), {color:C.blue,w:2.4,headScale:.92,
+    label:'@{E}', ldx:8, ldy:14, lsize:12.5});
+  if(LF>0.012)
+    arrow(pF, vadd(pF, vmul(d.eF,LF)), {color:C.crimson,w:2.4,headScale:.92,
+      label:'@{F}', ldx:8, ldy:-13, lsize:12.5});
+  /* 场点在源周围的一个"小球面"提示：不画，避免杂乱 */
+}
+
+/* ============================================================================
+   ② 点电荷的场
+   ============================================================================ */
+const P_SRC = pt(-0.32,0,0);
+const FIB_GA = Math.PI*(3-Math.sqrt(5));
+function fibDirs(m,phase){
+  const out=[];
+  for(let i=0;i<m;i++){
+    const y=1-2*(i+0.5)/m;
+    const r=Math.sqrt(Math.max(0,1-y*y));
+    const th=FIB_GA*i+(phase||0);
+    out.push(pt(r*Math.cos(th), y, r*Math.sin(th)));
+  }
+  return out;
+}
+const FL_DIRS = fibDirs(46);
+const SHELL_R = [0.30,0.60,0.90];
+function pointModel(){
+  const P=pt(state.pp.x,state.pp.y,state.pp.z);
+  const R=vsub(P,P_SRC), Rn=vlen(R), eR=vnorm(R);
+  const E=kE(state.qP,Rn);
+  return {P,R,Rn,eR,E,dir:vmul(eR,(state.qP>=0)?1:-1)};
+}
+function modePoint(){
+  const d=pointModel();
+  const qn=state.qP;
+  /* 场线（球对称径向） */
+  if(state.show.fld && Math.abs(qn)>0.06){
+    for(const u of FL_DIRS){
+      curve([vadd(P_SRC,vmul(u,0.10)), vadd(P_SRC,vmul(u,1.02))],{color:'#A9C3D2',w:1.15,alpha:.52});
+      const t0=vadd(P_SRC,vmul(u,0.86)), t1=vadd(P_SRC,vmul(u,1.02));
+      if(qn>0) arrow(t0,t1,{color:'#7FA8BF',w:1.4,headScale:.7,alpha:.9});
+      else     arrow(t1,t0,{color:'#7FA8BF',w:1.4,headScale:.7,alpha:.9});
+    }
+  }
+  /* 等距球面：r₀ / 2r₀ / 3r₀ —— 场强按 1 : 1/4 : 1/9 掉 */
+  if(state.show.shells){
+    SHELL_R.forEach((r,i)=>{
+      sphereWireAt(P_SRC,r,'#B9CEDC',1.05,i===0?.9:.6);
+      text(pt(P_SRC.x-r*0.72, P_SRC.y-r*0.70, 0), (i===0?'r₀':(i===1?'2r₀':'3r₀')),
+        {color:'#7E96A6',size:11.5,bold:true});
+    });
+  }
+  /* 点电荷本体 */
+  marker(P_SRC,{r:5+2.0*Math.min(2,Math.abs(qn)), color:qn>=0?C.crimson:C.blue,
+    ring:qn>=0?'#F6C9C2':'#C9E4F2', label:'q = '+sgnTxt(qn,2)+' nC', ldx:-14, ldy:-16, lalign:'right', lsize:12.5});
+  /* 场点 P */
+  marker(d.P,{r:5.4,color:C.purple,ring:'#E6D6F0',label:'P',ldx:12,ldy:-12,lsize:12.5});
+  dimLine(P_SRC,d.P,{color:'#9DB3BF',w:1.3,dash:[5,4],label:'R = '+d.Rn.toFixed(2)+' m',ldx:0,ldy:-16,lsize:12});
+  /* E 箭头（长度 ∝ E，做饱和限幅以免近距离爆掉） */
+  const EREF=KC*1.0/(0.65*0.65);
+  if(Math.abs(qn)>0.06){
+    const LE=Math.max(0.05,Math.min(0.90, d.E/EREF));
+    const np=perpOf(d.dir);
+    arrow(vadd(d.P,vmul(np,0.02)), vadd(vadd(d.P,vmul(np,0.02)), vmul(d.dir,LE)),
+      {color:C.blue,w:2.6,headScale:.95,label:'@{E}',ldx:10,ldy:-13,lsize:12.5});
+  }
+}
+
+/* ============================================================================
+   ④ 点电荷的连续叠加
+   ============================================================================ */
+/* 按权重把 N 个点分给若干组：结果长度不变、**和恰为 N**、N ≥ 组数时每份 ≥1。
+   ⚠️ 早年版本死守「每份 ≥1」，当 N < 组数时永远收敛不了（guard 跑满仍不等于 N）—— 已修。 */
+function allocByWeight(w,N){
+  const n=w.length;
+  if(!n) return [];
+  const W=w.reduce((a,b)=>a+b,0)||1;
+  const raw=w.map(v=>v/W*N);
+  const atLeastOne = (N>=n);
+  const base=raw.map(v=>atLeastOne?Math.max(1,Math.floor(v)):Math.floor(v));
+  let s=base.reduce((a,b)=>a+b,0);
+  const order=raw.map((v,i)=>({i,r:v-Math.floor(v)})).sort((a,b)=>b.r-a.r);
+  let k=0,guard=0;
+  while(s<N && guard++<100000){ base[order[k%n].i]++; s++; k++; }
+  k=0; guard=0;
+  while(s>N && guard++<100000){
+    const i=order[n-1-(k%n)].i;
+    if(base[i]>(atLeastOne?1:0)){ base[i]--; s--; }
+    k++;
+  }
+  return base;
+}
+/* 采样点（★ 关键：每"组"的电量必须等于该组真实的电量，而不是 Q/N 平均摊）
+   体电荷 = 等体积壳层，每壳电量恒为 Q/nS；面电荷 = 等面积环，每环电量恒为 Q/nR；
+   线电荷 = 等长小段，每段电量恒为 Q/N。
+   组内点数则按"视觉均匀"分配（壳 ∝ r²、环 ∝ ρ、段 = 1）。
+   ⚠️ 早期版本所有点都摊 Q/N，而环内点数又 ∝ ρ ⇒ 等面积环被赋予 ∝ρ 的错权重，
+      误差随 N 不降反升、卡在 3.35% 不动。改成"组电量恒定 + 组内再摊"后，
+      面电荷的求和就退化为 u=ρ² 上的**中点法则**（精确到 O(1/nR²)）。 */
+function samplePoints(N){
+  const a=GA, L=GA;
+  const out=[];
+  if(state.geo==='line'){
+    const dq=uniformQ()/N;
+    for(let i=0;i<N;i++) out.push({p:pt(-L+(i+0.5)*2*L/N,0,0), dq});
+    return out;
+  }
+  if(state.geo==='surf'){
+    /* 环数随 N 一起长（≈0.85√N，上限 20）：
+       等面积环每环总电量相同 ⇒ 求和 = u=ρ² 上的中点法则，误差 ∝ 1/nR²；
+       若把 nR 钉死，N 再大误差也不再下降（曲线躺平）。 */
+    const nR=Math.max(1,Math.min(20,N,Math.round(Math.sqrt(N)*0.85)));
+    const rho=[]; for(let j=0;j<nR;j++) rho.push(a*Math.sqrt((j+0.5)/nR));
+    const m=allocByWeight(rho,N);
+    const dqRing=uniformQ()/nR;
+    for(let j=0;j<nR;j++){
+      const dqp=dqRing/m[j];
+      for(let k=0;k<m[j];k++){
+        const ph=2*Math.PI*(k+(j%2)*0.5)/m[j];
+        out.push({p:pt(rho[j]*Math.cos(ph),rho[j]*Math.sin(ph),0), dq:dqp});
+      }
+    }
+    return out;
+  }
+  /* 等体积壳，每壳总电量相同（= Q/nS）⇒ 球外观察时每壳的精确场都是 KC(Q/nS)/d²，
+     于是误差只来自"每壳用 m 个点近似角向分布"，≈ C·mean(1/m)。
+     由凸性，1/m 的均值在 m 尽量平均时最小 ⇒ 壳数不能太多（否则最内壳只剩 1~2 个点，
+     单点的方位运气会主导整条误差曲线，曾踩：N=8 误差 39%、N=6 反而只有 3.8%）。
+     故取 nS ≈ N/8（每壳 ≥5 点）而非 ∛N，上限 12。 */
+  const nS=Math.max(1,Math.min(12,N,Math.round(N/8)));
+  const rj=[]; for(let j=0;j<nS;j++) rj.push(a*Math.pow((j+0.5)/nS,1/3));
+  const m=allocByWeight(rj.map(r=>r),N);
+  const dqShell=uniformQ()/nS;
+  for(let j=0;j<nS;j++){
+    const dqp=dqShell/m[j];
+    const dirs=fibDirs(m[j], j*0.7);
+    for(const d of dirs) out.push({p:vmul(d,rj[j]), dq:dqp});
+  }
+  return out;
+}
+let _samp={key:null,pts:null};
+function curSamples(){
+  const k=state.geo+'|'+state.NS;
+  if(_samp.key!==k) _samp={key:k, pts:samplePoints(state.NS)};
+  return _samp.pts;
+}
+function sumField(pts,P){
+  let E=pt(0,0,0);
+  for(const s of pts){
+    const R=vsub(P,s.p), r2=vdot(R,R);
+    if(r2<1e-9) continue;
+    E=vadd(E, vmul(R, KC*s.dq/(r2*Math.sqrt(r2))));
+  }
+  return E;
+}
+function geomData(){
+  const a=GA,L=GA, Q=uniformQ();       /* ★ ④ 固定均匀分布：三种几何都有初等解析场强 */
+  if(state.geo==='vol'){
+    const P=pt(state.sd,0,0), E=KC*Q/(state.sd*state.sd);
+    return {Q,P,Ean:pt(E,0,0),d:state.sd,dLab:'球心 → P',ax:pt(1,0,0)};
+  }
+  if(state.geo==='surf'){
+    const z=state.sd, P=pt(0,0,z);
+    const E=KC*2*Math.PI*SIG0*(1 - z/Math.sqrt(z*z+a*a));
+    return {Q,P,Ean:pt(0,0,E),d:z,dLab:'盘心 → P',ax:pt(0,0,1)};
+  }
+  const P=pt(L+state.sd,0,0);
+  const E=KC*TAU0*(1/state.sd - 1/(state.sd+2*L));
+  return {Q,P,Ean:pt(E,0,0),d:state.sd,dLab:'端点 → P',ax:pt(1,0,0)};
+}
+let _conv={key:null,data:null};
+const CONV_NS=[1,2,3,4,6,8,12,16,24,32,48,64,96,128,192,256,384];
+function convSeries(){
+  const key=state.geo+'|'+state.sd.toFixed(2);
+  if(_conv.key===key) return _conv.data;
+  const g=geomData(), ref=Math.max(vlen(g.Ean),1e-12);
+  const data=CONV_NS.map(n=>{
+    const E=sumField(samplePoints(n), g.P);
+    return {n, rel:Math.abs(vlen(E)-ref)/ref};
+  });
+  _conv={key,data}; return data;
+}
+function modeSuper(){
+  const g=geomData(), pts=curSamples();
+  /* 几何轮廓 */
+  if(state.geo==='vol') sphereWireAt(pt(0,0,0),GA*0.995,'#AFC7D6',1.05,.5);
+  else if(state.geo==='surf'){
+    const rim=[]; for(let i=0;i<=72;i++){const ph=2*Math.PI*i/72;
+      rim.push(pt(GA*Math.cos(ph),GA*Math.sin(ph),0));}
+    curve(rim,{color:'#AFC7D6',w:1.3,alpha:.8});
+  } else line(pt(-GA,0,0),pt(GA,0,0),{color:'#AFC7D6',w:2.4,alpha:.8});
+  /* 点电荷元本体（dE 连线的端点） */
+  if(state.show.links){
+    const K=Math.min(16,pts.length), step=pts.length/K;
+    for(let i=0;i<K;i++){
+      const s=pts[Math.min(pts.length-1,Math.floor((i+0.5)*step))];
+      line(s.p,g.P,{color:'#C6D6E0',w:1,alpha:.8,dash:[4,4]});
+    }
+  }
+  if(state.show.dots){
+    let mx=1e-30; for(const s of pts) if(s.dq>mx) mx=s.dq;
+    for(const s of pts) screenDot(s.p, 2.1+1.4*Math.sqrt(s.dq/mx), '#156082', 0.95);
+  }
+  /* 场点 P */
+  marker(g.P,{r:5.5,color:C.purple,ring:'#E6D6F0',label:'P',ldx:13,ldy:-12,lsize:12.5});
+  line(pt(0,0,0),g.P,{color:'#D8E2E9',w:1.1,alpha:.9,dash:[5,4]});
+  /* ΣdE 与解析积分两条箭头（同一比例尺 ⇒ 长度差 = 数值差） */
+  const Esum=sumField(pts,g.P), mag=vlen(Esum), ref=Math.max(vlen(g.Ean),1e-12);
+  const S=0.85/ref;
+  const np=perpOf(g.ax);
+  if(state.show.anl)
+    arrow(vadd(g.P,vmul(np,0.085)), vadd(vadd(g.P,vmul(np,0.085)),vmul(g.ax,0.85)),
+      {color:C.orange,w:2.3,headScale:.9,label:'∫ 精确值 '+ref.toFixed(2),
+       ldx:12,ldy:-13,lsize:11.5});
+  if(mag>1e-9){
+    const Ls=Math.max(0.025,Math.min(1.20,mag*S));
+    arrow(vadd(g.P,vmul(np,-0.085)), vadd(vadd(g.P,vmul(np,-0.085)),vmul(vnorm(Esum),Ls)),
+      {color:C.teal,w:2.5,headScale:.9,label:'Σ '+mag.toFixed(2),ldx:12,ldy:16,lsize:11.5});
+  }
+  text(pt(0,0,0),'O',{color:'#7A8F9B',size:11.5,dx:-14,dy:13});
+}
+
+/* ============================================================================
+   场景装配
+   ============================================================================ */
+function buildScene(){
+  if(state.mode==='def'){ drawAxes(1.55); modeDef(); return; }
+  if(state.mode==='point'){ drawAxes(1.75); modePoint(); return; }
+  if(state.mode==='rho'){ drawAxes(0.95); modeRho(); return; }
+  drawAxes(1.75); modeSuper();
+}
+
+/* ============================================================================
+   屏幕空间叠层：每页关键读数 + 小图表
+   ============================================================================ */
+function txt(x,y,str,o={}){
+  ctx.save();
+  const lo=richLayout(ctx,parseRich(str),o.size||12,!!o.bold);
+  richDraw(ctx,lo,x,y,o.align||'left',o.color||C.ink);
+  ctx.restore();
+}
+function rrPath(x,y,w,h,r){
+  ctx.beginPath();
+  ctx.moveTo(x+r,y); ctx.lineTo(x+w-r,y); ctx.quadraticCurveTo(x+w,y,x+w,y+r);
+  ctx.lineTo(x+w,y+h-r); ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
+  ctx.lineTo(x+r,y+h); ctx.quadraticCurveTo(x,y+h,x,y+h-r);
+  ctx.lineTo(x,y+r); ctx.quadraticCurveTo(x,y,x+r,y); ctx.closePath();
+}
+function crd(x,y,w,h){
+  ctx.save();
+  ctx.shadowColor='rgba(30,60,80,.10)'; ctx.shadowBlur=8; ctx.shadowOffsetY=2;
+  rrPath(x,y,w,h,10); ctx.fillStyle='rgba(255,255,255,.95)'; ctx.fill();
+  ctx.restore(); ctx.save();
+  rrPath(x,y,w,h,10); ctx.strokeStyle='#DCE6EB'; ctx.lineWidth=1; ctx.stroke();
+  ctx.restore();
+}
+const CARD_W=232, CARD_X=()=>W-CARD_W-16, CARD_Y=62;
+
+/* ② 的 |E| ∝ 1/R² 双对数小图 */
+function chartInvR2(){
+  const x0=CARD_X(), y0=CARD_Y, w=CARD_W, h=142;
+  crd(x0,y0,w,h);
+  txt(x0+12,y0+14,'|@{E}| ∝ 1/R²　（双对数：距离翻倍 ⇒ 场强 1/4）',{size:11.5,bold:true,color:'#1F3D4C'});
+  const px0=x0+34, py0=y0+40, pw=w-48, ph=h-58;
+  const RX0=0.28, RX1=1.50, LGR=Math.log2(RX1/RX0);
+  const YTOP=0.585, YBOT=-5, YSP=YTOP-YBOT;
+  const fx=R=>px0+pw*Math.log2(R/RX0)/LGR;
+  const fy=v=>py0+ph*(YTOP-Math.log2(v))/YSP;
+  /* 网格 */
+  ctx.save(); ctx.strokeStyle='#EEF3F6'; ctx.lineWidth=1;
+  [1,0.25,0.0625].forEach(v=>{ const y=fy(v); ctx.beginPath(); ctx.moveTo(px0,y); ctx.lineTo(px0+pw,y); ctx.stroke(); });
+  [0.3,0.6,1.2].forEach(R=>{ const x=fx(R); if(x>=px0-1&&x<=px0+pw+1){ ctx.beginPath(); ctx.moveTo(x,py0); ctx.lineTo(x,py0+ph); ctx.stroke(); } });
+  ctx.restore();
+  /* 曲线 */
+  ctx.save(); ctx.strokeStyle='#0F9ED5'; ctx.lineWidth=2.2; ctx.beginPath();
+  let first=true;
+  for(let i=0;i<=120;i++){
+    const R=RX0+(RX1-RX0)*i/120, v=(RX0/R)*(RX0/R);
+    const X=fx(R), Y=fy(v);
+    if(first){ctx.moveTo(X,Y);first=false;} else ctx.lineTo(X,Y);
+  }
+  ctx.stroke(); ctx.restore();
+  /* 当前 P 的标记 */
+  const d=pointModel();
+  const Rc=Math.max(RX0,Math.min(RX1,d.Rn));
+  const vc=(RX0/Rc)*(RX0/Rc);
+  ctx.save(); ctx.setLineDash([4,4]); ctx.strokeStyle='#B9CBD6'; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(fx(Rc),py0); ctx.lineTo(fx(Rc),fy(vc)); ctx.lineTo(px0,fy(vc)); ctx.stroke(); ctx.restore();
+  ctx.save(); ctx.beginPath(); ctx.arc(fx(Rc),fy(vc),4.4,0,7);
+  ctx.fillStyle='#9B59B6'; ctx.fill(); ctx.strokeStyle='#fff'; ctx.lineWidth=2; ctx.stroke(); ctx.restore();
+  /* 轴标 */
+  txt(px0-26,py0+4,'1',{size:10.5,color:'#7A8F9B'});
+  txt(px0-26,fy(0.25)+4,'1/4',{size:10.5,color:'#7A8F9B'});
+  txt(px0-30,fy(0.0625)+4,'1/16',{size:10.5,color:'#7A8F9B'});
+  [0.3,0.6,1.2].forEach(R=>txt(fx(R),py0+ph+13,R.toFixed(1),{size:10.5,color:'#7A8F9B',align:'center'}));
+  txt(px0+pw/2,py0+ph+27,'R  (m)',{size:10.5,color:'#7A8F9B',align:'center'});
+}
+
+/* ③ 的密度色阶条 + 微元读数 */
+function chartDens(){
+  const x0=CARD_X(), y0=CARD_Y, w=CARD_W, h=142;
+  crd(x0,y0,w,h);
+  const mi=microInfo();
+  txt(x0+12,y0+14,'微元内的平均密度　=　Δq / '+geoMeas(),{size:11.5,bold:true,color:'#1F3D4C'});
+  /* 色阶条 */
+  const bx=x0+14, by=y0+34, bw=w-28, bh=13;
+  ctx.save();
+  const g=ctx.createLinearGradient(bx,0,bx+bw,0);
+  g.addColorStop(0,'rgba(46,127,166,0.18)'); g.addColorStop(1,'rgba(46,127,166,0.86)');
+  ctx.beginPath(); ctx.rect(bx,by,bw,bh); ctx.fillStyle=g; ctx.fill();
+  ctx.strokeStyle='#C9DAE3'; ctx.lineWidth=1; ctx.stroke();
+  ctx.restore();
+  txt(bx,by+bh+12,'低（'+geoSym()+'₀）',{size:10.5,color:'#7A8F9B'});
+  txt(bx+bw,by+bh+12,'高（'+(1+NL_K).toFixed(1)+geoSym()+'₀）',{size:10.5,color:'#7A8F9B',align:'right'});
+  /* 数字三行 */
+  const rows=[
+    ['Δq　=　',mi.dq.toExponential(3)+' nC',C.ink],
+    [geoMeas()+'　=　',mi.meas.toExponential(3)+' '+geoMeasUnit(),C.ink],
+    ['Δq / '+geoMeas()+'　=　',mi.dens.toFixed(3)+' '+geoUnit(),'#156082'],
+  ];
+  rows.forEach((r,i)=>{
+    txt(x0+14, y0+78+i*18, r[0], {size:11.5,color:'#5F7482'});
+    txt(x0+w-14, y0+78+i*18, r[1], {size:11.5,bold:true,color:r[2],align:'right'});
+  });
+}
+
+/* ④ 的收敛曲线（Σ 点电荷元 → 积分） */
+function chartConv(){
+  const x0=CARD_X(), y0=CARD_Y, w=CARD_W, h=142;
+  crd(x0,y0,w,h);
+  txt(x0+12,y0+14,'Σ 点电荷元 与 积分 的相对偏差',{size:11.5,bold:true,color:'#1F3D4C'});
+  const px0=x0+34, py0=y0+40, pw=w-48, ph=h-58;
+  const NX=420;
+  const fx=n=>px0+pw*Math.log10(Math.max(1,n))/Math.log10(NX);
+  const fy=r=>{ const l=(Math.log10(Math.max(1e-5,r))+4)/4; return py0+ph*(1-Math.max(0,Math.min(1,l))); };
+  ctx.save(); ctx.strokeStyle='#EEF3F6'; ctx.lineWidth=1;
+  [1,1e-2,1e-4].forEach(r=>{ const y=fy(r); ctx.beginPath(); ctx.moveTo(px0,y); ctx.lineTo(px0+pw,y); ctx.stroke(); });
+  ctx.restore();
+  const data=convSeries();
+  ctx.save(); ctx.strokeStyle='#9B59B6'; ctx.lineWidth=1.8; ctx.beginPath();
+  data.forEach((pt_,i)=>{ const X=fx(pt_.n), Y=fy(pt_.rel); if(i===0)ctx.moveTo(X,Y); else ctx.lineTo(X,Y); });
+  ctx.stroke(); ctx.restore();
+  data.forEach(pt_=>{
+    const X=fx(pt_.n), Y=fy(pt_.rel);
+    ctx.save(); ctx.beginPath(); ctx.arc(X,Y,3.0,0,7); ctx.fillStyle='#9B59B6'; ctx.fill(); ctx.restore();
+  });
+  /* 当前 N */
+  const cur=data.find(v=>v.n===state.NS);
+  if(cur){
+    const X=fx(cur.n), Y=fy(cur.rel);
+    ctx.save(); ctx.beginPath(); ctx.arc(X,Y,5.2,0,7);
+    ctx.fillStyle='#E97132'; ctx.fill(); ctx.strokeStyle='#fff'; ctx.lineWidth=2; ctx.stroke(); ctx.restore();
+  }
+  txt(px0-30,py0+4,'1',{size:10.5,color:'#7A8F9B'});
+  txt(px0-32,fy(1e-2)+4,'1%',{size:10.5,color:'#7A8F9B'});
+  txt(px0-36,fy(1e-4)+4,'0.01%',{size:10.5,color:'#7A8F9B'});
+  [1,10,100,400].forEach(n=>txt(fx(n),py0+ph+13,String(n),{size:10.5,color:'#7A8F9B',align:'center'}));
+  txt(px0+pw/2,py0+ph+27,'N　=　点电荷元个数',{size:10.5,color:'#7A8F9B',align:'center'});
+}
+
+/* 左下角关键读数行 */
+function readoutRows(){
+  const rows=[];
+  if(state.mode==='def'){
+    const d=defModel();
+    rows.push({s:'q_t = '+state.qt.toFixed(2)+' nC　|　R = '+d.Rn.toFixed(2)+' m', color:'#5F7482'});
+    rows.push({s:'|@{F}| = '+d.F.toFixed(3)+' nN　　|@{F}| / q_t = '+d.Fq.toFixed(3)+' V/m', color:'#22414F'});
+    const dev=(d.Fq-d.E)/d.E*100;
+    rows.push({s:'真实 |@{E}| = '+d.E.toFixed(3)+' V/m　→　相对偏差 '+dev.toFixed(2)+'%',
+      color: Math.abs(dev)<0.5?'#3E9B4F':'#B25D18', bold:true});
+  } else if(state.mode==='point'){
+    const d=pointModel();
+    rows.push({s:'q = '+sgnTxt(state.qP,2)+' nC　|　R = '+d.Rn.toFixed(2)+' m', color:'#5F7482'});
+    rows.push({s:'|@{E}| = '+d.E.toFixed(3)+' V/m　（球面 r₀ / 2r₀ / 3r₀ 之比 1 : 1/4 : 1/9）', color:'#22414F'});
+    rows.push({s:'对数斜率 = −2　（距离 ×2 ⇒ 场强 ÷4）', color:'#0F9ED5', bold:true});
+  } else if(state.mode==='rho'){
+    const mi=microInfo();
+    rows.push({s:'ξ = '+mi.xi.toFixed(2)+'　'+geoMeas()+' = '+mi.meas.toExponential(2)+' '+geoMeasUnit()+
+      '　Δq = '+mi.dq.toExponential(2)+' nC', color:'#5F7482'});
+    rows.push({s:'Δq / '+geoMeas()+' = '+mi.dens.toFixed(3)+' '+geoUnit()+
+      '　　该点 '+geoSym()+'(ξ) = '+mi.pointDens.toFixed(3)+' '+geoUnit(), color:'#22414F'});
+    rows.push({s:'偏差 = '+mi.dev.toFixed(4)+' '+geoUnit()+'　（'+geoMeas()+' → 0 时偏差 → 0，这就是"取极限"）',
+      color: Math.abs(mi.devRel)<0.02?'#3E9B4F':'#B25D18', bold:true});
+    rows.push({s:'总电量 Q = ∫'+geoSym()+'d'+geoMeas().slice(1)+' = '+totalQ().toFixed(3)+' nC', color:'#5F7482'});
+  } else {
+    const g=geomData(), pts=curSamples(), E=sumField(pts,g.P);
+    const mag=vlen(E), ref=Math.max(vlen(g.Ean),1e-12);
+    const ang=(mag>1e-9)?(Math.acos(Math.max(-1,Math.min(1,vdot(vnorm(E),vnorm(g.Ean)))))*R2D):0;
+    rows.push({s:'N = '+state.NS+' 个点电荷元　|　Q = '+g.Q.toFixed(3)+' nC　|　'+g.dLab+' d = '+g.d.toFixed(2)+' m', color:'#5F7482'});
+    rows.push({s:'Σ 点电荷元  |@{E}| = '+mag.toFixed(3)+' V/m　　积分精确值 = '+ref.toFixed(3)+' V/m', color:'#22414F'});
+    rows.push({s:'相对偏差 = '+(Math.abs(mag-ref)/ref*100).toFixed(3)+'%　方向偏差 = '+ang.toFixed(2)+'°　→　N 越大总体越接近',
+      color:(Math.abs(mag-ref)/ref<0.01)?'#3E9B4F':'#B25D18', bold:true});
+  }
+  return rows;
+}
+function drawOverlays(){
+  const rows=readoutRows();
+  rows.forEach((r,i)=>txt(16, H-26-(rows.length-1-i)*18, r.s, {size:11.8,bold:r.bold,color:r.color}));
+  if(state.mode==='point') chartInvR2();
+  if(state.mode==='rho') chartDens();
+  if(state.mode==='super' && state.show.conv) chartConv();
+}
+let needsRender=true;
+function draw(){
+  setupCamera(); ctx.clearRect(0,0,W,H);
+  buildScene();
+  prims.sort((a,b)=>a.z-b.z);
+  for(const p of prims) p.draw(ctx);
+  drawOverlays();
+  const t=document.getElementById('panTag'); if(t)t.classList.toggle('show',Math.abs(cam.px)>2||Math.abs(cam.py)>2);
+  needsRender=false;
+}
+let _lastT=performance.now();
+function tick(){
+  const now=performance.now(); const dt=Math.min(0.05,(now-_lastT)/1000); _lastT=now;
+  try{
+    if(state.autoRotate){ cam.az+=0.0045; needsRender=true; }
+    if(state.mode==='def' && state.shrink){
+      const nv=0.010+(state.qt-0.010)*Math.exp(-dt*1.7);
+      state.qt = nv<=0.0105 ? 0.010 : nv;
+      if(nv<=0.0105){ state.shrink=false; renderPanel(); }
+      needsRender=true; syncSliders(); updateReadout(); updateModeTag();
+    }
+    if(needsRender) draw();
+  }catch(err){ needsRender=false; console.error('draw/tick error:',err); }
+  requestAnimationFrame(tick);
+}
+function updateAll(){ needsRender=true; syncSliders(); updateReadout(); updateModeTag(); }
+
+/* ============================================================================
+   右侧面板
+   ============================================================================ */
+const panel=document.getElementById('panel');
+function h(html){const d=document.createElement('div');d.innerHTML=html;return d;}
+function kchip(k,v,cls){return '<span class="coord-chip '+(cls||'')+'">'+richHTML(k)+'<b>'+v+'</b></span>';}
+function chipRow(parent,items,isOn,onPick){
+  const box=h('<div class="sub-chips"></div>').firstChild;
+  items.forEach(it=>{
+    const lab=richHTML(String(it.t??it.sub??it.label??''));
+    const b=h('<button class="chip '+(it.col||'')+(isOn(it.k)?' on':'')+'" data-k="'+it.k+'">'+lab+'</button>').firstChild;
+    b.onclick=()=>onPick(it.k);
+    box.appendChild(b);
+  });
+  parent.appendChild(box);
+  return box;
+}
+const SHOW_ITEMS={
+  def:  [{k:'box',t:'坐标轴'}],
+  point:[{k:'fld',t:'场线（球对称）'},{k:'shells',t:'等距球面 r₀/2r₀/3r₀'},{k:'box',t:'坐标轴'}],
+  rho:  [{k:'prof',t:'按密度着色'},{k:'micro',t:'显示微元'},{k:'box',t:'坐标轴'}],
+  super:[{k:'dots',t:'点电荷元'},{k:'links',t:'dE 连线'},{k:'anl',t:'积分精确值箭头'},{k:'conv',t:'收敛曲线'},{k:'box',t:'坐标轴'}],
+};
+function renderSubSec(sec){
+  sec.innerHTML='';
+  if(state.mode==='def'){
+    sec.appendChild(h('<div class="sec-title">极限：让实验电荷的电量 → 0</div>'));
+    const bx=h('<div class="sub-chips"></div>').firstChild;
+    const sb=h('<button class="chip o'+(state.shrink?' on':'')+'">'+(state.shrink?'⏸ 停止衰减':'▶ 让 q_t → 0')+'</button>').firstChild;
+    sb.onclick=()=>{ state.shrink=!state.shrink; if(!state.shrink) renderPanel(); else updateAll(); };
+    bx.appendChild(sb);
+    const rb=h('<button class="chip">↺ 恢复 q_t = 1.00 nC</button>').firstChild;
+    rb.onclick=()=>{ state.shrink=false; state.qt=1.00; renderPanel(); updateAll(); };
+    bx.appendChild(rb);
+    sec.appendChild(bx);
+    const tb=h('<button class="chip g'+(state.disturb?' on':'')+'">'+(state.disturb?'实验电荷自身的扰动：计入（示意）':'实验电荷自身的扰动：忽略（理想）')+'</button>').firstChild;
+    tb.onclick=()=>{ state.disturb=!state.disturb; renderPanel(); updateAll(); };
+    const bx2=h('<div class="sub-chips" style="margin-top:10px"></div>').firstChild;
+    bx2.appendChild(tb); sec.appendChild(bx2);
+    sec.appendChild(h('<div class="ex-note">'+richHTML('画布中可直接<b>拖动紫色实验电荷</b>改变距离 R。'+
+      '两条箭头并排：蓝色 <b>@{E}</b> 长度固定，红色 <b>@{F}</b> 长度正比于 q_t —— '+
+      '按「让 q_t → 0」看 @{F} 缩成一点、而 @{E} 岿然不动。')+'</div>'));
+    return;
+  }
+  if(state.mode==='point'){
+    sec.appendChild(h('<div class="sec-title">单个点电荷的空间场</div>'));
+    chipRow(sec,SHOW_ITEMS.point,k=>state.show[k],k=>{state.show[k]=!state.show[k];renderPanel();updateAll();});
+    sec.appendChild(h('<div class="ex-note">'+richHTML('拖动紫色的<b>场点 P</b>（或看画布右上角的双对数小图）：'+
+      '距离每翻一倍，|@{E}| 就降到 <b>1/4</b>。三条虚线球面 <i>r</i>₀ / 2<i>r</i>₀ / 3<i>r</i>₀ 上的场强之比恒为 <b>1 : 1/4 : 1/9</b>。')+'</div>'));
+    return;
+  }
+  if(state.mode==='rho'){
+    sec.appendChild(h('<div class="sec-title">带电体的几何</div>'));
+    chipRow(sec,GEO_OPTS,k=>state.geo===k,k=>{
+      state.geo=k; clampMicro(); clampSd(); _samp.key=null; renderPanel(); updateAll();});
+    sec.appendChild(h('<div class="sec-title" style="margin-top:14px">电荷分布</div>'));
+    chipRow(sec,[{k:'u',t:'均匀 '+geoSym()+' = '+geoSym()+'₀'},{k:'n',t:'非均匀 '+geoSym()+' ∝ 1+0.7ξ²',col:'o'}],
+      k=>(k==='n')===state.nonuni, k=>{ state.nonuni=(k==='n'); renderPanel(); updateAll(); });
+    sec.appendChild(h('<div class="sec-title" style="margin-top:14px">图中显示</div>'));
+    chipRow(sec,SHOW_ITEMS.rho,k=>state.show[k],k=>{state.show[k]=!state.show[k];renderPanel();updateAll();});
+    sec.appendChild(h('<div class="ex-note">'+richHTML('三种分布共用同一个"点电荷连续累加"的骨架：'+
+      '体电荷堆体积、面电荷铺曲面、线电荷排曲线。把微元尺寸一路缩到最小，'+
+      'Δq/'+geoMeas()+' 就收敛到该点的 <b>'+geoSym()+'</b> —— 这就是密度定义里的那个极限。')+'</div>'));
+    return;
+  }
+  sec.appendChild(h('<div class="sec-title">带电体的几何</div>'));
+  chipRow(sec,GEO_OPTS,k=>state.geo===k,k=>{
+    state.geo=k; clampMicro(); clampSd(); _samp.key=null; renderPanel(); updateAll();});
+  sec.appendChild(h('<div class="ex-note" style="margin-top:9px">'+richHTML('本页固定用 <b>均匀</b> 分布 —— 这样三种几何都有初等解析场强当裁判；'+
+    '要看不均匀的密度剖面请回 ③ 页。圆点<b>大小 ∝ √dq</b>：内圈的点代表的小块电量更大，'+
+    '但每一环（壳）的总电量都相同 —— 这正是"把连续体切成等电量的元再累加"。')+'</div>'));
+  sec.appendChild(h('<div class="sec-title" style="margin-top:14px">点电荷元个数 N</div>'));
+  const bx=h('<div class="sub-chips"></div>').firstChild;
+  [1,8,32,128,384].forEach(n=>{
+    const b=h('<button class="chip'+(state.NS===n?' on':'')+'">N = '+n+'</button>').firstChild;
+    b.onclick=()=>{ state.NS=n; renderPanel(); updateAll(); };
+    bx.appendChild(b);
+  });
+  sec.appendChild(bx);
+  sec.appendChild(h('<div class="sec-title" style="margin-top:14px">图中显示</div>'));
+  chipRow(sec,SHOW_ITEMS.super,k=>state.show[k],k=>{state.show[k]=!state.show[k];renderPanel();updateAll();});
+  sec.appendChild(h('<div class="ex-note" id="supNote">'+richHTML(supNote())+'</div>'));
+}
+function microNote(){
+  const mi=microInfo();
+  return '微元 '+geoMeas()+' = '+mi.meas.toExponential(2)+' '+geoMeasUnit()+
+    '，Δq = '+mi.dq.toExponential(2)+' nC。它越小，Δq/'+geoMeas()+' 越贴近该点的 '+geoSym()+'。';
+}
+function supNote(){
+  const g=geomData(), E=sumField(curSamples(),g.P), mag=vlen(E), ref=Math.max(vlen(g.Ean),1e-12);
+  return 'N = '+state.NS+' 个点电荷元叠加得 '+mag.toFixed(3)+' V/m，积分精确值 '+ref.toFixed(3)+
+    ' V/m，偏差 '+(Math.abs(mag-ref)/ref*100).toFixed(3)+'%。';
+}
+function mkRange(sec,d){
+  const r=h('<div class="slider-row'+(d.wide?' w':'')+'"><label>'+d.label+'</label>'+
+    '<input type="range" id="s_'+d.k+'" min="'+d.min+'" max="'+d.max+'" step="'+d.step+'" value="'+d.get()+'">'+
+    '<span class="val" id="v_'+d.k+'">'+d.fmt(d.get())+'</span></div>');
+  const inp=r.querySelector('input');
+  inp.oninput=()=>{
+    const v=parseFloat(inp.value);
+    d.set(v);
+    document.getElementById('v_'+d.k).textContent=d.fmt(v);
+    needsRender=true; updateReadout(); updateModeTag();
+    if(d.after) d.after();
+  };
+  sec.appendChild(r);
+}
+function renderSliders(sec){
+  sec.innerHTML='';
+  if(state.mode==='def'){
+    sec.appendChild(h('<div class="sec-title">电荷量</div>'));
+    mkRange(sec,{k:'q',label:'q',wide:true,min:-2,max:2,step:0.1,
+      get:()=>state.q, set:v=>state.q=v, fmt:v=>v.toFixed(1)+' nC'});
+    mkRange(sec,{k:'qt',label:'q_t',wide:true,min:0.01,max:1.50,step:0.01,
+      get:()=>state.qt, set:v=>state.qt=v, fmt:v=>v.toFixed(2)+' nC',
+      after:()=>{ if(state.shrink){ state.shrink=false; renderPanel(); } }});
+    sec.appendChild(h('<div class="ex-note">'+richHTML('源电荷 q 可以取负 —— 看 @{E} 反向（实验电荷处的场指向源）。'+
+      'q_t 的下限 0.01 nC（不可能真到 0，但极限存在）。')+'</div>'));
+    return;
+  }
+  if(state.mode==='point'){
+    sec.appendChild(h('<div class="sec-title">点电荷电量</div>'));
+    mkRange(sec,{k:'qP',label:'q',wide:true,min:-2,max:2,step:0.1,
+      get:()=>state.qP, set:v=>state.qP=v, fmt:v=>v.toFixed(1)+' nC'});
+    sec.appendChild(h('<div class="ex-note">改成负值：场线箭头全部掉头朝里（场指向电荷）。</div>'));
+    return;
+  }
+  if(state.mode==='rho'){
+    sec.appendChild(h('<div class="sec-title">微元</div>'));
+    mkRange(sec,{k:'mu',label:'位置 ξ',wide:true,min:-1,max:1,step:0.01,
+      get:()=>state.mu, set:v=>{ state.mu=v; clampMicro(); if(document.getElementById('s_mu')) document.getElementById('s_mu').value=state.mu; },
+      fmt:v=>v.toFixed(2), after:()=>syncSliders()});
+    mkRange(sec,{k:'mh',label:'尺寸',wide:true,min:0.02,max:0.90,step:0.01,
+      get:()=>state.mh, set:v=>{ state.mh=v; clampMicro(); }, fmt:v=>v.toFixed(2), after:()=>syncSliders()});
+    sec.appendChild(h('<div class="ex-note" id="microNote">'+richHTML(microNote())+'</div>'));
+    return;
+  }
+  sec.appendChild(h('<div class="sec-title">场点 P 的位置</div>'));
+  const rr=SD_RANGE[state.geo];
+  mkRange(sec,{k:'sd',label:'距离 d',wide:true,min:rr[0],max:rr[1],step:0.01,
+    get:()=>state.sd, set:v=>state.sd=v, fmt:v=>v.toFixed(2)+' m', after:()=>_conv.key=null});
+  sec.appendChild(h('<div class="sec-title" style="margin-top:14px">点电荷元个数 N</div>'));
+  mkRange(sec,{k:'NS',label:'N',wide:true,min:1,max:384,step:1,
+    get:()=>state.NS, set:v=>state.NS=Math.round(v), fmt:v=>String(Math.round(v)),
+    after:()=>{ document.getElementById('v_NS').textContent=String(state.NS); syncSliders(); }});
+  if(state.mode==='super'){ /* noop */ }
+}
+function syncSliders(){
+  const set=(k,v,d)=>{const s=document.getElementById('s_'+k); if(s)s.value=v;
+    const e=document.getElementById('v_'+k); if(e)e.textContent=(d!=null?v.toFixed(d):String(v));};
+  set('q',state.q,2); set('qt',state.qt,2); set('qP',state.qP,2);
+  const sMu=document.getElementById('s_mu');
+  if(sMu){ sMu.min=(state.geo==='surf'?0:-microLimit()); sMu.max=microLimit(); }
+  set('mu',state.mu,2); set('mh',state.mh,2);
+  const sSd=document.getElementById('s_sd');
+  if(sSd){ const rr=SD_RANGE[state.geo]; sSd.min=rr[0]; sSd.max=rr[1]; }
+  set('sd',state.sd,2); set('NS',state.NS,null);
+  const mn=document.getElementById('microNote'); if(mn) mn.innerHTML=richHTML(microNote());
+  const sn=document.getElementById('supNote'); if(sn) sn.innerHTML=richHTML(supNote());
+}
+
+const CARDS={
+  def:[
+    {k:'1',tab:'1. 场强的定义',cls:'c1',body:
+      '<b>电场强度（场强）：</b>把实验电荷 q_t 放进电场，它受到 @{F}；令 q_t → 0 取极限'+
+      '<div class="frm">@{E}(@{r}) = lim (q_t→0) @{F}(@{r}) / q_t　　(V/m)</div>'+
+      '<ul><li>它在数值上等于<b>单位正电荷</b>在该点受到的力</li>'+
+      '<li>方向 = 正电荷在该点的受力方向（负电荷受力反着来）</li>'+
+      '<li>@{E} 是空间位置的函数 <b>@{E}(@{r})</b>，构成<b>矢量场</b></li>'+
+      '<li>⚠️ @{E} 只由<b>产生电场的源</b>决定，与 q_t 及 q_t 受的力无关</li></ul>'},
+    {k:'2',tab:'2. 为何要取极限',cls:'c2',body:
+      '<b>不取极限会怎样？</b>实验电荷本身也带电，它会扰动源：'+
+      '<div class="frm">@{F}/q_t = @{E}·(1 + k·q_t)　→　q_t→0 时 @{F}/q_t → @{E}</div>'+
+      '<ul><li>q_t 越大，扰动越大，测到的 @{F}/q_t 偏离真实 @{E} 越多</li>'+
+      '<li>q_t → 0 时 @{F} → 0（力消失），但 <b>@{F}/q_t 有确定的极限</b> —— 这个极限才是场的属性</li>'+
+      '<li>本页用现象学系数 <b>k = 0.35 /nC</b> <i>示意</i>这种扰动：按「让 q_t → 0」看偏差从 35% 掉到 0.35%</li>'+
+      '<li>关掉「实验电荷自身的扰动」按钮 = 理想情形，此时 @{F}/q_t 恒等于 @{E}</li></ul>'+
+      '<div class="ex-note">真实物理里扰动来自电荷间的相互作用（导体会重新分布电荷、介质会极化），'+
+      '并非简单的一个 1+kq_t 因子 —— 这里只是为了把"为什么要取极限"讲成看得见的数字。</div>'},
+    {k:'3',tab:'3. 库仑定律',cls:'c3',body:
+      '<b>库仑定律（真空中两个静止点电荷）：</b>'+
+      '<div class="frm">@{F}_{12} = q_1 q_2 / (4πε_0 R²) · @{e_R}　　@{F}_{21} = −@{F}_{12}</div>'+
+      '<ul><li>@{e_R} 是从 q_1 指向 q_2 的单位矢量；同号相斥、异号相吸</li>'+
+      '<li>真空介电常数 <b>ε_0 = 8.854×10⁻¹² F/m</b>，1/(4πε_0) ≈ 8.988×10⁹ m/F</li>'+
+      '<li>平方反比：R 翻倍，力只剩 1/4</li>'+
+      '<li>⚠️ 它只告诉两个点电荷之间作用力的大小与方向，<b>没说这个力是怎么传递的</b> —— '+
+      '"场"的观点正是为了补上这一环</li></ul>'+
+      '<div class="ex-note">本页单位约定：长度 m、电荷 nC ⇒ 1 nC 在 1 m 处产生 8.99 V/m。'+
+      '画布上的力是 q_t 受到的力，方向沿 ±@{e_R}。</div>'},
+  ],
+  point:[
+    {k:'1',tab:'1. 点电荷的场',cls:'c1',body:
+      '<b>把库仑定律代进场强定义</b>（q_t 受到的力 @{F} = q_0 q /(4πε_0 R²)·@{e_R}）：'+
+      '<div class="frm">@{E}(@{r}) = q / (4πε_0 R²) · @{e_R}　　@{e_R} = @{R}/R</div>'+
+      '<ul><li>正电荷：@{E} 沿 @{e_R} <b>背离</b>源；负电荷：@{E} 沿 −@{e_R} <b>指向</b>源</li>'+
+      '<li>大小只与距离 R 有关 ⇒ <b>球形对称</b></li>'+
+      '<li>场线从正电荷出发、到负电荷终止（本页只画单个电荷，线伸向无穷远）</li></ul>'},
+    {k:'2',tab:'2. 1/R² 的含义',cls:'c2',body:
+      '<b>平方反比是"场线密度守恒"的必然结果：</b>'+
+      '<div class="frm">|@{E}| ∝ 1/R²　⟺　穿过半径 R 的球面的场线总数不变</div>'+
+      '<ul><li>球面积是 4πR²，所以单位面积的场线数 ∝ 1/R²</li>'+
+      '<li>r₀ → 2r₀ → 3r₀：场强 <b>1 : 1/4 : 1/9</b></li>'+
+      '<li>右上角小图用<b>双对数坐标</b>：log|@{E}| ~ log R 是一条斜率 <b>−2</b> 的直线</li></ul>'+
+      '<div class="ex-note">把场点 P 拖远拖近，看小图上的紫点沿直线滑动，同时画布上的蓝色箭头按 1/R² 伸缩。</div>'},
+    {k:'3',tab:'3. 点电荷系',cls:'c3',body:
+      '<b>多个点电荷：矢量求和（叠加原理）</b>'+
+      '<div class="frm">@{E} = Σ_{i=1}^{n} q_i / (4πε_0 R_i²) · @{e}_{Ri}</div>'+
+      '<ul><li>每个点电荷各自产生一份场，总场是它们的<b>矢量和</b> —— 不是代数和</li>'+
+      '<li>R_i 是第 i 个电荷到场点的距离，@{e}_{Ri} 是相应的单位矢量</li>'+
+      '<li>这正是下一张「④ 点电荷的连续叠加」的出发点</li></ul>'},
+  ],
+  rho:[
+    {k:'1',tab:'1. 体电荷 ρ',cls:'c1',body:
+      '<b>宏观意义下电荷是连续分布的</b>，于是引入密度：'+
+      '<div class="frm">ρ(@{r}′) = lim_{ΔV′→0} Δq(@{r}′) / ΔV′　　(nC/m³)</div>'+
+      '<div class="frm">Q = ∫_{V′} ρ(@{r}′) dV′</div>'+
+      '<ul><li>ρ 可以是位置的函数（不均匀带电）</li>'+
+      '<li>Q 是"整个体积的电量"：把每个微元的 ρ dV′ 加起来</li>'+
+      '<li>本页非均匀模型取 ρ ∝ 1 + 0.7ξ²，ξ = x′/a ∈ [−1,1]</li></ul>'},
+    {k:'2',tab:'2. 面电荷 σ / 线电荷 τ',cls:'c2',body:
+      '<b>电荷被约束在曲面或曲线上时，改用面/线密度：</b>'+
+      '<div class="frm">σ(@{r}′) = lim_{ΔS′→0} Δq/ΔS′　(nC/m²)　　Q = ∫_{S′} σ dS′</div>'+
+      '<div class="frm">τ(@{r}′) = lim_{Δl′→0} Δq/Δl′　(nC/m)　　Q = ∫_{l′} τ dl′</div>'+
+      '<ul><li>三者的差别只有一件事：<b>把"体积"换成"面积"或"长度"</b></li>'+
+      '<li>完全均匀时 Q = ρV′ / σS′ / τl′，都不用积分</li>'+
+      '<li>把微元尺寸滑块缩到最小，Δq/测度 就收敛到该点的密度</li></ul>'},
+    {k:'3',tab:'3. 点电荷',cls:'c3',body:
+      '<b>三者的共同极限 —— 点电荷：</b>'+
+      '<div class="frm">场点距离源 ≫ 源自身几何尺寸　⟹　源可视为点电荷 q</div>'+
+      '<ul><li>只要知道点电荷产生的场，就可以<b>类推其他三种分布</b>产生的场</li>'+
+      '<li>做法：把连续体切成无穷多个 dq，每个 dq 当点电荷，再求和（积分）</li>'+
+      '<li>所以"体电荷 / 面电荷 / 线电荷"只是<b>点电荷在不同几何形状上的连续累加</b> —— '+
+      '下一张页签把这句话做成看得见的动画</li></ul>'+
+      '<div class="ex-note">注意量纲：ρ·dV′、σ·dS′、τ·dl′ 都是电量，三种分布最终都回到同一个"点电荷的场"公式。</div>'},
+  ],
+  super:[
+    {k:'1',tab:'1. 离散分布',cls:'c1',body:
+      '<b>点电荷系（离散）：</b>'+
+      '<div class="frm">@{E} = Σ_{i=1}^{N} q_i / (4πε_0 R_i²) · @{e}_{Ri}</div>'+
+      '<ul><li>N 个点电荷各自贡献一份 d@{E}，总场是<b>矢量叠加</b></li>'+
+      '<li>N = 1 时就是一个孤立的点电荷 —— 用它代表整个带电体，误差能有多大？把 N 从小到大拖一遍就知道了</li></ul>'},
+    {k:'2',tab:'2. 连续分布（积分）',cls:'c2',body:
+      '<b>把 N 推向无穷，求和变成积分：</b>'+
+      '<div class="frm">dq = ρ(@{r}′) dV′　⟹　d@{E} = ρ(@{r}′) dV′ / (4πε_0 R²) · @{e_R}</div>'+
+      '<div class="frm">@{E}(@{r}) = ∫_{V′} ρ(@{r}′) / (4πε_0 R²) · @{e_R} dV′</div>'+
+      '<ul><li>面分布：把 ρdV′ 换成 σdS′；线分布：换成 τdl′</li>'+
+      '<li>本页三个几何都有<b>解析答案</b>用来当裁判：'+
+      '球外 KQ/d²（体）、2πKσ[1−d/√(d²+a²)]（面）、Kτ[1/d−1/(d+2L)]（线）</li>'+
+      '<li>右上角小图画出 Σ 与积分值的相对偏差随 N <b>总体下降</b> —— N 很小时点元方位取样还糙，曲线会有起伏</li></ul>'},
+    {k:'3',tab:'3. 三者同一个积分',cls:'c3',body:
+      '<b>三种分布，一个骨架：</b>'+
+      '<div class="frm">体：∫_{V′} ρ dV′　|　面：∫_{S′} σ dS′　|　线：∫_{l′} τ dl′</div>'+
+      '<ul><li>被积的都是"<b>该点的小点电荷 dq，除以 4πε_0R² 再乘 @{e_R}</b>"</li>'+
+      '<li>唯一的区别是 <b>dq 怎么写</b>：ρdV′ / σdS′ / τdl′</li>'+
+      '<li>所以"体电荷、面电荷、线电荷"本质上是<b>同一件事在不同维度上的实现</b> —— '+
+      '都是点电荷的连续累加</li></ul>'+
+      '<div class="ex-note">与 1.4 的散度、1.5 的旋度同一套思路：先看<b>一个微元做了什么</b>，再把它<b>加遍整个区域</b>。</div>'},
+  ],
+};
+function renderExplain(sec){
+  sec.innerHTML='';
+  const cards=CARDS[state.mode];
+  if(!cards.find(c=>c.k===state.cardTab)) state.cardTab='1';
+  const cur=cards.find(c=>c.k===state.cardTab)||cards[0];
+  sec.appendChild(h('<div class="ex-title">公式与解读</div>'+
+    '<div class="card-tabs">'+cards.map(c=>'<button class="card-tab '+c.cls+(c.k===state.cardTab?' on':'')+'" data-k="'+c.k+'">'+c.tab+'</button>').join('')+'</div>'+
+    '<div class="card-body '+cur.cls+'"><div class="ex-body">'+richHTML(cur.body)+'</div></div>'));
+  sec.querySelectorAll('.card-tab').forEach(b=>{b.onclick=()=>{state.cardTab=b.dataset.k;renderPanel();};});
+}
+function renderPanel(){
+  ['subSec','sliderSec','explainSec'].forEach(id=>{const el=document.getElementById(id);if(el)el.remove();});
+  const mk=id=>{const d=document.createElement('div');d.className='panel-sec';d.id=id;return d;};
+  let tog=document.getElementById('toggleSec');
+  if(!tog){
+    tog=mk('toggleSec');
+    tog.appendChild(h('<label class="readout-toggle"><input type="checkbox" id="showReadoutCb"'+(state.showReadout?' checked':'')+'><span>在<b>画布下方</b>显示<b>实时数据</b>条</span></label>'));
+    tog.querySelector('#showReadoutCb').onchange=e=>{state.showReadout=e.target.checked;updateReadout();};
+    panel.appendChild(tog);
+  }else tog.querySelector('#showReadoutCb').checked=state.showReadout;
+  const s= mk('subSec'), sl=mk('sliderSec'), ex=mk('explainSec');
+  panel.appendChild(s); panel.appendChild(sl); panel.appendChild(ex);
+  renderSubSec(s); renderSliders(sl); renderExplain(ex);
+  updateReadout(); updateModeTag();
+}
+
+function updateReadout(){
+  const strip=document.getElementById('coordStrip'); if(!strip)return;
+  if(!state.showReadout){ strip.innerHTML=''; return; }
+  let html='';
+  if(state.mode==='def'){
+    const d=defModel();
+    html += kchip('源电荷 q =', sgnTxt(state.q,2)+' nC');
+    html += kchip('实验电荷 q_t =', state.qt.toFixed(2)+' nC');
+    html += kchip('距离 R =', d.Rn.toFixed(2)+' m');
+    html += kchip('实测 |@{F}| =', d.F.toFixed(3)+' nN');
+    html += kchip('@{F} / q_t =', d.Fq.toFixed(3)+' V/m','acc');
+    html += kchip('真实 |@{E}| =', d.E.toFixed(3)+' V/m');
+    const dev=(d.Fq-d.E)/d.E*100;
+    html += kchip('相对偏差 =', dev.toFixed(2)+'%', Math.abs(dev)<0.5?'':'warn');
+    document.getElementById('lgTitle').textContent='电场强度 · 定义';
+    document.getElementById('lgNote').innerHTML=richHTML('@{E} = lim (q_t→0) @{F}/q_t ；@{F} 随 q_t 变，@{F}/q_t 收敛到 @{E}');
+  } else if(state.mode==='point'){
+    const d=pointModel();
+    html += kchip('点电荷 q =', sgnTxt(state.qP,2)+' nC');
+    html += kchip('距离 R =', d.Rn.toFixed(2)+' m');
+    html += kchip('|@{E}| =', d.E.toFixed(3)+' V/m','acc');
+    html += kchip('方向 =', richHTML(state.qP>=0?'沿 @{e_R}（背离）':'沿 −@{e_R}（指向）'));
+    html += kchip('r₀ / 2r₀ / 3r₀ 之比 =', '1 : 0.250 : 0.111','acc');
+    document.getElementById('lgTitle').textContent='点电荷的场 · 1/R²';
+    document.getElementById('lgNote').innerHTML=richHTML('@{E} = q/(4πε₀R²)·@{e_R} ；距离翻倍 ⇒ 场强 1/4');
+  } else if(state.mode==='rho'){
+    const mi=microInfo();
+    html += kchip('几何 =', geoWord()+'（'+(state.nonuni?'非均匀':'均匀')+'）');
+    html += kchip('位置 ξ =', mi.xi.toFixed(2));
+    html += kchip(geoMeas()+' =', mi.meas.toExponential(2)+' '+geoMeasUnit());
+    html += kchip('Δq =', mi.dq.toExponential(2)+' nC');
+    html += kchip('Δq / '+geoMeas()+' =', mi.dens.toFixed(3)+' '+geoUnit(),'acc');
+    html += kchip(geoSym()+'(ξ) 解析 =', mi.pointDens.toFixed(3)+' '+geoUnit(),'acc');
+    html += kchip('偏差 =', mi.dev.toFixed(4), Math.abs(mi.devRel)<0.02?'':'warn');
+    html += kchip('总电量 Q =', totalQ().toFixed(3)+' nC');
+    document.getElementById('lgTitle').textContent='电荷密度 · '+geoWord();
+    document.getElementById('lgNote').textContent=geoSym()+' = lim Δq/'+geoMeas()+' ；Δq 是该微元内的电量';
+  } else {
+    const g=geomData(), pts=curSamples(), E=sumField(pts,g.P);
+    const mag=vlen(E), ref=Math.max(vlen(g.Ean),1e-12);
+    const ang=(mag>1e-9)?(Math.acos(Math.max(-1,Math.min(1,vdot(vnorm(E),vnorm(g.Ean)))))*R2D):0;
+    html += kchip('几何 =', geoWord());
+    html += kchip('总电量 Q =', g.Q.toFixed(3)+' nC');
+    html += kchip('N =', String(state.NS)+' 个点电荷元');
+    let dmn=1e30,dmx=-1e30; pts.forEach(s=>{if(s.dq<dmn)dmn=s.dq; if(s.dq>dmx)dmx=s.dq;});
+    html += kchip('dq 范围 =', dmn.toExponential(2)+(dmx-dmn>1e-18?(' ~ '+dmx.toExponential(2)):'')+' nC');
+    html += kchip('Σ 点电荷元 |@{E}| =', mag.toFixed(3)+' V/m','acc');
+    html += kchip('积分精确值 =', ref.toFixed(3)+' V/m','acc');
+    html += kchip('相对偏差 =', (Math.abs(mag-ref)/ref*100).toFixed(3)+'%', Math.abs(mag-ref)/ref<0.01?'':'warn');
+    html += kchip('方向偏差 =', ang.toFixed(2)+'°');
+    document.getElementById('lgTitle').textContent='连续叠加 · '+geoWord();
+    document.getElementById('lgNote').innerHTML=richHTML('@{E} = Σ d@{E} → ∫ d@{E} ：点电荷元越密，越接近积分');
+  }
+  strip.innerHTML=html;
+}
+function updateModeTag(){
+  const t=document.getElementById('modeTag'); if(!t)return;
+  const sb=document.getElementById('moduleSub');
+  /* ⚠️ 进 DOM 的串一律过 richHTML（否则 @{E} 会字面显示） */
+  if(state.mode==='def') t.innerHTML=richHTML('电场强度的定义 · q = '+sgnTxt(state.q,2)+' nC，q_t = '+state.qt.toFixed(2)+' nC');
+  else if(state.mode==='point') t.innerHTML=richHTML('点电荷的场 · '+sgnTxt(state.qP,2)+' nC（球形对称，|@{E}| ∝ 1/R²）');
+  else if(state.mode==='rho') t.innerHTML=richHTML('电荷密度 · '+geoWord()+'　'+(state.nonuni?'非均匀 '+geoSym()+' ∝ 1+0.7ξ²':'均匀 '+geoSym()));
+  else t.innerHTML=richHTML('连续叠加 · '+geoWord()+'　N = '+state.NS+' 个点电荷元');
+  if(sb) sb.innerHTML=richHTML(
+    state.mode==='def'   ? '@{E} = lim (q_t→0) @{F}/q_t　场强的定义'
+  : state.mode==='point' ? '点电荷的场　@{E} = q/(4πε₀R²)·@{e_R}'
+  : state.mode==='rho'   ? geoSym()+' = lim (Δ'+geoMeas().charAt(1)+'→0) Δq/'+geoMeas()+'　电荷密度'
+  :                        '@{E} = Σ d@{E} → ∫ d@{E}　点电荷的连续累加');
+}
+
+/* ============================================================================
+   交互
+   ============================================================================ */
+let drag=null;
+function localPos(ev){const r=canvas.getBoundingClientRect();return{x:ev.clientX-r.left,y:ev.clientY-r.top};}
+/* 屏幕坐标 → z=z0 平面上的世界坐标（反解 pr） */
+function screenToWorldZ(mx,my,z0){
+  const ux=camU.x,uy=camU.y,vx=camV.x,vy=camV.y;
+  const det=ux*vy-uy*vx;
+  if(Math.abs(det)<1e-9) return null;
+  const bx=(mx-CX2-cam.px)/camScale - z0*camU.z;
+  const by=(CY+cam.py-my)/camScale - z0*camV.z;
+  return pt((bx*vy-by*uy)/det, (ux*by-vx*bx)/det, z0);
+}
+function clampTo(p,c,minR,maxR){
+  const d=vsub(p,c), L=vlen(d);
+  if(L<1e-9) return vadd(c,pt(minR,0,0));
+  const lc=Math.max(minR,Math.min(maxR,L));
+  return vadd(c, vmul(vnorm(d),lc));
+}
+/* 拖动点被约束在 z=z0 平面内，而源点可能不在该平面上：
+   按三维距离夹紧时要先把平面外的那一段 dz 折算掉，
+   否则"拖到极限"后的读数不是恰好 maxR（曾踩：显示 1.553 而非 1.55）。 */
+function clampToZ(p,c,z0,minR,maxR){
+  const dz=z0-c.z, dz2=dz*dz;
+  const hi=Math.sqrt(Math.max(1e-9,maxR*maxR-dz2));
+  const lo=Math.sqrt(Math.max(0,minR*minR-dz2));
+  const dx=p.x-c.x, dy=p.y-c.y, d=Math.hypot(dx,dy);
+  if(d<1e-9) return pt(c.x+lo,c.y,z0);
+  const k=Math.max(lo,Math.min(hi,d))/d;
+  return pt(c.x+dx*k, c.y+dy*k, z0);
+}
+canvas=document.getElementById('cv');
+ctx=canvas.getContext('2d');
+canvas.addEventListener('pointerdown',ev=>{
+  canvas.setPointerCapture(ev.pointerId);
+  const m=localPos(ev);
+  if(ev.button===0){
+    if(state.mode==='def'){
+      const wp=pr(pt(state.tp.x,state.tp.y,state.tp.z));
+      if(Math.hypot(m.x-wp.x,m.y-wp.y)<38){ drag={x:m.x,y:m.y,btn:0,mode:'tp'}; ev.preventDefault(); return; }
+    }
+    if(state.mode==='point'){
+      const wp=pr(pt(state.pp.x,state.pp.y,state.pp.z));
+      if(Math.hypot(m.x-wp.x,m.y-wp.y)<38){ drag={x:m.x,y:m.y,btn:0,mode:'pp'}; ev.preventDefault(); return; }
+    }
+  }
+  drag={x:m.x,y:m.y,btn:ev.button,mode:(ev.button===2||ev.ctrlKey)?'pan':'rot'};
+  ev.preventDefault();
+});
+canvas.addEventListener('pointermove',ev=>{
+  const m=localPos(ev);
+  if(!drag)return;
+  const dx=m.x-drag.x,dy=m.y-drag.y; drag.x=m.x; drag.y=m.y;
+  if(drag.mode==='tp'){
+    const w=screenToWorldZ(m.x,m.y,state.tp.z);
+    if(w){ const p=clampToZ(w,SRC_P,state.tp.z,0.42,1.55);
+      state.tp.x=p.x; state.tp.y=p.y; needsRender=true; updateReadout(); updateModeTag(); }
+  }
+  else if(drag.mode==='pp'){
+    const w=screenToWorldZ(m.x,m.y,state.pp.z);
+    if(w){ const p=clampToZ(w,P_SRC,state.pp.z,0.28,1.45);
+      state.pp.x=p.x; state.pp.y=p.y; needsRender=true; updateReadout(); updateModeTag(); }
+  }
+  else if(drag.mode==='pan'){ cam.px+=dx; cam.py+=dy; needsRender=true; }
+  else { cam.az-=dx*0.0075; cam.el=Math.max(-1.45,Math.min(1.45,cam.el+dy*0.0062)); needsRender=true; }
+});
+canvas.addEventListener('pointerup',()=>{ if(drag&&(drag.mode==='tp'||drag.mode==='pp')) syncSliders(); drag=null; });
+canvas.addEventListener('pointercancel',()=>{ if(drag&&(drag.mode==='tp'||drag.mode==='pp')) syncSliders(); drag=null; });
+canvas.addEventListener('contextmenu',e=>e.preventDefault());
+canvas.addEventListener('wheel',e=>{e.preventDefault();cam.zoom=Math.max(.45,Math.min(3.2,cam.zoom*(e.deltaY<0?1.09:1/1.09)));needsRender=true;},{passive:false});
+
+document.getElementById('btnReset').onclick=()=>{ cam.az=.62; cam.el=.46; cam.zoom=1; cam.px=0; cam.py=0; needsRender=true; };
+document.getElementById('btnRotate').onclick=e=>{state.autoRotate=!state.autoRotate;e.target.classList.toggle('on',state.autoRotate);};
+document.getElementById('btnPanReset').onclick=()=>{cam.px=0;cam.py=0;needsRender=true;};
+function bindFold(bid,cls){document.getElementById(bid).onclick=()=>{document.body.classList.toggle(cls);setTimeout(resize,60);setTimeout(resize,260);};}
+bindFold('foldNav','nav-off'); bindFold('foldPanel','panel-off');
+document.getElementById('tglNav').onclick=()=>{document.body.classList.toggle('nav-off');setTimeout(resize,260);};
+document.getElementById('tglPanel').onclick=()=>{document.body.classList.toggle('panel-off');setTimeout(resize,260);};
+window.addEventListener('keydown',e=>{if(e.target.tagName==='INPUT')return;
+  if(e.key==='['){document.body.classList.toggle('nav-off');setTimeout(resize,260);}
+  if(e.key===']'){document.body.classList.toggle('panel-off');setTimeout(resize,260);}});
+
+const modeTabs=document.getElementById('modeTabs');
+MT.forEach(m=>{const b=document.createElement('button');b.textContent=m.t;b.dataset.k=m.k;
+  b.onclick=()=>{ state.mode=m.k; state.cardTab='1'; syncModeTabs();
+    cam.az=.62; cam.el=.46; cam.px=0; cam.py=0;
+    renderPanel(); updateAll(); };
+  modeTabs.appendChild(b);});
+function syncModeTabs(){Array.from(modeTabs.children).forEach(b=>b.classList.toggle('on',b.dataset.k===state.mode));}
+
+function resize(){
+  const r=canvas.getBoundingClientRect();
+  const nw=Math.max(60,Math.round(r.width)),nh=Math.max(60,Math.round(r.height));
+  DPR=Math.min(2,window.devicePixelRatio||1);
+  if(nw===W&&nh===H&&canvas.width===Math.round(nw*DPR))return;
+  W=nw;H=nh;canvas.width=Math.round(W*DPR);canvas.height=Math.round(H*DPR);
+  ctx.setTransform(DPR,0,0,DPR,0,0); needsRender=true;
+}
+new ResizeObserver(()=>resize()).observe(canvas);
+
+const nav=document.getElementById('nav');
+NAV.forEach(g=>{nav.appendChild(h('<div class="nav-ch">'+g.ch+'</div>'));
+  g.items.forEach(it=>{const cls='nav-item'+(it.active?' active':'')+(it.ready?'':' soon');
+    nav.appendChild(h('<a class="'+cls+'" '+(it.href?'href="'+it.href+'"':'')+'><span class="dot"></span>'+it.t+'</a>'));});});
+
+clampMicro(); clampSd();
+syncModeTabs();
+resize();
+renderPanel();
+updateAll();
+tick();
+
+</script>
+</body>
+</html>
