@@ -486,7 +486,7 @@ function microInfo(){
    k=0 即均匀情形，退化为 Q = ρ₀V′ / σ₀S′ / τ₀l′。 */
 const Q_KF={ line:1/3, surf:1/2, vol:1/5 };
 let _Qcache={};
-/* 均匀分布的 Q（④ 页固定用均匀分布，才有初等解析场强当裁判） */
+/* 均匀分布的 Q（均匀时三种几何都有初等解析场强当裁判；非均匀见 refField() 的数值参考） */
 function uniformQ(){
   const a=GA, L=GA;
   if(state.geo==='line') return TAU0*2*L;
