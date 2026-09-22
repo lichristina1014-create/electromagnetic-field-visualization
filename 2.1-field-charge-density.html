@@ -141,7 +141,7 @@ sub{font-size:.72em;vertical-align:-.24em;}
 <body>
 <header>
   <a class="logo" href="index.html" title="返回平台首页">E&M</a>
-  <div><h1>2.1 电场强度与电荷密度</h1><div class="sub">场强的定义 · 点电荷的场 · 体/面/线电荷密度 · 点电荷的连续累加</div></div>
+  <div><h1>2.1 电场强度与电荷密度</h1><div class="sub">场强的定义 · 点电荷的场 · 电荷密度与连续叠加（体 / 面 / 线）</div></div>
   <div class="view-toggles" id="viewToggles"><button id="tglNav" title="折叠 / 展开左侧目录（快捷键 [ ）">☰ 目录</button><button id="tglPanel" title="折叠 / 展开右侧控制面板（快捷键 ] ）">☰ 面板</button></div>
   <div class="badge"><div class="chip">《工程电磁场》 ×《电磁场与电磁波》</div><div class="owner"><b>© 2026 Li Chenlu</b> All Rights Reserved</div></div>
 </header>
@@ -384,12 +384,12 @@ function perpOf(d){
    全局状态
    ============================================================================ */
 const state = {
-  mode:'def',                 /* def | point | rho | super */
+  mode:'def',                 /* def | point | cont */
   autoRotate:false,
   cardTab:'1',
   showReadout:true,
   show:{ box:true, fld:true, shells:true, prof:true, micro:true,
-         dots:true, links:true, anl:true, conv:true },
+         blk:true, dE:true, anl:true, conv:true },
   /* --- ① 电场强度的定义 --- */
   q:1.5,                      /* 源电荷 nC */
   qt:1.00,                    /* 实验电荷 nC */
@@ -399,19 +399,18 @@ const state = {
   /* --- ② 点电荷的场 --- */
   qP:1.00,                    /* 点电荷电量 nC */
   pp:{x:0.72, y:0.34, z:0.00},/* 场点 P（可拖） */
-  /* --- ③ 电荷密度 --- */
+  /* --- ③ 电荷密度与连续叠加（③④ 合并页） --- */
   geo:'vol',                  /* vol | surf | line */
-  nonuni:true,                /* 非均匀分布 ρ ∝ 1+0.7ξ² */
-  mu:0.45,                    /* 微元归一化位置 ξ ∈ [−1,1] */
-  mh:0.34,                    /* 微元归一化尺寸 */
-  /* --- ④ 连续叠加 --- */
-  NS:24,                      /* 离散点电荷元个数 N */
+  nonuni:false,               /* 非均匀分布 ρ ∝ 1+0.7ξ²（默认均匀：有解析场强当裁判） */
+  mu:0.45,                    /* 自由微元（密度探针）归一化位置 ξ ∈ [−1,1] */
+  mh:0.34,                    /* 自由微元归一化尺寸 */
+  NS:32,                      /* 点电荷元个数 N（③④ 合并后共用） */
   sd:1.20,                    /* 场点位置参数 d (m) */
 };
 
 const SD_RANGE={ vol:[0.75,1.50], surf:[0.20,1.50], line:[0.20,1.40] };
 const MT=[{k:'def',t:'① 电场强度的定义'},{k:'point',t:'② 点电荷的场'},
-          {k:'rho',t:'③ 电荷密度'},{k:'super',t:'④ 点电荷的连续叠加'}];
+          {k:'cont',t:'③ 电荷密度与连续叠加'}];
 const GEO_OPTS=[{k:'vol',t:'体电荷 ρ'},{k:'surf',t:'面电荷 σ'},{k:'line',t:'线电荷 τ'}];
 
 function geoWord(){ return state.geo==='vol'?'体电荷':(state.geo==='surf'?'面电荷':'线电荷'); }
@@ -577,18 +576,8 @@ function drawMicro(){
   const target = state.geo==='surf' ? pt(0,xi*GA,0) : pt(xi*GA,0,0);
   line(pt(0,0,0),target,{color:'#E0B48C',w:1.1,alpha:.85,dash:[4,4]});
 }
-function modeRho(){
-  if(state.geo==='vol') rhoSphere();
-  else if(state.geo==='surf') rhoDisk();
-  else rhoLine();
-  drawMicro();
-  /* 几何轴线 + 原点 */
-  marker(pt(0,0,0),{r:3.2,color:'#8FB3C6',ring:null});
-  text(pt(0,0,0),'O',{color:'#7A8F9B',size:11.5,dx:-14,dy:13});
-  /* 坐标方向标 */
-  const axis = state.geo==='surf' ? pt(0,GA*1.10,0) : pt(GA*1.10,0,0);
-  text(axis, state.geo==='surf'?'ρ′':'x′',{color:'#5F7482',size:12,bold:true,align:'center'});
-}
+/* ③④ 合并后，上面的「连续体绘制」（rhoSphere/rhoDisk/rhoLine）与「自由微元」（drawMicro）
+   都由 modeCont() 调度：N 超过分块显示上限时画连续体，否则画分块（见 drawBlocks）。 */
 
 /* ============================================================================
    ① 电场强度的定义
@@ -697,7 +686,7 @@ function modePoint(){
 }
 
 /* ============================================================================
-   ④ 点电荷的连续叠加
+   ③④ 合并页公共件：剖分（partition）、采样、求和、裁判
    ============================================================================ */
 /* 按权重把 N 个点分给若干组：结果长度不变、**和恰为 N**、N ≥ 组数时每份 ≥1。
    ⚠️ 早年版本死守「每份 ≥1」，当 N < 组数时永远收敛不了（guard 跑满仍不等于 N）—— 已修。 */
@@ -720,57 +709,63 @@ function allocByWeight(w,N){
   }
   return base;
 }
-/* 采样点（★ 关键：每"组"的电量必须等于该组真实的电量，而不是 Q/N 平均摊）
-   体电荷 = 等体积壳层，每壳电量恒为 Q/nS；面电荷 = 等面积环，每环电量恒为 Q/nR；
-   线电荷 = 等长小段，每段电量恒为 Q/N。
-   组内点数则按"视觉均匀"分配（壳 ∝ r²、环 ∝ ρ、段 = 1）。
+/* 把带电体切成 N 份**等测度**（等长 / 等面积 / 等体积）的"块"，每块的电量 = 对该块
+   精确积分（均匀 ⇒ 每块 Q/N；非均匀 ρ∝1+0.7ξ² ⇒ 有闭式：线段 ∫x²dx、环 ∫ρ²dS、壳 ∫x²dV）。
+   ★ 图与数共用这一条剖分：画布上画出来的块、Σ 求和里的点电荷元，都来自 partition()。
+   ★ 关键：每"组"的电量必须等于该组真实的电量，而不是 Q/N 平均摊。
+     体电荷 = 等体积壳层；面电荷 = 等面积环；线电荷 = 等长小段。
+     组内点数按"视觉均匀"分配（环 ∝ ρ、壳 ∝ r、段 = 1）。
    ⚠️ 早期版本所有点都摊 Q/N，而环内点数又 ∝ ρ ⇒ 等面积环被赋予 ∝ρ 的错权重，
       误差随 N 不降反升、卡在 3.35% 不动。改成"组电量恒定 + 组内再摊"后，
-      面电荷的求和就退化为 u=ρ² 上的**中点法则**（精确到 O(1/nR²)）。 */
-function samplePoints(N){
-  const a=GA, L=GA;
-  const out=[];
+      面电荷的求和就退化为 u=ρ² 上的**中点法则**（精确到 O(1/nR²)）。
+   ⚠️ 环数 / 壳数必须随 N 一起长（面 ≈0.85√N、体 ≈N/8），否则 N 再大误差也不再下降；
+      体壳数又不能太多（最内壳只剩 1~2 个点时，单点方位运气主导整条误差曲线）。 */
+function partition(N){
+  const a=GA, L=GA, k=state.nonuni?NL_K:0;
+  const groups=[];
   if(state.geo==='line'){
-    const dq=uniformQ()/N;
-    for(let i=0;i<N;i++) out.push({p:pt(-L+(i+0.5)*2*L/N,0,0), dq});
-    return out;
+    for(let i=0;i<N;i++){
+      const x0=-L+2*L*i/N, x1=-L+2*L*(i+1)/N;
+      const q=TAU0*((x1-x0)+k*(x1*x1*x1-x0*x0*x0)/(3*L*L));
+      groups.push({q, x0, x1, m:1, pts:[{p:pt((x0+x1)/2,0,0), dq:q}]});
+    }
+    return {groups, Q:totalQ()};
   }
   if(state.geo==='surf'){
-    /* 环数随 N 一起长（≈0.85√N，上限 20）：
-       等面积环每环总电量相同 ⇒ 求和 = u=ρ² 上的中点法则，误差 ∝ 1/nR²；
-       若把 nR 钉死，N 再大误差也不再下降（曲线躺平）。 */
     const nR=Math.max(1,Math.min(20,N,Math.round(Math.sqrt(N)*0.85)));
-    const rho=[]; for(let j=0;j<nR;j++) rho.push(a*Math.sqrt((j+0.5)/nR));
-    const m=allocByWeight(rho,N);
-    const dqRing=uniformQ()/nR;
+    const m=allocByWeight(Array.from({length:nR},(_,j)=>a*Math.sqrt((j+0.5)/nR)),N);
     for(let j=0;j<nR;j++){
-      const dqp=dqRing/m[j];
-      for(let k=0;k<m[j];k++){
-        const ph=2*Math.PI*(k+(j%2)*0.5)/m[j];
-        out.push({p:pt(rho[j]*Math.cos(ph),rho[j]*Math.sin(ph),0), dq:dqp});
+      const r0=a*Math.sqrt(j/nR), r1=a*Math.sqrt((j+1)/nR);
+      const q=SIG0*(Math.PI*(r1*r1-r0*r0)+k/(a*a)*Math.PI*(Math.pow(r1,4)-Math.pow(r0,4))/2);
+      const pts=[], dqp=q/m[j], rm=a*Math.sqrt((j+0.5)/nR);
+      for(let i2=0;i2<m[j];i2++){
+        const ph=2*Math.PI*(i2+(j%2)*0.5)/m[j];
+        pts.push({p:pt(rm*Math.cos(ph),rm*Math.sin(ph),0), dq:dqp});
       }
+      groups.push({q, r0, r1, m:m[j], pts});
     }
-    return out;
+    return {groups, Q:totalQ()};
   }
-  /* 等体积壳，每壳总电量相同（= Q/nS）⇒ 球外观察时每壳的精确场都是 KC(Q/nS)/d²，
-     于是误差只来自"每壳用 m 个点近似角向分布"，≈ C·mean(1/m)。
-     由凸性，1/m 的均值在 m 尽量平均时最小 ⇒ 壳数不能太多（否则最内壳只剩 1~2 个点，
-     单点的方位运气会主导整条误差曲线，曾踩：N=8 误差 39%、N=6 反而只有 3.8%）。
-     故取 nS ≈ N/8（每壳 ≥5 点）而非 ∛N，上限 12。 */
   const nS=Math.max(1,Math.min(12,N,Math.round(N/8)));
-  const rj=[]; for(let j=0;j<nS;j++) rj.push(a*Math.pow((j+0.5)/nS,1/3));
-  const m=allocByWeight(rj.map(r=>r),N);
-  const dqShell=uniformQ()/nS;
+  const m=allocByWeight(Array.from({length:nS},(_,j)=>a*Math.pow((j+0.5)/nS,1/3)),N);
   for(let j=0;j<nS;j++){
-    const dqp=dqShell/m[j];
+    const r0=a*Math.pow(j/nS,1/3), r1=a*Math.pow((j+1)/nS,1/3);
+    const q=RHO0*(4*Math.PI/3*(r1*r1*r1-r0*r0*r0)+k/(a*a)*4*Math.PI/15*(Math.pow(r1,5)-Math.pow(r0,5)));
+    const pts=[], dqp=q/m[j], rj=a*Math.pow((j+0.5)/nS,1/3);
     const dirs=fibDirs(m[j], j*0.7);
-    for(const d of dirs) out.push({p:vmul(d,rj[j]), dq:dqp});
+    for(const d of dirs) pts.push({p:vmul(d,rj), dq:dqp});
+    groups.push({q, r0, r1, m:m[j], pts});
   }
+  return {groups, Q:totalQ()};
+}
+function samplePoints(N){
+  const out=[]; const pd=partition(N);
+  for(const g of pd.groups) for(const s of g.pts) out.push(s);
   return out;
 }
 let _samp={key:null,pts:null};
 function curSamples(){
-  const k=state.geo+'|'+state.NS;
+  const k=state.geo+'|'+state.NS+'|'+(state.nonuni?1:0);
   if(_samp.key!==k) _samp={key:k, pts:samplePoints(state.NS)};
   return _samp.pts;
 }
@@ -784,9 +779,9 @@ function sumField(pts,P){
   return E;
 }
 function geomData(){
-  const a=GA,L=GA, Q=uniformQ();       /* ★ ④ 固定均匀分布：三种几何都有初等解析场强 */
+  const a=GA,L=GA, Q=totalQ();         /* Q 随分布（均匀/非均匀）变；均匀时 = uniformQ() */
   if(state.geo==='vol'){
-    const P=pt(state.sd,0,0), E=KC*Q/(state.sd*state.sd);
+    const P=pt(state.sd,0,0), E=KC*uniformQ()/(state.sd*state.sd);
     return {Q,P,Ean:pt(E,0,0),d:state.sd,dLab:'球心 → P',ax:pt(1,0,0)};
   }
   if(state.geo==='surf'){
@@ -798,56 +793,150 @@ function geomData(){
   const E=KC*TAU0*(1/state.sd - 1/(state.sd+2*L));
   return {Q,P,Ean:pt(E,0,0),d:state.sd,dLab:'端点 → P',ax:pt(1,0,0)};
 }
+/* 裁判场：均匀分布有初等解析解（Ean）；非均匀没有 ⇒ 用 8192 个电荷元的加权和当数值参考
+   （该采样方案在 N=384 时偏差已 ~0.002%，8192 的自身误差 ~1e-5%，做"参考"绰绰有余，
+    并在界面上如实标注「数值积分参考」）。 */
+let _nref={key:null,v:null};
+function refField(){
+  const g=geomData();
+  if(!state.nonuni) return {v:g.Ean, lab:'积分精确值'};
+  const key=state.geo+'|'+state.sd.toFixed(2)+'|n';
+  if(_nref.key!==key) _nref={key, v:sumField(samplePoints(8192),g.P)};
+  return {v:_nref.v, lab:'数值积分参考 (N=8192)'};
+}
 let _conv={key:null,data:null};
 const CONV_NS=[1,2,3,4,6,8,12,16,24,32,48,64,96,128,192,256,384];
 function convSeries(){
-  const key=state.geo+'|'+state.sd.toFixed(2);
+  const key=state.geo+'|'+state.sd.toFixed(2)+'|'+(state.nonuni?1:0);
   if(_conv.key===key) return _conv.data;
-  const g=geomData(), ref=Math.max(vlen(g.Ean),1e-12);
+  const g=geomData(), ref=Math.max(vlen(refField().v),1e-12);
   const data=CONV_NS.map(n=>{
     const E=sumField(samplePoints(n), g.P);
     return {n, rel:Math.abs(vlen(E)-ref)/ref};
   });
   _conv={key,data}; return data;
 }
-function modeSuper(){
-  const g=geomData(), pts=curSamples();
-  /* 几何轮廓 */
-  if(state.geo==='vol') sphereWireAt(pt(0,0,0),GA*0.995,'#AFC7D6',1.05,.5);
-  else if(state.geo==='surf'){
-    const rim=[]; for(let i=0;i<=72;i++){const ph=2*Math.PI*i/72;
-      rim.push(pt(GA*Math.cos(ph),GA*Math.sin(ph),0));}
-    curve(rim,{color:'#AFC7D6',w:1.3,alpha:.8});
-  } else line(pt(-GA,0,0),pt(GA,0,0),{color:'#AFC7D6',w:2.4,alpha:.8});
-  /* 点电荷元本体（dE 连线的端点） */
-  if(state.show.links){
-    const K=Math.min(16,pts.length), step=pts.length/K;
-    for(let i=0;i<K;i++){
-      const s=pts[Math.min(pts.length-1,Math.floor((i+0.5)*step))];
-      line(s.p,g.P,{color:'#C6D6E0',w:1,alpha:.8,dash:[4,4]});
+/* ============================================================================
+   ③ 电荷密度与连续叠加（③④ 合并页）
+   设计：密度定义（橙色自由微元：一块缩到点）与场的累加（N 块 → Σ dE → ∫）共用
+   同一个"把带电体切成块"的视觉。块数有显示上限（BLK_CAP），超过就画光滑连续体
+   —— "越切越碎 ⇒ 变成连续体"本身就是这节课要说的两件事之一。
+   ⚠️ 点电荷元一律画成"块"（小方块 / 扇形面片 / 粗线段），不再画成一个个点：
+      几百个孤立圆点是典型的"密集恐惧"触发器（用户反馈），而严丝合缝的分块
+      读起来是"一个整体被切开"，不是"一地碎点"。
+   ============================================================================ */
+const BLK_CAP={vol:64, surf:128, line:96};
+/* 逐面伪光照的小方块：fill 与 stroke 必须同色，否则相邻面露发丝缝 */
+function cubeShaded(c,hs,hexBase,alpha){
+  const V=(a,b,d)=>pt(c.x+a*hs,c.y+b*hs,c.z+d*hs);
+  const F=[[[-1,-1,-1],[1,-1,-1],[1,1,-1],[-1,1,-1],pt(0,0,-1)],
+           [[-1,-1,1],[1,-1,1],[1,1,1],[-1,1,1],pt(0,0,1)],
+           [[-1,-1,-1],[-1,1,-1],[-1,1,1],[-1,-1,1],pt(-1,0,0)],
+           [[1,-1,-1],[1,1,-1],[1,1,1],[1,-1,1],pt(1,0,0)],
+           [[-1,-1,-1],[1,-1,-1],[1,-1,1],[-1,-1,1],pt(0,-1,0)],
+           [[-1,1,-1],[1,1,-1],[1,1,1],[-1,1,1],pt(0,1,0)]];
+  F.forEach(f=>{ const col=shade(hexBase,f[4]);
+    poly(f.slice(0,4).map(v=>V(v[0],v[1],v[2])),
+      {fill:col,fillAlpha:alpha,stroke:col,strokeAlpha:Math.min(1,alpha+0.22),w:1}); });
+}
+/* 分块绘制；返回 true = 画了块（false = 太密，改画连续体） */
+function drawBlocks(){
+  if(!state.show.blk) return false;
+  const N=state.NS, cap=BLK_CAP[state.geo];
+  if(N>cap) return false;
+  const pd=partition(N);
+  if(state.geo==='vol'){
+    /* 块边长 = (4π/3)^(1/3)·a·N^(−1/3)（等体积立方），略留缝以免糊成一团 */
+    const hs=Math.min(0.30*GA, 0.5*1.612*GA*Math.pow(N,-1/3)*0.96);
+    for(const g of pd.groups) for(const s of g.pts){
+      const u=state.show.prof?(prof(s.p.x/GA)-1)/NL_K:0;
+      cubeShaded(s.p, hs, DENS_HEX, 0.40+0.34*Math.max(0,Math.min(1,u)));
     }
+    return true;
   }
-  if(state.show.dots){
-    let mx=1e-30; for(const s of pts) if(s.dq>mx) mx=s.dq;
-    for(const s of pts) screenDot(s.p, 2.1+1.4*Math.sqrt(s.dq/mx), '#156082', 0.95);
+  if(state.geo==='surf'){
+    pd.groups.forEach((g,j)=>{
+      const dr=(g.r1-g.r0)*0.06, r0=g.r0+dr, r1=g.r1-dr, dph=2*Math.PI/g.m;
+      const rm=(g.r0+g.r1)/2, u=state.show.prof?(prof(rm/GA)-1)/NL_K:0;
+      const al=0.26+0.42*Math.max(0,Math.min(1,u));
+      for(let i=0;i<g.m;i++){
+        const p0=dph*(i+(j%2)*0.5)+dph*0.035, p1=dph*(i+1+(j%2)*0.5)-dph*0.035;
+        const q=[];
+        for(let t=0;t<=5;t++) q.push(pt(r1*Math.cos(p0+(p1-p0)*t/5), r1*Math.sin(p0+(p1-p0)*t/5), 0));
+        for(let t=5;t>=0;t--) q.push(pt(r0*Math.cos(p0+(p1-p0)*t/5), r0*Math.sin(p0+(p1-p0)*t/5), 0));
+        poly(q,{fill:DENS_HEX,fillAlpha:al,stroke:'#1F5F7C',strokeAlpha:0.34,w:0.8});
+      }
+    });
+    const rim=[]; for(let i=0;i<=72;i++){const ph=2*Math.PI*i/72; rim.push(pt(GA*Math.cos(ph),GA*Math.sin(ph),0));}
+    curve(rim,{color:'#1F5F7C',w:1.4,alpha:.85});
+    return true;
   }
-  /* 场点 P */
-  marker(g.P,{r:5.5,color:C.purple,ring:'#E6D6F0',label:'P',ldx:13,ldy:-12,lsize:12.5});
-  line(pt(0,0,0),g.P,{color:'#D8E2E9',w:1.1,alpha:.9,dash:[5,4]});
-  /* ΣdE 与解析积分两条箭头（同一比例尺 ⇒ 长度差 = 数值差） */
-  const Esum=sumField(pts,g.P), mag=vlen(Esum), ref=Math.max(vlen(g.Ean),1e-12);
-  const S=0.85/ref;
-  const np=perpOf(g.ax);
-  if(state.show.anl)
-    arrow(vadd(g.P,vmul(np,0.085)), vadd(vadd(g.P,vmul(np,0.085)),vmul(g.ax,0.85)),
-      {color:C.orange,w:2.3,headScale:.9,label:'∫ 精确值 '+ref.toFixed(2),
-       ldx:12,ldy:-13,lsize:11.5});
-  if(mag>1e-9){
-    const Ls=Math.max(0.025,Math.min(1.20,mag*S));
-    arrow(vadd(g.P,vmul(np,-0.085)), vadd(vadd(g.P,vmul(np,-0.085)),vmul(vnorm(Esum),Ls)),
-      {color:C.teal,w:2.5,headScale:.9,label:'Σ '+mag.toFixed(2),ldx:12,ldy:16,lsize:11.5});
+  /* 线：N 段粗线段 + 分段刻痕（交替明暗让"切成 N 段"看得出来） */
+  pd.groups.forEach((g,i)=>{
+    const xm=(g.x0+g.x1)/2, u=state.show.prof?(prof(xm/GA)-1)/NL_K:0;
+    const al=0.30+0.40*Math.max(0,Math.min(1,u)) + (i%2?0.10:0);
+    line(pt(g.x0,0,0),pt(g.x1,0,0),{color:hexA('#2E7FA6',Math.min(0.95,al)),w:11});
+    if(i>0) line(pt(g.x0,-0.030,0),pt(g.x0,0.030,0),{color:'#1F5F7C',w:1.2,alpha:.75});
+  });
+  line(pt(-GA,0,0),pt(GA,0,0),{color:'#1F5F7C',w:1.6,alpha:.85});
+  screenDot(pt(-GA,0,0),3.2,'#1F5F7C',0.95); screenDot(pt(GA,0,0),3.2,'#1F5F7C',0.95);
+  return true;
+}
+/* 把 N 个元按采样顺序并成 K 股（每股电量 = 组内精确求和）——
+   各股的场矢量首尾相接，数学上严格等于 Σ dE（交换律），画出来就是"累加"本身 */
+function superChunks(pts,K){
+  const out=[]; const n=pts.length, per=Math.max(1,Math.ceil(n/K));
+  for(let i=0;i<n;i+=per) out.push(pts.slice(i,Math.min(n,i+per)));
+  return out;
+}
+function modeCont(){
+  const g=geomData(), pts=curSamples(), rf=refField();
+  /* 带电体：分块 或 连续体（太密时） */
+  const blocked=drawBlocks();
+  if(!blocked){
+    if(state.geo==='vol') rhoSphere();
+    else if(state.geo==='surf') rhoDisk();
+    else rhoLine();
+    if(state.show.blk && state.NS>BLK_CAP[state.geo])
+      textScreen(16,46,'N = '+state.NS+' 块已密到画不下，按连续体显示（读数仍按 N = '+state.NS+' 计算）',
+        {size:11.5,color:'#8CA0AC'});
   }
+  if(state.geo==='vol'&&blocked) sphereWireAt(pt(0,0,0),GA,'#B9CEDC',1.0,.48);
+  /* 橙色自由微元（密度定义探针：Δq/测度 → 该点密度） */
+  drawMicro();
+  marker(pt(0,0,0),{r:3.0,color:'#8FB3C6'});
   text(pt(0,0,0),'O',{color:'#7A8F9B',size:11.5,dx:-14,dy:13});
+  /* 场点 P + 距离标注（★ 距离用 dimLine） */
+  marker(g.P,{r:5.5,color:C.purple,ring:'#E6D6F0',label:'P',ldx:13,ldy:-12,lsize:12.5});
+  dimLine(pt(0,0,0),g.P,{color:'#9DB3BF',w:1.2,dash:[5,4],label:'d = '+g.d.toFixed(2)+' m',
+    ldx:state.geo==='surf'?14:0,ldy:state.geo==='surf'?2:14,lsize:11.5});
+  /* Σ dE（链条）与 ∫ 裁判 —— 同一比例尺 ⇒ 链尾与箭头尖的缝隙 = 数值偏差 */
+  const E=sumField(pts,g.P), mag=vlen(E), ref=Math.max(vlen(rf.v),1e-12);
+  const S=Math.min(0.85/ref, 1.05/Math.max(mag,1e-12));
+  const np=perpOf(g.ax), off=vmul(np,-0.085);
+  if(state.show.dE){
+    const chunks=superChunks(pts,5);
+    let tip=vadd(g.P,off); const tip0=tip;
+    chunks.forEach((ch,i)=>{
+      const Ev=sumField(ch,g.P);
+      const dV=vmul(Ev,S), ntip=vadd(tip,dV);
+      if(vlen(dV)>1e-4) arrow(tip,ntip,{color:i%2?'#0F9ED5':'#156082',w:2.1,headScale:.72});
+      /* 链节关节点：各股共线时（球/线）也能看出"分段拼合" */
+      screenDot(ntip,2.6,'#156082',0.95,1e5+i);
+      tip=ntip;
+      let cw=0,cx=pt(0,0,0); ch.forEach(s=>{cw+=s.dq; cx=vadd(cx,vmul(s.p,s.dq));});
+      line(vmul(cx,1/Math.max(cw,1e-30)),g.P,{color:'#C6D6E0',w:1,alpha:.7,dash:[4,4]});
+    });
+    text(vmul(vadd(tip0,tip),0.5),'@{E} = Σ d@{E}'+(chunks.length>1?'（'+chunks.length+' 股首尾相接）':''),
+      {color:'#156082',size:12,bold:true,dx:0,dy:22,align:'center'});
+  } else if(mag>1e-9){
+    arrow(vadd(g.P,off), vadd(vadd(g.P,off),vmul(vnorm(E),mag*S)),
+      {color:C.teal,w:2.5,headScale:.9,label:'Σ d@{E} = '+mag.toFixed(2),ldx:12,ldy:16,lsize:11.5});
+  }
+  if(state.show.anl)
+    arrow(vadd(g.P,vmul(np,0.085)), vadd(vadd(g.P,vmul(np,0.085)),vmul(g.ax,ref*S)),
+      {color:C.orange,w:2.3,headScale:.9,label:(state.nonuni?'∫ 参考 ':'∫ 精确值 ')+ref.toFixed(2),
+       ldx:12,ldy:-13,lsize:11.5});
 }
 
 /* ============================================================================
@@ -861,8 +950,7 @@ function buildScene(){
   prims=[];
   if(state.mode==='def'){ drawAxes(1.55); modeDef(); return; }
   if(state.mode==='point'){ drawAxes(1.75); modePoint(); return; }
-  if(state.mode==='rho'){ drawAxes(0.95); modeRho(); return; }
-  drawAxes(1.75); modeSuper();
+  drawAxes(1.75); modeCont();
 }
 
 /* ============================================================================
@@ -931,12 +1019,12 @@ function chartInvR2(){
   txt(px0+pw/2,py0+ph+27,'R  (m)',{size:10.5,color:'#7A8F9B',align:'center'});
 }
 
-/* ③ 的密度色阶条 + 微元读数 */
-function chartDens(){
-  const x0=CARD_X(), y0=CARD_Y, w=CARD_W, h=142;
+/* ③ 的密度色阶条 + 微元读数（y0 可指定，便于与其他小卡叠放） */
+function chartDens(y0){
+  const x0=CARD_X(); y0=y0!=null?y0:CARD_Y; const w=CARD_W, h=142;
   crd(x0,y0,w,h);
   const mi=microInfo();
-  txt(x0+12,y0+14,'微元内的平均密度　=　Δq / '+geoMeas(),{size:11.5,bold:true,color:'#1F3D4C'});
+  txt(x0+12,y0+14,'微元（橙色）内的平均密度　=　Δq / '+geoMeas(),{size:11.5,bold:true,color:'#1F3D4C'});
   /* 色阶条 */
   const bx=x0+14, by=y0+34, bw=w-28, bh=13;
   ctx.save();
@@ -959,11 +1047,11 @@ function chartDens(){
   });
 }
 
-/* ④ 的收敛曲线（Σ 点电荷元 → 积分） */
-function chartConv(){
-  const x0=CARD_X(), y0=CARD_Y, w=CARD_W, h=142;
+/* ③ 的收敛曲线（Σ 点电荷元 → 积分；y0 可指定，便于叠放） */
+function chartConv(y0){
+  const x0=CARD_X(); y0=y0!=null?y0:CARD_Y; const w=CARD_W, h=142;
   crd(x0,y0,w,h);
-  txt(x0+12,y0+14,'Σ 点电荷元 与 积分 的相对偏差',{size:11.5,bold:true,color:'#1F3D4C'});
+  txt(x0+12,y0+14,'Σ d@{E}（N 块） 与 积分 的相对偏差',{size:11.5,bold:true,color:'#1F3D4C'});
   const px0=x0+34, py0=y0+40, pw=w-48, ph=h-58;
   const NX=420;
   const fx=n=>px0+pw*Math.log10(Math.max(1,n))/Math.log10(NX);
@@ -1008,21 +1096,19 @@ function readoutRows(){
     rows.push({s:'q = '+sgnTxt(state.qP,2)+' nC　|　R = '+d.Rn.toFixed(2)+' m', color:'#5F7482'});
     rows.push({s:'|@{E}| = '+d.E.toFixed(3)+' V/m　（球面 r₀ / 2r₀ / 3r₀ 之比 1 : 1/4 : 1/9）', color:'#22414F'});
     rows.push({s:'对数斜率 = −2　（距离 ×2 ⇒ 场强 ÷4）', color:'#0F9ED5', bold:true});
-  } else if(state.mode==='rho'){
-    const mi=microInfo();
-    rows.push({s:'ξ = '+mi.xi.toFixed(2)+'　'+geoMeas()+' = '+mi.meas.toExponential(2)+' '+geoMeasUnit()+
-      '　Δq = '+mi.dq.toExponential(2)+' nC', color:'#5F7482'});
-    rows.push({s:'Δq / '+geoMeas()+' = '+mi.dens.toFixed(3)+' '+geoUnit()+
-      '　　该点 '+geoSym()+'(ξ) = '+mi.pointDens.toFixed(3)+' '+geoUnit(), color:'#22414F'});
-    rows.push({s:'偏差 = '+mi.dev.toFixed(4)+' '+geoUnit()+'　（'+geoMeas()+' → 0 时偏差 → 0，这就是"取极限"）',
-      color: Math.abs(mi.devRel)<0.02?'#3E9B4F':'#B25D18', bold:true});
-    rows.push({s:'总电量 Q = ∫'+geoSym()+'d'+geoMeas().slice(1)+' = '+totalQ().toFixed(3)+' nC', color:'#5F7482'});
   } else {
-    const g=geomData(), pts=curSamples(), E=sumField(pts,g.P);
-    const mag=vlen(E), ref=Math.max(vlen(g.Ean),1e-12);
-    const ang=(mag>1e-9)?(Math.acos(Math.max(-1,Math.min(1,vdot(vnorm(E),vnorm(g.Ean)))))*R2D):0;
-    rows.push({s:'N = '+state.NS+' 个点电荷元　|　Q = '+g.Q.toFixed(3)+' nC　|　'+g.dLab+' d = '+g.d.toFixed(2)+' m', color:'#5F7482'});
-    rows.push({s:'Σ 点电荷元  |@{E}| = '+mag.toFixed(3)+' V/m　　积分精确值 = '+ref.toFixed(3)+' V/m', color:'#22414F'});
+    /* ③ 电荷密度与连续叠加（合并页）：密度定义 + 场的累加 两行都要 */
+    const mi=microInfo();
+    const g=geomData(), pts=curSamples(), E=sumField(pts,g.P), rf=refField();
+    const mag=vlen(E), ref=Math.max(vlen(rf.v),1e-12);
+    const ang=(mag>1e-9)?(Math.acos(Math.max(-1,Math.min(1,vdot(vnorm(E),vnorm(rf.v)))))*R2D):0;
+    rows.push({s:'几何 = '+geoWord()+'（'+(state.nonuni?'非均匀':'均匀')+'）　Q = '+g.Q.toFixed(3)+' nC　|　'+
+      g.dLab+' d = '+g.d.toFixed(2)+' m', color:'#5F7482'});
+    rows.push({s:'微元 ξ = '+mi.xi.toFixed(2)+'：Δq/'+geoMeas()+' = '+mi.dens.toFixed(3)+' '+geoUnit()+
+      '　→　该点 '+geoSym()+'(ξ) = '+mi.pointDens.toFixed(3)+' '+geoUnit()+
+      '　偏差 '+mi.dev.toFixed(4),
+      color: Math.abs(mi.devRel)<0.02?'#3E9B4F':'#B25D18'});
+    rows.push({s:'N = '+state.NS+' 块叠加：Σ d@{E} = '+mag.toFixed(3)+' V/m　　'+rf.lab+' = '+ref.toFixed(3)+' V/m', color:'#22414F'});
     rows.push({s:'相对偏差 = '+(Math.abs(mag-ref)/ref*100).toFixed(3)+'%　方向偏差 = '+ang.toFixed(2)+'°　→　N 越大总体越接近',
       color:(Math.abs(mag-ref)/ref<0.01)?'#3E9B4F':'#B25D18', bold:true});
   }
@@ -1032,8 +1118,10 @@ function drawOverlays(){
   const rows=readoutRows();
   rows.forEach((r,i)=>txt(16, H-26-(rows.length-1-i)*18, r.s, {size:11.8,bold:r.bold,color:r.color}));
   if(state.mode==='point') chartInvR2();
-  if(state.mode==='rho') chartDens();
-  if(state.mode==='super' && state.show.conv) chartConv();
+  if(state.mode==='cont'){
+    if(state.show.micro) chartDens(CARD_Y);
+    if(state.show.conv) chartConv(state.show.micro?CARD_Y+152:CARD_Y);
+  }
 }
 let needsRender=true;
 function draw(){
@@ -1082,8 +1170,8 @@ function chipRow(parent,items,isOn,onPick){
 const SHOW_ITEMS={
   def:  [{k:'box',t:'坐标轴'}],
   point:[{k:'fld',t:'场线（球对称）'},{k:'shells',t:'等距球面 r₀/2r₀/3r₀'},{k:'box',t:'坐标轴'}],
-  rho:  [{k:'prof',t:'按密度着色'},{k:'micro',t:'显示微元'},{k:'box',t:'坐标轴'}],
-  super:[{k:'dots',t:'点电荷元'},{k:'links',t:'dE 连线'},{k:'anl',t:'积分精确值箭头'},{k:'conv',t:'收敛曲线'},{k:'box',t:'坐标轴'}],
+  cont: [{k:'prof',t:'按密度着色'},{k:'blk',t:'分块（N 块）'},{k:'micro',t:'微元 Δq（密度定义）'},
+         {k:'dE',t:'dE 累加链'},{k:'anl',t:'积分对照箭头'},{k:'conv',t:'收敛曲线'},{k:'box',t:'坐标轴'}],
 };
 function renderSubSec(sec){
   sec.innerHTML='';
@@ -1113,27 +1201,16 @@ function renderSubSec(sec){
       '距离每翻一倍，|@{E}| 就降到 <b>1/4</b>。三条虚线球面 <i>r</i>₀ / 2<i>r</i>₀ / 3<i>r</i>₀ 上的场强之比恒为 <b>1 : 1/4 : 1/9</b>。')+'</div>'));
     return;
   }
-  if(state.mode==='rho'){
-    sec.appendChild(h('<div class="sec-title">带电体的几何</div>'));
-    chipRow(sec,GEO_OPTS,k=>state.geo===k,k=>{
-      state.geo=k; clampMicro(); clampSd(); _samp.key=null; renderPanel(); updateAll();});
-    sec.appendChild(h('<div class="sec-title" style="margin-top:14px">电荷分布</div>'));
-    chipRow(sec,[{k:'u',t:'均匀 '+geoSym()+' = '+geoSym()+'₀'},{k:'n',t:'非均匀 '+geoSym()+' ∝ 1+0.7ξ²',col:'o'}],
-      k=>(k==='n')===state.nonuni, k=>{ state.nonuni=(k==='n'); renderPanel(); updateAll(); });
-    sec.appendChild(h('<div class="sec-title" style="margin-top:14px">图中显示</div>'));
-    chipRow(sec,SHOW_ITEMS.rho,k=>state.show[k],k=>{state.show[k]=!state.show[k];renderPanel();updateAll();});
-    sec.appendChild(h('<div class="ex-note">'+richHTML('三种分布共用同一个"点电荷连续累加"的骨架：'+
-      '体电荷堆体积、面电荷铺曲面、线电荷排曲线。把微元尺寸一路缩到最小，'+
-      'Δq/'+geoMeas()+' 就收敛到该点的 <b>'+geoSym()+'</b> —— 这就是密度定义里的那个极限。')+'</div>'));
-    return;
-  }
+  /* ③ 电荷密度与连续叠加（合并页） */
   sec.appendChild(h('<div class="sec-title">带电体的几何</div>'));
   chipRow(sec,GEO_OPTS,k=>state.geo===k,k=>{
     state.geo=k; clampMicro(); clampSd(); _samp.key=null; renderPanel(); updateAll();});
-  sec.appendChild(h('<div class="ex-note" style="margin-top:9px">'+richHTML('本页固定用 <b>均匀</b> 分布 —— 这样三种几何都有初等解析场强当裁判；'+
-    '要看不均匀的密度剖面请回 ③ 页。圆点<b>大小 ∝ √dq</b>：内圈的点代表的小块电量更大，'+
-    '但每一环（壳）的总电量都相同 —— 这正是"把连续体切成等电量的元再累加"。')+'</div>'));
-  sec.appendChild(h('<div class="sec-title" style="margin-top:14px">点电荷元个数 N</div>'));
+  sec.appendChild(h('<div class="sec-title" style="margin-top:14px">电荷分布</div>'));
+  chipRow(sec,[{k:'u',t:'均匀 '+geoSym()+' = '+geoSym()+'₀'},{k:'n',t:'非均匀 '+geoSym()+' ∝ 1+0.7ξ²',col:'o'}],
+    k=>(k==='n')===state.nonuni, k=>{ state.nonuni=(k==='n'); _samp.key=null; renderPanel(); updateAll(); });
+  sec.appendChild(h('<div class="ex-note" style="margin-top:9px">'+richHTML('均匀分布有<b>解析答案</b>当裁判；'+
+    '非均匀时密度随位置变（颜色深浅），裁判换成 N=8192 的数值积分参考，界面会如实标注。')+'</div>'));
+  sec.appendChild(h('<div class="sec-title" style="margin-top:14px">切成几块（点电荷元个数 N）</div>'));
   const bx=h('<div class="sub-chips"></div>').firstChild;
   [1,8,32,128,384].forEach(n=>{
     const b=h('<button class="chip'+(state.NS===n?' on':'')+'">N = '+n+'</button>').firstChild;
@@ -1142,7 +1219,11 @@ function renderSubSec(sec){
   });
   sec.appendChild(bx);
   sec.appendChild(h('<div class="sec-title" style="margin-top:14px">图中显示</div>'));
-  chipRow(sec,SHOW_ITEMS.super,k=>state.show[k],k=>{state.show[k]=!state.show[k];renderPanel();updateAll();});
+  chipRow(sec,SHOW_ITEMS.cont,k=>state.show[k],k=>{state.show[k]=!state.show[k];renderPanel();updateAll();});
+  sec.appendChild(h('<div class="ex-note">'+richHTML('带电体被切成 <b>N 块</b>（方块 / 扇形片 / 小段，严丝合缝铺满），'+
+    '每块是一个点电荷元 dq；P 点处的<b>蓝色箭头链</b>把各块的 d@{E} 首尾相接，正好拼出 Σ d@{E}，'+
+    '旁边橙色箭头是积分裁判 —— 链尾与箭尖的缝隙就是偏差。<b>橙色小块</b>是密度探针：'+
+    '尺寸缩到 0 时 Δq/测度 → 该点密度。')+'</div>'));
   sec.appendChild(h('<div class="ex-note" id="supNote">'+richHTML(supNote())+'</div>'));
 }
 function microNote(){
@@ -1151,8 +1232,8 @@ function microNote(){
     '，Δq = '+mi.dq.toExponential(2)+' nC。它越小，Δq/'+geoMeas()+' 越贴近该点的 '+geoSym()+'。';
 }
 function supNote(){
-  const g=geomData(), E=sumField(curSamples(),g.P), mag=vlen(E), ref=Math.max(vlen(g.Ean),1e-12);
-  return 'N = '+state.NS+' 个点电荷元叠加得 '+mag.toFixed(3)+' V/m，积分精确值 '+ref.toFixed(3)+
+  const g=geomData(), E=sumField(curSamples(),g.P), mag=vlen(E), ref=Math.max(vlen(refField().v),1e-12);
+  return 'N = '+state.NS+' 块叠加得 '+mag.toFixed(3)+' V/m，'+refField().lab+' '+ref.toFixed(3)+
     ' V/m，偏差 '+(Math.abs(mag-ref)/ref*100).toFixed(3)+'%。';
 }
 function mkRange(sec,d){
@@ -1189,25 +1270,22 @@ function renderSliders(sec){
     sec.appendChild(h('<div class="ex-note">改成负值：场线箭头全部掉头朝里（场指向电荷）。</div>'));
     return;
   }
-  if(state.mode==='rho'){
-    sec.appendChild(h('<div class="sec-title">微元</div>'));
-    mkRange(sec,{k:'mu',label:'位置 ξ',wide:true,min:-1,max:1,step:0.01,
-      get:()=>state.mu, set:v=>{ state.mu=v; clampMicro(); if(document.getElementById('s_mu')) document.getElementById('s_mu').value=state.mu; },
-      fmt:v=>v.toFixed(2), after:()=>syncSliders()});
-    mkRange(sec,{k:'mh',label:'尺寸',wide:true,min:0.02,max:0.90,step:0.01,
-      get:()=>state.mh, set:v=>{ state.mh=v; clampMicro(); }, fmt:v=>v.toFixed(2), after:()=>syncSliders()});
-    sec.appendChild(h('<div class="ex-note" id="microNote">'+richHTML(microNote())+'</div>'));
-    return;
-  }
+  /* ③ 合并页滑块：场点位置 d、切分份数 N、密度探针微元（位置 ξ / 尺寸） */
   sec.appendChild(h('<div class="sec-title">场点 P 的位置</div>'));
   const rr=SD_RANGE[state.geo];
   mkRange(sec,{k:'sd',label:'距离 d',wide:true,min:rr[0],max:rr[1],step:0.01,
     get:()=>state.sd, set:v=>state.sd=v, fmt:v=>v.toFixed(2)+' m', after:()=>_conv.key=null});
-  sec.appendChild(h('<div class="sec-title" style="margin-top:14px">点电荷元个数 N</div>'));
+  sec.appendChild(h('<div class="sec-title" style="margin-top:14px">切分份数 N</div>'));
   mkRange(sec,{k:'NS',label:'N',wide:true,min:1,max:384,step:1,
     get:()=>state.NS, set:v=>state.NS=Math.round(v), fmt:v=>String(Math.round(v)),
     after:()=>{ document.getElementById('v_NS').textContent=String(state.NS); syncSliders(); }});
-  if(state.mode==='super'){ /* noop */ }
+  sec.appendChild(h('<div class="sec-title" style="margin-top:14px">密度探针：橙色微元</div>'));
+  mkRange(sec,{k:'mu',label:'位置 ξ',wide:true,min:-1,max:1,step:0.01,
+    get:()=>state.mu, set:v=>{ state.mu=v; clampMicro(); if(document.getElementById('s_mu')) document.getElementById('s_mu').value=state.mu; },
+    fmt:v=>v.toFixed(2), after:()=>syncSliders()});
+  mkRange(sec,{k:'mh',label:'尺寸',wide:true,min:0.02,max:0.90,step:0.01,
+    get:()=>state.mh, set:v=>{ state.mh=v; clampMicro(); }, fmt:v=>v.toFixed(2), after:()=>syncSliders()});
+  sec.appendChild(h('<div class="ex-note" id="microNote">'+richHTML(microNote())+'</div>'));
 }
 function syncSliders(){
   const set=(k,v,d)=>{const s=document.getElementById('s_'+k); if(s)s.value=v;
@@ -1273,52 +1351,30 @@ const CARDS={
       '<li>R_i 是第 i 个电荷到场点的距离，@{e}_{Ri} 是相应的单位矢量</li>'+
       '<li>这正是下一张「④ 点电荷的连续叠加」的出发点</li></ul>'},
   ],
-  rho:[
-    {k:'1',tab:'1. 体电荷 ρ',cls:'c1',body:
-      '<b>宏观意义下电荷是连续分布的</b>，于是引入密度：'+
-      '<div class="frm">ρ(@{r}′) = lim_{ΔV′→0} Δq(@{r}′) / ΔV′　　(nC/m³)</div>'+
-      '<div class="frm">Q = ∫_{V′} ρ(@{r}′) dV′</div>'+
-      '<ul><li>ρ 可以是位置的函数（不均匀带电）</li>'+
-      '<li>Q 是"整个体积的电量"：把每个微元的 ρ dV′ 加起来</li>'+
-      '<li>本页非均匀模型取 ρ ∝ 1 + 0.7ξ²，ξ = x′/a ∈ [−1,1]</li></ul>'},
-    {k:'2',tab:'2. 面电荷 σ / 线电荷 τ',cls:'c2',body:
-      '<b>电荷被约束在曲面或曲线上时，改用面/线密度：</b>'+
-      '<div class="frm">σ(@{r}′) = lim_{ΔS′→0} Δq/ΔS′　(nC/m²)　　Q = ∫_{S′} σ dS′</div>'+
-      '<div class="frm">τ(@{r}′) = lim_{Δl′→0} Δq/Δl′　(nC/m)　　Q = ∫_{l′} τ dl′</div>'+
-      '<ul><li>三者的差别只有一件事：<b>把"体积"换成"面积"或"长度"</b></li>'+
-      '<li>完全均匀时 Q = ρV′ / σS′ / τl′，都不用积分</li>'+
-      '<li>把微元尺寸滑块缩到最小，Δq/测度 就收敛到该点的密度</li></ul>'},
-    {k:'3',tab:'3. 点电荷',cls:'c3',body:
-      '<b>三者的共同极限 —— 点电荷：</b>'+
-      '<div class="frm">场点距离源 ≫ 源自身几何尺寸　⟹　源可视为点电荷 q</div>'+
-      '<ul><li>只要知道点电荷产生的场，就可以<b>类推其他三种分布</b>产生的场</li>'+
-      '<li>做法：把连续体切成无穷多个 dq，每个 dq 当点电荷，再求和（积分）</li>'+
-      '<li>所以"体电荷 / 面电荷 / 线电荷"只是<b>点电荷在不同几何形状上的连续累加</b> —— '+
-      '下一张页签把这句话做成看得见的动画</li></ul>'+
-      '<div class="ex-note">注意量纲：ρ·dV′、σ·dS′、τ·dl′ 都是电量，三种分布最终都回到同一个"点电荷的场"公式。</div>'},
-  ],
-  super:[
-    {k:'1',tab:'1. 离散分布',cls:'c1',body:
-      '<b>点电荷系（离散）：</b>'+
-      '<div class="frm">@{E} = Σ_{i=1}^{N} q_i / (4πε_0 R_i²) · @{e}_{Ri}</div>'+
-      '<ul><li>N 个点电荷各自贡献一份 d@{E}，总场是<b>矢量叠加</b></li>'+
-      '<li>N = 1 时就是一个孤立的点电荷 —— 用它代表整个带电体，误差能有多大？把 N 从小到大拖一遍就知道了</li></ul>'},
-    {k:'2',tab:'2. 连续分布（积分）',cls:'c2',body:
-      '<b>把 N 推向无穷，求和变成积分：</b>'+
-      '<div class="frm">dq = ρ(@{r}′) dV′　⟹　d@{E} = ρ(@{r}′) dV′ / (4πε_0 R²) · @{e_R}</div>'+
-      '<div class="frm">@{E}(@{r}) = ∫_{V′} ρ(@{r}′) / (4πε_0 R²) · @{e_R} dV′</div>'+
-      '<ul><li>面分布：把 ρdV′ 换成 σdS′；线分布：换成 τdl′</li>'+
-      '<li>本页三个几何都有<b>解析答案</b>用来当裁判：'+
-      '球外 KQ/d²（体）、2πKσ[1−d/√(d²+a²)]（面）、Kτ[1/d−1/(d+2L)]（线）</li>'+
-      '<li>右上角小图画出 Σ 与积分值的相对偏差随 N <b>总体下降</b> —— N 很小时点元方位取样还糙，曲线会有起伏</li></ul>'},
-    {k:'3',tab:'3. 三者同一个积分',cls:'c3',body:
-      '<b>三种分布，一个骨架：</b>'+
+  cont:[
+    {k:'1',tab:'1. 密度：单位测度的电量',cls:'c1',body:
+      '<b>宏观上电荷是连续分布的</b>，密度 = "单位体积 / 面积 / 长度的电量"：'+
+      '<div class="frm">ρ = lim (ΔV′→0) Δq/ΔV′　σ = lim (ΔS′→0) Δq/ΔS′　τ = lim (Δl′→0) Δq/Δl′</div>'+
+      '<div class="frm">Q = ∫_{V′} ρ dV′　=　∫_{S′} σ dS′　=　∫_{l′} τ dl′</div>'+
+      '<ul><li>画布上的<b>橙色小块</b>就是密度探针：拖「位置 ξ」贴在带电体任意处，拖「尺寸」把它越缩越小</li>'+
+      '<li>尺寸 → 0 时 Δq/测度 收敛到该点的密度 —— 数据条和右上角小卡都能盯着这个极限发生</li>'+
+      '<li>切到<b>非均匀</b>：密度随位置变（颜色深浅 = 密度大小），微元不缩到 0，Δq/测度 就不等于该点密度</li></ul>'},
+    {k:'2',tab:'2. 场 = 电荷元的场的累加',cls:'c2',body:
+      '<b>每个电荷元 dq 都是一个点电荷</b>，它在场点 P 贡献一份 d@{E}：'+
+      '<div class="frm">dq = ρ dV′（面：σ dS′　线：τ dl′）</div>'+
+      '<div class="frm">d@{E} = dq / (4πε_0 R²) · @{e_R}　⟹　@{E}(@{r}) = ∫ d@{E} = Σ d@{E}</div>'+
+      '<ul><li>把带电体切成 N 块：@{E} ≈ Σ_{i=1}^{N} d@{E}_i —— 画布上<b>蓝色箭头链首尾相接</b>，正好拼出 Σ d@{E}</li>'+
+      '<li>旁边<b>橙色箭头</b>是积分裁判：链尾与箭尖的缝隙 = 离散化的偏差</li>'+
+      '<li>N 越大偏差总体越小：右上角收敛曲线盯着它下降（N 很小时取样还糙，曲线会有起伏）</li>'+
+      '<li>均匀分布用解析答案当裁判；非均匀分布用 N=8192 的数值积分当参考</li></ul>'},
+    {k:'3',tab:'3. 三种分布，一个骨架',cls:'c3',body:
+      '<b>体 / 面 / 线电荷 = 点电荷在不同几何上的连续累加：</b>'+
       '<div class="frm">体：∫_{V′} ρ dV′　|　面：∫_{S′} σ dS′　|　线：∫_{l′} τ dl′</div>'+
-      '<ul><li>被积的都是"<b>该点的小点电荷 dq，除以 4πε_0R² 再乘 @{e_R}</b>"</li>'+
-      '<li>唯一的区别是 <b>dq 怎么写</b>：ρdV′ / σdS′ / τdl′</li>'+
-      '<li>所以"体电荷、面电荷、线电荷"本质上是<b>同一件事在不同维度上的实现</b> —— '+
-      '都是点电荷的连续累加</li></ul>'+
-      '<div class="ex-note">与 1.4 的散度、1.5 的旋度同一套思路：先看<b>一个微元做了什么</b>，再把它<b>加遍整个区域</b>。</div>'},
+      '<ul><li>被积的都是同一件事："<b>点电荷 dq 的场</b>" —— 唯一的区别是 dq 怎么写（量纲自检：三者乘出来都是电量）</li>'+
+      '<li>N = 1：整块带电体当一个点电荷（误差最大）；N → ∞：求和变积分 —— 点电荷是三种分布的共同极限</li>'+
+      '<li>与 1.4 的散度、1.5 的旋度同一套思路：先看<b>一个微元做了什么</b>，再把它<b>加遍整个区域</b></li></ul>'+
+      '<div class="ex-note">本页单位约定：长度 m、电荷 nC ⇒ E[V/m] = 8.988·q[nC]/R²[m²]。'+
+      '场点距离源 ≫ 源自身尺寸时，源就可以当成点电荷 —— 把 N 拖回 1 试试。</div>'},
   ],
 };
 function renderExplain(sec){
@@ -1372,33 +1428,24 @@ function updateReadout(){
     html += kchip('r₀ / 2r₀ / 3r₀ 之比 =', '1 : 0.250 : 0.111','acc');
     document.getElementById('lgTitle').textContent='点电荷的场 · 1/R²';
     document.getElementById('lgNote').innerHTML=richHTML('@{E} = q/(4πε₀R²)·@{e_R} ；距离翻倍 ⇒ 场强 1/4');
-  } else if(state.mode==='rho'){
-    const mi=microInfo();
-    html += kchip('几何 =', geoWord()+'（'+(state.nonuni?'非均匀':'均匀')+'）');
-    html += kchip('位置 ξ =', mi.xi.toFixed(2));
-    html += kchip(geoMeas()+' =', mi.meas.toExponential(2)+' '+geoMeasUnit());
-    html += kchip('Δq =', mi.dq.toExponential(2)+' nC');
-    html += kchip('Δq / '+geoMeas()+' =', mi.dens.toFixed(3)+' '+geoUnit(),'acc');
-    html += kchip(geoSym()+'(ξ) 解析 =', mi.pointDens.toFixed(3)+' '+geoUnit(),'acc');
-    html += kchip('偏差 =', mi.dev.toFixed(4), Math.abs(mi.devRel)<0.02?'':'warn');
-    html += kchip('总电量 Q =', totalQ().toFixed(3)+' nC');
-    document.getElementById('lgTitle').textContent='电荷密度 · '+geoWord();
-    document.getElementById('lgNote').textContent=geoSym()+' = lim Δq/'+geoMeas()+' ；Δq 是该微元内的电量';
   } else {
-    const g=geomData(), pts=curSamples(), E=sumField(pts,g.P);
-    const mag=vlen(E), ref=Math.max(vlen(g.Ean),1e-12);
-    const ang=(mag>1e-9)?(Math.acos(Math.max(-1,Math.min(1,vdot(vnorm(E),vnorm(g.Ean)))))*R2D):0;
-    html += kchip('几何 =', geoWord());
+    /* ③ 电荷密度与连续叠加（合并页） */
+    const mi=microInfo();
+    const g=geomData(), pts=curSamples(), E=sumField(pts,g.P), rf=refField();
+    const mag=vlen(E), ref=Math.max(vlen(rf.v),1e-12);
+    const ang=(mag>1e-9)?(Math.acos(Math.max(-1,Math.min(1,vdot(vnorm(E),vnorm(rf.v)))))*R2D):0;
+    html += kchip('几何 =', geoWord()+'（'+(state.nonuni?'非均匀':'均匀')+'）');
     html += kchip('总电量 Q =', g.Q.toFixed(3)+' nC');
-    html += kchip('N =', String(state.NS)+' 个点电荷元');
-    let dmn=1e30,dmx=-1e30; pts.forEach(s=>{if(s.dq<dmn)dmn=s.dq; if(s.dq>dmx)dmx=s.dq;});
-    html += kchip('dq 范围 =', dmn.toExponential(2)+(dmx-dmn>1e-18?(' ~ '+dmx.toExponential(2)):'')+' nC');
-    html += kchip('Σ 点电荷元 |@{E}| =', mag.toFixed(3)+' V/m','acc');
-    html += kchip('积分精确值 =', ref.toFixed(3)+' V/m','acc');
+    html += kchip('N =', String(state.NS)+' 块');
+    html += kchip('微元 Δq/'+geoMeas()+' =', mi.dens.toFixed(3)+' '+geoUnit(),'acc');
+    html += kchip(geoSym()+'(ξ) 解析 =', mi.pointDens.toFixed(3)+' '+geoUnit(),'acc');
+    html += kchip('密度偏差 =', mi.dev.toFixed(4), Math.abs(mi.devRel)<0.02?'':'warn');
+    html += kchip('Σ d@{E} =', mag.toFixed(3)+' V/m','acc');
+    html += kchip(rf.lab+' =', ref.toFixed(3)+' V/m','acc');
     html += kchip('相对偏差 =', (Math.abs(mag-ref)/ref*100).toFixed(3)+'%', Math.abs(mag-ref)/ref<0.01?'':'warn');
     html += kchip('方向偏差 =', ang.toFixed(2)+'°');
-    document.getElementById('lgTitle').textContent='连续叠加 · '+geoWord();
-    document.getElementById('lgNote').innerHTML=richHTML('@{E} = Σ d@{E} → ∫ d@{E} ：点电荷元越密，越接近积分');
+    document.getElementById('lgTitle').textContent='电荷密度与连续叠加 · '+geoWord();
+    document.getElementById('lgNote').innerHTML=richHTML(geoSym()+' = lim Δq/'+geoMeas()+'　；　@{E} = Σ d@{E} → ∫ d@{E}');
   }
   strip.innerHTML=html;
 }
@@ -1408,13 +1455,11 @@ function updateModeTag(){
   /* ⚠️ 进 DOM 的串一律过 richHTML（否则 @{E} 会字面显示） */
   if(state.mode==='def') t.innerHTML=richHTML('电场强度的定义 · q = '+sgnTxt(state.q,2)+' nC，q_t = '+state.qt.toFixed(2)+' nC');
   else if(state.mode==='point') t.innerHTML=richHTML('点电荷的场 · '+sgnTxt(state.qP,2)+' nC（球形对称，|@{E}| ∝ 1/R²）');
-  else if(state.mode==='rho') t.innerHTML=richHTML('电荷密度 · '+geoWord()+'　'+(state.nonuni?'非均匀 '+geoSym()+' ∝ 1+0.7ξ²':'均匀 '+geoSym()));
-  else t.innerHTML=richHTML('连续叠加 · '+geoWord()+'　N = '+state.NS+' 个点电荷元');
+  else t.innerHTML=richHTML('电荷密度与连续叠加 · '+geoWord()+'（'+(state.nonuni?'非均匀':'均匀')+'）　N = '+state.NS+' 块');
   if(sb) sb.innerHTML=richHTML(
     state.mode==='def'   ? '@{E} = lim (q_t→0) @{F}/q_t　场强的定义'
   : state.mode==='point' ? '点电荷的场　@{E} = q/(4πε₀R²)·@{e_R}'
-  : state.mode==='rho'   ? geoSym()+' = lim (Δ'+geoMeas().charAt(1)+'→0) Δq/'+geoMeas()+'　电荷密度'
-  :                        '@{E} = Σ d@{E} → ∫ d@{E}　点电荷的连续累加');
+  :                        geoSym()+' = lim Δq/'+geoMeas()+'　·　@{E} = Σ d@{E} → ∫ d@{E}');
 }
 
 /* ============================================================================
