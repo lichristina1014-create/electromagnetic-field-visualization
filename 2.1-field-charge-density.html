@@ -309,22 +309,54 @@ function drawAxes(ext){
   text(pt(0,0,0),'O',{color:'#7A8F9B',size:12,dx:-13,dy:13});
 }
 
-/* 球线框（可指定球心；r=0 时自动跳过） */
-function sphereWireAt(c,R,color,w,alpha){
-  if(R<=1e-6) return;
-  for(let k=0;k<3;k++){
-    const th=Math.PI*(k+1)/4;
-    const loop=[];
-    for(let i=0;i<=48;i++){const ph=2*Math.PI*i/48;
-      loop.push(pt(c.x+R*Math.sin(th)*Math.cos(ph), c.y+R*Math.sin(th)*Math.sin(ph), c.z+R*Math.cos(th)));}
-    curve(loop,{color,w,alpha});
+/* 把采样曲线按「是否朝向相机」拆成连续段，分别交给 onFront / onBack。
+   —— 伪隐线消除：球线框不再把背面也画成同样重，否则几个同心球叠起来就是一团线球。
+   判据：外法矢 n 与 camD 同向 ⇒ 正面（camD 由场景指向观察者，pr().d = v·camD，d 大者画在上面）。 */
+function splitByVis(pts,visFn,onFront,onBack){
+  const mix=(a,b,m)=>pt(a.x+(b.x-a.x)*m, a.y+(b.y-a.y)*m, a.z+(b.z-a.z)*m);
+  let run=[], vis=null;
+  for(let i=0;i<pts.length;i++){
+    const v=visFn(pts[i]);
+    if(vis===null){ vis=v; run=[pts[i]]; continue; }
+    if(v===vis){ run.push(pts[i]); continue; }
+    /* 可见性翻转：在 (i-1, i) 之间二分出边界点，补进本段尾 / 作为下一段头，避免可见缝隙 */
+    const a=pts[i-1], b=pts[i]; let lo=0, hi=1;
+    for(let k=0;k<12;k++){ const m=(lo+hi)/2; if(visFn(mix(a,b,m))) lo=m; else hi=m; }
+    const bp=mix(a,b,(lo+hi)/2);
+    run.push(bp);
+    if(run.length>1) (vis?onFront:onBack)(run);
+    run=[bp,pts[i]]; vis=v;
   }
-  for(let k=0;k<4;k++){
-    const ph=Math.PI*k/4;
-    const loop=[];
-    for(let i=0;i<=48;i++){const th=Math.PI*i/48;
-      loop.push(pt(c.x+R*Math.sin(th)*Math.cos(ph), c.y+R*Math.sin(th)*Math.sin(ph), c.z+R*Math.cos(th)));}
-    curve(loop,{color,w,alpha});
+  if(run.length>1) (vis?onFront:onBack)(run);
+}
+
+/* 球线框（可指定球心；R=0 时自动跳过）
+   ⚠️ 默认只画 **4 条半经线（= 2 个完整大圆）+ 1 条赤道**，且背对相机的部分淡化。
+   早年版是「4 半经 + 3 纬、前后一律实线」⇒ 3 个同心球叠成 21 条等重闭合曲线，
+   屏幕上是一团"线球"（用户反馈「经纬线看起来太乱」），而且经线只取 φ=0/45/90/135，
+   在 φ→φ+180 下不对称，看着更毛。现在 φ 均匀铺满 360°。
+   o: {mer 半经线数, par 纬线数(1=只画赤道), backK 背面亮度系数, seg 采样段数} */
+function sphereWireAt(c,R,color,w,alpha,o){
+  if(R<=1e-6) return;
+  o=o||{};
+  const nMer=o.mer!=null?o.mer:4;
+  const nPar=o.par!=null?o.par:1;
+  const backK=o.backK!=null?o.backK:0.28;
+  const seg=o.seg||56;
+  const vis=p=>vdot(vnorm(vsub(p,c)),camD)>0;
+  const onF=pts=>curve(pts,{color,w,alpha});
+  const onB=pts=>curve(pts,{color,w:w*0.85,alpha:alpha*backK});
+  for(let k=0;k<nPar;k++){
+    const th=Math.PI*(k+1)/(nPar+1), pts=[];
+    for(let i=0;i<=seg;i++){ const ph=2*Math.PI*i/seg;
+      pts.push(pt(c.x+R*Math.sin(th)*Math.cos(ph), c.y+R*Math.sin(th)*Math.sin(ph), c.z+R*Math.cos(th))); }
+    splitByVis(pts,vis,onF,onB);
+  }
+  for(let k=0;k<nMer;k++){
+    const ph=2*Math.PI*k/nMer, pts=[];
+    for(let i=0;i<=seg;i++){ const th=Math.PI*i/seg;
+      pts.push(pt(c.x+R*Math.sin(th)*Math.cos(ph), c.y+R*Math.sin(th)*Math.sin(ph), c.z+R*Math.cos(th))); }
+    splitByVis(pts,vis,onF,onB);
   }
 }
 
@@ -643,7 +675,7 @@ function modePoint(){
   /* 等距球面：r₀ / 2r₀ / 3r₀ —— 场强按 1 : 1/4 : 1/9 掉 */
   if(state.show.shells){
     SHELL_R.forEach((r,i)=>{
-      sphereWireAt(P_SRC,r,'#B9CEDC',1.05,i===0?.9:.6);
+      sphereWireAt(P_SRC,r,'#B9CEDC',1.05, i===0?.88:.52, {mer:4,par:1,backK:.28});
       text(pt(P_SRC.x-r*0.72, P_SRC.y-r*0.70, 0), (i===0?'r₀':(i===1?'2r₀':'3r₀')),
         {color:'#7E96A6',size:11.5,bold:true});
     });
