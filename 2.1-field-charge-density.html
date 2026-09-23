@@ -461,19 +461,37 @@ const state = {
   sth:45,                     /* 极角 θ (°) 自 +z 起算 ∈ [0,180] */
   sph:90,                     /* 方位角 φ (°) 自 +x 起算 ∈ [0,360) */
   sweep:null,                 /* null | 'th' | 'ph'：沿等位面扫掠动画 */
-  /* --- ③ 电荷密度（③④ 合并页） --- */
+  /* --- ③ 电荷密度 --- */
   geo:'vol',                  /* vol | surf | line */
   nonuni:false,               /* 非均匀分布 ρ ∝ 1+0.7ξ²（默认均匀：有解析场强当裁判） */
-  mu:0.45,                    /* 自由微元（密度探针）归一化位置 ξ ∈ [−1,1]：由**鼠标拖动**给定，无滑块 */
-  mh:0.34,                    /* 自由微元归一化尺寸 */
-  NS:32,                      /* 点电荷元个数 N（③④ 合并后共用） */
+  /* state.mu 的语义随几何变：
+     · vol  → 剖分球里**第几个四面体**（0 … 20k²−1）；−1 = "还没定"，clampMicro 会补默认值
+     · surf / line → 微元沿几何轴的归一化位置 ξ ∈ [−1,1]，由**鼠标拖动**给定，无滑块 */
+  mu:-1,
+  /* state.mh 的语义也随几何变：
+     · vol  → **剖分阶 k**（1…4 ⇒ 20/80/180/320 个四面体）—— "体积元多大 = 剖分多细"
+     · surf / line → 微元归一化尺寸（0.02…0.90）
+     两套量程互不相容，所以切换几何时用 MH_MEM 各自记住上次的值（见 setGeo）。 */
+  mh:2,
+  NS:32,                      /* 面/线电荷的点电荷元个数 N（体电荷的 N = 20k²，与本项无关） */
   sd:1.20,                    /* 场点位置参数 d (m) */
 };
+/* ③ 的 mh 记忆：几何一换就把对应语义的值换回来（避免"尺寸 = 2.00"或"阶 = 0.34"的错配） */
+const MH_MEM={ vol:2, surf:0.34, line:0.34 };
 
 const SD_RANGE={ vol:[0.75,1.50], surf:[0.20,1.50], line:[0.20,1.40] };
 const MT=[{k:'def',t:'① 电场强度的定义'},{k:'point',t:'② 点电荷的场'},
           {k:'cont',t:'③ 电荷密度'}];
 const GEO_OPTS=[{k:'vol',t:'体电荷 ρ'},{k:'surf',t:'面电荷 σ'},{k:'line',t:'线电荷 τ'}];
+/* 切换 ③ 的几何：把 mh 在两套语义之间换回来，并把体电荷的微元序号复位（−1 ⇒ 取默认四面体）。
+   ⚠️ 这几件事必须**收在一处**：散在 chip 回调里早晚会漏掉一件，留下"尺寸 = 2.00"这类错配。 */
+function setGeo(k){
+  MH_MEM[state.geo]=state.mh;
+  state.geo=k;
+  state.mh=(k==='vol')?MH_MEM.vol:MH_MEM.surf;
+  if(k==='vol') state.mu=-1;
+  clampMicro(); clampSd(); _samp.key=null; _conv.key=null;
+}
 
 function geoWord(){ return state.geo==='vol'?'体电荷':(state.geo==='surf'?'面电荷':'线电荷'); }
 function geoUnit(){ return state.geo==='vol'?'nC/m³':(state.geo==='surf'?'nC/m²':'nC/m'); }
@@ -483,22 +501,63 @@ function geoMeas(){ return state.geo==='vol'?'ΔV′':(state.geo==='surf'?'ΔS�
 function geoMeasUnit(){ return state.geo==='vol'?'m³':(state.geo==='surf'?'m²':'m'); }
 function microLimit(){ return 1 - state.mh/2; }
 function clampMicro(){
+  if(state.geo==='vol'){
+    /* ① 体电荷：微元 = 球体剖分里的**某一个四面体**（state.mu = 四面体序号）。
+       切到体电荷时 state.mu 会被置 −1 ⇒ 这里补一个"正对相机的那个四面体"当默认。 */
+    const n=tetCount();
+    if(!(state.mu>=0)) state.mu=defaultTetIdx();
+    state.mu=Math.max(0, Math.min(n-1, Math.round(state.mu)));
+    return;
+  }
+  /* ② 面/线电荷：微元位置仍是沿几何轴的归一化 ξ（面元沿 y 轴、线元沿 x 轴） */
   const lo = (state.geo==='surf') ? 0 : -microLimit();
   state.mu = Math.max(lo, Math.min(microLimit(), state.mu));
 }
 function clampSd(){ const r=SD_RANGE[state.geo]; state.sd=Math.max(r[0],Math.min(r[1],state.sd)); }
 
-/* ── ③ 自由微元（密度探针）：位置由**鼠标拖动**给定，不再有「位置 ξ」滑块 ──────────
-   ξ 就是 state.mu；拖动 = 把鼠标点投到"微元所沿的那条几何轴"上反解 ξ。
-   体元/线元沿 x 轴（带电体也是沿 x 轴铺的）、面元沿 y 轴 —— 与 microInfo()、
-   drawMicro() 里用了多年的约定一致，三种几何都是"沿一条半径滑动"。 */
+/* ── ③ 自由微元（密度探针）：位置由**鼠标拖动**给定，没有「位置 ξ」滑块 ──────────
+   · 体电荷：微元 = 剖分球里任意一个四面体，"位置"就是它的序号（0 … 20k²−1）。
+     拖动 = 在投影面上找**离鼠标最近的四面体形心**（带一点"偏向迎面"的权重，
+     否则前后半球的形心投影会重合、点到背面去），于是"任意一个四面体都能选"。
+   · 面/线电荷：微元沿几何轴滑动，位置是归一化 ξ —— 拖动 = 把鼠标点投到那条轴上反解 ξ。 */
 function microAxis(){ return state.geo==='surf' ? 1 : 0; }          /* 0 = x 轴，1 = y 轴 */
-function microCenterW(){ return microAxis()? pt(0,state.mu*GA,0) : pt(state.mu*GA,0,0); }
-/* 微元投影剪影的**内切半径**（px）。剪影 = "投影轴张成的中心对称多边形"：
-   体元 3 条轴（六边形）、面元 2 条轴（平行四边形）、线元 1 条（线段）。
+/* 默认选中的四面体：形心方向最"正对相机"的那一个（正交投影下 = 投影最靠近球心的那个），
+   它一定落在迎面半球、且离镜头最近 ⇒ 开场第一眼就能看清体积元与团雾。 */
+function defaultTetIdx(){
+  const ca=Math.cos(cam.az), sa=Math.sin(cam.az), ce=Math.cos(cam.el), se=Math.sin(cam.el);
+  const D=pt(ce*ca, ce*sa, se);
+  const M=tetMesh(tetK());
+  let bi=0, bv=-9;
+  M.faces.forEach((f,i)=>{
+    const g=vnorm(vadd(vadd(M.unit[f[0]],M.unit[f[1]]),M.unit[f[2]]));
+    const v=vdot(g,D); if(v>bv){ bv=v; bi=i; }
+  });
+  return bi;
+}
+/* 鼠标点 → 最近的四面体序号（体电荷专用）。屏幕上比形心投影距离，再给迎面一点折扣。 */
+function pickTet(mx,my){
+  const M=tetMesh(tetK());
+  let bi=0, bs=Infinity;
+  for(let i=0;i<M.faces.length;i++){
+    const f=M.faces[i];
+    const cen=vmul(vadd(vadd(M.unit[f[0]],M.unit[f[1]]),M.unit[f[2]]),0.25*GA);
+    const S=pr(cen);
+    /* 0.03·camScale 的"迎面折扣" ≈ 6~7 px：只用来打破前后半球投影重合的平局，
+       不会把明显更近的背面四面体抢过来。 */
+    const sc=Math.hypot(mx-S.x,my-S.y) - 0.03*camScale*(S.d/GA);
+    if(sc<bs){ bs=sc; bi=i; }
+  }
+  return bi;
+}
+function microCenterW(){
+  if(state.geo==='vol') return volTet(state.mu).cen;
+  return microAxis()? pt(0,state.mu*GA,0) : pt(state.mu*GA,0,0);
+}
+/* 微元投影剪影的**内切半径**（px）—— 面/线元用。
+   剪影 = "投影轴张成的中心对称多边形"：面元 2 条轴（平行四边形）、线元 1 条（线段）。
    内切半径 = min_i [ Σ_{j≠i} |det(pᵢ,pⱼ)| / |pᵢ| ] × hs，pᵢ = 第 i 条世界轴的单位投影(px)。
-   ⚠️ 必须算而不能写死常数：立方体"正对一面"时 = hs·camScale、"沿体对角线看"时 ≈ 1.37·hs·camScale
-      （差 37%），面元斜看还要再被压扁一次 —— 常数必然在某个方位角上让团雾溢出微元轮廓。 */
+   ⚠️ 必须算而不能写死常数：面元斜看会被压扁，常数必然在某个方位角上让团雾溢出轮廓。
+   （体电荷不用这个函数了 —— 它是四面体，改用内切球，见 FOG_K_VOL 的说明。） */
 function microInradiusPx(hs){
   const P=[0,1,2].map(i=>{ const u=[camU.x,camU.y,camU.z][i], v=[camV.x,camV.y,camV.z][i];
     return [u*camScale, -v*camScale]; });
@@ -513,16 +572,24 @@ function microInradiusPx(hs){
   return (best===Infinity?0:best)*hs;
 }
 /* 拖动手感阈值（px）：微元越小越得"够得着"（下限 30 px 给极小尺寸一个抓手），
-   但也不能大到把"拖空白处旋转"整个吃掉（上限 66 px）。
-   下限 1.25 倍内切半径 ≈ 剪影的外接半径（正交投影下恰是这个比例），抓哪都算抓到了。 */
-function microHitR(){ return Math.max(30, Math.min(66, microInradiusPx(state.mh*GA/2)*1.25)); }
+   但也不能大到把"拖空白处旋转"整个吃掉（上限 72 px）。
+   · 面/线元：1.25 倍内切半径 ≈ 剪影的外接半径（正交投影下恰是这个比例）。
+   · 体电荷：四面体在屏幕上的尺度 ~ 内切球半径 rIn·camScale（k=2 时只有 18 px），
+     所以下限得抬高一点，否则 k 大时那点小体积元根本抓不住。 */
+function microHitR(){
+  if(state.geo==='vol'){
+    const t=volTet(state.mu);
+    return Math.max(30, Math.min(72, t.rIn*camScale*1.7));
+  }
+  return Math.max(30, Math.min(66, microInradiusPx(state.mh*GA/2)*1.25));
+}
 
 /* ── 「团雾」：微元内部那团电荷的意象 ─────────────────────────────────────────
    ★ 要的是"雾"而不是"一块橙色"：雾 = 没有硬边界、浓淡不均、有团絮。
      做法 = 若干净布 4 层**偏心**的径向渐变斑（实心核 → alpha 0 的边缘）叠起来：
      单个正圆渐变只是"一个橙点"，几个错开大小/位置的斑才有团絮感；
      主斑偏暖白、副斑偏正橙，于是雾里有浓有淡、看得出层次。
-   ★ 半径 ∝ 微元尺寸（fogRadius()）⇒ 拖「尺寸」时雾同步胀缩；尺寸 → 0 时雾自己消失，
+   ★ 半径 ∝ 微元尺寸 ⇒ 拖「尺寸」时雾同步胀缩；尺寸 → 0 时雾自己消失，
      正好对应"这个微元里几乎没有电量"—— 同一个数的两个后果，不必再解释一遍。
    ★ 深度取微元**中心**的深度 ⇒ 立方体靠里的 3 个面先画、靠外的 3 个面后画，
      雾被夹在前后两组面之间 = 真的"在盒子里"，而不是贴在盒子前面的一张贴纸。
@@ -550,9 +617,15 @@ const FOG_BLOBS=[[0.00,0.00,1.00,0.70],[-0.30,-0.22,0.60,0.52],[ 0.30,-0.18,0.56
                  [ 0.34, 0.06,0.30,0.34],[-0.20, 0.34,0.26,0.30],[ 0.10,-0.36,0.24,0.28]];
 /* ★ 雾半径 = 微元剪影内切半径 × FOG_K：0.95 × 0.9101（雾里最外那团斑的"偏移+半径"系数）
    = 0.865 < 1 ⇒ **任何机位**雾的外缘都落在微元剪影之内（24 方位 × 5 仰角扫查确认）。
-   三种几何共用同一个系数：vol / surf 只是"标签压不压住雾"不同（面元要压在片之上）。 */
+   surf / line 共用这个系数；vol（四面体）改用 FOG_K_VOL，见下。 */
 const FOG_K=0.95;
-function fogRadius(){ return microInradiusPx(state.mh*GA/2)*FOG_K; }
+/* ★ 体电荷的体积元是**四面体**，用不上"立方体剪影内切半径"那套。
+   改用**内切球**：正交投影下，凸体的剪影必然包含其内切球的剪影（半径 rIn·camScale 的圆），
+   所以只要雾的外缘 ≤ rIn·camScale 就一定在四面体轮廓之内，且与相机方位**无关**
+   （比逐机位算剪影简单得多，也不会在某个方位角上溢出）。
+   系数取 0.95 × 0.9101 ≈ 0.865 ⇒ 实取 FOG_K_VOL = 1.02，外缘 = 0.93·rIn·camScale < rIn·camScale。
+   k=2 时 rIn = 0.0824 m ⇒ 雾半径 ≈ 18 px（实际一点：k=1 26 px、k=3 12 px）。 */
+const FOG_K_VOL=1.02;
 function microFog(c,z,rad){
   if(!(rad>2.2)) return;                     /* 太小就别画（否则只是"一个橙点"） */
   const S=pr(c);
@@ -607,14 +680,20 @@ function microInfo(){
     dq   = SIG0*(s/(n*n))*meas;                     /* nC */
     pointDens = SIG0*f(xi);                         /* σ(ξ) nC/m² */
   } else {
-    const n=14; let s=0;
-    for(let i=0;i<n;i++) for(let j=0;j<n;j++) for(let l=0;l<n;l++){
-      /* ρ 只随 x 变 ⇒ 只需对 x 求平均（与三维平均等价）；区间 = [ξ−h/2, ξ+h/2] */
-      s += f(xi + (i+0.5)/n*h - h/2);
-    }
-    meas = Math.pow(h*GA,3);                        /* ΔV′ (m³) */
-    dq   = RHO0*(s/(n*n*n))*meas;                   /* nC */
-    pointDens = RHO0*f(xi);                         /* ρ(ξ) nC/m³ */
+    /* 体电荷：微元 = 球体剖分里第 state.mu 个四面体。
+       ★ 不用数值积分：四面体上 <x²> 有精确闭式（xsqTet），而 ρ = ρ₀(1+kξ²) 只随 x 变
+         ⇒ Δq = ρ₀(1 + k·<x²>/a²)·ΔV′ 是**精确**的（不是采样近似）。
+         这一点对非均匀分布尤其重要：读数里的"偏差 dev"于是只剩一个来源 ——
+         "体积内的平均值 ≠ 该点的值"，而这正是有限体积元取密度时唯一的误差。 */
+    const t=volTet(state.mu);
+    const x2=xsqTet(t.A,t.B,t.Cc);
+    const xic=t.cen.x/GA;                           /* 形心的归一化 x（可为负，ρ 是偶函数） */
+    meas = t.V;                                     /* ΔV′ (m³) */
+    dq   = RHO0*(1 + k*x2/(GA*GA))*meas;            /* nC（对 ρ 精确积分） */
+    pointDens = RHO0*f(xic);                        /* ρ(ξ_cen) nC/m³ */
+    const densV = dq/meas;
+    return {xi:xic, h:0, meas, dq, dens:densV, pointDens, tet:state.mu, k:tetK(),
+            dev:densV-pointDens, devRel:(densV-pointDens)/pointDens};
   }
   const dens = dq/meas;
   return {xi, h, meas, dq, dens, pointDens,
@@ -648,23 +727,135 @@ function totalQ(){
 /* ============================================================================
    ③ 带电体绘制
    ============================================================================ */
-function rhoSphere(){
-  const nT=12,nP=24,R=GA;
-  const V=(t,p)=>pt(R*Math.sin(t)*Math.cos(p), R*Math.sin(t)*Math.sin(p), R*Math.cos(t));
-  for(let i=0;i<nT;i++){
-    const t0=Math.PI*i/nT, t1=Math.PI*(i+1)/nT;
-    for(let j=0;j<nP;j++){
-      const p0=2*Math.PI*j/nP, p1=2*Math.PI*(j+1)/nP;
-      const q=[V(t0,p0),V(t1,p0),V(t1,p1),V(t0,p1)];
-      const c=vmul(vadd(vadd(q[0],q[1]),vadd(q[2],q[3])),0.25);
-      const n=vnorm(c);
-      const al=densAlpha(prof(c.x/GA));
-      const col=shade(DENS_HEX,n);
-      poly(q,{fill:col,fillAlpha:al,stroke:col,strokeAlpha:Math.min(0.95,al+0.22),w:1});
+/* ═══ 体电荷：球体的「星形四面体剖分」（SWG 式：球心 O + 球面三角形）════════════
+   2026-09-23 用户改版。原做法是"把球按等体积切成 N 个壳层、画成一堆小方块"，
+   被否掉的理由：N 小 ⇒ 方块又大又稀，凑在一起像马赛克；N 大 ⇒ 看不出 N 的效果
+   （相邻两档视觉几乎一样）。新做法：
+
+     · 先有**一个标准的球**，再对这个球做**体剖分**；
+     · 球面三角剖分取二十面体，每个面做 k 阶重心细分、新点投回球面（= 球面三角网格）；
+     · 每个球面三角形与球心 O 围成一个四面体 ⇒ 共 20k² 个四面体，严丝合缝铺满整个球；
+     · 任意一个四面体都能选作「体积元」——它就是"体由体积元叠加而成"里的那个元。
+
+   ★★ 「剖分尺寸」与「体积元大小」是**同一个数**（都只由 k 决定）：
+      k 越大 ⇒ 每个四面体越小 ⇒ 剖分越细。这正是学生要看到的那件事，
+      所以本页只给**一个**控件（原来那排 N = 1/8/32/128/384 与本控件重复，已删）。
+
+   ★ 数值标定（/tmp/tetmesh3.js · /tmp/tetfield.js · /tmp/final-decide.js，均已复核）：
+      k         1      2      3      4      5      6
+      四面体数   20     80     180    320    500    720
+      V多面体/V球 0.6055 0.8735 0.9409 0.9662 0.9781 0.9848
+   ★ 每个四面体当成一个点电荷（作用点取其形心）时，**多面体的外场 ≈ 自身电量的点电荷场**：
+     实测 ΣdE/[KC·ΣΔq/d²] − 1 = −0.31%(k=2,d=0.75) → −0.005%(k=2,d=1.2) → −0.0001%(k=4,d=1.5)
+     ⇒ "把每个体积元当点电荷再求和"这一步几乎不引入误差，形状偏差可以忽略；
+        外观上剩下的偏差只有一个来源 —— **20k² 个四面体拼出的多面体比球小**（k=2 时少 12.65%）。
+        于是 ΣΔq/Q 与 ΣdE/E解析 会给出**同一个数**，这就是本页要演示的"自洽"。
+   ⚠️ 顶点去重：先归一化、再取整到 1e-5 网格。**必须把 −0 归一为 0** ——
+      (−0).toFixed(5) 是 "-0.00000"、与 "0.00000" 不相等 ⇒ 会多出重复顶点与细长三角形
+      （实测 k=3 会多 2 个顶点、最小内角掉到 3.07°，修正后回到 54.6°）。 */
+const ICO_V=[pt(0,0.5257311121,0.8506508084),pt(0.5257311121,0.8506508084,0),pt(0.8506508084,0,0.5257311121),
+  pt(0,0.5257311121,-0.8506508084),pt(0.5257311121,-0.8506508084,0),pt(-0.8506508084,0,0.5257311121),
+  pt(0,-0.5257311121,0.8506508084),pt(-0.5257311121,0.8506508084,0),pt(0.8506508084,0,-0.5257311121),
+  pt(0,-0.5257311121,-0.8506508084),pt(-0.5257311121,-0.8506508084,0),pt(-0.8506508084,0,-0.5257311121)];
+const ICO_F=[[0,1,2],[0,1,7],[0,2,6],[0,5,6],[0,5,7],[1,2,8],[1,3,7],[1,3,8],[2,4,6],[2,4,8],
+  [3,7,11],[3,8,9],[3,9,11],[4,6,10],[4,8,9],[4,9,10],[5,6,10],[5,7,11],[5,10,11],[9,10,11]];
+const TET_KMIN=1, TET_KMAX=4;               /* 剖分阶 k 的可选范围（20 / 80 / 180 / 320 个四面体） */
+const _tm={};
+function tetMesh(k){
+  if(_tm[k]) return _tm[k];
+  const q=v=>{ const t=Math.round(v*1e5); return t===0?0:t; };     /* −0 → 0（见上方警告） */
+  const key=new Map(), unit=[];
+  const vid=p=>{ const n=vnorm(p); const s=q(n.x)+','+q(n.y)+','+q(n.z);
+    let i=key.get(s); if(i==null){ i=unit.length; unit.push(n); key.set(s,i);} return i; };
+  ICO_V.forEach(v=>vid(v));                 /* 先放十二个顶点 ⇒ 序号 0..11 恒为它们 */
+  const faces=[];
+  ICO_F.forEach(f=>{
+    const A=ICO_V[f[0]], B=ICO_V[f[1]], Cc=ICO_V[f[2]];
+    const P=(i,j)=>{ const a=i/k, b=j/k, c=1-a-b;
+      return vnorm(pt(A.x*a+B.x*b+Cc.x*c, A.y*a+B.y*b+Cc.y*c, A.z*a+B.z*b+Cc.z*c)); };
+    const idx=[];
+    for(let i=0;i<=k;i++){ idx.push([]); for(let j=0;j<=k-i;j++) idx[i].push(vid(P(i,j))); }
+    for(let i=0;i<k;i++) for(let j=0;j<k-i;j++){
+      faces.push([idx[i][j], idx[i+1][j], idx[i][j+1]]);
+      if(j<k-i-1) faces.push([idx[i+1][j], idx[i+1][j+1], idx[i][j+1]]);
     }
+  });
+  const m={unit,faces}; _tm[k]=m; return m;
+}
+function tetK(){ return Math.max(TET_KMIN, Math.min(TET_KMAX, Math.round(state.mh))); }
+function tetCount(k){ k=k||tetK(); return 20*k*k; }
+/* 第 i 个四面体（球心 O + 球面三角形 i）的几何量，世界坐标、球半径 GA。
+   k 可显式给（收敛曲线要扫别的 k），默认取当前剖分阶。 */
+function volTet(i,k){
+  const M=tetMesh(k==null?tetK():k), f=M.faces[i];
+  const u1=M.unit[f[0]], u2=M.unit[f[1]], u3=M.unit[f[2]];
+  const A=vmul(u1,GA), B=vmul(u2,GA), Cc=vmul(u3,GA);
+  const V=Math.abs(vdot(u1,vcross(u2,u3)))*GA*GA*GA/6;                     /* ΔV′ (m³) */
+  const S=0.5*(vlen(vcross(A,B))+vlen(vcross(B,Cc))+vlen(vcross(Cc,A))
+              +vlen(vcross(vsub(B,A),vsub(Cc,A))));                        /* 四面体表面积 */
+  return {A,B,Cc,V, rIn:3*V/S, cen:vmul(vadd(vadd(A,B),Cc),0.25)};
+}
+/* 四面体 OABC 上 <x²> 的**精确**平均。顶点取 O,A,B,C ⇒ Σx_i = x_A+x_B+x_C。
+   推导（three-simplex 的 degree-2 重心矩）：∫x²dV = (V/20)[Σx_i² + (Σx_i)²]。
+   已用 Keast 精确求积交叉验证到 1e-11%（/tmp/verify-formulas.js）。 */
+function xsqTet(A,B,Cc){ const s=A.x+B.x+Cc.x; return (A.x*A.x+B.x*B.x+Cc.x*Cc.x + s*s)/20; }
+/* 全部 20k² 个四面体各摊一个点电荷（作用点 = 形心）：ΣdE 与 ΣΔq **共用这一份**，
+   这就是"图与数不打架"的保证。按 k 缓存，收敛曲线要扫 k=1…6。 */
+const _volK={};
+function volSamplesK(k){
+  const key=k+'|'+(state.nonuni?1:0);
+  if(_volK[key]) return _volK[key];
+  const M=tetMesh(k), cc=state.nonuni?NL_K:0, out=[], G2=GA*GA;
+  for(let i=0;i<M.faces.length;i++){
+    const t=volTet(i,k), x2=xsqTet(t.A,t.B,t.Cc);
+    out.push({p:t.cen, dq:RHO0*(1+cc*x2/G2)*t.V, V:t.V});                 /* 对 ρ 精确积分 */
   }
-  const eq=[]; for(let i=0;i<=72;i++){const ph=2*Math.PI*i/72; eq.push(pt(R*Math.cos(ph),R*Math.sin(ph),0));}
-  curve(eq,{color:'#1F5F7C',w:1.2,alpha:.55,dash:[6,5]});
+  _volK[key]=out; return out;
+}
+function volSamples(){ return volSamplesK(tetK()); }
+/* ΣΔq：把当前剖分里每个体积元的电量加起来（非均匀时对 ρ 逐四面体精确积分 ⇒
+   这份和是"算出来"的，不是把 Q 摊下来的）。用于演示"总电量 = 各体积元电量之和"。 */
+function volSumQ(k){ return volSamplesK(k==null?tetK():k).reduce((a,s)=>a+s.dq,0); }
+/* 剖分多面体的体积 V_多面体 = ΣΔV′（均匀时 ΣΔq = ρ₀·V_多面体）。
+   ★ 球体积 V_球 = (4/3)πa³ 恒大于 V_多面体 ⇒ 读数里那个"少掉的百分比"就是它。 */
+function volPolyV(k){ return volSamplesK(k==null?tetK():k).reduce((a,s)=>a+s.V,0); }
+function volSphereV(){ return (4/3)*Math.PI*GA*GA*GA; }
+/* 体电荷的"球体剖分"外观：径向棱（骨架）+ 逐三角形外露面（带缝 ⇒ 看得出是一块块拼的） */
+function drawTetBall(){
+  const k=tetK(), M=tetMesh(k);
+  const spA=0.34/Math.pow(k,0.85);          /* 棱越多越淡，总量守恒，不至于糊成一片 */
+  for(let i=0;i<M.unit.length;i++)
+    line(pt(0,0,0), vmul(M.unit[i],GA), {color:'#1F5F7C',w:0.85,alpha:spA});
+  const s=0.93;                             /* 每个面片朝自身重心收缩 ⇒ 露出 7% 的缝 */
+  for(const f of M.faces){
+    const A=vmul(M.unit[f[0]],GA), B=vmul(M.unit[f[1]],GA), Cc=vmul(M.unit[f[2]],GA);
+    const g=vmul(vadd(vadd(A,B),Cc),1/3);
+    const al=densAlpha(prof(g.x/GA));
+    const col=shade(DENS_HEX,vnorm(g));
+    poly([vadd(g,vmul(vsub(A,g),s)),vadd(g,vmul(vsub(B,g),s)),vadd(g,vmul(vsub(Cc,g),s))],
+      {fill:col,fillAlpha:al,stroke:col,strokeAlpha:Math.min(0.95,al+0.22),w:0.9});
+  }
+}
+/* 被选中的那个四面体：四个面（外表面 + 三个"从球心发出的"侧面），按面法向分远近两档，
+   团雾夹在中间 ⇒ 雾真的在四面体"里面"。整组抬到 Z_MICRO 档（微元是"仪器"，不能被
+   半透明面片洗掉，理由见上方 Z_MICRO* 的注释）。 */
+function drawTetPiece(t){
+  const OC='#E97132', O=pt(0,0,0);
+  /* 四个面：V = 三个顶点，ref/sg = 让法向朝外的朝向判据 */
+  const F=[[[t.A,t.B,t.Cc], t.A,  1],      /* 外表面：n·A > 0 ⇔ 背离球心 */
+           [[O,t.A,t.B],   t.Cc,-1],      /* 三个侧面：n·Cc < 0 ⇔ 背离对面顶点 */
+           [[O,t.B,t.Cc],  t.A, -1],
+           [[O,t.Cc,t.A],  t.B, -1]];
+  F.forEach(fc=>{
+    const V=fc[0];
+    let n=vnorm(vcross(vsub(V[1],V[0]),vsub(V[2],V[0])));
+    if(vdot(n,fc[1])*fc[2]<0) n=vmul(n,-1);
+    const z=(vdot(n,camD)>0)?Z_MICRO_NEAR:Z_MICRO_FAR;
+    poly(V,{fill:OC,fillAlpha:0.20,stroke:OC,strokeAlpha:0.95,w:1.6,z});
+  });
+  microFog(t.cen, Z_MICRO_FOG, FOG_K_VOL*t.rIn*camScale);
+  text(vadd(t.cen,vmul(vnorm(t.cen),0.085)),'ΔV′',
+    {color:'#B25D18',size:12,bold:true,align:'center',dy:-10});
 }
 function rhoDisk(){
   const nR=12,nP=40,a=GA;
@@ -690,38 +881,27 @@ function rhoLine(){
   }
   screenDot(pt(-L,0,0),3.4,'#1F5F7C',0.95); screenDot(pt(L,0,0),3.4,'#1F5F7C',0.95);
 }
-function cubeAt(c,hs,color,alpha,w,zFar,zNear){
-  const V=(a,b,d)=>pt(c.x+a*hs,c.y+b*hs,c.z+d*hs);
-  const F=[[[-1,-1,-1],[1,-1,-1],[1,1,-1],[-1,1,-1],pt(0,0,-1)],[[-1,-1,1],[1,-1,1],[1,1,1],[-1,1,1],pt(0,0,1)],
-           [[-1,-1,-1],[-1,1,-1],[-1,1,1],[-1,-1,1],pt(-1,0,0)],[[1,-1,-1],[1,1,-1],[1,1,1],[1,-1,1],pt(1,0,0)],
-           [[-1,-1,-1],[1,-1,-1],[1,-1,1],[-1,-1,1],pt(0,-1,0)],[[-1,1,-1],[1,1,-1],[1,1,1],[-1,1,1],pt(0,1,0)]];
-  /* z 分三档：
-     · 不给 zFar/zNear ⇒ 各面按自身深度排序（各面深度不同，画家算法自动分先后）；
-     · 给了 ⇒ 整组抬到 zFar/zNear 这一档（远高于带电体，不被方块洗掉），
-       并**按面法向与相机方向**把面分到两档：被背向相机的面先画、迎面后画。
-       于是团雾（夹在两档之间的 Z_MICRO_FOG）才真的读得出"在盒子里"。 */
-  F.forEach(f=>{
-    const z=(zFar==null)?undefined:(vdot(f[4],camD)>0?zNear:zFar);
-    poly(f.slice(0,4).map(v=>V(v[0],v[1],v[2])),{fill:color,fillAlpha:alpha,
-      stroke:color,strokeAlpha:Math.min(1,alpha+0.42),w:w||1.3,z:z});
-  });
-}
+/* ── 已退役：cubeAt(c,hs,…) ────────────────────────────────────────────────────
+   原来体电荷的微元画成一个"立方体"，2026-09-23 改成"剖分球里的一个四面体"之后
+   就没有调用者了（drawTetPiece 自带四面的远近分档）。删掉而不是留着 ——
+   留一个现成的"画立方体"helper，只会诱导以后又把体元画回马赛克小方块。 */
 function drawMicro(){
   if(!state.show.micro) return;
-  const xi=state.mu, hs=state.mh*GA/2;
   const OC='#E97132';
+  if(state.geo==='vol'){
+    /* 体电荷：微元 = 剖分球里的某一个四面体（state.mu = 序号）。
+       ★ 位置虚线从**球心**画到那个四面体的形心 —— 球心是剖分的"公共顶点"，
+         这条虚线正好把"体积元是从球心张出来的一个楔子"这件事说清楚。 */
+    const t=volTet(state.mu);
+    line(pt(0,0,0), t.cen, {color:'#E0B48C',w:1.1,alpha:.85,dash:[4,4],z:Z_MICRO_LINE});
+    drawTetPiece(t);
+    return;
+  }
+  const xi=state.mu, hs=state.mh*GA/2;
   const inr=microInradiusPx(hs);               /* 剪影内切半径（px）：团雾尺寸按它定 */
   /* 位置指示先画（最底层）：从原点沿几何轴线到微元中心的一条虚线 */
   line(pt(0,0,0),microCenterW(),{color:'#E0B48C',w:1.1,alpha:.85,dash:[4,4],z:Z_MICRO_LINE});
-  if(state.geo==='vol'){
-    const c=pt(xi*GA,0,0);
-    /* 面填充 0.26 → 0.16：只有**迎面**那 3 个面会盖在团雾上（0.42），
-       团雾本身就还剩下 0.58 的对比度 —— 够看了；而"这是个立方体"改由更结实的棱
-       （w 1.5 / alpha 0.95）承担，比原来"一整块橙色"更干净。 */
-    microFog(c,Z_MICRO_FOG,FOG_K*inr);
-    cubeAt(c,hs,OC,0.16,1.5,Z_MICRO_FAR,Z_MICRO_NEAR);
-    text(vadd(c,pt(0,0,hs)),'ΔV′',{color:'#B25D18',size:12,bold:true,dy:-14,align:'center'});
-  } else if(state.geo==='surf'){
+  if(state.geo==='surf'){
     const c=pt(0,xi*GA,0);
     poly([pt(c.x-hs,c.y-hs,0),pt(c.x+hs,c.y-hs,0),pt(c.x+hs,c.y+hs,0),pt(c.x-hs,c.y+hs,0)],
          {fill:OC,fillAlpha:0.26,stroke:OC,strokeAlpha:0.95,w:1.8,z:Z_MICRO});
@@ -736,8 +916,11 @@ function drawMicro(){
     text(pt(xi*GA,0,0),'Δl′',{color:'#B25D18',size:12,bold:true,dy:-18,align:'center'});
   }
 }
-/* ③④ 合并后，上面的「连续体绘制」（rhoSphere/rhoDisk/rhoLine）与「自由微元」（drawMicro）
-   都由 modeCont() 调度：N 超过分块显示上限时画连续体，否则画分块（见 drawBlocks）。 */
+/* ③ 页三种几何的"带电体"视觉：
+     vol  → drawTetBall()（球 + 二十面体 k 阶细分的星形四面体剖分）
+     surf → rhoDisk()    （圆盘扇形分块）
+     line → rhoLine()    （等长小段）
+   密度探针微元（drawMicro）由 modeCont() 在带电体之后调用。 */
 
 /* ============================================================================
    ① 电场强度的定义
@@ -949,7 +1132,10 @@ function modePoint(){
 }
 
 /* ============================================================================
-   ③④ 合并页公共件：剖分（partition）、采样、求和、裁判
+   ③ 页公共件：剖分（partition）、采样、求和、裁判
+   ★ 体电荷**不再走 partition()** —— 它的"剖分"就是球体的星形四面体剖分
+     （volSamples()），图与数共用同一份四面体表。
+     partition() 现在只管面电荷（等面积环）与线电荷（等长段）。
    ============================================================================ */
 /* 按权重把 N 个点分给若干组：结果长度不变、**和恰为 N**、N ≥ 组数时每份 ≥1。
    ⚠️ 早年版本死守「每份 ≥1」，当 N < 组数时永远收敛不了（guard 跑满仍不等于 N）—— 已修。 */
@@ -972,17 +1158,15 @@ function allocByWeight(w,N){
   }
   return base;
 }
-/* 把带电体切成 N 份**等测度**（等长 / 等面积 / 等体积）的"块"，每块的电量 = 对该块
-   精确积分（均匀 ⇒ 每块 Q/N；非均匀 ρ∝1+0.7ξ² ⇒ 有闭式：线段 ∫x²dx、环 ∫ρ²dS、壳 ∫x²dV）。
+/* 把带电体切成 N 份**等测度**（等面积 / 等长）的"块"，每块的电量 = 对该块精确积分
+   （均匀 ⇒ 每块 Q/N；非均匀 ρ∝1+0.7ξ² ⇒ 有闭式：线段 ∫x²dx、环 ∫ρ²dS）。
    ★ 图与数共用这一条剖分：画布上画出来的块、Σ 求和里的点电荷元，都来自 partition()。
    ★ 关键：每"组"的电量必须等于该组真实的电量，而不是 Q/N 平均摊。
-     体电荷 = 等体积壳层；面电荷 = 等面积环；线电荷 = 等长小段。
-     组内点数按"视觉均匀"分配（环 ∝ ρ、壳 ∝ r、段 = 1）。
+     面电荷 = 等面积环；线电荷 = 等长小段。
    ⚠️ 早期版本所有点都摊 Q/N，而环内点数又 ∝ ρ ⇒ 等面积环被赋予 ∝ρ 的错权重，
       误差随 N 不降反升、卡在 3.35% 不动。改成"组电量恒定 + 组内再摊"后，
       面电荷的求和就退化为 u=ρ² 上的**中点法则**（精确到 O(1/nR²)）。
-   ⚠️ 环数 / 壳数必须随 N 一起长（面 ≈0.85√N、体 ≈N/8），否则 N 再大误差也不再下降；
-      体壳数又不能太多（最内壳只剩 1~2 个点时，单点方位运气主导整条误差曲线）。 */
+   ⚠️ 环数必须随 N 一起长（面 ≈0.85√N），否则 N 再大误差也不再下降。 */
 function partition(N){
   const a=GA, L=GA, k=state.nonuni?NL_K:0;
   const groups=[];
@@ -1009,16 +1193,7 @@ function partition(N){
     }
     return {groups, Q:totalQ()};
   }
-  const nS=Math.max(1,Math.min(12,N,Math.round(N/8)));
-  const m=allocByWeight(Array.from({length:nS},(_,j)=>a*Math.pow((j+0.5)/nS,1/3)),N);
-  for(let j=0;j<nS;j++){
-    const r0=a*Math.pow(j/nS,1/3), r1=a*Math.pow((j+1)/nS,1/3);
-    const q=RHO0*(4*Math.PI/3*(r1*r1*r1-r0*r0*r0)+k/(a*a)*4*Math.PI/15*(Math.pow(r1,5)-Math.pow(r0,5)));
-    const pts=[], dqp=q/m[j], rj=a*Math.pow((j+0.5)/nS,1/3);
-    const dirs=fibDirs(m[j], j*0.7);
-    for(const d of dirs) pts.push({p:vmul(d,rj), dq:dqp});
-    groups.push({q, r0, r1, m:m[j], pts});
-  }
+  /* 体电荷走 volSamples()（星形四面体剖分），这里不再有 vol 分支 */
   return {groups, Q:totalQ()};
 }
 function samplePoints(N){
@@ -1026,12 +1201,18 @@ function samplePoints(N){
   for(const g of pd.groups) for(const s of g.pts) out.push(s);
   return out;
 }
+/* 当前几何下"点电荷元"的取样点表：
+   vol → 剖分球的 20k² 个四面体（volSamples）；surf / line → partition(N) 展平。
+   ★ ΣdE 与 ΣΔq 都读这一份 ⇒ "图"和"数"永远一致。 */
 let _samp={key:null,pts:null};
 function curSamples(){
+  if(state.geo==='vol') return volSamples();
   const k=state.geo+'|'+state.NS+'|'+(state.nonuni?1:0);
   if(_samp.key!==k) _samp={key:k, pts:samplePoints(state.NS)};
   return _samp.pts;
 }
+/* 当前"点电荷元个数 N"：体电荷 = 20k²（只由剖分阶决定）；面/线 = 滑块给的 NS */
+function curN(){ return state.geo==='vol' ? tetCount() : state.NS; }
 function sumField(pts,P){
   let E=pt(0,0,0);
   for(const s of pts){
@@ -1041,10 +1222,26 @@ function sumField(pts,P){
   }
   return E;
 }
+/* 球体（ρ = ρ₀(1+kξ²)，ξ = x/a）在 (d,0,0) 处的**精确**场强 —— 均匀与非均匀都有闭式。
+   ★ 非均匀的推导：把 ρ 拆成"均匀部分 + c·x² 部分"（c = ρ₀k/a²），x² 部分的场由 1/R 的
+     多极展开解析求出。用 x² = r²/3 + (2/3)r²P₂(cosθ) 加上 ∫P_l dΩ 的正交性，
+     只剩 l=0 与 l=2 两项（μ 积分有初等原函数；/tmp/final-decide.js 用它 + 1D Simpson
+     与多极闭式交叉验证到 0.009%，Fibonacci 球抽样亦吻合到 0.02%）：
+        E = KC[ Q/d² + c·( 4πa⁵/(15d²) + 8πa⁷/(35d⁴) ) ]
+     l=0 项 4πa⁵/(15d²) 的来历：∫x²/R dV 的 l=0 分量 = (a⁵/(5d))·(4π/3) = 4πa⁵/(15d)，
+     再对 d 求导（(d−x)/R³ = −∂(1/R)/∂d）。
+   ⇒ 体电荷的裁判**是解析精确值**（不再是数值参考），与面/线的均匀情形同等待遇。 */
+function volEan(d){
+  const a=GA, k=state.nonuni?NL_K:0;
+  const Q=RHO0*(4/3)*Math.PI*a*a*a;
+  const c=RHO0*k/(a*a);
+  return KC*( Q/(d*d) + c*( 4*Math.PI*Math.pow(a,5)/(15*d*d)
+                           + 8*Math.PI*Math.pow(a,7)/(35*Math.pow(d,4)) ) );
+}
 function geomData(){
   const a=GA,L=GA, Q=totalQ();         /* Q 随分布（均匀/非均匀）变；均匀时 = uniformQ() */
   if(state.geo==='vol'){
-    const P=pt(state.sd,0,0), E=KC*uniformQ()/(state.sd*state.sd);
+    const P=pt(state.sd,0,0), E=volEan(state.sd);
     return {Q,P,Ean:pt(E,0,0),d:state.sd,dLab:'球心 → P',ax:pt(1,0,0)};
   }
   if(state.geo==='surf'){
@@ -1056,67 +1253,51 @@ function geomData(){
   const E=KC*TAU0*(1/state.sd - 1/(state.sd+2*L));
   return {Q,P,Ean:pt(E,0,0),d:state.sd,dLab:'端点 → P',ax:pt(1,0,0)};
 }
-/* 裁判场：均匀分布有初等解析解（Ean）；非均匀没有 ⇒ 用 8192 个电荷元的加权和当数值参考
+/* 裁判场：体电荷三种情形都走 g.Ean（解析精确值）；
+   面/线电荷的非均匀分布没有初等闭式 ⇒ 仍用 8192 个电荷元的加权和当数值参考
    （该采样方案在 N=384 时偏差已 ~0.002%，8192 的自身误差 ~1e-5%，做"参考"绰绰有余，
-    并在界面上如实标注「数值积分参考」）。 */
+    界面如实标注「数值积分参考」）。 */
 let _nref={key:null,v:null};
 function refField(){
   const g=geomData();
-  if(!state.nonuni) return {v:g.Ean, lab:'积分精确值'};
+  if(state.geo==='vol' || !state.nonuni) return {v:g.Ean, lab:'积分精确值'};
   const key=state.geo+'|'+state.sd.toFixed(2)+'|n';
   if(_nref.key!==key) _nref={key, v:sumField(samplePoints(8192),g.P)};
   return {v:_nref.v, lab:'数值积分参考 (N=8192)'};
 }
 let _conv={key:null,data:null};
 const CONV_NS=[1,2,3,4,6,8,12,16,24,32,48,64,96,128,192,256,384];
+const CONV_KS=[1,2,3,4,5,6];         /* 体电荷：剖分阶扫描（N = 20k² = 20…720） */
 function convSeries(){
   const key=state.geo+'|'+state.sd.toFixed(2)+'|'+(state.nonuni?1:0);
   if(_conv.key===key) return _conv.data;
   const g=geomData(), ref=Math.max(vlen(refField().v),1e-12);
-  const data=CONV_NS.map(n=>{
-    const E=sumField(samplePoints(n), g.P);
-    return {n, rel:Math.abs(vlen(E)-ref)/ref};
-  });
+  const data = (state.geo==='vol')
+    ? CONV_KS.map(k=>({n:20*k*k, k, rel:Math.abs(vlen(sumField(volSamplesK(k), g.P))-ref)/ref}))
+    : CONV_NS.map(n=>({n, rel:Math.abs(vlen(sumField(samplePoints(n), g.P))-ref)/ref}));
   _conv={key,data}; return data;
 }
 /* ============================================================================
-   ③ 电荷密度（③④ 合并页）
-   设计：密度定义（橙色自由微元：一块缩到点）与场的累加（N 块 → Σ dE → ∫）共用
-   同一个"把带电体切成块"的视觉。块数有显示上限（BLK_CAP），超过就画光滑连续体
-   —— "越切越碎 ⇒ 变成连续体"本身就是这节课要说的两件事之一。
-   ⚠️ 点电荷元一律画成"块"（小方块 / 扇形面片 / 粗线段），不再画成一个个点：
+   ③ 电荷密度
+   两条线在这一页会合、共用同一份"剖分"：
+     · 密度的定义 —— 橙色微元（体电荷 = 剖分球里的一个四面体；面/线 = 一条薄片/一小段）
+       缩到一点，Δq/测度 → 该点密度；
+     · 场的累加 —— E = Σ dE：体电荷就是"20k² 个体积元各当点电荷求和"。
+   ★ 教学落点（用户 2026-09-23 明确定下）：**体是由体积元叠加成的，所以总电量就是
+     每个体积元电量之和**（ΣΔq → Q）、总场就是每个体积元产生的场之和（ΣdE → ∫）。
+     两者在画面上、在读数里用**同一份**四面体表，所以"图"和"数"不可能打架。
+   ⚠️ 面/线电荷的点电荷元仍一律画成"块"（扇形面片 / 粗线段），不画成一个个点：
       几百个孤立圆点是典型的"密集恐惧"触发器（用户反馈），而严丝合缝的分块
       读起来是"一个整体被切开"，不是"一地碎点"。
    ============================================================================ */
-const BLK_CAP={vol:64, surf:128, line:96};
-/* 逐面伪光照的小方块：fill 与 stroke 必须同色，否则相邻面露发丝缝 */
-function cubeShaded(c,hs,hexBase,alpha){
-  const V=(a,b,d)=>pt(c.x+a*hs,c.y+b*hs,c.z+d*hs);
-  const F=[[[-1,-1,-1],[1,-1,-1],[1,1,-1],[-1,1,-1],pt(0,0,-1)],
-           [[-1,-1,1],[1,-1,1],[1,1,1],[-1,1,1],pt(0,0,1)],
-           [[-1,-1,-1],[-1,1,-1],[-1,1,1],[-1,-1,1],pt(-1,0,0)],
-           [[1,-1,-1],[1,1,-1],[1,1,1],[1,-1,1],pt(1,0,0)],
-           [[-1,-1,-1],[1,-1,-1],[1,-1,1],[-1,-1,1],pt(0,-1,0)],
-           [[-1,1,-1],[1,1,-1],[1,1,1],[-1,1,1],pt(0,1,0)]];
-  F.forEach(f=>{ const col=shade(hexBase,f[4]);
-    poly(f.slice(0,4).map(v=>V(v[0],v[1],v[2])),
-      {fill:col,fillAlpha:alpha,stroke:col,strokeAlpha:Math.min(1,alpha+0.22),w:1}); });
-}
-/* 分块绘制；返回 true = 画了块（false = 太密，改画连续体） */
+/* 面/线电荷的分块绘制；返回 true = 画了块（false = 太密，改画连续体）。
+   ★ 体电荷不走这里 —— 它的"剖分"就是 drawTetBall()，一定画得出来（k ≤ 4 ⇒ ≤ 320 面）。 */
+const BLK_CAP={ surf:128, line:96 };
 function drawBlocks(){
-  if(!state.show.blk) return false;
+  if(!state.show.blk || state.geo==='vol') return false;
   const N=state.NS, cap=BLK_CAP[state.geo];
   if(N>cap) return false;
   const pd=partition(N);
-  if(state.geo==='vol'){
-    /* 块边长 = (4π/3)^(1/3)·a·N^(−1/3)（等体积立方），略留缝以免糊成一团 */
-    const hs=Math.min(0.30*GA, 0.5*1.612*GA*Math.pow(N,-1/3)*0.96);
-    for(const g of pd.groups) for(const s of g.pts){
-      const u=(prof(s.p.x/GA)-1)/NL_K;
-      cubeShaded(s.p, hs, DENS_HEX, 0.40+0.34*Math.max(0,Math.min(1,u)));
-    }
-    return true;
-  }
   if(state.geo==='surf'){
     pd.groups.forEach((g,j)=>{
       const dr=(g.r1-g.r0)*0.06, r0=g.r0+dr, r1=g.r1-dr, dph=2*Math.PI/g.m;
@@ -1147,21 +1328,22 @@ function drawBlocks(){
 }
 function modeCont(){
   const g=geomData(), pts=curSamples(), rf=refField();
-  /* 带电体：分块 或 连续体（太密时） */
-  const blocked=drawBlocks();
-  if(!blocked){
-    if(state.geo==='vol') rhoSphere();
-    else if(state.geo==='surf') rhoDisk();
-    else rhoLine();
-    if(state.show.blk && state.NS>BLK_CAP[state.geo])
-      textScreen(16,46,'N = '+state.NS+' 块已密到画不下，按连续体显示（读数仍按 N = '+state.NS+' 计算）',
-        {size:11.5,color:'#8CA0AC'});
+  /* 带电体：体电荷 = 剖分球（可关）；面/线电荷 = 分块，太密时改画连续体 */
+  if(state.geo==='vol'){
+    if(state.show.blk) drawTetBall();
+  } else {
+    const blocked=drawBlocks();
+    if(!blocked){
+      if(state.geo==='surf') rhoDisk(); else rhoLine();
+      if(state.show.blk && state.NS>BLK_CAP[state.geo])
+        textScreen(16,46,'N = '+state.NS+' 块已密到画不下，按连续体显示（读数仍按 N = '+state.NS+' 计算）',
+          {size:11.5,color:'#8CA0AC'});
+    }
   }
   /* 带电体的球轮廓：★ 这里**故意不画**。原来画的是球线框（经纬线网格），已被否掉；
-     改成剪影圆也不行 —— 画出来的方块半边长 0.244a，比它代表的壳层厚度(0.25a)还大，
-     方块云的实际外缘 = 1.28~1.38 a（解析算过，见 commit note），所以半径 a 的圆
-     必然横穿云内部，成为一条既无信息量又切方块的杂线（差分测得仅占 0.23% 像素）。
-     ⇒ 带电体的"是个球、半径 a"由方块云的排布 + 面板读数 + 讲解卡承担；
+     改成剪影圆也不行 —— 现在体电荷画的是"剖分球"，半径 a 的圆正好横穿所有三角形面片
+     （面片顶点恰在球面上），成为一条既无信息量又切面片的杂线。
+     ⇒ 带电体的"是个球、半径 a"由剖分球的形状 + 面板读数 + 讲解卡承担；
        面电荷/线电荷两种分块本来也没有轮廓，这样反而三态一致。 */
   /* 橙色自由微元（密度定义探针：Δq/测度 → 该点密度） */
   drawMicro();
@@ -1171,7 +1353,7 @@ function modeCont(){
   marker(g.P,{r:5.5,color:C.purple,ring:'#E6D6F0',label:'P',ldx:13,ldy:-12,lsize:12.5});
   dimLine(pt(0,0,0),g.P,{color:'#9DB3BF',w:1.2,dash:[5,4],label:'d = '+g.d.toFixed(2)+' m',
     ldx:state.geo==='surf'?14:0,ldy:state.geo==='surf'?2:14,lsize:11.5});
-  /* Σ dE：P 点处 N 块叠加出的合成场，**单支**。
+  /* Σ dE：P 点处全部点电荷元叠加出的合成场，**单支**。
      ★ 2026-09-23 用户删掉了「dE 累加链」与「积分对照箭头」。那对并排箭头唯一的用途是
        "链尾与箭尖的缝隙 = 偏差"，可偏差不多是几何量 —— 0.001% 的偏差缝隙根本看不见，
        数看得见的是下方 supNote 与右上角收敛曲线；而两支箭头（还各带标签）把 P 附近塞满，
@@ -1184,7 +1366,8 @@ function modeCont(){
   if(mag>1e-9){
     const np=perpOf(g.ax);
     arrow(vadd(g.P,vmul(np,0.02)), vadd(vadd(g.P,vmul(np,0.02)),vmul(vnorm(E),mag*S)),
-      {color:C.teal,w:2.5,headScale:.9,label:'Σ d@{E} = '+mag.toFixed(2),ldx:12,ldy:16,lsize:11.5});
+      {color:C.teal,w:2.5,headScale:.9,
+       label:'Σ d@{E} = '+mag.toFixed(2)+'　('+curN()+' 元)',ldx:12,ldy:16,lsize:11.5});
   }
 }
 
@@ -1296,13 +1479,17 @@ function chartDens(y0){
   });
 }
 
-/* ③ 的收敛曲线（Σ 点电荷元 → 积分；y0 可指定，便于叠放） */
+/* ③ 的收敛曲线（Σ 点电荷元 → 积分；y0 可指定，便于叠放）
+   ★ 横轴恒是"点电荷元个数 N"，但两种几何怎么长 N 不一样：
+     体电荷 N = 20k²（由剖分阶 k 定：20/80/180/320/500/720，只画出 k=1…4 那几档中的当前值），
+     面/线电荷 N = 滑块值。所以横轴刻度与"当前点"都要按几何切换，不能写死。 */
 function chartConv(y0){
   const x0=CARD_X(); y0=y0!=null?y0:CARD_Y; const w=CARD_W, h=142;
+  const isVol=(state.geo==='vol');
   crd(x0,y0,w,h);
-  txt(x0+12,y0+14,'Σ d@{E}（N 块） 与 积分 的相对偏差',{size:11.5,bold:true,color:'#1F3D4C'});
+  txt(x0+12,y0+14,'Σ d@{E}（N 个点电荷元） 与 积分 的相对偏差',{size:11.5,bold:true,color:'#1F3D4C'});
   const px0=x0+34, py0=y0+40, pw=w-48, ph=h-58;
-  const NX=420;
+  const NX=isVol?800:420;
   const fx=n=>px0+pw*Math.log10(Math.max(1,n))/Math.log10(NX);
   const fy=r=>{ const l=(Math.log10(Math.max(1e-5,r))+4)/4; return py0+ph*(1-Math.max(0,Math.min(1,l))); };
   ctx.save(); ctx.strokeStyle='#EEF3F6'; ctx.lineWidth=1;
@@ -1316,18 +1503,24 @@ function chartConv(y0){
     const X=fx(pt_.n), Y=fy(pt_.rel);
     ctx.save(); ctx.beginPath(); ctx.arc(X,Y,3.0,0,7); ctx.fillStyle='#9B59B6'; ctx.fill(); ctx.restore();
   });
-  /* 当前 N */
-  const cur=data.find(v=>v.n===state.NS);
+  /* 当前点：体电荷按"当前 k 对应的 N"找，面/线按 NS 找（N 是连续取值的，find 未必命中 ⇒
+     退化成"最接近的一档"，保证橙点不会时有时无）。 */
+  const cn=curN();
+  let cur=data.find(v=>v.n===cn);
+  if(!cur) cur=data.reduce((a,b)=>Math.abs(b.n-cn)<Math.abs(a.n-cn)?b:a, data[0]);
+  const isCur=(isVol? (cur.k===tetK()) : (cur.n===cn));
   if(cur){
     const X=fx(cur.n), Y=fy(cur.rel);
     ctx.save(); ctx.beginPath(); ctx.arc(X,Y,5.2,0,7);
-    ctx.fillStyle='#E97132'; ctx.fill(); ctx.strokeStyle='#fff'; ctx.lineWidth=2; ctx.stroke(); ctx.restore();
+    ctx.fillStyle=isCur?'#E97132':'#C9B6DE'; ctx.fill();
+    ctx.strokeStyle='#fff'; ctx.lineWidth=2; ctx.stroke(); ctx.restore();
   }
   txt(px0-30,py0+4,'1',{size:10.5,color:'#7A8F9B'});
   txt(px0-32,fy(1e-2)+4,'1%',{size:10.5,color:'#7A8F9B'});
   txt(px0-36,fy(1e-4)+4,'0.01%',{size:10.5,color:'#7A8F9B'});
-  [1,10,100,400].forEach(n=>txt(fx(n),py0+ph+13,String(n),{size:10.5,color:'#7A8F9B',align:'center'}));
-  txt(px0+pw/2,py0+ph+27,'N　=　点电荷元个数',{size:10.5,color:'#7A8F9B',align:'center'});
+  (isVol?[20,50,100,200,800]:[1,10,100,400])
+    .forEach(n=>txt(fx(n),py0+ph+13,String(n),{size:10.5,color:'#7A8F9B',align:'center'}));
+  txt(px0+pw/2,py0+ph+27,'N　=　点电荷元个数'+(isVol?'（= 20k²）':''),{size:10.5,color:'#7A8F9B',align:'center'});
 }
 
 /* 左下角关键读数行 */
@@ -1349,19 +1542,35 @@ function readoutRows(){
     rows.push({s:'固定 R、只改 θ / φ：P 留在 R = '+d.Rn.toFixed(2)+' m 的等位面上 —— 方向变，大小不变',
       color:'#0F9ED5', bold:true});
   } else {
-    /* ③ 电荷密度（合并页）：密度定义 + 场的累加 两行都要 */
+    /* ③ 电荷密度：密度定义 + 场的累加 两行都要。
+       体电荷额外插一行「ΣΔq vs Q」—— 这就是用户要的那句话的数字版：
+       "总电量 = 每个体积元所带电荷的叠加"。 */
     const mi=microInfo();
     const g=geomData(), pts=curSamples(), E=sumField(pts,g.P), rf=refField();
     const mag=vlen(E), ref=Math.max(vlen(rf.v),1e-12);
     const ang=(mag>1e-9)?(Math.acos(Math.max(-1,Math.min(1,vdot(vnorm(E),vnorm(rf.v)))))*R2D):0;
+    const isVol=(state.geo==='vol');
     rows.push({s:'几何 = '+geoWord()+'（'+(state.nonuni?'非均匀':'均匀')+'）　Q = '+g.Q.toFixed(3)+' nC　|　'+
-      g.dLab+' d = '+g.d.toFixed(2)+' m', color:'#5F7482'});
-    rows.push({s:'微元 ξ = '+mi.xi.toFixed(2)+'：Δq/'+geoMeas()+' = '+mi.dens.toFixed(3)+' '+geoUnit()+
-      '　→　该点 '+geoSym()+'(ξ) = '+mi.pointDens.toFixed(3)+' '+geoUnit()+
-      '　偏差 '+mi.dev.toFixed(4),
-      color: Math.abs(mi.devRel)<0.02?'#3E9B4F':'#B25D18'});
-    rows.push({s:'N = '+state.NS+' 块叠加：Σ d@{E} = '+mag.toFixed(3)+' V/m　　'+rf.lab+' = '+ref.toFixed(3)+' V/m', color:'#22414F'});
-    rows.push({s:'相对偏差 = '+(Math.abs(mag-ref)/ref*100).toFixed(3)+'%　方向偏差 = '+ang.toFixed(2)+'°　→　N 越大总体越接近',
+      g.dLab+' d = '+g.d.toFixed(2)+' m　|　N = '+curN()+' 个点电荷元'
+        +(isVol?('（剖分阶 k = '+tetK()+'）'):''), color:'#5F7482'});
+    if(isVol){
+      const sq=volSumQ(), dqq=Math.abs(sq-g.Q)/g.Q;
+      rows.push({s:'第 '+(mi.tet+1)+' 个体积元：Δq/'+geoMeas()+' = '+mi.dens.toFixed(3)+' '+geoUnit()+
+        '　→　该点 '+geoSym()+'(ξ) = '+mi.pointDens.toFixed(3)+' '+geoUnit()+
+        '　偏差 '+mi.dev.toFixed(4),
+        color: Math.abs(mi.devRel)<0.02?'#3E9B4F':'#B25D18'});
+      rows.push({s:'Σ Δq = '+sq.toFixed(3)+' nC（每个体积元各算一次）　vs　Q = '+g.Q.toFixed(3)+
+        ' nC　→　ΣΔq/Q = '+(sq/g.Q).toFixed(4)+'　（差 '+(dqq*100).toFixed(2)+'% = 多面体少掉的体积）',
+        color: dqq<0.02?'#3E9B4F':'#B25D18'});
+    } else {
+      rows.push({s:'微元 ξ = '+mi.xi.toFixed(2)+'：Δq/'+geoMeas()+' = '+mi.dens.toFixed(3)+' '+geoUnit()+
+        '　→　该点 '+geoSym()+'(ξ) = '+mi.pointDens.toFixed(3)+' '+geoUnit()+
+        '　偏差 '+mi.dev.toFixed(4),
+        color: Math.abs(mi.devRel)<0.02?'#3E9B4F':'#B25D18'});
+    }
+    rows.push({s:'Σ d@{E}（'+curN()+' 个点电荷元叠加） = '+mag.toFixed(3)+' V/m　　'+rf.lab+' = '+ref.toFixed(3)+' V/m', color:'#22414F'});
+    rows.push({s:'相对偏差 = '+(Math.abs(mag-ref)/ref*100).toFixed(3)+'%　方向偏差 = '+ang.toFixed(2)+'°　→　'
+      +(isVol?'体积元越小（k 越大）总体越接近积分值':'N 越大总体越接近'),
       color:(Math.abs(mag-ref)/ref<0.01)?'#3E9B4F':'#B25D18', bold:true});
   }
   return rows;
@@ -1435,9 +1644,16 @@ const SHOW_ITEMS={
   def:  [{k:'box',t:'坐标轴'}],
   point:[{k:'fld',t:'场线（球对称）'},{k:'shells',t:'等距球面 r₀/2r₀/3r₀'},{k:'equi',t:'过 P 的等位面'},
          {k:'guide',t:'|@{E}| 模长圆'},{k:'box',t:'坐标轴'}],
-  cont: [{k:'blk',t:'分块（N 块）'},{k:'micro',t:'微元 Δq（密度定义）'},
-         {k:'conv',t:'收敛曲线'},{k:'box',t:'坐标轴'}],
 };
+/* ③ 的显示开关：三种几何下"带电体"的样子不同，标签得跟着换（写死会出现"分块"其实没有块）。
+   ⚠️ 这里写**原始串**（含 @{ΔV′}），richHTML 交给 chipRow 统一做 —— 提前转一遍会双重处理。 */
+function showItemsCont(){
+  const body = state.geo==='vol' ? {k:'blk',t:'球体剖分（20k² 个四面体）'}
+             : state.geo==='surf' ? {k:'blk',t:'分块（扇形面片）'}
+             :                      {k:'blk',t:'分块（N 小段）'};
+  return [body, {k:'micro',t:'体积元 @{Δq}（密度定义）'},
+          {k:'conv',t:'收敛曲线'},{k:'box',t:'坐标轴'}];
+}
 function renderSubSec(sec){
   sec.innerHTML='';
   if(state.mode==='def'){
@@ -1480,36 +1696,56 @@ function renderSubSec(sec){
       'θ → 0°/180° 时 P 到极轴上，φ 不再影响位置（极点退化）。')+'</div>'));
     return;
   }
-  /* ③ 电荷密度（合并页） */
+  /* ③ 电荷密度 */
   sec.appendChild(h('<div class="sec-title">带电体的几何</div>'));
   chipRow(sec,GEO_OPTS,k=>state.geo===k,k=>{
-    state.geo=k; clampMicro(); clampSd(); _samp.key=null; renderPanel(); updateAll();});
+    /* setGeo 负责 mh 换挡 + 体电荷微元复位（见其注释），这里只管重画 */
+    setGeo(k); renderPanel(); updateAll();});
   sec.appendChild(h('<div class="sec-title" style="margin-top:14px">电荷分布</div>'));
   chipRow(sec,[{k:'u',t:'均匀 '+geoSym()+' = '+geoSym()+'₀'},{k:'n',t:'非均匀 '+geoSym()+' ∝ 1+0.7ξ²',col:'o'}],
     k=>(k==='n')===state.nonuni, k=>{ state.nonuni=(k==='n'); _samp.key=null; renderPanel(); updateAll(); });
   sec.appendChild(h('<div class="ex-note" style="margin-top:9px">'+richHTML('均匀分布有<b>解析答案</b>当裁判；'+
-    '非均匀时密度随位置变（颜色深浅），裁判换成 N=8192 的数值积分参考，界面会如实标注。')+'</div>'));
-  sec.appendChild(h('<div class="sec-title" style="margin-top:14px">切成几块（点电荷元个数 N）</div>'));
-  const bx=h('<div class="sub-chips"></div>').firstChild;
-  [1,8,32,128,384].forEach(n=>{
-    const b=h('<button class="chip'+(state.NS===n?' on':'')+'">N = '+n+'</button>').firstChild;
-    b.onclick=()=>{ state.NS=n; renderPanel(); updateAll(); };
-    bx.appendChild(b);
-  });
-  sec.appendChild(bx);
+    '非均匀时密度随位置变（颜色深浅）：'+
+    (state.geo==='vol'
+      ? '球体剖分后的非均匀场<b>也有解析闭式</b>（把 ρ 拆成"均匀 + c·x²"两部分，x² 部分用 1/R 的'
+        +'多极展开，只剩 l=0 与 l=2 两项），所以裁判仍是<b>积分精确值</b>。'
+      : '裁判换成 N=8192 的数值积分参考，界面会如实标注。'))+'</div>'));
   sec.appendChild(h('<div class="sec-title" style="margin-top:14px">图中显示</div>'));
-  chipRow(sec,SHOW_ITEMS.cont,k=>state.show[k],k=>{state.show[k]=!state.show[k];renderPanel();updateAll();});
-  sec.appendChild(h('<div class="ex-note">'+richHTML('带电体被切成 <b>N 块</b>（方块 / 扇形片 / 小段，严丝合缝铺满），'+
+  chipRow(sec,showItemsCont(),k=>state.show[k],k=>{state.show[k]=!state.show[k];renderPanel();updateAll();});
+  sec.appendChild(h('<div class="ex-note">'+richHTML(geoHint())+'</div>'));
+  sec.appendChild(h('<div class="ex-note" id="microNote">'+richHTML(microNote())+'</div>'));
+  sec.appendChild(h('<div class="ex-note" id="supNote">'+richHTML(supNote())+'</div>'));
+}
+/* ③ 的主说明：按几何切换。★ 体电荷这段话就是用户要的落点，必须说透"叠加"。 */
+function geoHint(){
+  if(state.geo==='vol'){
+    return '体电荷的做法是：<b>先有一个球，再对球做体剖分</b> —— 球面取二十面体、每面做 '+
+      '<b>k 阶细分</b>并把新点投回球面，每个球面三角形与球心围成一个<b>四面体</b>，'+
+      '共 <b>20k² 个</b>，严丝合缝铺满整个球。用鼠标点/拖画布上的橙色四面体可以换选'+
+      '<b>任意一个</b>当体积元；拖「剖分尺寸」滑块让体积元变小，整个剖分就跟着变细 —— '+
+      '<b>体积元的大小就是剖分的尺度</b>。它内部那团<b>橙雾</b>就是它包住的电量。'+
+      '于是"体 = 体积元的叠加"变成两件可读的事：<b>Σ Δq = Q</b>（总电量）与 '+
+      '<b>Σ d@{E} → ∫ d@{E}</b>（总场强），两者共用同一份四面体表，图与数必然一致。';
+  }
+  const unit = state.geo==='surf' ? '扇形面片' : '小段';
+  return '带电体被切成 <b>N 块</b>（'+unit+'，严丝合缝铺满），'+
     '每块是一个点电荷元 dq；P 点处的蓝色箭头就是 N 块叠加出的 Σ d@{E}，'+
     '它与 ∫ 精确值差多少，由下方读数和右上角收敛曲线给出。<b>橙色小块</b>是密度探针'+
     '（可以直接用鼠标拖动）：它内部那团<b>橙雾</b>代表它包住的电量，'+
-    '尺寸缩到 0 时雾也跟着消失，Δq/测度 → 该点密度。')+'</div>'));
-  sec.appendChild(h('<div class="ex-note" id="supNote">'+richHTML(supNote())+'</div>'));
+    '尺寸缩到 0 时雾也跟着消失，Δq/测度 → 该点密度。';
 }
 function microNote(){
   const mi=microInfo();
+  if(state.geo==='vol'){
+    return '拖动橙色体积元：鼠标放到画布上那块橙色四面体上（光标变成"可移动"），'+
+      '按住左键在球面上滑动即可换选 —— 现在是<b>第 '+(mi.tet+1)+' 个</b>四面体'+
+      '（共 '+curN()+' 个），它的形心在 x = '+(mi.xi*GA).toFixed(2)+
+      ' m（ξ = '+mi.xi.toFixed(2)+'）。四面体体积 ΔV′ = '+mi.meas.toExponential(2)+' m³，'+
+      'Δq = '+mi.dq.toExponential(2)+' nC，Δq/ΔV′ = '+mi.dens.toFixed(3)+' nC/m³；'+
+      '团雾随四面体大小一起胀缩，剖分越细（k 越大）Δq/ΔV′ 越贴近该点的 '+geoSym()+'。';
+  }
   /* ★ ξ 必须有数字可读：位置滑块撤了，学生得从读数里知道探针在哪（拖到位没有）。
-     轴名要和画布上那条虚线一致（体/线元沿 x、面元沿 y），不然读数与图对不上。 */
+     轴名要和画布上那条虚线一致（线元沿 x、面元沿 y），不然读数与图对不上。 */
   const ax=state.geo==='surf'?'y':'x';
   return '拖动橙色微元：把鼠标放在画布上的橙色小块上（光标变成"可移动"），'+
     '按住左键沿 '+ax+' 轴滑动即可 —— 位置 ξ = '+mi.xi.toFixed(2)+
@@ -1520,8 +1756,17 @@ function microNote(){
 }
 function supNote(){
   const g=geomData(), E=sumField(curSamples(),g.P), mag=vlen(E), ref=Math.max(vlen(refField().v),1e-12);
-  return 'N = '+state.NS+' 块叠加得 '+mag.toFixed(3)+' V/m，'+refField().lab+' '+ref.toFixed(3)+
-    ' V/m，偏差 '+(Math.abs(mag-ref)/ref*100).toFixed(3)+'%。';
+  const tail='，'+refField().lab+' '+ref.toFixed(3)+' V/m，偏差 '+(Math.abs(mag-ref)/ref*100).toFixed(3)+'%。';
+  if(state.geo==='vol'){
+    const sq=volSumQ(), Vp=volPolyV(), Vs=volSphereV();
+    return curN()+' 个四面体叠加得 Σ d@{E} = '+mag.toFixed(3)+' V/m'+tail+
+      '这些四面体的电量之和 Σ Δq = '+sq.toFixed(3)+' nC，球的总电量 Q = '+g.Q.toFixed(3)+
+      ' nC ⇒ ΣΔq/Q = '+(sq/g.Q).toFixed(4)+' —— 差的 '+(Math.abs(sq-g.Q)/g.Q*100).toFixed(2)+
+      '% 不是"加错了"，而是 '+curN()+' 个四面体拼出的多面体比球小了 '+
+      ((1-Vp/Vs)*100).toFixed(2)+'% 的体积（V多面体/V球 = '+(Vp/Vs).toFixed(4)+
+      '）；k 越大这两件事一起趋于 1。';
+  }
+  return 'N = '+curN()+' 块叠加得 '+mag.toFixed(3)+' V/m'+tail;
 }
 /* ② 的实时读数注：把「|E| 只由 R 决定」直接摆在滑块下面 */
 function pNote(){
@@ -1570,39 +1815,67 @@ function renderSliders(sec){
     sec.appendChild(h('<div class="ex-note" id="pNote">'+richHTML(pNote())+'</div>'));
     return;
   }
-  /* ③ 合并页滑块：场点位置 d、切分份数 N、密度探针微元（**位置已改为鼠标拖动**） */
+  /* ③ 滑块：场点位置 d、剖分/N、密度探针微元（**位置已改为鼠标拖动**）
+     ★ 2026-09-23 用户删掉了「切成几块」那排 N = 1/8/32/128/384 分档 chip：
+       "这么多 N 的分类有点多余"。它和下面这行滑块本来就是同一个量，
+       于是收口为**一个**控件 —— 体电荷叫「剖分尺寸」，面/线电荷叫「切分份数 N」。 */
   sec.appendChild(h('<div class="sec-title">场点 P 的位置</div>'));
   const rr=SD_RANGE[state.geo];
   mkRange(sec,{k:'sd',label:'距离 d',wide:true,min:rr[0],max:rr[1],step:0.01,
     get:()=>state.sd, set:v=>state.sd=v, fmt:v=>v.toFixed(2)+' m', after:()=>_conv.key=null});
-  sec.appendChild(h('<div class="sec-title" style="margin-top:14px">切分份数 N</div>'));
-  mkRange(sec,{k:'NS',label:'N',wide:true,min:1,max:384,step:1,
-    get:()=>state.NS, set:v=>state.NS=Math.round(v), fmt:v=>String(Math.round(v)),
-    after:()=>{ document.getElementById('v_NS').textContent=String(state.NS); syncSliders(); }});
+  /* ⚠️ 体电荷下**不显示 N 滑块**：N = 20k² 完全由「剖分尺寸」那个滑块决定，
+     再摆一个不起作用的 N 滑块就是典型的"半死控件"（本项目明令不留）。 */
+  if(state.geo!=='vol'){
+    sec.appendChild(h('<div class="sec-title" style="margin-top:14px">切分份数 N</div>'));
+    mkRange(sec,{k:'NS',label:'N',wide:true,min:1,max:384,step:1,
+      get:()=>state.NS, set:v=>state.NS=Math.round(v), fmt:v=>String(Math.round(v)),
+      after:()=>{ document.getElementById('v_NS').textContent=String(state.NS); syncSliders(); }});
+  }
   /* ★ 这里原来还有一行「位置 ξ」滑块，已按用户要求撤掉：
      微元位置改由**鼠标直接拖动**（pointerdown/move 的 mode==='mid' 分支，见交互段）。
      撤滑块的连带工作（都在这一处收口，避免留下"半死的控件"）：
        · SLIDER_FMT 去掉 mu 一项；syncSliders 去掉 set('mu') 与 s_mu 的 min/max；
        · ξ 的数值改由 microNote() 如实报出（滑块没了，读数不能跟着消失）。 */
-  sec.appendChild(h('<div class="sec-title" style="margin-top:14px">密度探针：橙色微元</div>'));
-  mkRange(sec,{k:'mh',label:'尺寸',wide:true,min:0.02,max:0.90,step:0.01,
-    get:()=>state.mh, set:v=>{ state.mh=v; clampMicro(); }, fmt:v=>v.toFixed(2), after:()=>syncSliders()});
+  if(state.geo==='vol'){
+    sec.appendChild(h('<div class="sec-title" style="margin-top:14px">剖分尺寸：四面体多大</div>'));
+    mkRange(sec,{k:'mh',label:'k',wide:true,min:TET_KMIN,max:TET_KMAX,step:1,
+      get:()=>state.mh, set:v=>{ state.mh=v; clampMicro(); _conv.key=null; },
+      fmt:v=>sliderFmt('mh',v), after:()=>syncSliders()});
+    sec.appendChild(h('<div class="ex-note" style="margin-top:9px">'+richHTML(
+      '<b>体积元的大小 = 剖分的尺寸</b>（同一个数）：k 从 1 到 4，球被剖成 '+
+      '<b>20 / 80 / 180 / 320</b> 个四面体 —— 每个体积元越小，整个球就切得越细。')+'</div>'));
+  } else {
+    sec.appendChild(h('<div class="sec-title" style="margin-top:14px">密度探针：橙色微元</div>'));
+    mkRange(sec,{k:'mh',label:'尺寸',wide:true,min:0.02,max:0.90,step:0.01,
+      get:()=>state.mh, set:v=>{ state.mh=v; clampMicro(); }, fmt:v=>v.toFixed(2), after:()=>syncSliders()});
+  }
   sec.appendChild(h('<div class="ex-note" id="microNote">'+richHTML(microNote())+'</div>'));
 }
 /* ⚠️ 读数一律走 FMT 表：早年版用 toFixed(2) 覆盖，会把 mkRange 里写好的单位
-   （nC / m / °）全部吃掉 —— 滑块拖动一次单位就消失。 */
+   （nC / m / °）全部吃掉 —— 滑块拖动一次单位就消失。
+   mh 一项按几何切换：体电荷下它是"剖分阶 k"（显示 k 与 20k²），面/线电荷下是"微元尺寸"。
+   ⇒ 用**函数**而不是常量，否则 syncSliders() 一跑就把 k 写成 2.00（单位/语义全错）。 */
 const SLIDER_FMT={
   q:  v=>v.toFixed(1)+' nC',  qt: v=>v.toFixed(2)+' nC', qP: v=>v.toFixed(1)+' nC',
   sr: v=>v.toFixed(2)+' m',   sth:v=>Math.round(v)+'°',  sph:v=>Math.round(v)+'°',
-  mh: v=>v.toFixed(2),
   sd: v=>v.toFixed(2)+' m',   NS: v=>String(Math.round(v)),
 };
+function sliderFmt(k,v){
+  if(k==='mh') return (state.geo==='vol') ? 'k = '+Math.round(v)+'　('+(20*Math.round(v)*Math.round(v))+' 个)'
+                                          : v.toFixed(2);
+  return SLIDER_FMT[k] ? SLIDER_FMT[k](v) : String(v);
+}
 function syncSliders(){
   const set=(k,v)=>{const s=document.getElementById('s_'+k);
-    if(s)s.value=(k==='sth'||k==='sph'||k==='NS')?Math.round(v):v;
-    const e=document.getElementById('v_'+k); if(e&&SLIDER_FMT[k]) e.textContent=SLIDER_FMT[k](v);};
+    if(s)s.value=(k==='sth'||k==='sph'||k==='NS'||(k==='mh'&&state.geo==='vol'))?Math.round(v):v;
+    const e=document.getElementById('v_'+k); if(e) e.textContent=sliderFmt(k,v);};
   set('q',state.q); set('qt',state.qt); set('qP',state.qP);
   set('sr',state.sr); set('sth',state.sth); set('sph',state.sph);
+  const sMh=document.getElementById('s_mh');
+  if(sMh){                                  /* mh 的语义/量程随几何切换（k：1…4 整数） */
+    const isV=(state.geo==='vol');
+    sMh.min=isV?TET_KMIN:0.02; sMh.max=isV?TET_KMAX:0.90; sMh.step=isV?1:0.01;
+  }
   set('mh',state.mh);
   const sSd=document.getElementById('s_sd');
   if(sSd){ const rr=SD_RANGE[state.geo]; sSd.min=rr[0]; sSd.max=rr[1]; }
@@ -1680,25 +1953,36 @@ const CARDS={
       '<b>宏观上电荷是连续分布的</b>，密度 = "单位体积 / 面积 / 长度的电量"：'+
       '<div class="frm">ρ = lim (ΔV′→0) Δq/ΔV′　σ = lim (ΔS′→0) Δq/ΔS′　τ = lim (Δl′→0) Δq/Δl′</div>'+
       '<div class="frm">Q = ∫_{V′} ρ dV′　=　∫_{S′} σ dS′　=　∫_{l′} τ dl′</div>'+
-      '<ul><li>画布上的<b>橙色小块</b>就是密度探针：用鼠标把它<b>拖</b>到带电体上任意位置（内部那团橙雾 = 它包住的电量），拖「尺寸」把它越缩越小</li>'+
+      '<ul><li>画布上的<b>橙色块</b>就是密度探针：用鼠标在带电体上<b>点/拖</b>就能换位置'+
+      '（内部那团橙雾 = 它包住的电量）。<b>体电荷</b>的探针是球体剖分里的一个<b>四面体</b>，'+
+      '面/线电荷则是一条薄片 / 一小段，尺寸由「尺寸」滑块收缩</li>'+
       '<li>尺寸 → 0 时 Δq/测度 收敛到该点的密度 —— 数据条和右上角小卡都能盯着这个极限发生</li>'+
       '<li>切到<b>非均匀</b>：密度随位置变（颜色深浅 = 密度大小），微元不缩到 0，Δq/测度 就不等于该点密度</li></ul>'},
     {k:'2',tab:'2. 场 = 电荷元的场的累加',cls:'c2',body:
       '<b>每个电荷元 dq 都是一个点电荷</b>，它在场点 P 贡献一份 d@{E}：'+
       '<div class="frm">dq = ρ dV′（面：σ dS′　线：τ dl′）</div>'+
       '<div class="frm">d@{E} = dq / (4πε_0 R²) · @{e_R}　⟹　@{E}(@{r}) = ∫ d@{E} = Σ d@{E}</div>'+
-      '<ul><li>把带电体切成 N 块：@{E} ≈ Σ_{i=1}^{N} d@{E}_i —— 画布上 P 点处的<b>蓝色箭头</b>就是这 N 份的和</li>'+
+      '<ul><li>把带电体分成 N 个电荷元：@{E} ≈ Σ_{i=1}^{N} d@{E}_i —— 画布上 P 点处的<b>蓝色箭头</b>就是这 N 份的和</li>'+
       '<li>它离 ∫ 精确值有多少偏差，看下方读数与右上角收敛曲线（N 越大偏差总体越小）</li>'+
-      '<li>N 越大偏差总体越小：右上角收敛曲线盯着它下降（N 很小时取样还糙，曲线会有起伏）</li>'+
-      '<li>均匀分布用解析答案当裁判；非均匀分布用 N=8192 的数值积分当参考</li></ul>'},
-    {k:'3',tab:'3. 三种分布，一个骨架',cls:'c3',body:
-      '<b>体 / 面 / 线电荷 = 点电荷在不同几何上的连续累加：</b>'+
-      '<div class="frm">体：∫_{V′} ρ dV′　|　面：∫_{S′} σ dS′　|　线：∫_{l′} τ dl′</div>'+
-      '<ul><li>被积的都是同一件事："<b>点电荷 dq 的场</b>" —— 唯一的区别是 dq 怎么写（量纲自检：三者乘出来都是电量）</li>'+
-      '<li>N = 1：整块带电体当一个点电荷（误差最大）；N → ∞：求和变积分 —— 点电荷是三种分布的共同极限</li>'+
-      '<li>与 1.4 的散度、1.5 的旋度同一套思路：先看<b>一个微元做了什么</b>，再把它<b>加遍整个区域</b></li></ul>'+
+      '<li><b>体电荷</b>的 N 不是随手给的：它就是剖分的四面体个数 <b>N = 20k²</b>，'+
+      '被「剖分尺寸」唯一的滑块决定 ⇒ 体积元越大，N 越小、求和越粗</li>'+
+      '<li>均匀分布用解析答案当裁判；非均匀分布的球体也<b>有解析闭式</b>，'+
+      '面/线电荷才用 N=8192 的数值积分当参考（界面会如实标注）</li></ul>'},
+    {k:'3',tab:'3. 体 = 体积元的叠加',cls:'c3',body:
+      '<b>体电荷的做法：先有一个球，再对球做体剖分。</b>'+
+      '<div class="frm">二十面体 → 每面 k 阶重心细分 → 新点投回球面 → 20k² 个球面三角形</div>'+
+      '<div class="frm">每个球面三角形 + 球心 O = 一个四面体（体积元 ΔV′）</div>'+
+      '<ul><li><b>总电量就是每个体积元电量之和</b>：Q = Σ Δq。数据条里的 ΣΔq/Q 就是这句话的数字，'+
+      'k = 1/2/3/4 时它是 0.6055 / 0.8735 / 0.9409 / 0.9662</li>'+
+      '<li>那点差额<b>不是"加错了"</b>：它是 20k² 个四面体拼出的<b>多面体本身就比球小</b>'+
+      '（V多面体/V球 = 上面同一串数字）。k 越大，多面体越贴近球，两个数一起趋于 1</li>'+
+      '<li><b>总场强也是每个体积元的场之和</b>：E = Σ dE。因为每个四面体在远处几乎就是一个点电荷，'+
+      '"求和"这一步几乎不引入误差（实测偏差 &lt; 0.31%），所以 ΣdE/E精确 与 ΣΔq/Q 给出<b>同一个数</b> —— '+
+      '这正好说明：<b>体就是体积元叠加出来的，电荷和场都是</b></li>'+
+      '<li>这也是面/线电荷的同一个骨架：∫ 与 Σ 只差"分得多细"，点电荷是三种分布的共同极限</li></ul>'+
       '<div class="ex-note">本页单位约定：长度 m、电荷 nC ⇒ E[V/m] = 8.988·q[nC]/R²[m²]。'+
-      '场点距离源 ≫ 源自身尺寸时，源就可以当成点电荷 —— 把 N 拖回 1 试试。</div>'},
+      '把 k 调到 1（二十面体，20 个四面体）能明显看出"球是被一堆四面体堆出来的"，再调到 4 看它变圆。'+
+      '场点距离源 ≫ 源自身尺寸时，源就可以当成点电荷。</div>'},
   ],
 };
 function renderExplain(sec){
@@ -1756,23 +2040,33 @@ function updateReadout(){
     document.getElementById('lgTitle').textContent='点电荷的场 · 球坐标 (R, θ, φ)';
     document.getElementById('lgNote').innerHTML=richHTML('@{E} = q/(4πε₀R²)·@{e_R}：只依赖 R ⇒ R 不变时方向变、大小不变');
   } else {
-    /* ③ 电荷密度（合并页） */
+    /* ③ 电荷密度 */
     const mi=microInfo();
     const g=geomData(), pts=curSamples(), E=sumField(pts,g.P), rf=refField();
     const mag=vlen(E), ref=Math.max(vlen(rf.v),1e-12);
     const ang=(mag>1e-9)?(Math.acos(Math.max(-1,Math.min(1,vdot(vnorm(E),vnorm(rf.v)))))*R2D):0;
+    const isVol=(state.geo==='vol');
     html += kchip('几何 =', geoWord()+'（'+(state.nonuni?'非均匀':'均匀')+'）');
     html += kchip('总电量 Q =', g.Q.toFixed(3)+' nC');
-    html += kchip('N =', String(state.NS)+' 块');
+    html += kchip('点电荷元 N =', String(curN())+(isVol?(' 个（k = '+tetK()+'）'):' 块'));
     html += kchip('微元 Δq/'+geoMeas()+' =', mi.dens.toFixed(3)+' '+geoUnit(),'acc');
     html += kchip(geoSym()+'(ξ) 解析 =', mi.pointDens.toFixed(3)+' '+geoUnit(),'acc');
     html += kchip('密度偏差 =', mi.dev.toFixed(4), Math.abs(mi.devRel)<0.02?'':'warn');
+    if(isVol){
+      const sq=volSumQ(), Vp=volPolyV(), Vs=volSphereV();
+      html += kchip('Σ Δq =', sq.toFixed(3)+' nC','acc');
+      html += kchip('ΣΔq / Q =', (sq/g.Q).toFixed(4), Math.abs(sq-g.Q)/g.Q<0.02?'':'warn');
+      html += kchip('V多面体/V球 =', (Vp/Vs).toFixed(4));
+    }
     html += kchip('Σ d@{E} =', mag.toFixed(3)+' V/m','acc');
     html += kchip(rf.lab+' =', ref.toFixed(3)+' V/m','acc');
     html += kchip('相对偏差 =', (Math.abs(mag-ref)/ref*100).toFixed(3)+'%', Math.abs(mag-ref)/ref<0.01?'':'warn');
     html += kchip('方向偏差 =', ang.toFixed(2)+'°');
-    document.getElementById('lgTitle').textContent='电荷密度 · '+geoWord();
-    document.getElementById('lgNote').innerHTML=richHTML(geoSym()+' = lim Δq/'+geoMeas()+'　；　@{E} = Σ d@{E} → ∫ d@{E}');
+    document.getElementById('lgTitle').textContent='电荷密度 · '+geoWord()
+      +(isVol?('（球体剖分为 '+curN()+' 个四面体）'):'');
+    document.getElementById('lgNote').innerHTML=richHTML(isVol
+      ? 'Q = Σ Δq　；　@{E} = Σ d@{E} → ∫ d@{E}　——　把每个体积元当点电荷再求和'
+      : geoSym()+' = lim Δq/'+geoMeas()+'　；　@{E} = Σ d@{E} → ∫ d@{E}');
   }
   strip.innerHTML=html;
 }
@@ -1783,7 +2077,9 @@ function updateModeTag(){
   if(state.mode==='def') t.innerHTML=richHTML('电场强度的定义 · q = '+sgnTxt(state.q,2)+' nC，q_t = '+state.qt.toFixed(2)+' nC');
   else if(state.mode==='point') t.innerHTML=richHTML('点电荷的场 · '+sgnTxt(state.qP,2)+' nC　P：(R, θ, φ) = ('+
     state.sr.toFixed(2)+' m, '+Math.round(state.sth)+'°, '+Math.round(state.sph)+'°)');
-  else t.innerHTML=richHTML('电荷密度 · '+geoWord()+'（'+(state.nonuni?'非均匀':'均匀')+'）　N = '+state.NS+' 块');
+  else t.innerHTML=richHTML('电荷密度 · '+geoWord()+'（'+(state.nonuni?'非均匀':'均匀')+'）　'+
+    (state.geo==='vol' ? ('球体剖分为 '+curN()+' 个四面体（k = '+tetK()+'）')
+                       : ('N = '+state.NS+' 块')));
   if(sb) sb.innerHTML=richHTML(
     state.mode==='def'   ? '@{E} = lim (q_t→0) @{F}/q_t　场强的定义'
   : state.mode==='point' ? '点电荷的场　@{E} = q/(4πε₀R²)·@{e_R}　（只依赖 R）'
@@ -1822,7 +2118,7 @@ function clampToZ(p,c,z0,minR,maxR){
   const k=Math.max(lo,Math.min(hi,d))/d;
   return pt(c.x+dx*k, c.y+dy*k, z0);
 }
-/* 屏幕点 → 微元所沿轴的归一化位置 ξ。
+/* 屏幕点 → 微元所沿轴的归一化位置 ξ（面/线电荷用）。
    轴上世界坐标 s 的点投影后是**屏幕直线**且线性：屏幕 = P₀ + (s/GA)·(P₁−P₀)。
    于是 ξ = (鼠标−P₀)·(P₁−P₀)/|P₁−P₀|² —— 求的是**屏幕上距离最小**的那个轴点，
    比"先反投到 z=0 平面再取 x 坐标"更贴手感：斜视时后者会明显偏
@@ -1833,7 +2129,9 @@ function screenToAxisXi(mx,my){
   if(L2<1e-6) return null;
   return ((mx-A.x)*ex+(my-A.y)*ey)/L2;
 }
-/* 鼠标是否正落在橙色微元上（③ 的抓手判定，pointerdown 与悬停光标共用一处） */
+/* 鼠标是否正落在橙色微元上（③ 的抓手判定，pointerdown 与悬停光标共用一处）。
+   体电荷的微元是一个四面体：以它的**形心投影**为心、microHitR() 为半径的一个小圆
+   （k 大时四面体在屏幕上只有十几像素，所以 hitR 有 30 px 的下限，保证抓得住）。 */
 function overMicro(m){
   if(state.mode!=='cont' || !state.show.micro) return false;
   const wp=pr(microCenterW());
@@ -1879,10 +2177,17 @@ canvas.addEventListener('pointermove',ev=>{
     if(q){ setPFromVec(q); needsRender=true; updateReadout(); updateModeTag(); syncSliders(); }
   }
   else if(drag.mode==='mid'){
-    /* ★ 微元位置：鼠标点投到几何轴上 ⇒ 直接写 state.mu（夹紧后即得合法位置）。
-       注意这是**唯一的**位置来源 —— 位置滑块已撤掉，不再存在"两处各写一半"的风险。 */
-    const t=screenToAxisXi(m.x,m.y);
-    if(t!=null){ state.mu=t; clampMicro(); needsRender=true; updateReadout(); updateModeTag(); syncSliders(); }
+    /* ★ 微元位置：这就是它**唯一**的位置来源（位置滑块早已撤掉，不存在"两处各写一半"）。
+       · 体电荷：鼠标扫过球面 ⇒ 每一帧都取"离鼠标最近的四面体"，于是拖动 = 连续换选，
+         "任意一个四面体都能当体积元"这句话在手上是能摸到的。
+       · 面/线电荷：鼠标点投到几何轴 ⇒ 直接写 state.mu（夹紧后即得合法位置）。 */
+    if(state.geo==='vol'){
+      const i=pickTet(m.x,m.y);
+      if(i!==state.mu){ state.mu=i; needsRender=true; updateReadout(); updateModeTag(); syncSliders(); }
+    } else {
+      const t=screenToAxisXi(m.x,m.y);
+      if(t!=null){ state.mu=t; clampMicro(); needsRender=true; updateReadout(); updateModeTag(); syncSliders(); }
+    }
   }
   else if(drag.mode==='pan'){ cam.px+=dx; cam.py+=dy; needsRender=true; }
   else { cam.az-=dx*0.0075; cam.el=Math.max(-1.45,Math.min(1.45,cam.el+dy*0.0062)); needsRender=true; }
