@@ -141,7 +141,7 @@ sub{font-size:.72em;vertical-align:-.24em;}
 <body>
 <header>
   <a class="logo" href="index.html" title="返回平台首页">E&M</a>
-  <div><h1>2.1 电场强度与电荷密度</h1><div class="sub">场强的定义 · 点电荷的场 · 电荷密度与连续叠加（体 / 面 / 线）</div></div>
+  <div><h1>2.1 电场强度与电荷密度</h1><div class="sub">场强的定义 · 点电荷的场 · 电荷密度（体 / 面 / 线）</div></div>
   <div class="view-toggles" id="viewToggles"><button id="tglNav" title="折叠 / 展开左侧目录（快捷键 [ ）">☰ 目录</button><button id="tglPanel" title="折叠 / 展开右侧控制面板（快捷键 ] ）">☰ 面板</button></div>
   <div class="badge"><div class="chip">《工程电磁场》 ×《电磁场与电磁波》</div><div class="owner"><b>© 2026 Li Chenlu</b> All Rights Reserved</div></div>
 </header>
@@ -461,10 +461,10 @@ const state = {
   sth:45,                     /* 极角 θ (°) 自 +z 起算 ∈ [0,180] */
   sph:90,                     /* 方位角 φ (°) 自 +x 起算 ∈ [0,360) */
   sweep:null,                 /* null | 'th' | 'ph'：沿等位面扫掠动画 */
-  /* --- ③ 电荷密度与连续叠加（③④ 合并页） --- */
+  /* --- ③ 电荷密度（③④ 合并页） --- */
   geo:'vol',                  /* vol | surf | line */
   nonuni:false,               /* 非均匀分布 ρ ∝ 1+0.7ξ²（默认均匀：有解析场强当裁判） */
-  mu:0.45,                    /* 自由微元（密度探针）归一化位置 ξ ∈ [−1,1] */
+  mu:0.45,                    /* 自由微元（密度探针）归一化位置 ξ ∈ [−1,1]：由**鼠标拖动**给定，无滑块 */
   mh:0.34,                    /* 自由微元归一化尺寸 */
   NS:32,                      /* 点电荷元个数 N（③④ 合并后共用） */
   sd:1.20,                    /* 场点位置参数 d (m) */
@@ -472,7 +472,7 @@ const state = {
 
 const SD_RANGE={ vol:[0.75,1.50], surf:[0.20,1.50], line:[0.20,1.40] };
 const MT=[{k:'def',t:'① 电场强度的定义'},{k:'point',t:'② 点电荷的场'},
-          {k:'cont',t:'③ 电荷密度与连续叠加'}];
+          {k:'cont',t:'③ 电荷密度'}];
 const GEO_OPTS=[{k:'vol',t:'体电荷 ρ'},{k:'surf',t:'面电荷 σ'},{k:'line',t:'线电荷 τ'}];
 
 function geoWord(){ return state.geo==='vol'?'体电荷':(state.geo==='surf'?'面电荷':'线电荷'); }
@@ -487,6 +487,87 @@ function clampMicro(){
   state.mu = Math.max(lo, Math.min(microLimit(), state.mu));
 }
 function clampSd(){ const r=SD_RANGE[state.geo]; state.sd=Math.max(r[0],Math.min(r[1],state.sd)); }
+
+/* ── ③ 自由微元（密度探针）：位置由**鼠标拖动**给定，不再有「位置 ξ」滑块 ──────────
+   ξ 就是 state.mu；拖动 = 把鼠标点投到"微元所沿的那条几何轴"上反解 ξ。
+   体元/线元沿 x 轴（带电体也是沿 x 轴铺的）、面元沿 y 轴 —— 与 microInfo()、
+   drawMicro() 里用了多年的约定一致，三种几何都是"沿一条半径滑动"。 */
+function microAxis(){ return state.geo==='surf' ? 1 : 0; }          /* 0 = x 轴，1 = y 轴 */
+function microCenterW(){ return microAxis()? pt(0,state.mu*GA,0) : pt(state.mu*GA,0,0); }
+/* 微元投影剪影的**内切半径**（px）。剪影 = "投影轴张成的中心对称多边形"：
+   体元 3 条轴（六边形）、面元 2 条轴（平行四边形）、线元 1 条（线段）。
+   内切半径 = min_i [ Σ_{j≠i} |det(pᵢ,pⱼ)| / |pᵢ| ] × hs，pᵢ = 第 i 条世界轴的单位投影(px)。
+   ⚠️ 必须算而不能写死常数：立方体"正对一面"时 = hs·camScale、"沿体对角线看"时 ≈ 1.37·hs·camScale
+      （差 37%），面元斜看还要再被压扁一次 —— 常数必然在某个方位角上让团雾溢出微元轮廓。 */
+function microInradiusPx(hs){
+  const P=[0,1,2].map(i=>{ const u=[camU.x,camU.y,camU.z][i], v=[camV.x,camV.y,camV.z][i];
+    return [u*camScale, -v*camScale]; });
+  const n=(state.geo==='surf')?2:3;
+  let best=Infinity;
+  for(let i=0;i<n;i++){
+    const a=P[i], la=Math.hypot(a[0],a[1]);
+    if(la<1e-9) continue;
+    let d=0; for(let j=0;j<n;j++) if(j!==i) d+=Math.abs(a[0]*P[j][1]-a[1]*P[j][0]);
+    best=Math.min(best,d/la);
+  }
+  return (best===Infinity?0:best)*hs;
+}
+/* 拖动手感阈值（px）：微元越小越得"够得着"（下限 30 px 给极小尺寸一个抓手），
+   但也不能大到把"拖空白处旋转"整个吃掉（上限 66 px）。
+   下限 1.25 倍内切半径 ≈ 剪影的外接半径（正交投影下恰是这个比例），抓哪都算抓到了。 */
+function microHitR(){ return Math.max(30, Math.min(66, microInradiusPx(state.mh*GA/2)*1.25)); }
+
+/* ── 「团雾」：微元内部那团电荷的意象 ─────────────────────────────────────────
+   ★ 要的是"雾"而不是"一块橙色"：雾 = 没有硬边界、浓淡不均、有团絮。
+     做法 = 若干净布 4 层**偏心**的径向渐变斑（实心核 → alpha 0 的边缘）叠起来：
+     单个正圆渐变只是"一个橙点"，几个错开大小/位置的斑才有团絮感；
+     主斑偏暖白、副斑偏正橙，于是雾里有浓有淡、看得出层次。
+   ★ 半径 ∝ 微元尺寸（fogRadius()）⇒ 拖「尺寸」时雾同步胀缩；尺寸 → 0 时雾自己消失，
+     正好对应"这个微元里几乎没有电量"—— 同一个数的两个后果，不必再解释一遍。
+   ★ 深度取微元**中心**的深度 ⇒ 立方体靠里的 3 个面先画、靠外的 3 个面后画，
+     雾被夹在前后两组面之间 = 真的"在盒子里"，而不是贴在盒子前面的一张贴纸。
+     （面元只有一层、深度与它相同 ⇒ 显式加一个小正量把先后定死，不靠排序的稳定性。） */
+/* ── 微元的图层？微元是"仪器"不是"物体"：整组（体/面/线 + 团雾 + 位置虚线）
+   一律抬到测得的带电体**之上**（z = Z_MICRO 一档；文本仍在 1e6、屏幕叠层 1e6+1，
+   所以标签照旧压在微元上）。
+   为什么必须抬：微元在带电体**内部**，它前面那几十块方块的填充叠起来 alpha 0.7~0.9，
+   什么颜色都会被洗成砖青色 —— 实测（默认视角、N=32）：团雾在原来"按真实深度"的画法下
+   **几乎完全看不见**（像素对比：微元中心的色差 < 4/255）。
+   抬层之后"探针在哪、是不是在体内"由 O→微元的虚线与读数承担，信息一点不丢；
+   而"能看清"是硬要求。 */
+const Z_MICRO=9e5;          /* 微元本体所在的"档" */
+const Z_MICRO_NEAR=9e5-200; /* 迎面（朝向相机）的面 */
+const Z_MICRO_FOG=9e5-300;  /* 团雾：夹在背面与迎面之间 ⇒ 真的"在盒子里" */
+const Z_MICRO_FAR=9e5-400;  /* 背面（背向相机）的面 */
+const Z_MICRO_LINE=9e5-600; /* O→微元 的位置虚线：最先画，压在雾与本体底下 */
+const Z_MICRO_TOP=9e5+10;   /* 面元的雾：片是"薄"的，雾直接压在片之上更清楚 */
+
+const FOG_BODY='#F4B37C', FOG_CORE='#FFF1E0';
+/* [屏幕偏移x, 屏幕偏移y, 半径系数, 峰值不透明度] —— 主斑偏暖白、副斑偏正橙。
+   偏移**绕中心大致对称**：只往一侧堆会读成"一坨偏心的烟"（试过，用户视角像脏印子）。 */
+const FOG_BLOBS=[[0.00,0.00,1.00,0.70],[-0.30,-0.22,0.60,0.52],[ 0.30,-0.18,0.56,0.48],
+                 [-0.12, 0.30,0.52,0.46],[ 0.24, 0.26,0.46,0.42],
+                 [ 0.34, 0.06,0.30,0.34],[-0.20, 0.34,0.26,0.30],[ 0.10,-0.36,0.24,0.28]];
+/* ★ 雾半径 = 微元剪影内切半径 × FOG_K：0.95 × 0.9101（雾里最外那团斑的"偏移+半径"系数）
+   = 0.865 < 1 ⇒ **任何机位**雾的外缘都落在微元剪影之内（24 方位 × 5 仰角扫查确认）。
+   三种几何共用同一个系数：vol / surf 只是"标签压不压住雾"不同（面元要压在片之上）。 */
+const FOG_K=0.95;
+function fogRadius(){ return microInradiusPx(state.mh*GA/2)*FOG_K; }
+function microFog(c,z,rad){
+  if(!(rad>2.2)) return;                     /* 太小就别画（否则只是"一个橙点"） */
+  const S=pr(c);
+  P_(z,()=>{ ctx.save();
+    FOG_BLOBS.forEach((b,i)=>{
+      const x=S.x+b[0]*rad, y=S.y+b[1]*rad, r=rad*b[2], a=b[3];
+      const g=ctx.createRadialGradient(x,y,r*0.04,x,y,r);
+      g.addColorStop(0,   hexA(i?FOG_BODY:FOG_CORE,a));
+      g.addColorStop(0.42,hexA(FOG_BODY,a*0.62));
+      g.addColorStop(0.74,hexA(FOG_BODY,a*0.20));
+      g.addColorStop(1,   hexA(FOG_BODY,0));
+      ctx.fillStyle=g; ctx.beginPath(); ctx.arc(x,y,r,0,7); ctx.fill();
+    });
+    ctx.restore(); });
+}
 
 /* ============================================================================
    伪光照 / 密度色阶（③ 用）
@@ -609,34 +690,51 @@ function rhoLine(){
   }
   screenDot(pt(-L,0,0),3.4,'#1F5F7C',0.95); screenDot(pt(L,0,0),3.4,'#1F5F7C',0.95);
 }
-function cubeAt(c,hs,color,alpha,w){
+function cubeAt(c,hs,color,alpha,w,zFar,zNear){
   const V=(a,b,d)=>pt(c.x+a*hs,c.y+b*hs,c.z+d*hs);
-  const F=[[[-1,-1,-1],[1,-1,-1],[1,1,-1],[-1,1,-1]],[[-1,-1,1],[1,-1,1],[1,1,1],[-1,1,1]],
-           [[-1,-1,-1],[-1,1,-1],[-1,1,1],[-1,-1,1]],[[1,-1,-1],[1,1,-1],[1,1,1],[1,-1,1]],
-           [[-1,-1,-1],[1,-1,-1],[1,-1,1],[-1,-1,1]],[[-1,1,-1],[1,1,-1],[1,1,1],[-1,1,1]]];
-  F.forEach(q=>poly(q.map(v=>V(v[0],v[1],v[2])),{fill:color,fillAlpha:alpha,stroke:color,strokeAlpha:Math.min(1,alpha+0.42),w:w||1.3}));
+  const F=[[[-1,-1,-1],[1,-1,-1],[1,1,-1],[-1,1,-1],pt(0,0,-1)],[[-1,-1,1],[1,-1,1],[1,1,1],[-1,1,1],pt(0,0,1)],
+           [[-1,-1,-1],[-1,1,-1],[-1,1,1],[-1,-1,1],pt(-1,0,0)],[[1,-1,-1],[1,1,-1],[1,1,1],[1,-1,1],pt(1,0,0)],
+           [[-1,-1,-1],[1,-1,-1],[1,-1,1],[-1,-1,1],pt(0,-1,0)],[[-1,1,-1],[1,1,-1],[1,1,1],[-1,1,1],pt(0,1,0)]];
+  /* z 分三档：
+     · 不给 zFar/zNear ⇒ 各面按自身深度排序（各面深度不同，画家算法自动分先后）；
+     · 给了 ⇒ 整组抬到 zFar/zNear 这一档（远高于带电体，不被方块洗掉），
+       并**按面法向与相机方向**把面分到两档：被背向相机的面先画、迎面后画。
+       于是团雾（夹在两档之间的 Z_MICRO_FOG）才真的读得出"在盒子里"。 */
+  F.forEach(f=>{
+    const z=(zFar==null)?undefined:(vdot(f[4],camD)>0?zNear:zFar);
+    poly(f.slice(0,4).map(v=>V(v[0],v[1],v[2])),{fill:color,fillAlpha:alpha,
+      stroke:color,strokeAlpha:Math.min(1,alpha+0.42),w:w||1.3,z:z});
+  });
 }
 function drawMicro(){
   if(!state.show.micro) return;
-  const xi=state.mu, hb=state.mh*GA, hs=hb/2;
+  const xi=state.mu, hs=state.mh*GA/2;
   const OC='#E97132';
+  const inr=microInradiusPx(hs);               /* 剪影内切半径（px）：团雾尺寸按它定 */
+  /* 位置指示先画（最底层）：从原点沿几何轴线到微元中心的一条虚线 */
+  line(pt(0,0,0),microCenterW(),{color:'#E0B48C',w:1.1,alpha:.85,dash:[4,4],z:Z_MICRO_LINE});
   if(state.geo==='vol'){
     const c=pt(xi*GA,0,0);
-    cubeAt(c,hs,OC,0.26,1.4);
+    /* 面填充 0.26 → 0.16：只有**迎面**那 3 个面会盖在团雾上（0.42），
+       团雾本身就还剩下 0.58 的对比度 —— 够看了；而"这是个立方体"改由更结实的棱
+       （w 1.5 / alpha 0.95）承担，比原来"一整块橙色"更干净。 */
+    microFog(c,Z_MICRO_FOG,FOG_K*inr);
+    cubeAt(c,hs,OC,0.16,1.5,Z_MICRO_FAR,Z_MICRO_NEAR);
     text(vadd(c,pt(0,0,hs)),'ΔV′',{color:'#B25D18',size:12,bold:true,dy:-14,align:'center'});
   } else if(state.geo==='surf'){
     const c=pt(0,xi*GA,0);
     poly([pt(c.x-hs,c.y-hs,0),pt(c.x+hs,c.y-hs,0),pt(c.x+hs,c.y+hs,0),pt(c.x-hs,c.y+hs,0)],
-         {fill:OC,fillAlpha:0.30,stroke:OC,strokeAlpha:0.95,w:1.8});
-    text(vadd(c,pt(hs,0,0)),'ΔS′',{color:'#B25D18',size:12,bold:true,dx:8,dy:-12});
+         {fill:OC,fillAlpha:0.26,stroke:OC,strokeAlpha:0.95,w:1.8,z:Z_MICRO});
+    microFog(c,Z_MICRO_TOP,FOG_K*inr);         /* 面元是"薄"的：雾压在片之上 */
+    /* ★ 标签沿几何轴往外推 1.3 hs 再落笔：原来落在 c+(hs,0,0)——面元斜看时
+       那个点几乎就落在片子中央，'ΔS′' 三个字把团雾盖掉一半（截图实测）。 */
+    text(vadd(c,pt(0,hs*1.30,0)),'ΔS′',{color:'#B25D18',size:12,bold:true,dx:6,dy:-8});
   } else {
-    line(pt(xi*GA-hs,0,0),pt(xi*GA+hs,0,0),{color:OC,w:11,alpha:0.42});
-    line(pt(xi*GA-hs,0,0),pt(xi*GA+hs,0,0),{color:OC,w:2,alpha:0.95});
+    /* 线元是 1 维的，画不成"一团雾"（雾要有体积感）—— 它就是一小段加粗的线段。 */
+    line(pt(xi*GA-hs,0,0),pt(xi*GA+hs,0,0),{color:OC,w:11,alpha:0.42,z:Z_MICRO});
+    line(pt(xi*GA-hs,0,0),pt(xi*GA+hs,0,0),{color:OC,w:2,alpha:0.95,z:Z_MICRO});
     text(pt(xi*GA,0,0),'Δl′',{color:'#B25D18',size:12,bold:true,dy:-18,align:'center'});
   }
-  /* 位置指示：从原点沿几何轴线到微元中心的一条虚线 */
-  const target = state.geo==='surf' ? pt(0,xi*GA,0) : pt(xi*GA,0,0);
-  line(pt(0,0,0),target,{color:'#E0B48C',w:1.1,alpha:.85,dash:[4,4]});
 }
 /* ③④ 合并后，上面的「连续体绘制」（rhoSphere/rhoDisk/rhoLine）与「自由微元」（drawMicro）
    都由 modeCont() 调度：N 超过分块显示上限时画连续体，否则画分块（见 drawBlocks）。 */
@@ -982,7 +1080,7 @@ function convSeries(){
   _conv={key,data}; return data;
 }
 /* ============================================================================
-   ③ 电荷密度与连续叠加（③④ 合并页）
+   ③ 电荷密度（③④ 合并页）
    设计：密度定义（橙色自由微元：一块缩到点）与场的累加（N 块 → Σ dE → ∫）共用
    同一个"把带电体切成块"的视觉。块数有显示上限（BLK_CAP），超过就画光滑连续体
    —— "越切越碎 ⇒ 变成连续体"本身就是这节课要说的两件事之一。
@@ -1251,7 +1349,7 @@ function readoutRows(){
     rows.push({s:'固定 R、只改 θ / φ：P 留在 R = '+d.Rn.toFixed(2)+' m 的等位面上 —— 方向变，大小不变',
       color:'#0F9ED5', bold:true});
   } else {
-    /* ③ 电荷密度与连续叠加（合并页）：密度定义 + 场的累加 两行都要 */
+    /* ③ 电荷密度（合并页）：密度定义 + 场的累加 两行都要 */
     const mi=microInfo();
     const g=geomData(), pts=curSamples(), E=sumField(pts,g.P), rf=refField();
     const mag=vlen(E), ref=Math.max(vlen(rf.v),1e-12);
@@ -1382,7 +1480,7 @@ function renderSubSec(sec){
       'θ → 0°/180° 时 P 到极轴上，φ 不再影响位置（极点退化）。')+'</div>'));
     return;
   }
-  /* ③ 电荷密度与连续叠加（合并页） */
+  /* ③ 电荷密度（合并页） */
   sec.appendChild(h('<div class="sec-title">带电体的几何</div>'));
   chipRow(sec,GEO_OPTS,k=>state.geo===k,k=>{
     state.geo=k; clampMicro(); clampSd(); _samp.key=null; renderPanel(); updateAll();});
@@ -1403,14 +1501,22 @@ function renderSubSec(sec){
   chipRow(sec,SHOW_ITEMS.cont,k=>state.show[k],k=>{state.show[k]=!state.show[k];renderPanel();updateAll();});
   sec.appendChild(h('<div class="ex-note">'+richHTML('带电体被切成 <b>N 块</b>（方块 / 扇形片 / 小段，严丝合缝铺满），'+
     '每块是一个点电荷元 dq；P 点处的蓝色箭头就是 N 块叠加出的 Σ d@{E}，'+
-    '它与 ∫ 精确值差多少，由下方读数和右上角收敛曲线给出。<b>橙色小块</b>是密度探针：'+
-    '尺寸缩到 0 时 Δq/测度 → 该点密度。')+'</div>'));
+    '它与 ∫ 精确值差多少，由下方读数和右上角收敛曲线给出。<b>橙色小块</b>是密度探针'+
+    '（可以直接用鼠标拖动）：它内部那团<b>橙雾</b>代表它包住的电量，'+
+    '尺寸缩到 0 时雾也跟着消失，Δq/测度 → 该点密度。')+'</div>'));
   sec.appendChild(h('<div class="ex-note" id="supNote">'+richHTML(supNote())+'</div>'));
 }
 function microNote(){
   const mi=microInfo();
-  return '微元 '+geoMeas()+' = '+mi.meas.toExponential(2)+' '+geoMeasUnit()+
-    '，Δq = '+mi.dq.toExponential(2)+' nC。它越小，Δq/'+geoMeas()+' 越贴近该点的 '+geoSym()+'。';
+  /* ★ ξ 必须有数字可读：位置滑块撤了，学生得从读数里知道探针在哪（拖到位没有）。
+     轴名要和画布上那条虚线一致（体/线元沿 x、面元沿 y），不然读数与图对不上。 */
+  const ax=state.geo==='surf'?'y':'x';
+  return '拖动橙色微元：把鼠标放在画布上的橙色小块上（光标变成"可移动"），'+
+    '按住左键沿 '+ax+' 轴滑动即可 —— 位置 ξ = '+mi.xi.toFixed(2)+
+    '（微元中心 '+ax+' = '+(mi.xi*GA).toFixed(2)+' m），它内部那团橙雾就是它包住的电量。'+
+    '微元 '+geoMeas()+' = '+mi.meas.toExponential(2)+' '+geoMeasUnit()+
+    '，Δq = '+mi.dq.toExponential(2)+' nC；雾随「尺寸」一起胀缩，尺寸越小雾越小、'+
+    'Δq/'+geoMeas()+' 越贴近该点的 '+geoSym()+'。';
 }
 function supNote(){
   const g=geomData(), E=sumField(curSamples(),g.P), mag=vlen(E), ref=Math.max(vlen(refField().v),1e-12);
@@ -1464,7 +1570,7 @@ function renderSliders(sec){
     sec.appendChild(h('<div class="ex-note" id="pNote">'+richHTML(pNote())+'</div>'));
     return;
   }
-  /* ③ 合并页滑块：场点位置 d、切分份数 N、密度探针微元（位置 ξ / 尺寸） */
+  /* ③ 合并页滑块：场点位置 d、切分份数 N、密度探针微元（**位置已改为鼠标拖动**） */
   sec.appendChild(h('<div class="sec-title">场点 P 的位置</div>'));
   const rr=SD_RANGE[state.geo];
   mkRange(sec,{k:'sd',label:'距离 d',wide:true,min:rr[0],max:rr[1],step:0.01,
@@ -1473,10 +1579,12 @@ function renderSliders(sec){
   mkRange(sec,{k:'NS',label:'N',wide:true,min:1,max:384,step:1,
     get:()=>state.NS, set:v=>state.NS=Math.round(v), fmt:v=>String(Math.round(v)),
     after:()=>{ document.getElementById('v_NS').textContent=String(state.NS); syncSliders(); }});
+  /* ★ 这里原来还有一行「位置 ξ」滑块，已按用户要求撤掉：
+     微元位置改由**鼠标直接拖动**（pointerdown/move 的 mode==='mid' 分支，见交互段）。
+     撤滑块的连带工作（都在这一处收口，避免留下"半死的控件"）：
+       · SLIDER_FMT 去掉 mu 一项；syncSliders 去掉 set('mu') 与 s_mu 的 min/max；
+       · ξ 的数值改由 microNote() 如实报出（滑块没了，读数不能跟着消失）。 */
   sec.appendChild(h('<div class="sec-title" style="margin-top:14px">密度探针：橙色微元</div>'));
-  mkRange(sec,{k:'mu',label:'位置 ξ',wide:true,min:-1,max:1,step:0.01,
-    get:()=>state.mu, set:v=>{ state.mu=v; clampMicro(); if(document.getElementById('s_mu')) document.getElementById('s_mu').value=state.mu; },
-    fmt:v=>v.toFixed(2), after:()=>syncSliders()});
   mkRange(sec,{k:'mh',label:'尺寸',wide:true,min:0.02,max:0.90,step:0.01,
     get:()=>state.mh, set:v=>{ state.mh=v; clampMicro(); }, fmt:v=>v.toFixed(2), after:()=>syncSliders()});
   sec.appendChild(h('<div class="ex-note" id="microNote">'+richHTML(microNote())+'</div>'));
@@ -1486,7 +1594,7 @@ function renderSliders(sec){
 const SLIDER_FMT={
   q:  v=>v.toFixed(1)+' nC',  qt: v=>v.toFixed(2)+' nC', qP: v=>v.toFixed(1)+' nC',
   sr: v=>v.toFixed(2)+' m',   sth:v=>Math.round(v)+'°',  sph:v=>Math.round(v)+'°',
-  mu: v=>v.toFixed(2),        mh: v=>v.toFixed(2),
+  mh: v=>v.toFixed(2),
   sd: v=>v.toFixed(2)+' m',   NS: v=>String(Math.round(v)),
 };
 function syncSliders(){
@@ -1495,9 +1603,7 @@ function syncSliders(){
     const e=document.getElementById('v_'+k); if(e&&SLIDER_FMT[k]) e.textContent=SLIDER_FMT[k](v);};
   set('q',state.q); set('qt',state.qt); set('qP',state.qP);
   set('sr',state.sr); set('sth',state.sth); set('sph',state.sph);
-  const sMu=document.getElementById('s_mu');
-  if(sMu){ sMu.min=(state.geo==='surf'?0:-microLimit()); sMu.max=microLimit(); }
-  set('mu',state.mu); set('mh',state.mh);
+  set('mh',state.mh);
   const sSd=document.getElementById('s_sd');
   if(sSd){ const rr=SD_RANGE[state.geo]; sSd.min=rr[0]; sSd.max=rr[1]; }
   set('sd',state.sd); set('NS',state.NS);
@@ -1554,7 +1660,7 @@ const CARDS={
       '<div class="frm">@{E} = Σ_{i=1}^{n} q_i / (4πε_0 R_i²) · @{e}_{Ri}</div>'+
       '<ul><li>每个点电荷各自产生一份场，总场是它们的<b>矢量和</b> —— 不是代数和</li>'+
       '<li>R_i 是第 i 个电荷到场点的距离，@{e}_{Ri} 是相应的单位矢量</li>'+
-      '<li>这正是下一张「③ 电荷密度与连续叠加」的出发点</li></ul>'},
+      '<li>这正是下一张「③ 电荷密度」的出发点</li></ul>'},
     {k:'4',tab:'4. 球坐标 (R, θ, φ)',cls:'c4',body:
       '<b>用球坐标描述场点</b>（原点放在源电荷处，轴与坐标轴平行）：'+
       '<div class="frm">R = |@{r}|　θ = arccos(z′/R)　φ = arctan(y′/x′)　@{e}_R = @{r}/R</div>'+
@@ -1574,7 +1680,7 @@ const CARDS={
       '<b>宏观上电荷是连续分布的</b>，密度 = "单位体积 / 面积 / 长度的电量"：'+
       '<div class="frm">ρ = lim (ΔV′→0) Δq/ΔV′　σ = lim (ΔS′→0) Δq/ΔS′　τ = lim (Δl′→0) Δq/Δl′</div>'+
       '<div class="frm">Q = ∫_{V′} ρ dV′　=　∫_{S′} σ dS′　=　∫_{l′} τ dl′</div>'+
-      '<ul><li>画布上的<b>橙色小块</b>就是密度探针：拖「位置 ξ」贴在带电体任意处，拖「尺寸」把它越缩越小</li>'+
+      '<ul><li>画布上的<b>橙色小块</b>就是密度探针：用鼠标把它<b>拖</b>到带电体上任意位置（内部那团橙雾 = 它包住的电量），拖「尺寸」把它越缩越小</li>'+
       '<li>尺寸 → 0 时 Δq/测度 收敛到该点的密度 —— 数据条和右上角小卡都能盯着这个极限发生</li>'+
       '<li>切到<b>非均匀</b>：密度随位置变（颜色深浅 = 密度大小），微元不缩到 0，Δq/测度 就不等于该点密度</li></ul>'},
     {k:'2',tab:'2. 场 = 电荷元的场的累加',cls:'c2',body:
@@ -1650,7 +1756,7 @@ function updateReadout(){
     document.getElementById('lgTitle').textContent='点电荷的场 · 球坐标 (R, θ, φ)';
     document.getElementById('lgNote').innerHTML=richHTML('@{E} = q/(4πε₀R²)·@{e_R}：只依赖 R ⇒ R 不变时方向变、大小不变');
   } else {
-    /* ③ 电荷密度与连续叠加（合并页） */
+    /* ③ 电荷密度（合并页） */
     const mi=microInfo();
     const g=geomData(), pts=curSamples(), E=sumField(pts,g.P), rf=refField();
     const mag=vlen(E), ref=Math.max(vlen(rf.v),1e-12);
@@ -1665,7 +1771,7 @@ function updateReadout(){
     html += kchip(rf.lab+' =', ref.toFixed(3)+' V/m','acc');
     html += kchip('相对偏差 =', (Math.abs(mag-ref)/ref*100).toFixed(3)+'%', Math.abs(mag-ref)/ref<0.01?'':'warn');
     html += kchip('方向偏差 =', ang.toFixed(2)+'°');
-    document.getElementById('lgTitle').textContent='电荷密度与连续叠加 · '+geoWord();
+    document.getElementById('lgTitle').textContent='电荷密度 · '+geoWord();
     document.getElementById('lgNote').innerHTML=richHTML(geoSym()+' = lim Δq/'+geoMeas()+'　；　@{E} = Σ d@{E} → ∫ d@{E}');
   }
   strip.innerHTML=html;
@@ -1677,7 +1783,7 @@ function updateModeTag(){
   if(state.mode==='def') t.innerHTML=richHTML('电场强度的定义 · q = '+sgnTxt(state.q,2)+' nC，q_t = '+state.qt.toFixed(2)+' nC');
   else if(state.mode==='point') t.innerHTML=richHTML('点电荷的场 · '+sgnTxt(state.qP,2)+' nC　P：(R, θ, φ) = ('+
     state.sr.toFixed(2)+' m, '+Math.round(state.sth)+'°, '+Math.round(state.sph)+'°)');
-  else t.innerHTML=richHTML('电荷密度与连续叠加 · '+geoWord()+'（'+(state.nonuni?'非均匀':'均匀')+'）　N = '+state.NS+' 块');
+  else t.innerHTML=richHTML('电荷密度 · '+geoWord()+'（'+(state.nonuni?'非均匀':'均匀')+'）　N = '+state.NS+' 块');
   if(sb) sb.innerHTML=richHTML(
     state.mode==='def'   ? '@{E} = lim (q_t→0) @{F}/q_t　场强的定义'
   : state.mode==='point' ? '点电荷的场　@{E} = q/(4πε₀R²)·@{e_R}　（只依赖 R）'
@@ -1716,6 +1822,23 @@ function clampToZ(p,c,z0,minR,maxR){
   const k=Math.max(lo,Math.min(hi,d))/d;
   return pt(c.x+dx*k, c.y+dy*k, z0);
 }
+/* 屏幕点 → 微元所沿轴的归一化位置 ξ。
+   轴上世界坐标 s 的点投影后是**屏幕直线**且线性：屏幕 = P₀ + (s/GA)·(P₁−P₀)。
+   于是 ξ = (鼠标−P₀)·(P₁−P₀)/|P₁−P₀|² —— 求的是**屏幕上距离最小**的那个轴点，
+   比"先反投到 z=0 平面再取 x 坐标"更贴手感：斜视时后者会明显偏
+   （鼠标拖到微元左边、ξ 却几乎不动）。 */
+function screenToAxisXi(mx,my){
+  const A=pr(pt(0,0,0)), B=pr(microAxis()?pt(0,GA,0):pt(GA,0,0));
+  const ex=B.x-A.x, ey=B.y-A.y, L2=ex*ex+ey*ey;
+  if(L2<1e-6) return null;
+  return ((mx-A.x)*ex+(my-A.y)*ey)/L2;
+}
+/* 鼠标是否正落在橙色微元上（③ 的抓手判定，pointerdown 与悬停光标共用一处） */
+function overMicro(m){
+  if(state.mode!=='cont' || !state.show.micro) return false;
+  const wp=pr(microCenterW());
+  return Math.hypot(m.x-wp.x,m.y-wp.y)<microHitR();
+}
 canvas=document.getElementById('cv');
 ctx=canvas.getContext('2d');
 canvas.addEventListener('pointerdown',ev=>{
@@ -1730,13 +1853,19 @@ canvas.addEventListener('pointerdown',ev=>{
       const wp=pr(Ppos());
       if(Math.hypot(m.x-wp.x,m.y-wp.y)<38){ drag={x:m.x,y:m.y,btn:0,mode:'pp'}; ev.preventDefault(); return; }
     }
+    /* ③ 橙色微元：抓在手里就能拖（位置由鼠标给，没有「位置 ξ」滑块） */
+    if(overMicro(m)){ drag={x:m.x,y:m.y,btn:0,mode:'mid'}; ev.preventDefault(); return; }
   }
   drag={x:m.x,y:m.y,btn:ev.button,mode:(ev.button===2||ev.ctrlKey)?'pan':'rot'};
   ev.preventDefault();
 });
 canvas.addEventListener('pointermove',ev=>{
   const m=localPos(ev);
-  if(!drag)return;
+  if(!drag){
+    /* 悬在微元上 → 换成"可移动"光标。③ 的唯一抓手，得让人看得出可以拖。 */
+    canvas.style.cursor = overMicro(m) ? 'move' : '';
+    return;
+  }
   const dx=m.x-drag.x,dy=m.y-drag.y; drag.x=m.x; drag.y=m.y;
   if(drag.mode==='tp'){
     const w=screenToWorldZ(m.x,m.y,state.tp.z);
@@ -1749,11 +1878,17 @@ canvas.addEventListener('pointermove',ev=>{
     const q=screenToSphere(m.x,m.y,P_SRC,state.sr);
     if(q){ setPFromVec(q); needsRender=true; updateReadout(); updateModeTag(); syncSliders(); }
   }
+  else if(drag.mode==='mid'){
+    /* ★ 微元位置：鼠标点投到几何轴上 ⇒ 直接写 state.mu（夹紧后即得合法位置）。
+       注意这是**唯一的**位置来源 —— 位置滑块已撤掉，不再存在"两处各写一半"的风险。 */
+    const t=screenToAxisXi(m.x,m.y);
+    if(t!=null){ state.mu=t; clampMicro(); needsRender=true; updateReadout(); updateModeTag(); syncSliders(); }
+  }
   else if(drag.mode==='pan'){ cam.px+=dx; cam.py+=dy; needsRender=true; }
   else { cam.az-=dx*0.0075; cam.el=Math.max(-1.45,Math.min(1.45,cam.el+dy*0.0062)); needsRender=true; }
 });
-canvas.addEventListener('pointerup',()=>{ if(drag&&(drag.mode==='tp'||drag.mode==='pp')) syncSliders(); drag=null; });
-canvas.addEventListener('pointercancel',()=>{ if(drag&&(drag.mode==='tp'||drag.mode==='pp')) syncSliders(); drag=null; });
+canvas.addEventListener('pointerup',()=>{ if(drag&&drag.mode!=='pan'&&drag.mode!=='rot') syncSliders(); drag=null; });
+canvas.addEventListener('pointercancel',()=>{ if(drag&&drag.mode!=='pan'&&drag.mode!=='rot') syncSliders(); drag=null; });
 canvas.addEventListener('contextmenu',e=>e.preventDefault());
 canvas.addEventListener('wheel',e=>{e.preventDefault();cam.zoom=Math.max(.45,Math.min(3.2,cam.zoom*(e.deltaY<0?1.09:1/1.09)));needsRender=true;},{passive:false});
 
