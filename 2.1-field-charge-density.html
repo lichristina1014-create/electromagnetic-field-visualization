@@ -428,6 +428,14 @@ function perpOf(d){
   if(Math.abs(vdot(d,a))>0.95) a=pt(1,0,0);
   return vnorm(vsub(a, vmul(d, vdot(a,d))));
 }
+/* 世界方向 → **屏幕单位方向**（px），用来把标注沿"背离带电体"的一侧外推。
+   dimLine/arrow 的标签偏移是像素量（ldx/ldy），写死常数会在某些机位把标签压到线上；
+   按当前相机算方向 ⇒ 任何机位标签都在外侧。 */
+function sd2(d){
+  const x=vdot(d,camU), y=-vdot(d,camV);
+  const L=Math.hypot(x,y)||1;
+  return [x/L, y/L];
+}
 
 /* ============================================================================
    全局状态
@@ -474,12 +482,22 @@ const state = {
      两套量程互不相容，所以切换几何时用 MH_MEM 各自记住上次的值（见 setGeo）。 */
   mh:2,
   NS:32,                      /* 面/线电荷的点电荷元个数 N（体电荷的 N = 20k²，与本项无关） */
-  sd:1.20,                    /* 场点位置参数 d (m) */
+  /* ⚠️ sd 的语义也随几何变（和 mh 一样）：
+     · vol / surf → 场点 P 到"对称中心"的距离 d（球心→P / 盘心→P），沿对称轴量
+     · line       → P 到**线的径向距离 ρ**（垂直于线），**再配一个独立的轴向坐标 state.px**
+       线电荷是轴对称的 ⇒ (轴向 x_P, 径向 ρ) 两个数就唯一描述了 P：绕线转 φ 只改场的方位，
+       不改 |E|、不改 E 与线的夹角，所以不给第三个自由度。 */
+  sd:1.20,
+  px:0.24,                    /* ★ P 的轴向坐标 x_P (m)：只线电荷用，量程 PX_RANGE */
 };
-/* ③ 的 mh 记忆：几何一换就把对应语义的值换回来（避免"尺寸 = 2.00"或"阶 = 0.34"的错配） */
+/* ③ 的记忆表：几何一换就把对应语义的值换回来（避免"尺寸 = 2.00"/"ρ = 1.20"这类错配） */
 const MH_MEM={ vol:2, surf:0.34, line:0.34 };
+const SD_MEM={ vol:1.20, surf:1.20, line:0.42 };
 
-const SD_RANGE={ vol:[0.75,1.50], surf:[0.20,1.50], line:[0.20,1.40] };
+const SD_RANGE={ vol:[0.75,1.50], surf:[0.20,1.50], line:[0.18,1.00] };
+/* P 的轴向坐标量程（m）：线半长 L = GA = 0.60，允许略微越过端点（±0.75）
+   ⇒ "场点正好落在线的延长线上"这个特殊情形仍然拖得到（此时只有轴向分量）。 */
+const PX_RANGE=[-0.75,0.75];
 const MT=[{k:'def',t:'① 电场强度的定义'},{k:'point',t:'② 点电荷的场'},
           {k:'cont',t:'③ 电荷密度'}];
 const GEO_OPTS=[{k:'vol',t:'体电荷 ρ'},{k:'surf',t:'面电荷 σ'},{k:'line',t:'线电荷 τ'}];
@@ -487,10 +505,13 @@ const GEO_OPTS=[{k:'vol',t:'体电荷 ρ'},{k:'surf',t:'面电荷 σ'},{k:'line'
    ⚠️ 这几件事必须**收在一处**：散在 chip 回调里早晚会漏掉一件，留下"尺寸 = 2.00"这类错配。 */
 function setGeo(k){
   MH_MEM[state.geo]=state.mh;
+  SD_MEM[state.geo]=state.sd;
   state.geo=k;
   state.mh=(k==='vol')?MH_MEM.vol:MH_MEM.surf;
+  state.sd=SD_MEM[k];
   if(k==='vol') state.mu=-1;
-  clampMicro(); clampSd(); _samp.key=null; _conv.key=null;
+  clampMicro(); clampSd(); clampPx();
+  _samp.key=null; _conv.key=null; _nref.key=null;
 }
 
 function geoWord(){ return state.geo==='vol'?'体电荷':(state.geo==='surf'?'面电荷':'线电荷'); }
@@ -514,6 +535,9 @@ function clampMicro(){
   state.mu = Math.max(lo, Math.min(microLimit(), state.mu));
 }
 function clampSd(){ const r=SD_RANGE[state.geo]; state.sd=Math.max(r[0],Math.min(r[1],state.sd)); }
+/* P 的轴向坐标夹紧（只线电荷用）。ρ 恒为正 ⇒ P 永远留在线的**同一侧**，
+   不会"穿过"线跑到另一边（那是电磁学上的奇异面，也没有教学价值）。 */
+function clampPx(){ state.px=Math.max(PX_RANGE[0],Math.min(PX_RANGE[1],state.px)); }
 
 /* ── ③ 自由微元（密度探针）：位置由**鼠标拖动**给定，没有「位置 ξ」滑块 ──────────
    · 体电荷：微元 = 剖分球里任意一个四面体，"位置"就是它的序号（0 … 20k²−1）。
@@ -1238,20 +1262,57 @@ function volEan(d){
   return KC*( Q/(d*d) + c*( 4*Math.PI*Math.pow(a,5)/(15*d*d)
                            + 8*Math.PI*Math.pow(a,7)/(35*Math.pow(d,4)) ) );
 }
+/* ★★ 有限长**均匀**线电荷（x 轴上 −L…L，线密度 τ₀）在**任意场点** P 处的解析场。
+   2026-09-24 用户要求把 P 从"延长线上"挪到"线的侧面"，于是原来那个只对延长线成立的
+   公式 E = KC·τ(1/d − 1/(d+2L)) 不再够用，必须换成下面这对**对任意 (x_P, ρ) 都成立**的闭式。
+
+   两个积分都是初等函数（u = x_P − x′，∫u/(u²+ρ²)^{3/2}du = −1/√(u²+ρ²)，
+   ∫du/(u²+ρ²)^{3/2}du = u/(ρ²√(u²+ρ²))）：
+       E_x = KC·τ·∫(x_P−x′)/R³ dx′ = KC·τ·( 1/R₂ − 1/R₁ )
+       E_ρ = KC·τ·ρ·∫   1     /R³ dx′ = KC·τ/ρ·( A/R₁ − B/R₂ )
+   其中 A = x_P+L、B = x_P−L、R₁ = √(A²+ρ²)、R₂ = √(B²+ρ²)，ρ = P 到 x 轴的距离
+   （P 落在 xy 平面内时 ρ = |y_P|）。E_ρ 沿"从线指向 P"的径向单位矢量。
+
+   ★ 三个极限自检（页面内脚本逐条验过）：
+     · ρ→0 且 x_P > L：E_x → KC·τ(1/d − 1/(d+2L))（d = x_P−L）—— 就是原来那条延长线公式 ✓
+     · x_P = 0：E_x ≡ 0、E_ρ = KC·τ·2L/(ρ√(L²+ρ²)) —— 中垂面上场严格垂直于线 ✓
+     · 2L ≫ ρ：E_ρ = KC·τ·2L/(ρ√(L²+ρ²)) → KC·τ·2/ρ = τ/(2πε₀ρ) —— 无限长线的 1/ρ 规律 ✓
+       ⚠️ 注意极限里 **L 会被约掉**（√(L²+ρ²)→L），写 KC·τ·2L/ρ 是错的（差一个 L）：
+          L=0.6 时会算成 1.2KC·τ/ρ，而正确值是 2KC·τ/ρ（实测 179751.03 vs 179751.036，rel 1.4e-8）
+   非均匀（τ ∝ 1+kξ²）没有这么短的初等闭式（要出 asinh 项），
+   所以非均匀的裁判仍由 refField() 用 N=8192 数值积分给出，界面如实标注。 */
+function lineEan(P){
+  const L=GA, A=P.x+L, B=P.x-L;
+  const rho=Math.hypot(P.y,P.z);
+  const R1=Math.hypot(A,rho), R2=Math.hypot(B,rho);
+  const Ex=KC*TAU0*(1/R2 - 1/R1);
+  const Er=KC*TAU0/rho*(A/R1 - B/R2);
+  const er=(rho>1e-9) ? vmul(pt(0,P.y,P.z),1/rho) : pt(0,0,0);   /* 从线指向 P 的径向单位矢量 */
+  return vadd(pt(Ex,0,0), vmul(er,Er));
+}
 function geomData(){
   const a=GA,L=GA, Q=totalQ();         /* Q 随分布（均匀/非均匀）变；均匀时 = uniformQ() */
   if(state.geo==='vol'){
     const P=pt(state.sd,0,0), E=volEan(state.sd);
-    return {Q,P,Ean:pt(E,0,0),d:state.sd,dLab:'球心 → P',ax:pt(1,0,0)};
+    return {Q,P,Ean:pt(E,0,0),d:state.sd,dLab:'球心 → P',ax:pt(1,0,0),
+            posTxt:'球心 → P　d = '+state.sd.toFixed(2)+' m'};
   }
   if(state.geo==='surf'){
     const z=state.sd, P=pt(0,0,z);
     const E=KC*2*Math.PI*SIG0*(1 - z/Math.sqrt(z*z+a*a));
-    return {Q,P,Ean:pt(0,0,E),d:z,dLab:'盘心 → P',ax:pt(0,0,1)};
+    return {Q,P,Ean:pt(0,0,E),d:z,dLab:'盘心 → P',ax:pt(0,0,1),
+            posTxt:'盘心 → P　d = '+z.toFixed(2)+' m'};
   }
-  const P=pt(L+state.sd,0,0);
-  const E=KC*TAU0*(1/state.sd - 1/(state.sd+2*L));
-  return {Q,P,Ean:pt(E,0,0),d:state.sd,dLab:'端点 → P',ax:pt(1,0,0)};
+  /* ★★ 线电荷（2026-09-24 用户改版）：P 不再放在**延长线**上，而是放到线的**侧面**任意一点。
+     旧做法 P = (L+d, 0, 0) 的两个毛病（用户原话）：线要缩得很小才看得见 P；
+     P 只能沿一条线（x 轴）拖动。新做法 P = (x_P, ρ, 0)：
+       · 即使只画线的一段，P 也在画面里（它在线的旁边，不是线外 0.22 m 的延长处）；
+       · 两个自由度（轴向 x_P / 径向 ρ）都能拖 ⇒ "任意一点"是真的任意。
+     ★ ρ 恒 > 0（clampSd 下限 0.18）⇒ 不落在场的奇异面上；P 始终在同侧，不会穿线而过。 */
+  const P=pt(state.px, state.sd, 0);
+  const E=lineEan(P);
+  return {Q,P,Ean:E,d:state.sd,dLab:'到线的径向距离 ρ',ax:pt(1,0,0),
+          posTxt:'P：(x_P, ρ) = ('+state.px.toFixed(2)+' m, '+state.sd.toFixed(2)+' m)'};
 }
 /* 裁判场：体电荷三种情形都走 g.Ean（解析精确值）；
    面/线电荷的非均匀分布没有初等闭式 ⇒ 仍用 8192 个电荷元的加权和当数值参考
@@ -1261,7 +1322,7 @@ let _nref={key:null,v:null};
 function refField(){
   const g=geomData();
   if(state.geo==='vol' || !state.nonuni) return {v:g.Ean, lab:'积分精确值'};
-  const key=state.geo+'|'+state.sd.toFixed(2)+'|n';
+  const key=state.geo+'|'+state.sd.toFixed(2)+'|'+state.px.toFixed(2)+'|n';
   if(_nref.key!==key) _nref={key, v:sumField(samplePoints(8192),g.P)};
   return {v:_nref.v, lab:'数值积分参考 (N=8192)'};
 }
@@ -1269,7 +1330,9 @@ let _conv={key:null,data:null};
 const CONV_NS=[1,2,3,4,6,8,12,16,24,32,48,64,96,128,192,256,384];
 const CONV_KS=[1,2,3,4,5,6];         /* 体电荷：剖分阶扫描（N = 20k² = 20…720） */
 function convSeries(){
-  const key=state.geo+'|'+state.sd.toFixed(2)+'|'+(state.nonuni?1:0);
+  /* ⚠️ 缓存键必须含 P 的**全部**自由度：线电荷的 P 有两个（px/sd）——
+     漏了 px 就会出现"只拖轴向、收敛曲线与读数纹丝不动"（值没变但其实该变）。 */
+  const key=state.geo+'|'+state.sd.toFixed(2)+'|'+state.px.toFixed(2)+'|'+(state.nonuni?1:0);
   if(_conv.key===key) return _conv.data;
   const g=geomData(), ref=Math.max(vlen(refField().v),1e-12);
   const data = (state.geo==='vol')
@@ -1349,10 +1412,73 @@ function modeCont(){
   drawMicro();
   marker(pt(0,0,0),{r:3.0,color:'#8FB3C6'});
   text(pt(0,0,0),'O',{color:'#7A8F9B',size:11.5,dx:-14,dy:13});
-  /* 场点 P + 距离标注（★ 距离用 dimLine） */
-  marker(g.P,{r:5.5,color:C.purple,ring:'#E6D6F0',label:'P',ldx:13,ldy:-12,lsize:12.5});
-  dimLine(pt(0,0,0),g.P,{color:'#9DB3BF',w:1.2,dash:[5,4],label:'d = '+g.d.toFixed(2)+' m',
-    ldx:state.geo==='surf'?14:0,ldy:state.geo==='surf'?2:14,lsize:11.5});
+  /* 场点 P + 坐标标注（★ 距离一律用 dimLine）
+     ⚠️ P 的文字偏移 (13,−12) 抽成常数：线电荷的 ρ 标注要靠它算"该往哪一侧让位"，
+        两处写死早晚会各改一半。 */
+  const P_LD=[13,-12];
+  marker(g.P,{r:5.5,color:C.purple,ring:'#E6D6F0',label:'P',ldx:P_LD[0],ldy:P_LD[1],lsize:12.5});
+  if(state.geo==='line'){
+    /* ★★ 线电荷的 P 在线的**侧面**，位置由两个正交坐标共同决定 —— 标注也拆成两条尺寸线：
+         · ρ  = P 到线的**垂足 F** 的距离（主标注：这正是"P 在线的旁边"的直接证据，
+                也是 1/ρ 规律的来源）
+         · x_P = 垂足 F 沿线方向的轴向坐标（次标注）
+       ⚠️ x_P 那条若直接画在轴上会与线**完全重合**（线宽 11 px，尺寸线会整个埋进去），
+          所以整体搬到 −y 侧 os 处，再用两条细引出线连回轴 —— 工程制图里尺寸线的标准做法。
+       ★ 标签一律沿"背离线"的屏幕方向外推（sd2）⇒ 任何机位都不会压住线或 P。
+       ⚠️ 但"哪一侧才是空的那侧"会**随相机转**：固定取一个法向，在某些方位角上标签正好
+          往 P 的"P"字那边推（实测 az=1.2/2.2/3.6 撞字 8×7 px）。所以法向的**符号**改成
+          现算：取从尺寸线中点到 P 的标注文字那一侧的反方向 ⇒ 任何机位都往空处让。
+       ★ |x_P| 很小时（P 在中垂面附近）轴向尺寸线的投影长度 < 1 px，dimLine 自己会跳过
+         刻度与标签；这里直接把整段省掉，画面更干净。 */
+    const F=pt(g.P.x,0,0);
+    marker(F,{r:2.4,color:'#8FB3C6'});
+    const oR=sd2(vsub(g.P,F));                       /* F→P 的屏幕单位向量（= 世界 ŷ 的投影） */
+    /* ρ 标注：沿尺寸线的**法向**外推（沿方向推会顶到 P 上），
+       法向符号按"背离 P 的标注文字"现算 ⇒ 每个机位都让到空的那一侧。
+       ⚠️ 尺寸线太短时**不画文字**（只留线 + 刻度）：
+          文字宽 ~56 px、居中对齐 ⇒ 左端要塞进"离线 ≥8 px"、右端要塞进"离 P ≥4 px"，
+          实测需要 L ≥ 72 px（屏幕上 1 m ≈ 202 px ⇒ ρ ≳ 0.36）。
+          ρ < 0.36 时文字无处可放（怎么摆都会压住线或 P 或原点的 O），
+          **数字并没有丢**：面板 linePNote、画布左下读数行、画布下方数据条三处都在报。
+          默认 ρ = 0.42（L ≈ 84 px）⇒ 落在画得出来的区间里（按阈值决定画不画的视觉，
+          必须先确认默认参数在可见区 —— 这里是验过的）。
+       ★ 扫描结论（6 机位 × 30 组 (x_P,ρ)，按 AABB 面积分级）：
+         默认机位 az=0.62 与 az=0.20 下，ρ / x_P 标注**零重叠**；
+         az ≥ 1.2（"从背后看"）残留 11~159 px² 的擦边，全部是与**可拖动的两个探针**
+         （P 与橙色微元）撞在一起 —— 那是"两个可拖物体叠在同一处"的固有情形。
+         改造前同一批机位擦边更大（az=2.2 有 30 处 88 px²）。 */
+    const RHO_LAB_MIN=72;
+    const A0=pr(F), B0=pr(g.P);
+    const Lrho=Math.hypot(B0.x-A0.x,B0.y-A0.y);
+    let oN=[-oR[1],oR[0]];
+    { const Mx=(A0.x+B0.x)/2, My=(A0.y+B0.y)/2;
+      const toLab=[B0.x+P_LD[0]-Mx, B0.y+P_LD[1]-My];
+      if(oN[0]*toLab[0]+oN[1]*toLab[1] > 0) oN=[-oN[0],-oN[1]]; }
+    /* ⚠️ 曾试过再加一个"朝 F 让开 / 朝 P 让开"的偏置，**扫描后否掉了**：
+       180 帧 × 三个变体的标注重叠面积总和，无偏置 243 px² < 朝 P 245 < 朝 F 673。
+       原因：标注居中在尺寸线上时两端余量最均衡，加任何偏置都会把一端顶到
+       {原点的 O / 微元的 Δl′ / P 的 "P"} 上去。⇒ 参数是扫出来的，不是拍的。 */
+    dimLine(F,g.P,{color:'#9DB3BF',w:1.2,dash:[5,4],
+      label: Lrho>=RHO_LAB_MIN ? ('ρ = '+state.sd.toFixed(2)+' m') : null,
+      ldx:oN[0]*13, ldy:oN[1]*13, lsize:11.5, lalign:'center'});
+    if(Math.abs(g.P.x)>0.06){
+      /* ⚠️ x_P 尺寸线的两个参数都是**扫出来的**（180 帧：6 机位 × 30 组 (x_P,ρ)，
+         逐帧做画布文字包围盒两两求交）：
+         · os = 0.30（原来 0.13）：太贴轴线时，尺寸线恰好从微元的标签 Δl′ 底下穿过，
+           中点标注必然与 Δl′、以及原点的 "O" 撞字（实测撞 8×12 px）；
+           外移到 0.30 后标注落在"轴线与微元标签之外"的那一圈，全部组合都留出 ≥30 px。
+         · 标注沿法向外推 18 px 且 **右对齐**：左对齐会一路顶到线上；右对齐朝 −x 一侧展开，
+           那边是空的（半条线到屏幕 x≈428 才出现）。 */
+      const os=0.30, oX=sd2(pt(0,-1,0));
+      line(pt(0,0,0),pt(0,-os,0),{color:'#C9D8E0',w:1});
+      line(pt(g.P.x,0,0),pt(g.P.x,-os,0),{color:'#C9D8E0',w:1});
+      dimLine(pt(0,-os,0),pt(g.P.x,-os,0),{color:'#B9CBD6',w:1.1,alpha:.92,
+        label:'x_P = '+state.px.toFixed(2)+' m', ldx:oX[0]*24, ldy:oX[1]*24, lsize:11, lalign:'right'});
+    }
+  } else {
+    dimLine(pt(0,0,0),g.P,{color:'#9DB3BF',w:1.2,dash:[5,4],label:'d = '+g.d.toFixed(2)+' m',
+      ldx:state.geo==='surf'?14:0,ldy:state.geo==='surf'?2:14,lsize:11.5});
+  }
   /* Σ dE：P 点处全部点电荷元叠加出的合成场，**单支**。
      ★ 2026-09-23 用户删掉了「dE 累加链」与「积分对照箭头」。那对并排箭头唯一的用途是
        "链尾与箭尖的缝隙 = 偏差"，可偏差不多是几何量 —— 0.001% 的偏差缝隙根本看不见，
@@ -1365,9 +1491,15 @@ function modeCont(){
   const S=Math.min(0.85/ref, 1.05/Math.max(mag,1e-12));
   if(mag>1e-9){
     const np=perpOf(g.ax);
+    /* ⚠️ 标签对齐方向**跟着箭头的屏幕朝向走**：文字一律朝箭尖那一侧延伸（= 远离 P）。
+       原来恒为左对齐，箭头一旦转到朝左（az≈2.2/3.6 这些"从背后看"的机位），
+       这串 119 px 的文字就横穿整个 P 与 P 的标注（实测压字 96 px²，是既有毛病）；
+       改成动态对齐后文字落在箭尖前方，P 与 ρ 标注都空出来了。 */
+    const eS=sd2(E);
     arrow(vadd(g.P,vmul(np,0.02)), vadd(vadd(g.P,vmul(np,0.02)),vmul(vnorm(E),mag*S)),
       {color:C.teal,w:2.5,headScale:.9,
-       label:'Σ d@{E} = '+mag.toFixed(2)+'　('+curN()+' 元)',ldx:12,ldy:16,lsize:11.5});
+       label:'Σ d@{E} = '+mag.toFixed(2)+'　('+curN()+' 元)',ldx:12,ldy:16,lsize:11.5,
+       lalign:(eS[0]>=0?'left':'right')});
   }
 }
 
@@ -1550,8 +1682,10 @@ function readoutRows(){
     const mag=vlen(E), ref=Math.max(vlen(rf.v),1e-12);
     const ang=(mag>1e-9)?(Math.acos(Math.max(-1,Math.min(1,vdot(vnorm(E),vnorm(rf.v)))))*R2D):0;
     const isVol=(state.geo==='vol');
+    /* ⚠️ 位置一律用 g.posTxt（各几何自己拼）：线电荷的 P 是**两个**坐标 (x_P, ρ)，
+       不能再拿单标量 g.d 当唯一位置（否则"拖轴向读数不动"，数值与图对不上）。 */
     rows.push({s:'几何 = '+geoWord()+'（'+(state.nonuni?'非均匀':'均匀')+'）　Q = '+g.Q.toFixed(3)+' nC　|　'+
-      g.dLab+' d = '+g.d.toFixed(2)+' m　|　N = '+curN()+' 个点电荷元'
+      g.posTxt+'　|　N = '+curN()+' 个点电荷元'
         +(isVol?('（剖分阶 k = '+tetK()+'）'):''), color:'#5F7482'});
     if(isVol){
       const sq=volSumQ(), dqq=Math.abs(sq-g.Q)/g.Q;
@@ -1727,6 +1861,25 @@ function geoHint(){
       '于是"体 = 体积元的叠加"变成两件可读的事：<b>Σ Δq = Q</b>（总电量）与 '+
       '<b>Σ d@{E} → ∫ d@{E}</b>（总场强），两者共用同一份四面体表，图与数必然一致。';
   }
+  if(state.geo==='line'){
+    return '★ 场点 P 放在线的<b>侧面</b>（不是延长线上）：用<b>两个坐标</b>定位 —— '+
+      '轴向 x_P（沿线的位置）与径向 ρ（到线的垂直距离），P = (x_P, ρ)。'+
+      '因为线电荷关于 x 轴<b>轴对称</b>，绕线转一圈位置都等价 ⇒ |@{E}| 只由 ρ 与 x_P 决定，'+
+      '不需要第三个坐标。<b>P 能任意拖</b>：把鼠标放到画布上的紫点 P 上（光标变成"可移动"），'+
+      '按住左键可以在<b>整个 xy 平面内自由滑动</b>，两个滑块也会跟着动；反过来拖「轴向 x_P / 径向 ρ」'+
+      '两个滑块可以把它精确打到某个数值。<br><br>'+
+      '把它放在侧面有两个好处：① P 就在线的旁边，<b>即使画布上只画线的一小段</b>，P 也在画面里；'+
+      '② 两个自由度都能拖，才叫"任意一点"。ρ 的下限取 0.18 m —— ρ → 0 时 P 落到线上，'+
+      '线电荷的场在那<b>发散</b>（1/ρ），那是模型的奇点，不是可读的物理量。'+
+      '把 x_P 拖到 0（<b>中垂面</b>上）可以看到 @{E} <b>严格垂直于线</b>；'+
+      '离开中垂面就开始出现<b>轴向分量</b>，x_P 越大越明显 —— 这正是"只有延长线上的那种写法"看不到的东西。'+
+      '<div class="frm" style="white-space:normal;margin-bottom:0">'+
+      'E_x = KC·τ·( 1/R₂ − 1/R₁ )<br>E_ρ = KC·τ/ρ·( A/R₁ − B/R₂ )</div>'+
+      '线电荷的场有这个<b>解析闭式</b>，且对任意 (x_P, ρ) 都成立（不只是延长线）：'+
+      'A = x_P+L、B = x_P−L、R₁ = √(A²+ρ²)、R₂ = √(B²+ρ²)。裁判是<b>积分精确值</b>；'+
+      '画布上 P 点处的蓝色箭头是 N 块小段叠加出的 Σ d@{E}，它与精确值差多少由下方读数给出。'+
+      '当 2L ≫ ρ 时 E_ρ → 2KC·τ/ρ = τ/(2πε₀ρ) —— 就是教科书里无限长直导线的 <b>1/ρ 规律</b>。';
+  }
   const unit = state.geo==='surf' ? '扇形面片' : '小段';
   return '带电体被切成 <b>N 块</b>（'+unit+'，严丝合缝铺满），'+
     '每块是一个点电荷元 dq；P 点处的蓝色箭头就是 N 块叠加出的 Σ d@{E}，'+
@@ -1774,6 +1927,20 @@ function pNote(){
   return 'P：(R, θ, φ) = ('+d.Rn.toFixed(2)+' m, '+Math.round(d.th)+'°, '+Math.round(d.ph)+'°)，'+
     '|E| = '+d.E.toFixed(3)+' V/m。θ / φ 变化不改变 |E|，只有 R 变才改变它（∝ 1/R²）。';
 }
+/* ③ 线电荷：P 的两个坐标必须有数字可读（和 microNote 报 ξ 同一个道理）。
+   顺带把"中垂面 ⇒ E 严格垂直于线"这条结论按当前 x_P 实时说出来。 */
+function linePNote(){
+  const g=geomData(), E=g.Ean, mag=vlen(E);
+  /* E 与线的夹角：用 |E_x|/|E| 反余弦 ⇒ 纯径向时恰为 90°（∈[0,90]，因为只看分量大小） */
+  const ang = (mag>1e-9) ? (Math.acos(Math.max(-1,Math.min(1,Math.abs(E.x)/mag)))*R2D) : 90;
+  return 'P：轴向 x_P = '+state.px.toFixed(2)+' m（'+PX_RANGE[0].toFixed(2)+'…'+PX_RANGE[1].toFixed(2)+
+    '）、径向 ρ = '+state.sd.toFixed(2)+' m（'+SD_RANGE.line[0].toFixed(2)+'…'+
+    SD_RANGE.line[1].toFixed(2)+'）。ρ 就是"1/ρ 规律"里那个 ρ。'+
+    '现在 @{E} 与线的夹角 = '+ang.toFixed(1)+'°：'+
+    (Math.abs(state.px)<0.05 ? 'P 正好在中垂面上 ⇒ @{E} <b>严格垂直于线</b>（只有径向分量）。'
+      : '离开中垂面就开始出现<b>轴向分量</b>，x_P 越大越明显；把 x_P 拖到 ±0.60 m（线端）之外，'+
+        '就落到"延长线那侧"了 —— 那是轴向分量最强的位置。');
+}
 function mkRange(sec,d){
   const r=h('<div class="slider-row'+(d.wide?' w':'')+'"><label>'+d.label+'</label>'+
     '<input type="range" id="s_'+d.k+'" min="'+d.min+'" max="'+d.max+'" step="'+d.step+'" value="'+d.get()+'">'+
@@ -1820,9 +1987,20 @@ function renderSliders(sec){
        "这么多 N 的分类有点多余"。它和下面这行滑块本来就是同一个量，
        于是收口为**一个**控件 —— 体电荷叫「剖分尺寸」，面/线电荷叫「切分份数 N」。 */
   sec.appendChild(h('<div class="sec-title">场点 P 的位置</div>'));
-  const rr=SD_RANGE[state.geo];
-  mkRange(sec,{k:'sd',label:'距离 d',wide:true,min:rr[0],max:rr[1],step:0.01,
-    get:()=>state.sd, set:v=>state.sd=v, fmt:v=>v.toFixed(2)+' m', after:()=>_conv.key=null});
+  if(state.geo==='line'){
+    /* ★★ 线电荷的 P 由**两个**坐标定（2026-09-24 用户改版）：轴向 x_P 与径向 ρ。
+       两个都做成滑块（拖画布也能改），于是"任意一点"既能拖出来、也能精确打到数值。
+       轴对称 ⇒ 不需要第三个滑块：绕线转 φ 不改变 |E|，也不改变 E 与线的夹角。 */
+    mkRange(sec,{k:'px',label:'轴向 x_P',wide:true,min:PX_RANGE[0],max:PX_RANGE[1],step:0.01,
+      get:()=>state.px, set:v=>state.px=v, fmt:v=>v.toFixed(2)+' m', after:()=>_conv.key=null});
+    mkRange(sec,{k:'sd',label:'径向 ρ',wide:true,min:SD_RANGE.line[0],max:SD_RANGE.line[1],step:0.01,
+      get:()=>state.sd, set:v=>state.sd=v, fmt:v=>v.toFixed(2)+' m', after:()=>_conv.key=null});
+    sec.appendChild(h('<div class="ex-note" id="linePNote">'+richHTML(linePNote())+'</div>'));
+  } else {
+    const rr=SD_RANGE[state.geo];
+    mkRange(sec,{k:'sd',label:'距离 d',wide:true,min:rr[0],max:rr[1],step:0.01,
+      get:()=>state.sd, set:v=>state.sd=v, fmt:v=>v.toFixed(2)+' m', after:()=>_conv.key=null});
+  }
   /* ⚠️ 体电荷下**不显示 N 滑块**：N = 20k² 完全由「剖分尺寸」那个滑块决定，
      再摆一个不起作用的 N 滑块就是典型的"半死控件"（本项目明令不留）。 */
   if(state.geo!=='vol'){
@@ -1858,7 +2036,7 @@ function renderSliders(sec){
 const SLIDER_FMT={
   q:  v=>v.toFixed(1)+' nC',  qt: v=>v.toFixed(2)+' nC', qP: v=>v.toFixed(1)+' nC',
   sr: v=>v.toFixed(2)+' m',   sth:v=>Math.round(v)+'°',  sph:v=>Math.round(v)+'°',
-  sd: v=>v.toFixed(2)+' m',   NS: v=>String(Math.round(v)),
+  sd: v=>v.toFixed(2)+' m',   px: v=>v.toFixed(2)+' m',   NS: v=>String(Math.round(v)),
 };
 function sliderFmt(k,v){
   if(k==='mh') return (state.geo==='vol') ? 'k = '+Math.round(v)+'　('+(20*Math.round(v)*Math.round(v))+' 个)'
@@ -1879,10 +2057,11 @@ function syncSliders(){
   set('mh',state.mh);
   const sSd=document.getElementById('s_sd');
   if(sSd){ const rr=SD_RANGE[state.geo]; sSd.min=rr[0]; sSd.max=rr[1]; }
-  set('sd',state.sd); set('NS',state.NS);
+  set('sd',state.sd); set('px',state.px); set('NS',state.NS);
   const mn=document.getElementById('microNote'); if(mn) mn.innerHTML=richHTML(microNote());
   const sn=document.getElementById('supNote'); if(sn) sn.innerHTML=richHTML(supNote());
   const pn=document.getElementById('pNote'); if(pn) pn.innerHTML=richHTML(pNote());
+  const lp=document.getElementById('linePNote'); if(lp) lp.innerHTML=richHTML(linePNote());
 }
 
 const CARDS={
@@ -1967,7 +2146,15 @@ const CARDS={
       '<li><b>体电荷</b>的 N 不是随手给的：它就是剖分的四面体个数 <b>N = 20k²</b>，'+
       '被「剖分尺寸」唯一的滑块决定 ⇒ 体积元越大，N 越小、求和越粗</li>'+
       '<li>均匀分布用解析答案当裁判；非均匀分布的球体也<b>有解析闭式</b>，'+
-      '面/线电荷才用 N=8192 的数值积分当参考（界面会如实标注）</li></ul>'},
+      '面/线电荷才用 N=8192 的数值积分当参考（界面会如实标注）</li>'+
+      '<li>★ <b>线电荷</b>的场点 P 放在线的<b>侧面</b>，用<b>两个</b>坐标定位：轴向 x_P（沿线）+ '+
+      '径向 ρ（到线的距离）。轴对称 ⇒ 绕线转圈不改变 @{E} ⇒ 两个自由度就够了。'+
+      '把 x_P 拖到 0（中垂面）时 E_x ≡ 0、<b>@{E} 严格垂直于线</b>；'+
+      '离开中垂面就出现轴向分量，x_P 越大越强。P 能<b>在平面内任意拖</b>，'+
+      '所以"把 P 挪到任意一点、看 @{E} 怎么跟着转"是能真做出来的</li>'+
+      '<li>ρ → 0（P 落到线上）时 @{E} 发散（∝ 1/ρ）—— 这是理想线电荷模型的奇点；'+
+      '真实导线有粗细，靠近表面的场由 ρ 的下限截住。2L ≫ ρ 时 E_ρ → 2KC·τ/ρ = τ/(2πε₀ρ)，'+
+      '就是无限长直导线的 <b>1/ρ</b> 规律</li></ul>'},
     {k:'3',tab:'3. 体 = 体积元的叠加',cls:'c3',body:
       '<b>体电荷的做法：先有一个球，再对球做体剖分。</b>'+
       '<div class="frm">二十面体 → 每面 k 阶重心细分 → 新点投回球面 → 20k² 个球面三角形</div>'+
@@ -2047,6 +2234,10 @@ function updateReadout(){
     const ang=(mag>1e-9)?(Math.acos(Math.max(-1,Math.min(1,vdot(vnorm(E),vnorm(rf.v)))))*R2D):0;
     const isVol=(state.geo==='vol');
     html += kchip('几何 =', geoWord()+'（'+(state.nonuni?'非均匀':'均匀')+'）');
+    /* ★ 线电荷的 P 有**两个**坐标，必须进数据条（画布下方的条才是学生盯的那块读数）；
+       vol/surf 只有一个距离 d，画布上的 dimLine 标签已经报了，这里不加（数据条本就有横向溢出）。 */
+    if(state.geo==='line')
+      html += kchip('P 的位置 (x_P, ρ) =', '('+state.px.toFixed(2)+', '+state.sd.toFixed(2)+') m','acc');
     html += kchip('总电量 Q =', g.Q.toFixed(3)+' nC');
     html += kchip('点电荷元 N =', String(curN())+(isVol?(' 个（k = '+tetK()+'）'):' 块'));
     html += kchip('微元 Δq/'+geoMeas()+' =', mi.dens.toFixed(3)+' '+geoUnit(),'acc');
@@ -2079,7 +2270,8 @@ function updateModeTag(){
     state.sr.toFixed(2)+' m, '+Math.round(state.sth)+'°, '+Math.round(state.sph)+'°)');
   else t.innerHTML=richHTML('电荷密度 · '+geoWord()+'（'+(state.nonuni?'非均匀':'均匀')+'）　'+
     (state.geo==='vol' ? ('球体剖分为 '+curN()+' 个四面体（k = '+tetK()+'）')
-                       : ('N = '+state.NS+' 块')));
+     : state.geo==='line' ? ('P：(x_P, ρ) = ('+state.px.toFixed(2)+' m, '+state.sd.toFixed(2)+' m)')
+                          : ('N = '+state.NS+' 块')));
   if(sb) sb.innerHTML=richHTML(
     state.mode==='def'   ? '@{E} = lim (q_t→0) @{F}/q_t　场强的定义'
   : state.mode==='point' ? '点电荷的场　@{E} = q/(4πε₀R²)·@{e_R}　（只依赖 R）'
@@ -2137,6 +2329,44 @@ function overMicro(m){
   const wp=pr(microCenterW());
   return Math.hypot(m.x-wp.x,m.y-wp.y)<microHitR();
 }
+/* ── 线电荷的 P：两自由度拖动 ─────────────────────────────────────────────────
+   P = (x_P, ρ, 0) 只有两个自由度，所以拖动 = 把鼠标位移反解成 (Δx_P, Δρ)。
+   做法：两个世界基 x̂ / ŷ 在当前相机下的屏幕投影构成 2×2 矩阵 J，
+         mouse Δ = J · (Δx_P, Δρ) ⇒ 解 2×2 线性方程组即可。
+   ★ 为什么不用"反投到 z=0 平面"（screenToWorldZ）：那要除以 det = sin(el)，
+     俯仰角 → 0（视线与 xy 平面平行）时整个平面在屏幕上退化成一条线、除零爆掉。
+   ★ J 的行列式实测 det = −camScale²·sin(el) —— 同一个退化点，所以这里给 |det| 加下限：
+     极端角度下把灵敏度钳在 1/0.30 倍，拖动变"钝"但绝不会飞出去（拖到边界还会被 clamp 住）。
+   ⚠️ el → 0 时 J 退化成**秩 1**（xy 平面在屏幕上压成一条线）⇒ 两个自由度不再能各自跟随光标
+      （实测 el=0、拖 (120,60) px：x_P −0.805 m、ρ 被夹到下限，数值有限、画面不炸）。
+      这是几何本身的性质，不是 bug —— 从"正侧面"看那个平面，任何二维拖动都无法一一对应。 */
+const P_HIT=26;                       /* P 的抓手半径（px）：比微元的 30 px 略小，
+                                         两者贴身时靠"归一化距离"分派（见 grabTarget） */
+function xyJac(){
+  const ax=camScale*vdot(pt(1,0,0),camU), ay=-camScale*vdot(pt(1,0,0),camV);
+  const bx=camScale*vdot(pt(0,1,0),camU), by=-camScale*vdot(pt(0,1,0),camV);
+  const det0=ax*by-ay*bx;
+  if(!isFinite(det0)||camScale<1e-6) return null;
+  return {ax,ay,bx,by,det0,ref:camScale*camScale};
+}
+/* 线电荷下画布上有**两个**抓手（紫 P 与橙色微元），且 ρ 取小值时两者屏幕上会挨得很近。
+   判据 = **归一化距离**（各自除以自己的命中半径），谁更"贴身"抓谁 ——
+   比"先判 P 还是先判微元"稳定：写死优先级会在某些机位让另一个抓手永远抓不到。 */
+function grabTarget(m){
+  if(state.mode!=='cont' || state.geo!=='line') return null;
+  const cand=[];
+  if(state.show.micro){
+    const w=pr(microCenterW());
+    const d=Math.hypot(m.x-w.x,m.y-w.y)/microHitR();
+    if(d<1) cand.push({k:'micro',d});
+  }
+  const wp=pr(pt(state.px,state.sd,0));
+  const dp=Math.hypot(m.x-wp.x,m.y-wp.y)/P_HIT;
+  if(dp<1) cand.push({k:'p',d:dp});
+  if(!cand.length) return null;
+  cand.sort((a,b)=>a.d-b.d);
+  return cand[0].k;
+}
 canvas=document.getElementById('cv');
 ctx=canvas.getContext('2d');
 canvas.addEventListener('pointerdown',ev=>{
@@ -2151,8 +2381,12 @@ canvas.addEventListener('pointerdown',ev=>{
       const wp=pr(Ppos());
       if(Math.hypot(m.x-wp.x,m.y-wp.y)<38){ drag={x:m.x,y:m.y,btn:0,mode:'pp'}; ev.preventDefault(); return; }
     }
-    /* ③ 橙色微元：抓在手里就能拖（位置由鼠标给，没有「位置 ξ」滑块） */
-    if(overMicro(m)){ drag={x:m.x,y:m.y,btn:0,mode:'mid'}; ev.preventDefault(); return; }
+    /* ③ 的抓手：线电荷下 P（可自由拖）与橙色微元都在画布上，先按"归一化距离"决定抓谁；
+       其它几何只有微元一个抓手。 */
+    if(state.mode==='cont' && state.geo==='line'){
+      const w=grabTarget(m);
+      if(w){ drag={x:m.x,y:m.y,btn:0,mode:(w==='p'?'lp':'mid')}; ev.preventDefault(); return; }
+    } else if(overMicro(m)){ drag={x:m.x,y:m.y,btn:0,mode:'mid'}; ev.preventDefault(); return; }
   }
   drag={x:m.x,y:m.y,btn:ev.button,mode:(ev.button===2||ev.ctrlKey)?'pan':'rot'};
   ev.preventDefault();
@@ -2160,8 +2394,9 @@ canvas.addEventListener('pointerdown',ev=>{
 canvas.addEventListener('pointermove',ev=>{
   const m=localPos(ev);
   if(!drag){
-    /* 悬在微元上 → 换成"可移动"光标。③ 的唯一抓手，得让人看得出可以拖。 */
-    canvas.style.cursor = overMicro(m) ? 'move' : '';
+    /* 悬在抓手（P / 橙色微元）上 → 换成"可移动"光标，让人看得出这里可以拖。 */
+    const canGrab = (state.mode==='cont' && state.geo==='line') ? !!grabTarget(m) : overMicro(m);
+    canvas.style.cursor = canGrab ? 'move' : '';
     return;
   }
   const dx=m.x-drag.x,dy=m.y-drag.y; drag.x=m.x; drag.y=m.y;
@@ -2175,6 +2410,18 @@ canvas.addEventListener('pointermove',ev=>{
        于是拖动只改 θ / φ，R 一动不动 —— 这正是本页要讲的那件事。 */
     const q=screenToSphere(m.x,m.y,P_SRC,state.sr);
     if(q){ setPFromVec(q); needsRender=true; updateReadout(); updateModeTag(); syncSliders(); }
+  }
+  else if(drag.mode==='lp'){
+    /* ★ 线电荷的 P：在 xy 平面内**两自由度**自由拖动（不是沿一条线滑）。
+       鼠标位移 (dx,dy) 反解成 (Δx_P, Δρ)：见 xyJac 的注释。 */
+    const J=xyJac();
+    if(J){
+      const det=(Math.abs(J.det0) < 0.30*J.ref) ? ((J.det0>=0?1:-1)*0.30*J.ref) : J.det0;
+      state.px += (J.by*dx - J.bx*dy)/det;
+      state.sd += (J.ax*dy - J.ay*dx)/det;
+      clampPx(); clampSd(); _conv.key=null;
+      needsRender=true; updateReadout(); updateModeTag(); syncSliders();
+    }
   }
   else if(drag.mode==='mid'){
     /* ★ 微元位置：这就是它**唯一**的位置来源（位置滑块早已撤掉，不存在"两处各写一半"）。
