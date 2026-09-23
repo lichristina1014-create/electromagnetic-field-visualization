@@ -797,15 +797,28 @@ function modePoint(){
       const m=vadd(P_SRC, pt(d.Rn*0.62*Math.sin(t/2)*hx, d.Rn*0.62*Math.sin(t/2)*hy, d.Rn*0.62*Math.cos(t/2)));
       text(m,'θ = '+Math.round(d.th)+'°',{color:'#7A3E93',size:12,bold:true,dx:6,dy:-6,alpha:kTxt});
     }
-    /* φ：xy 平面内 +x → 水平投影，弧半径 = R·sinθ；两条径向线同起点、同终点圆 */
+    /* φ：画在 **P 自己所在的那条纬线**上（平面 z = R·cosθ，半径 ρ = R·sinθ），自 +x 起算到 P。
+       ★ 2026-09-23 用户指出："P 点沿 φ 方向变化的时候，不应该画 z=0 平面的纬线，
+         而应该画 P 点所在的纬线"。原来画在 z=0 —— 那是"赤道"，而 P 高出 z=0 有 R·cosθ
+         （默认 θ=52° ⇒ 高出 0.62R）⇒ 弧与 P 分居两圈，"改 φ 时 P 沿着哪条圈滑"看不出来。
+       ★ 现改：纬线圆心抬到轴上的 A = 源 + (0,0,R·cosθ)，于是弧的终点**恰好就是 P**
+         （A + ρ·(cosφ,sinφ,0) ≡ P —— 测试里直接断言这一点，防止以后再漂移）。
+         两条半径线随之从 A 出发：**角 φ 沿 z 平移不变**，所以读数不受影响；
+         且 A→P 这一段正好把"水平半径 ρ = R·sinθ"显式画了出来。
+       ★ 分两层：淡虚线整圈 = 纬线本身（P 能绕它跑满一整圈）；实线弧 = 已扫过的角 0→φ。
+         与 ballRim(虚线=刻度) / shellBall(实线=主角) 同一套视觉语言。 */
     if(rh>0.04 && d.th>1.5 && d.th<178.5){
+      const A=vadd(P_SRC,pt(0,0,d.Rn*Math.cos(t)));
+      const ring=[];
+      for(let i=0;i<=56;i++){ const a=2*Math.PI*i/56; ring.push(vadd(A,pt(rh*Math.cos(a),rh*Math.sin(a),0))); }
+      curve(ring,{color:'#9FC4D8',w:1.1,alpha:.34*kNear,dash:[3,5],z:Z_ARC});
       const arc=[];
-      for(let i=0;i<=24;i++){ const a=d.ph*D2R*i/24; arc.push(vadd(P_SRC,pt(rh*Math.cos(a),rh*Math.sin(a),0))); }
-      line(P_SRC, vadd(P_SRC,pt(rh,0,0)),{color:'#8FC2DA',w:1.1,alpha:.8*kNear,dash:[4,4],z:Z_ARC});
-      line(P_SRC, vadd(P_SRC,pt(rh*hx,rh*hy,0)),{color:'#8FC2DA',w:1.1,alpha:.8*kNear,dash:[4,4],z:Z_ARC});
+      for(let i=0;i<=24;i++){ const a=d.ph*D2R*i/24; arc.push(vadd(A,pt(rh*Math.cos(a),rh*Math.sin(a),0))); }
+      line(A, vadd(A,pt(rh,0,0)),{color:'#8FC2DA',w:1.1,alpha:.8*kNear,dash:[4,4],z:Z_ARC});
+      line(A, vadd(A,pt(rh*hx,rh*hy,0)),{color:'#8FC2DA',w:1.1,alpha:.8*kNear,dash:[4,4],z:Z_ARC});
       curve(arc,{color:'#2A7FA8',w:1.9,alpha:.92*kNear,z:Z_ARC});
       const ma=d.ph*D2R/2;
-      text(vadd(P_SRC,pt(rh*1.10*Math.cos(ma),rh*1.10*Math.sin(ma),0)),'φ = '+Math.round(d.ph)+'°',
+      text(vadd(A,pt(rh*1.10*Math.cos(ma),rh*1.10*Math.sin(ma),0)),'φ = '+Math.round(d.ph)+'°',
         {color:'#1F6A8E',size:12,bold:true,dx:6,dy:8,alpha:kTxt});
     }
     if(d.th<=1.5||d.th>=178.5)
