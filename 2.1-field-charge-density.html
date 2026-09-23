@@ -257,14 +257,17 @@ function pr(p){return{x:CX2+cam.px+camScale*vdot(p,camU),y:CY+cam.py-camScale*vd
 
 let prims=[];
 function P_(z,fn){prims.push({z,draw:fn});}
-function line(a,b,o={}){const A=pr(a),B=pr(b);P_((A.d+B.d)/2,()=>{ctx.save();ctx.globalAlpha=o.alpha!=null?o.alpha:1;ctx.strokeStyle=o.color||C.gray;ctx.lineWidth=o.w||1.4;if(o.dash)ctx.setLineDash(o.dash);ctx.beginPath();ctx.moveTo(A.x,A.y);ctx.lineTo(B.x,B.y);ctx.stroke();ctx.restore();});}
+/* ⚠️ 各图元的 o.z：**可选**覆盖画家算法的深度。半透明壳体（等位面）会横跨一大段
+   深度，凡是"必须始终看得清"的标注（P、θ/φ 角弧、E 箭头）都要显式抬到壳体之上，
+   否则它们会被自己所在的球面那层 Fresnel 厚边洗掉。默认 0 / +1e4 一段留空，互不打架。 */
+function line(a,b,o={}){const A=pr(a),B=pr(b);P_(o.z!=null?o.z:(A.d+B.d)/2,()=>{ctx.save();ctx.globalAlpha=o.alpha!=null?o.alpha:1;ctx.strokeStyle=o.color||C.gray;ctx.lineWidth=o.w||1.4;if(o.dash)ctx.setLineDash(o.dash);ctx.beginPath();ctx.moveTo(A.x,A.y);ctx.lineTo(B.x,B.y);ctx.stroke();ctx.restore();});}
 function arrowSeg(A,B,color,w,headScale){const dx=B.x-A.x,dy=B.y-A.y,L=Math.hypot(dx,dy);if(L<0.5)return;const ux=dx/L,uy=dy/L,hs=(headScale||1)*9;ctx.strokeStyle=color;ctx.lineWidth=w;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(A.x,A.y);ctx.lineTo(B.x-ux*hs*.55,B.y-uy*hs*.55);ctx.stroke();const ang=Math.atan2(dy,dx);ctx.beginPath();ctx.moveTo(B.x,B.y);ctx.lineTo(B.x-hs*Math.cos(ang-.42),B.y-hs*Math.sin(ang-.42));ctx.lineTo(B.x-hs*Math.cos(ang+.42),B.y-hs*Math.sin(ang+.42));ctx.closePath();ctx.fillStyle=color;ctx.fill();}
-function arrow(a,b,o={}){const A=pr(a),B=pr(b);P_((A.d+B.d)/2,()=>{ctx.save();ctx.globalAlpha=o.alpha!=null?o.alpha:1;if(o.dash)ctx.setLineDash(o.dash);arrowSeg(A,B,o.color||C.teal,o.w||2,o.headScale);ctx.restore();});if(o.label)text(vmul(vadd(a,b),.5),o.label,{color:o.color||C.teal,dx:o.ldx||0,dy:o.ldy!==undefined?o.ldy:-10,size:o.lsize||12.5,bold:true,align:o.lalign});}
-function curve(ptsArr,o={}){if(ptsArr.length<2)return;const S=ptsArr.map(pr);P_(S.reduce((s,p)=>s+p.d,0)/S.length,()=>{ctx.save();ctx.globalAlpha=o.alpha!=null?o.alpha:1;ctx.strokeStyle=o.color||C.gray;ctx.lineWidth=o.w||1.8;ctx.lineCap='round';if(o.dash)ctx.setLineDash(o.dash);ctx.beginPath();ctx.moveTo(S[0].x,S[0].y);for(let i=1;i<S.length;i++)ctx.lineTo(S[i].x,S[i].y);ctx.stroke();if(o.arrowEnd){const a=S[S.length-2],b=S[S.length-1];ctx.setLineDash([]);arrowSeg(a,b,o.color||C.gray,o.w||1.8,.75);}ctx.restore();});}
-function poly(ptsArr,o={}){if(ptsArr.length<3)return;const S=ptsArr.map(pr);P_(S.reduce((s,p)=>s+p.d,0)/S.length,()=>{ctx.save();ctx.beginPath();ctx.moveTo(S[0].x,S[0].y);for(let i=1;i<S.length;i++)ctx.lineTo(S[i].x,S[i].y);ctx.closePath();if(o.fill){ctx.globalAlpha=o.fillAlpha!=null?o.fillAlpha:.15;ctx.fillStyle=o.fill;ctx.fill();}if(o.stroke!==false){ctx.globalAlpha=o.strokeAlpha!=null?o.strokeAlpha:(o.fillAlpha!=null?o.fillAlpha:1);ctx.strokeStyle=o.stroke||o.fill||C.gray;ctx.lineWidth=o.w||1;if(o.dash)ctx.setLineDash(o.dash);ctx.stroke();}ctx.restore();});}
+function arrow(a,b,o={}){const A=pr(a),B=pr(b);P_(o.z!=null?o.z:(A.d+B.d)/2,()=>{ctx.save();ctx.globalAlpha=o.alpha!=null?o.alpha:1;if(o.dash)ctx.setLineDash(o.dash);arrowSeg(A,B,o.color||C.teal,o.w||2,o.headScale);ctx.restore();});if(o.label)text(vmul(vadd(a,b),.5),o.label,{color:o.color||C.teal,dx:o.ldx||0,dy:o.ldy!==undefined?o.ldy:-10,size:o.lsize||12.5,bold:true,align:o.lalign});}
+function curve(ptsArr,o={}){if(ptsArr.length<2)return;const S=ptsArr.map(pr);P_(o.z!=null?o.z:S.reduce((s,p)=>s+p.d,0)/S.length,()=>{ctx.save();ctx.globalAlpha=o.alpha!=null?o.alpha:1;ctx.strokeStyle=o.color||C.gray;ctx.lineWidth=o.w||1.8;ctx.lineCap='round';if(o.dash)ctx.setLineDash(o.dash);ctx.beginPath();ctx.moveTo(S[0].x,S[0].y);for(let i=1;i<S.length;i++)ctx.lineTo(S[i].x,S[i].y);ctx.stroke();if(o.arrowEnd){const a=S[S.length-2],b=S[S.length-1];ctx.setLineDash([]);arrowSeg(a,b,o.color||C.gray,o.w||1.8,.75);}ctx.restore();});}
+function poly(ptsArr,o={}){if(ptsArr.length<3)return;const S=ptsArr.map(pr);P_(o.z!=null?o.z:S.reduce((s,p)=>s+p.d,0)/S.length,()=>{ctx.save();ctx.beginPath();ctx.moveTo(S[0].x,S[0].y);for(let i=1;i<S.length;i++)ctx.lineTo(S[i].x,S[i].y);ctx.closePath();if(o.fill){ctx.globalAlpha=o.fillAlpha!=null?o.fillAlpha:.15;ctx.fillStyle=o.fill;ctx.fill();}if(o.stroke!==false){ctx.globalAlpha=o.strokeAlpha!=null?o.strokeAlpha:(o.fillAlpha!=null?o.fillAlpha:1);ctx.strokeStyle=o.stroke||o.fill||C.gray;ctx.lineWidth=o.w||1;if(o.dash)ctx.setLineDash(o.dash);ctx.stroke();}ctx.restore();});}
 function marker(p,o={}){
   const S=pr(p);
-  P_(S.d+0.02, ()=>{ ctx.save();
+  P_(o.z!=null?o.z:S.d+0.02, ()=>{ ctx.save();
     ctx.globalAlpha=o.alpha!=null?o.alpha:1;
     ctx.beginPath(); ctx.arc(S.x,S.y,o.r||5,0,7);
     ctx.fillStyle=o.color||C.orange; ctx.fill();
@@ -285,7 +288,7 @@ function dimLine(a,b,o={}){
   const dx=B.x-A.x,dy=B.y-A.y,L=Math.hypot(dx,dy);
   if(L<1)return;
   const px=-dy/L,py=dx/L,t=o.tick||6;
-  const tk=P=>{P_((A.d+B.d)/2,()=>{ctx.save();ctx.strokeStyle=o.color||C.gray;ctx.lineWidth=o.w||1.4;ctx.setLineDash([]);ctx.beginPath();ctx.moveTo(P.x+px*t,P.y+py*t);ctx.lineTo(P.x-px*t,P.y-py*t);ctx.stroke();ctx.restore();});};
+  const tk=P=>{P_(o.z!=null?o.z:(A.d+B.d)/2,()=>{ctx.save();ctx.strokeStyle=o.color||C.gray;ctx.lineWidth=o.w||1.4;ctx.setLineDash([]);ctx.beginPath();ctx.moveTo(P.x+px*t,P.y+py*t);ctx.lineTo(P.x-px*t,P.y-py*t);ctx.stroke();ctx.restore();});};
   tk(A);tk(B);
   if(o.label)text(vmul(vadd(a,b),.5),o.label,{color:o.color||C.gray,dx:o.ldx||0,dy:o.ldy!==undefined?o.ldy:-10,size:o.lsize||12.5,bold:true,align:o.lalign});
 }
@@ -309,55 +312,67 @@ function drawAxes(ext){
   text(pt(0,0,0),'O',{color:'#7A8F9B',size:12,dx:-13,dy:13});
 }
 
-/* 把采样曲线按「是否朝向相机」拆成连续段，分别交给 onFront / onBack。
-   —— 伪隐线消除：球线框不再把背面也画成同样重，否则几个同心球叠起来就是一团线球。
-   判据：外法矢 n 与 camD 同向 ⇒ 正面（camD 由场景指向观察者，pr().d = v·camD，d 大者画在上面）。 */
-function splitByVis(pts,visFn,onFront,onBack){
-  const mix=(a,b,m)=>pt(a.x+(b.x-a.x)*m, a.y+(b.y-a.y)*m, a.z+(b.z-a.z)*m);
-  let run=[], vis=null;
-  for(let i=0;i<pts.length;i++){
-    const v=visFn(pts[i]);
-    if(vis===null){ vis=v; run=[pts[i]]; continue; }
-    if(v===vis){ run.push(pts[i]); continue; }
-    /* 可见性翻转：在 (i-1, i) 之间二分出边界点，补进本段尾 / 作为下一段头，避免可见缝隙 */
-    const a=pts[i-1], b=pts[i]; let lo=0, hi=1;
-    for(let k=0;k<12;k++){ const m=(lo+hi)/2; if(visFn(mix(a,b,m))) lo=m; else hi=m; }
-    const bp=mix(a,b,(lo+hi)/2);
-    run.push(bp);
-    if(run.length>1) (vis?onFront:onBack)(run);
-    run=[bp,pts[i]]; vis=v;
-  }
-  if(run.length>1) (vis?onFront:onBack)(run);
-}
+/* ── 已退役：球线框 sphereWireAt + 伪隐线辅助 splitByVis ───────────────────────
+   2026-09-23 用户明确否掉「用经线/纬线代替球面」的做法（"学生看不懂，就是一个面"），
+   2.1 里最后两处调用（② 过 P 的等位面、③ 带电球轮廓）都已换成 shellBall / ballRim。
+   两个函数随即成为死代码，一并删除 —— 留着一个现成的"线球"helper 只会诱导以后
+   再犯同一个错。历史与替代方案见 memory/ref-21-field-charge-density.md。 */
 
-/* 球线框（可指定球心；R=0 时自动跳过）
-   ⚠️ 默认只画 **4 条半经线（= 2 个完整大圆）+ 1 条赤道**，且背对相机的部分淡化。
-   早年版是「4 半经 + 3 纬、前后一律实线」⇒ 3 个同心球叠成 21 条等重闭合曲线，
-   屏幕上是一团"线球"（用户反馈「经纬线看起来太乱」），而且经线只取 φ=0/45/90/135，
-   在 φ→φ+180 下不对称，看着更毛。现在 φ 均匀铺满 360°。
-   o: {mer 半经线数, par 纬线数(1=只画赤道), backK 背面亮度系数, seg 采样段数} */
-function sphereWireAt(c,R,color,w,alpha,o){
+/* 球面的剪影圆 —— 正交投影下，球面的轮廓**恰好是一个圆**（圆心 = 球心的投影，
+   半径 = R·camScale，与相机方位角、仰角都无关）。所以"球长什么样"这件事，
+   在屏幕空间画一个圆最准、最省，也不受 3D 交点计算误差影响。
+   参考用的同心球壳只画这个圆（dash 表示"只是刻度"）。
+   ⚠️ 深度必须写 `S.d`（pr() 的返回值）—— `pt()` 造的点**没有 .d**，
+      写成 c.d 会得到 undefined ⇒ NaN 深度 ⇒ 排序被静默废掉（只靠稳定排序的插入序侥幸看着对）。 */
+function ballRim(c,R,hexBase,w,alpha,o){
   if(R<=1e-6) return;
   o=o||{};
-  const nMer=o.mer!=null?o.mer:4;
-  const nPar=o.par!=null?o.par:1;
-  const backK=o.backK!=null?o.backK:0.28;
-  const seg=o.seg||56;
-  const vis=p=>vdot(vnorm(vsub(p,c)),camD)>0;
-  const onF=pts=>curve(pts,{color,w,alpha,dash:o.dash});
-  const onB=pts=>curve(pts,{color,w:w*0.85,alpha:alpha*backK,dash:o.dash});
-  for(let k=0;k<nPar;k++){
-    const th=Math.PI*(k+1)/(nPar+1), pts=[];
-    for(let i=0;i<=seg;i++){ const ph=2*Math.PI*i/seg;
-      pts.push(pt(c.x+R*Math.sin(th)*Math.cos(ph), c.y+R*Math.sin(th)*Math.sin(ph), c.z+R*Math.cos(th))); }
-    splitByVis(pts,vis,onF,onB);
-  }
-  for(let k=0;k<nMer;k++){
-    const ph=2*Math.PI*k/nMer, pts=[];
-    for(let i=0;i<=seg;i++){ const th=Math.PI*i/seg;
-      pts.push(pt(c.x+R*Math.sin(th)*Math.cos(ph), c.y+R*Math.sin(th)*Math.sin(ph), c.z+R*Math.cos(th))); }
-    splitByVis(pts,vis,onF,onB);
-  }
+  const S=pr(c), rad=R*camScale;
+  P_(o.z!=null?o.z:S.d+0.02,()=>{ ctx.save(); ctx.strokeStyle=hexA(hexBase,alpha); ctx.lineWidth=w||1.3;
+    if(o.dash) ctx.setLineDash(o.dash);
+    ctx.beginPath(); ctx.arc(S.x,S.y,rad,0,7); ctx.stroke(); ctx.restore(); });
+}
+/* 半透明球面 —— ★ 球面就画成"一个面"，不再用经线/纬线网格代替（学生读不出网格是球）。
+   配方与 1.3 的「半透明玻璃壳」同源（那里已经用过、用户认可），照抄而不是另发明一套：
+     ① 背面（z = S.d − R）：极淡的一层体色，靠剪影略厚 —— 透过它才看得见壳里的电荷与场线；
+     ② 正面（z = S.d + R）：**偏心径向渐变**做 Fresnel 厚壁（中心几乎透明 → 掠射边缘陡增到
+        aRim）+ 一个偏心连白镜面高光 + 一圈同色剪影线；
+     ③ 轮廓仍用屏幕空间的剪影圆（正交投影下球面轮廓恰是圆，与相机角无关）。
+   ⚠️ 踩过的坑（已用截图确认）：**逐四边形铺半透明色是行不通的**。球面在正交投影下，
+   前后两半各自恰好盖满整个圆盘一次 ⇒ 复合透明度处处相等 ⇒ 屏幕上就是一块"橙色圆片"，
+   shade() 那点 0.80~1.00 的伪光照调制被 alpha 完全淹没。球感只能靠屏幕空间的
+   "高光 + 厚壁"给出来。实测：本体透明度必须压到 0.03 量级（不是 0.15），厚壁才能被读出来。
+   ★ 分层取 ±R（球面真实的前后极值）⇒ 壳内物体（电荷、场线、R 标注）自动落在两层之间
+     被罩住 = "包在玻璃球里"；而 P、θ/φ 角弧、E 箭头这些标注用 o.z 显式抬到壳体之上，
+     免得被自己脚下的厚壁洗掉。
+   改 R ⇒ 球面整体放大/缩小；改 θ/φ ⇒ 这个球面一动不动。
+   emph 强调档（本体/厚壁都加深）；rimA 覆盖厚壁透明度（不给就用强调档默认值）。 */
+function shellBall(c,R,hexBase,emph,rimA){
+  if(R<=1e-6) return;
+  const S=pr(c), rr=R*camScale;
+  const aBody=emph?0.085:0.045, aRim=rimA!=null?rimA:(emph?0.46:0.28);
+  /* ① 背面：极淡体色，越靠剪影越厚 */
+  P_(S.d-R*1.02,()=>{ ctx.save();
+    const g=ctx.createRadialGradient(S.x,S.y,rr*0.05,S.x,S.y,rr);
+    g.addColorStop(0,hexA(hexBase,aBody*0.50));
+    g.addColorStop(1,hexA(hexBase,aBody*1.40));
+    ctx.beginPath(); ctx.arc(S.x,S.y,rr,0,7); ctx.fillStyle=g; ctx.fill(); ctx.restore(); });
+  /* ② 正面：中心高透 → 掠射边缘变厚 + 镜面高光 + 轮廓 */
+  P_(S.d+R*1.02,()=>{ ctx.save();
+    const g=ctx.createRadialGradient(S.x-rr*0.32,S.y-rr*0.36,rr*0.06,S.x,S.y,rr*1.02);
+    g.addColorStop(0,   'rgba(255,255,255,'+(emph?0.20:0.13)+')');
+    g.addColorStop(0.44,hexA(hexBase,aBody*0.30));
+    g.addColorStop(0.82,hexA(hexBase,aRim*0.32));
+    g.addColorStop(1,   hexA(hexBase,aRim));
+    ctx.beginPath(); ctx.arc(S.x,S.y,rr,0,7); ctx.fillStyle=g; ctx.fill();
+    const hx=S.x-rr*0.42, hy=S.y-rr*0.46, hr=rr*0.24;
+    const gh=ctx.createRadialGradient(hx,hy,0,hx,hy,hr);
+    gh.addColorStop(0,'rgba(255,255,255,'+(emph?0.52:0.34)+')');
+    gh.addColorStop(1,'rgba(255,255,255,0)');
+    ctx.beginPath(); ctx.arc(hx,hy,hr,0,7); ctx.fillStyle=gh; ctx.fill();
+    ctx.beginPath(); ctx.arc(S.x,S.y,rr,0,7);
+    ctx.strokeStyle=hexBase; ctx.globalAlpha=emph?0.92:0.52;
+    ctx.lineWidth=emph?1.9:1.3; ctx.stroke(); ctx.restore(); });
 }
 
 /* ============================================================================
@@ -682,6 +697,9 @@ function setPFromVec(p){
 function modePoint(){
   const d=pointModel();
   const qn=state.qP;
+  /* ★ 标注层深度梯子：等位面壳体横跨 c.d±R 一大段，凡"必须始终看得清"的元素
+     （角弧 / 标记 / E 箭头）都要显式抬到壳体之上，否则会被自己脚下的 Fresnel 厚壁洗掉。 */
+  const Z_RIM=1e4, Z_ARC=1e4+10, Z_MARK=1e4+20, Z_E=1e4+30;
   /* 场线（球对称径向） */
   if(state.show.fld && Math.abs(qn)>0.06){
     for(const u of FL_DIRS){
@@ -691,23 +709,24 @@ function modePoint(){
       else     arrow(t1,t0,{color:'#7FA8BF',w:1.4,headScale:.7,alpha:.9});
     }
   }
-  /* 等距球面：r₀ / 2r₀ / 3r₀ —— 场强按 1 : 1/4 : 1/9 掉 */
+  /* 等距球面：r₀ / 2r₀ / 3r₀ —— 场强按 1 : 1/4 : 1/9 掉。
+     ★ 它们与「过 P 的等位面」是同一族球面，但身份不同：这几个只是**距离刻度**，
+       所以只画剪影圆（虚线）而不铺透明面 —— 四个半透明球套在一起会糊成一片雾。 */
   if(state.show.shells){
     SHELL_R.forEach((r,i)=>{
-      /* 调淡一档：它们和「过 P 的等位面」是同一族球面，主角要让给橙色那条 */
-      sphereWireAt(P_SRC,r,'#C3D6E2',1.05, i===0?.72:.42, {mer:4,par:1,backK:.28});
+      ballRim(P_SRC,r,'#8FAEC0',1.15, i===0?.70:.46, {dash:[5,5], z:Z_RIM+i});
       text(pt(P_SRC.x-r*0.72, P_SRC.y-r*0.70, 0), (i===0?'r₀':(i===1?'2r₀':'3r₀')),
         {color:'#7E96A6',size:11.5,bold:true});
     });
   }
   /* ★ 过 P 的等位面（球心在源电荷、半径 = R）：θ/φ 怎么变，P 都留在这个球面上 */
   if(state.show.equi){
-    sphereWireAt(P_SRC,d.Rn,'#E97132',1.25,.62,{mer:4,par:1,backK:.22,dash:[6,5]});
+    shellBall(P_SRC,d.Rn,'#E97132',true);
     /* 标签挂在球面右缘（camU 方向），转相机时总在视线内 */
     text(vadd(P_SRC,vmul(camU,d.Rn)),'等位面 R = '+d.Rn.toFixed(2)+' m',
       {color:'#C1682A',size:11.5,bold:true,dx:7,dy:-2});
   }
-  /* ★ 球坐标的 θ / φ 角弧（参考轴过源、与世界轴平行） */
+  /* ★ 球坐标的 θ / φ 角弧（参考轴过源、与世界轴平行）—— 抬到壳体之上当标注 */
   {
     const t=d.th*D2R, hx=Math.cos(d.ph*D2R), hy=Math.sin(d.ph*D2R);
     const rh=d.Rn*Math.sin(t);
@@ -716,8 +735,8 @@ function modePoint(){
       const arc=[];
       for(let i=0;i<=20;i++){ const a=t*i/20;
         arc.push(vadd(P_SRC, pt(d.Rn*Math.sin(a)*hx, d.Rn*Math.sin(a)*hy, d.Rn*Math.cos(a)))); }
-      line(P_SRC, vadd(P_SRC,pt(0,0,d.Rn)),{color:'#C4B0D6',w:1.1,alpha:.7,dash:[4,4]});
-      curve(arc,{color:'#9B59B6',w:1.9,alpha:.92});
+      line(P_SRC, vadd(P_SRC,pt(0,0,d.Rn)),{color:'#C4B0D6',w:1.1,alpha:.7,dash:[4,4],z:Z_ARC});
+      curve(arc,{color:'#9B59B6',w:1.9,alpha:.92,z:Z_ARC});
       const m=vadd(P_SRC, pt(d.Rn*0.62*Math.sin(t/2)*hx, d.Rn*0.62*Math.sin(t/2)*hy, d.Rn*0.62*Math.cos(t/2)));
       text(m,'θ = '+Math.round(d.th)+'°',{color:'#7A3E93',size:12,bold:true,dx:6,dy:-6});
     }
@@ -725,9 +744,9 @@ function modePoint(){
     if(rh>0.04 && d.th>1.5 && d.th<178.5){
       const arc=[];
       for(let i=0;i<=24;i++){ const a=d.ph*D2R*i/24; arc.push(vadd(P_SRC,pt(rh*Math.cos(a),rh*Math.sin(a),0))); }
-      line(P_SRC, vadd(P_SRC,pt(rh,0,0)),{color:'#8FC2DA',w:1.1,alpha:.8,dash:[4,4]});
-      line(P_SRC, vadd(P_SRC,pt(rh*hx,rh*hy,0)),{color:'#8FC2DA',w:1.1,alpha:.8,dash:[4,4]});
-      curve(arc,{color:'#2A7FA8',w:1.9,alpha:.92});
+      line(P_SRC, vadd(P_SRC,pt(rh,0,0)),{color:'#8FC2DA',w:1.1,alpha:.8,dash:[4,4],z:Z_ARC});
+      line(P_SRC, vadd(P_SRC,pt(rh*hx,rh*hy,0)),{color:'#8FC2DA',w:1.1,alpha:.8,dash:[4,4],z:Z_ARC});
+      curve(arc,{color:'#2A7FA8',w:1.9,alpha:.92,z:Z_ARC});
       const ma=d.ph*D2R/2;
       text(vadd(P_SRC,pt(rh*1.10*Math.cos(ma),rh*1.10*Math.sin(ma),0)),'φ = '+Math.round(d.ph)+'°',
         {color:'#1F6A8E',size:12,bold:true,dx:6,dy:8});
@@ -737,10 +756,10 @@ function modePoint(){
         {color:'#B25D18',size:11.5,align:'center'});
   }
   /* 点电荷本体 */
-  marker(P_SRC,{r:5+2.0*Math.min(2,Math.abs(qn)), color:qn>=0?C.crimson:C.blue,
+  marker(P_SRC,{z:Z_MARK,r:5+2.0*Math.min(2,Math.abs(qn)), color:qn>=0?C.crimson:C.blue,
     ring:qn>=0?'#F6C9C2':'#C9E4F2', label:'q = '+sgnTxt(qn,2)+' nC', ldx:-14, ldy:-16, lalign:'right', lsize:12.5});
   /* 场点 P */
-  marker(d.P,{r:5.4,color:C.purple,ring:'#E6D6F0',label:'P',ldx:12,ldy:-12,lsize:12.5});
+  marker(d.P,{z:Z_MARK, r:5.4,color:C.purple,ring:'#E6D6F0',label:'P',ldx:12,ldy:-12,lsize:12.5});
   dimLine(P_SRC,d.P,{color:'#9DB3BF',w:1.3,dash:[5,4],label:'R = '+d.Rn.toFixed(2)+' m',ldx:0,ldy:-16,lsize:12});
   /* E 箭头（长度 ∝ E，做饱和限幅以免近距离爆掉） */
   const EREF=KC*1.0/(0.65*0.65);
@@ -757,7 +776,7 @@ function modePoint(){
   if(LE>0){
     const np=perpOf(d.dir);
     arrow(vadd(d.P,vmul(np,0.02)), vadd(vadd(d.P,vmul(np,0.02)), vmul(d.dir,LE)),
-      {color:C.blue,w:2.6,headScale:.95,label:'@{E}',ldx:10,ldy:-13,lsize:12.5});
+      {color:C.blue,w:2.6,headScale:.95,label:'@{E}',ldx:10,ldy:-13,lsize:12.5,z:Z_E});
   }
 }
 
@@ -977,7 +996,12 @@ function modeCont(){
       textScreen(16,46,'N = '+state.NS+' 块已密到画不下，按连续体显示（读数仍按 N = '+state.NS+' 计算）',
         {size:11.5,color:'#8CA0AC'});
   }
-  if(state.geo==='vol'&&blocked) sphereWireAt(pt(0,0,0),GA,'#B9CEDC',1.0,.48);
+  /* 带电体的球轮廓：★ 这里**故意不画**。原来画的是球线框（经纬线网格），已被否掉；
+     改成剪影圆也不行 —— 画出来的方块半边长 0.244a，比它代表的壳层厚度(0.25a)还大，
+     方块云的实际外缘 = 1.28~1.38 a（解析算过，见 commit note），所以半径 a 的圆
+     必然横穿云内部，成为一条既无信息量又切方块的杂线（差分测得仅占 0.23% 像素）。
+     ⇒ 带电体的"是个球、半径 a"由方块云的排布 + 面板读数 + 讲解卡承担；
+       面电荷/线电荷两种分块本来也没有轮廓，这样反而三态一致。 */
   /* 橙色自由微元（密度定义探针：Δq/测度 → 该点密度） */
   drawMicro();
   marker(pt(0,0,0),{r:3.0,color:'#8FB3C6'});
