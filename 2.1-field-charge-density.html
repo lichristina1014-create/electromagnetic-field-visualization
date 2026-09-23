@@ -437,8 +437,11 @@ const state = {
   autoRotate:false,
   cardTab:'1',
   showReadout:true,
-  show:{ box:true, fld:true, shells:true, equi:true, guide:true, prof:true, micro:true,
-         blk:true, dE:true, anl:true, conv:true },
+  /* ⚠️ 2026-09-23 用户删掉三个 ③ 显示开关：`prof`（按密度着色）/ `dE`（dE 累加链）/
+     `anl`（积分对照箭头）。处置：`prof` 的正效果**冻结为常开**（密度色阶本来就是 ③ 的主题，
+     关掉只剩一片灰）；`dE`/`anl` 连同绘制分支一起删（见 modeCont）。 */
+  show:{ box:true, fld:true, shells:true, equi:true, guide:true, micro:true,
+         blk:true, conv:true },
   /* --- ① 电场强度的定义 --- */
   q:1.5,                      /* 源电荷 nC */
   qt:1.00,                    /* 实验电荷 nC */
@@ -574,8 +577,8 @@ function rhoSphere(){
       const q=[V(t0,p0),V(t1,p0),V(t1,p1),V(t0,p1)];
       const c=vmul(vadd(vadd(q[0],q[1]),vadd(q[2],q[3])),0.25);
       const n=vnorm(c);
-      const al=state.show.prof?densAlpha(prof(c.x/GA)):0.07;
-      const col=state.show.prof?shade(DENS_HEX,n):'#C2D5E0';
+      const al=densAlpha(prof(c.x/GA));
+      const col=shade(DENS_HEX,n);
       poly(q,{fill:col,fillAlpha:al,stroke:col,strokeAlpha:Math.min(0.95,al+0.22),w:1});
     }
   }
@@ -589,7 +592,7 @@ function rhoDisk(){
     const r0=a*i/nR, r1=a*(i+1)/nR;
     for(let j=0;j<nP;j++){
       const p0=2*Math.PI*j/nP, p1=2*Math.PI*(j+1)/nP;
-      const al=state.show.prof?densAlpha(prof(((r0+r1)/2)/a)):0.07;
+      const al=densAlpha(prof(((r0+r1)/2)/a));
       poly([V(r0,p0),V(r1,p0),V(r1,p1),V(r0,p1)],
            {fill:DENS_HEX,fillAlpha:al,stroke:DENS_HEX,strokeAlpha:Math.min(0.92,al+0.20),w:1});
     }
@@ -601,7 +604,7 @@ function rhoLine(){
   const n=60,L=GA;
   for(let i=0;i<n;i++){
     const x0=-L+2*L*i/n, x1=-L+2*L*(i+1)/n;
-    const al=state.show.prof?densAlpha(prof(((x0+x1)/2)/L)):0.20;
+    const al=densAlpha(prof(((x0+x1)/2)/L));
     line(pt(x0,0,0),pt(x1+2*L/n*0.3,0,0),{color:hexA('#2E7FA6',Math.min(0.95,al+0.38)),w:10});
   }
   screenDot(pt(-L,0,0),3.4,'#1F5F7C',0.95); screenDot(pt(L,0,0),3.4,'#1F5F7C',0.95);
@@ -998,7 +1001,7 @@ function drawBlocks(){
     /* 块边长 = (4π/3)^(1/3)·a·N^(−1/3)（等体积立方），略留缝以免糊成一团 */
     const hs=Math.min(0.30*GA, 0.5*1.612*GA*Math.pow(N,-1/3)*0.96);
     for(const g of pd.groups) for(const s of g.pts){
-      const u=state.show.prof?(prof(s.p.x/GA)-1)/NL_K:0;
+      const u=(prof(s.p.x/GA)-1)/NL_K;
       cubeShaded(s.p, hs, DENS_HEX, 0.40+0.34*Math.max(0,Math.min(1,u)));
     }
     return true;
@@ -1006,7 +1009,7 @@ function drawBlocks(){
   if(state.geo==='surf'){
     pd.groups.forEach((g,j)=>{
       const dr=(g.r1-g.r0)*0.06, r0=g.r0+dr, r1=g.r1-dr, dph=2*Math.PI/g.m;
-      const rm=(g.r0+g.r1)/2, u=state.show.prof?(prof(rm/GA)-1)/NL_K:0;
+      const rm=(g.r0+g.r1)/2, u=(prof(rm/GA)-1)/NL_K;
       const al=0.26+0.42*Math.max(0,Math.min(1,u));
       for(let i=0;i<g.m;i++){
         const p0=dph*(i+(j%2)*0.5)+dph*0.035, p1=dph*(i+1+(j%2)*0.5)-dph*0.035;
@@ -1022,7 +1025,7 @@ function drawBlocks(){
   }
   /* 线：N 段粗线段 + 分段刻痕（交替明暗让"切成 N 段"看得出来） */
   pd.groups.forEach((g,i)=>{
-    const xm=(g.x0+g.x1)/2, u=state.show.prof?(prof(xm/GA)-1)/NL_K:0;
+    const xm=(g.x0+g.x1)/2, u=(prof(xm/GA)-1)/NL_K;
     const al=0.30+0.40*Math.max(0,Math.min(1,u)) + (i%2?0.10:0);
     line(pt(g.x0,0,0),pt(g.x1,0,0),{color:hexA('#2E7FA6',Math.min(0.95,al)),w:11});
     if(i>0) line(pt(g.x0,-0.030,0),pt(g.x0,0.030,0),{color:'#1F5F7C',w:1.2,alpha:.75});
@@ -1030,13 +1033,6 @@ function drawBlocks(){
   line(pt(-GA,0,0),pt(GA,0,0),{color:'#1F5F7C',w:1.6,alpha:.85});
   screenDot(pt(-GA,0,0),3.2,'#1F5F7C',0.95); screenDot(pt(GA,0,0),3.2,'#1F5F7C',0.95);
   return true;
-}
-/* 把 N 个元按采样顺序并成 K 股（每股电量 = 组内精确求和）——
-   各股的场矢量首尾相接，数学上严格等于 Σ dE（交换律），画出来就是"累加"本身 */
-function superChunks(pts,K){
-  const out=[]; const n=pts.length, per=Math.max(1,Math.ceil(n/K));
-  for(let i=0;i<n;i+=per) out.push(pts.slice(i,Math.min(n,i+per)));
-  return out;
 }
 function modeCont(){
   const g=geomData(), pts=curSamples(), rf=refField();
@@ -1064,33 +1060,21 @@ function modeCont(){
   marker(g.P,{r:5.5,color:C.purple,ring:'#E6D6F0',label:'P',ldx:13,ldy:-12,lsize:12.5});
   dimLine(pt(0,0,0),g.P,{color:'#9DB3BF',w:1.2,dash:[5,4],label:'d = '+g.d.toFixed(2)+' m',
     ldx:state.geo==='surf'?14:0,ldy:state.geo==='surf'?2:14,lsize:11.5});
-  /* Σ dE（链条）与 ∫ 裁判 —— 同一比例尺 ⇒ 链尾与箭头尖的缝隙 = 数值偏差 */
+  /* Σ dE：P 点处 N 块叠加出的合成场，**单支**。
+     ★ 2026-09-23 用户删掉了「dE 累加链」与「积分对照箭头」。那对并排箭头唯一的用途是
+       "链尾与箭尖的缝隙 = 偏差"，可偏差不多是几何量 —— 0.001% 的偏差缝隙根本看不见，
+       数看得见的是下方 supNote 与右上角收敛曲线；而两支箭头（还各带标签）把 P 附近塞满，
+       反而挡住了 dE 和 P 本身。
+     ★ 锚点随之回归 ② 的约定：起于 `P + 0.02·np`（只挪一丁点，免得起笔埋在 P 标记底下），
+       不再用当年为"两支并排"设计的 ±0.085 分离量 —— 对照物没了，分离就只剩"箭头不指着 P"这个副作用。
+     长度仍与 ∫ 参考同比例尺（S），只是不再画参考那支。 */
   const E=sumField(pts,g.P), mag=vlen(E), ref=Math.max(vlen(rf.v),1e-12);
   const S=Math.min(0.85/ref, 1.05/Math.max(mag,1e-12));
-  const np=perpOf(g.ax), off=vmul(np,-0.085);
-  if(state.show.dE){
-    const chunks=superChunks(pts,5);
-    let tip=vadd(g.P,off); const tip0=tip;
-    chunks.forEach((ch,i)=>{
-      const Ev=sumField(ch,g.P);
-      const dV=vmul(Ev,S), ntip=vadd(tip,dV);
-      if(vlen(dV)>1e-4) arrow(tip,ntip,{color:i%2?'#0F9ED5':'#156082',w:2.1,headScale:.72});
-      /* 链节关节点：各股共线时（球/线）也能看出"分段拼合" */
-      screenDot(ntip,2.6,'#156082',0.95,1e5+i);
-      tip=ntip;
-      let cw=0,cx=pt(0,0,0); ch.forEach(s=>{cw+=s.dq; cx=vadd(cx,vmul(s.p,s.dq));});
-      line(vmul(cx,1/Math.max(cw,1e-30)),g.P,{color:'#C6D6E0',w:1,alpha:.7,dash:[4,4]});
-    });
-    text(vmul(vadd(tip0,tip),0.5),'@{E} = Σ d@{E}'+(chunks.length>1?'（'+chunks.length+' 股首尾相接）':''),
-      {color:'#156082',size:12,bold:true,dx:0,dy:22,align:'center'});
-  } else if(mag>1e-9){
-    arrow(vadd(g.P,off), vadd(vadd(g.P,off),vmul(vnorm(E),mag*S)),
+  if(mag>1e-9){
+    const np=perpOf(g.ax);
+    arrow(vadd(g.P,vmul(np,0.02)), vadd(vadd(g.P,vmul(np,0.02)),vmul(vnorm(E),mag*S)),
       {color:C.teal,w:2.5,headScale:.9,label:'Σ d@{E} = '+mag.toFixed(2),ldx:12,ldy:16,lsize:11.5});
   }
-  if(state.show.anl)
-    arrow(vadd(g.P,vmul(np,0.085)), vadd(vadd(g.P,vmul(np,0.085)),vmul(g.ax,ref*S)),
-      {color:C.orange,w:2.3,headScale:.9,label:(state.nonuni?'∫ 参考 ':'∫ 精确值 ')+ref.toFixed(2),
-       ldx:12,ldy:-13,lsize:11.5});
 }
 
 /* ============================================================================
@@ -1340,8 +1324,8 @@ const SHOW_ITEMS={
   def:  [{k:'box',t:'坐标轴'}],
   point:[{k:'fld',t:'场线（球对称）'},{k:'shells',t:'等距球面 r₀/2r₀/3r₀'},{k:'equi',t:'过 P 的等位面'},
          {k:'guide',t:'|@{E}| 模长圆'},{k:'box',t:'坐标轴'}],
-  cont: [{k:'prof',t:'按密度着色'},{k:'blk',t:'分块（N 块）'},{k:'micro',t:'微元 Δq（密度定义）'},
-         {k:'dE',t:'dE 累加链'},{k:'anl',t:'积分对照箭头'},{k:'conv',t:'收敛曲线'},{k:'box',t:'坐标轴'}],
+  cont: [{k:'blk',t:'分块（N 块）'},{k:'micro',t:'微元 Δq（密度定义）'},
+         {k:'conv',t:'收敛曲线'},{k:'box',t:'坐标轴'}],
 };
 function renderSubSec(sec){
   sec.innerHTML='';
@@ -1405,8 +1389,8 @@ function renderSubSec(sec){
   sec.appendChild(h('<div class="sec-title" style="margin-top:14px">图中显示</div>'));
   chipRow(sec,SHOW_ITEMS.cont,k=>state.show[k],k=>{state.show[k]=!state.show[k];renderPanel();updateAll();});
   sec.appendChild(h('<div class="ex-note">'+richHTML('带电体被切成 <b>N 块</b>（方块 / 扇形片 / 小段，严丝合缝铺满），'+
-    '每块是一个点电荷元 dq；P 点处的<b>蓝色箭头链</b>把各块的 d@{E} 首尾相接，正好拼出 Σ d@{E}，'+
-    '旁边橙色箭头是积分裁判 —— 链尾与箭尖的缝隙就是偏差。<b>橙色小块</b>是密度探针：'+
+    '每块是一个点电荷元 dq；P 点处的蓝色箭头就是 N 块叠加出的 Σ d@{E}，'+
+    '它与 ∫ 精确值差多少，由下方读数和右上角收敛曲线给出。<b>橙色小块</b>是密度探针：'+
     '尺寸缩到 0 时 Δq/测度 → 该点密度。')+'</div>'));
   sec.appendChild(h('<div class="ex-note" id="supNote">'+richHTML(supNote())+'</div>'));
 }
@@ -1584,8 +1568,8 @@ const CARDS={
       '<b>每个电荷元 dq 都是一个点电荷</b>，它在场点 P 贡献一份 d@{E}：'+
       '<div class="frm">dq = ρ dV′（面：σ dS′　线：τ dl′）</div>'+
       '<div class="frm">d@{E} = dq / (4πε_0 R²) · @{e_R}　⟹　@{E}(@{r}) = ∫ d@{E} = Σ d@{E}</div>'+
-      '<ul><li>把带电体切成 N 块：@{E} ≈ Σ_{i=1}^{N} d@{E}_i —— 画布上<b>蓝色箭头链首尾相接</b>，正好拼出 Σ d@{E}</li>'+
-      '<li>旁边<b>橙色箭头</b>是积分裁判：链尾与箭尖的缝隙 = 离散化的偏差</li>'+
+      '<ul><li>把带电体切成 N 块：@{E} ≈ Σ_{i=1}^{N} d@{E}_i —— 画布上 P 点处的<b>蓝色箭头</b>就是这 N 份的和</li>'+
+      '<li>它离 ∫ 精确值有多少偏差，看下方读数与右上角收敛曲线（N 越大偏差总体越小）</li>'+
       '<li>N 越大偏差总体越小：右上角收敛曲线盯着它下降（N 很小时取样还糙，曲线会有起伏）</li>'+
       '<li>均匀分布用解析答案当裁判；非均匀分布用 N=8192 的数值积分当参考</li></ul>'},
     {k:'3',tab:'3. 三种分布，一个骨架',cls:'c3',body:
