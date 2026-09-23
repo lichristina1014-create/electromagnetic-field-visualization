@@ -344,8 +344,8 @@ function sphereWireAt(c,R,color,w,alpha,o){
   const backK=o.backK!=null?o.backK:0.28;
   const seg=o.seg||56;
   const vis=p=>vdot(vnorm(vsub(p,c)),camD)>0;
-  const onF=pts=>curve(pts,{color,w,alpha});
-  const onB=pts=>curve(pts,{color,w:w*0.85,alpha:alpha*backK});
+  const onF=pts=>curve(pts,{color,w,alpha,dash:o.dash});
+  const onB=pts=>curve(pts,{color,w:w*0.85,alpha:alpha*backK,dash:o.dash});
   for(let k=0;k<nPar;k++){
     const th=Math.PI*(k+1)/(nPar+1), pts=[];
     for(let i=0;i<=seg;i++){ const ph=2*Math.PI*i/seg;
@@ -388,7 +388,7 @@ const state = {
   autoRotate:false,
   cardTab:'1',
   showReadout:true,
-  show:{ box:true, fld:true, shells:true, prof:true, micro:true,
+  show:{ box:true, fld:true, shells:true, equi:true, guide:true, prof:true, micro:true,
          blk:true, dE:true, anl:true, conv:true },
   /* --- ① 电场强度的定义 --- */
   q:1.5,                      /* 源电荷 nC */
@@ -396,9 +396,12 @@ const state = {
   tp:{x:0.62, y:0.26, z:0.10},/* 实验电荷位置（可拖） */
   disturb:true,               /* 是否计入「实验电荷自身扰动」示意模型 */
   shrink:false,               /* 「让 q_t → 0」动画 */
-  /* --- ② 点电荷的场 --- */
+  /* --- ② 点电荷的场（P 用球坐标 (R,θ,φ)：原点在源电荷、轴与世界轴平行） --- */
   qP:1.00,                    /* 点电荷电量 nC */
-  pp:{x:0.72, y:0.34, z:0.00},/* 场点 P（可拖） */
+  sr:0.78,                    /* 半径 R (m)：唯一决定等位面与 |E| */
+  sth:55,                     /* 极角 θ (°) 自 +z 起算 ∈ [0,180] */
+  sph:40,                     /* 方位角 φ (°) 自 +x 起算 ∈ [0,360) */
+  sweep:null,                 /* null | 'th' | 'ph'：沿等位面扫掠动画 */
   /* --- ③ 电荷密度与连续叠加（③④ 合并页） --- */
   geo:'vol',                  /* vol | surf | line */
   nonuni:false,               /* 非均匀分布 ρ ∝ 1+0.7ξ²（默认均匀：有解析场强当裁判） */
@@ -643,11 +646,38 @@ function fibDirs(m,phase){
 }
 const FL_DIRS = fibDirs(46);
 const SHELL_R = [0.30,0.60,0.90];
+const SR_RANGE=[0.28,1.45];
+/* ⭐ P 点位置由球坐标 (R, θ, φ) 唯一确定（原点在源电荷处，轴与世界轴平行）。
+   教学要点：E 只依赖 R ⇒ 固定 R、改 θ/φ，P 沿**同一个等位面（球面）**滑动，
+   E 方向跟着转、|E| 一字不变。所以 P 不给自由拖拽，只给三个变量。 */
+function Ppos(){
+  const t=state.sth*D2R, p=state.sph*D2R, R=state.sr;
+  return vadd(P_SRC, pt(R*Math.sin(t)*Math.cos(p), R*Math.sin(t)*Math.sin(p), R*Math.cos(t)));
+}
 function pointModel(){
-  const P=pt(state.pp.x,state.pp.y,state.pp.z);
+  const P=Ppos();
   const R=vsub(P,P_SRC), Rn=vlen(R), eR=vnorm(R);
   const E=kE(state.qP,Rn);
-  return {P,R,Rn,eR,E,dir:vmul(eR,(state.qP>=0)?1:-1)};
+  return {P,R,Rn,eR,E,dir:vmul(eR,(state.qP>=0)?1:-1),th:state.sth,ph:state.sph};
+}
+/* 屏幕点 → 以 c 为心、半径 R 的球面上的点。
+   本引擎是正交投影（pr() 无透视除法）⇒ 拾取射线 = base + t·camD，
+   其中 base = u·camU + v·camV 是"camD 分量为 0"的射线上一点。 */
+function screenToSphere(mx,my,c,R){
+  const u=(mx-CX2-cam.px)/camScale, v=(CY+cam.py-my)/camScale;
+  const base=vadd(vmul(camU,u),vmul(camV,v));
+  const t=vdot(vsub(c,base),camD);                   /* 射线上离球心最近的点 */
+  const q=vadd(base,vmul(camD,t));
+  let d=vsub(q,c);
+  if(vlen(d)<1e-6) d=camU;
+  return vadd(c, vmul(vnorm(d),R));
+}
+/* 世界点（相对源）→ 球坐标，写回 state（度；θ∈[0,180]，φ∈[0,360)） */
+function setPFromVec(p){
+  const d=vsub(p,P_SRC), L=vlen(d)||1;
+  const th=Math.acos(Math.max(-1,Math.min(1,d.z/L)))*R2D;
+  let ph=Math.atan2(d.y,d.x)*R2D; if(ph<0) ph+=360;
+  state.sth=Math.round(th); state.sph=Math.round(ph);
 }
 function modePoint(){
   const d=pointModel();
@@ -664,10 +694,47 @@ function modePoint(){
   /* 等距球面：r₀ / 2r₀ / 3r₀ —— 场强按 1 : 1/4 : 1/9 掉 */
   if(state.show.shells){
     SHELL_R.forEach((r,i)=>{
-      sphereWireAt(P_SRC,r,'#B9CEDC',1.05, i===0?.88:.52, {mer:4,par:1,backK:.28});
+      /* 调淡一档：它们和「过 P 的等位面」是同一族球面，主角要让给橙色那条 */
+      sphereWireAt(P_SRC,r,'#C3D6E2',1.05, i===0?.72:.42, {mer:4,par:1,backK:.28});
       text(pt(P_SRC.x-r*0.72, P_SRC.y-r*0.70, 0), (i===0?'r₀':(i===1?'2r₀':'3r₀')),
         {color:'#7E96A6',size:11.5,bold:true});
     });
+  }
+  /* ★ 过 P 的等位面（球心在源电荷、半径 = R）：θ/φ 怎么变，P 都留在这个球面上 */
+  if(state.show.equi){
+    sphereWireAt(P_SRC,d.Rn,'#E97132',1.25,.62,{mer:4,par:1,backK:.22,dash:[6,5]});
+    /* 标签挂在球面右缘（camU 方向），转相机时总在视线内 */
+    text(vadd(P_SRC,vmul(camU,d.Rn)),'等位面 R = '+d.Rn.toFixed(2)+' m',
+      {color:'#C1682A',size:11.5,bold:true,dx:7,dy:-2});
+  }
+  /* ★ 球坐标的 θ / φ 角弧（参考轴过源、与世界轴平行） */
+  {
+    const t=d.th*D2R, hx=Math.cos(d.ph*D2R), hy=Math.sin(d.ph*D2R);
+    const rh=d.Rn*Math.sin(t);
+    if(d.th>1.5){
+      /* θ：+z → OP，在「过源且含 +z」的子午面内，弧半径 = R */
+      const arc=[];
+      for(let i=0;i<=20;i++){ const a=t*i/20;
+        arc.push(vadd(P_SRC, pt(d.Rn*Math.sin(a)*hx, d.Rn*Math.sin(a)*hy, d.Rn*Math.cos(a)))); }
+      line(P_SRC, vadd(P_SRC,pt(0,0,d.Rn)),{color:'#C4B0D6',w:1.1,alpha:.7,dash:[4,4]});
+      curve(arc,{color:'#9B59B6',w:1.9,alpha:.92});
+      const m=vadd(P_SRC, pt(d.Rn*0.62*Math.sin(t/2)*hx, d.Rn*0.62*Math.sin(t/2)*hy, d.Rn*0.62*Math.cos(t/2)));
+      text(m,'θ = '+Math.round(d.th)+'°',{color:'#7A3E93',size:12,bold:true,dx:6,dy:-6});
+    }
+    /* φ：xy 平面内 +x → 水平投影，弧半径 = R·sinθ；两条径向线同起点、同终点圆 */
+    if(rh>0.04 && d.th>1.5 && d.th<178.5){
+      const arc=[];
+      for(let i=0;i<=24;i++){ const a=d.ph*D2R*i/24; arc.push(vadd(P_SRC,pt(rh*Math.cos(a),rh*Math.sin(a),0))); }
+      line(P_SRC, vadd(P_SRC,pt(rh,0,0)),{color:'#8FC2DA',w:1.1,alpha:.8,dash:[4,4]});
+      line(P_SRC, vadd(P_SRC,pt(rh*hx,rh*hy,0)),{color:'#8FC2DA',w:1.1,alpha:.8,dash:[4,4]});
+      curve(arc,{color:'#2A7FA8',w:1.9,alpha:.92});
+      const ma=d.ph*D2R/2;
+      text(vadd(P_SRC,pt(rh*1.10*Math.cos(ma),rh*1.10*Math.sin(ma),0)),'φ = '+Math.round(d.ph)+'°',
+        {color:'#1F6A8E',size:12,bold:true,dx:6,dy:8});
+    }
+    if(d.th<=1.5||d.th>=178.5)
+      text(vadd(P_SRC,pt(0,0,d.Rn*1.10)),'θ 在极轴上：φ 不再影响 P 的位置（极点退化）',
+        {color:'#B25D18',size:11.5,align:'center'});
   }
   /* 点电荷本体 */
   marker(P_SRC,{r:5+2.0*Math.min(2,Math.abs(qn)), color:qn>=0?C.crimson:C.blue,
@@ -677,8 +744,17 @@ function modePoint(){
   dimLine(P_SRC,d.P,{color:'#9DB3BF',w:1.3,dash:[5,4],label:'R = '+d.Rn.toFixed(2)+' m',ldx:0,ldy:-16,lsize:12});
   /* E 箭头（长度 ∝ E，做饱和限幅以免近距离爆掉） */
   const EREF=KC*1.0/(0.65*0.65);
-  if(Math.abs(qn)>0.06){
-    const LE=Math.max(0.05,Math.min(0.90, d.E/EREF));
+  const LE=Math.abs(qn)>0.06?Math.max(0.05,Math.min(0.90, d.E/EREF)):0;
+  /* ★ |E| 不变的可视化：E 尖端始终落在以 P 为心、半径 ∝ |E| 的球面上；
+     正交投影下这个球的轮廓就是一个圆 ⇒ 屏幕空间画虚线圆即可（相机怎么转都成立） */
+  if(state.show.guide && LE>0.06){
+    const Sp=pr(d.P), rad=LE*camScale;
+    P_(1e5+2,()=>{ ctx.save(); ctx.setLineDash([5,5]);
+      ctx.strokeStyle='rgba(15,158,213,.5)'; ctx.lineWidth=1.3;
+      ctx.beginPath(); ctx.arc(Sp.x,Sp.y,rad,0,7); ctx.stroke(); ctx.restore(); });
+    textScreen(Sp.x+rad*0.72, Sp.y-rad*0.72, '|@{E}| 不变', {size:11,color:'#0B6E93'});
+  }
+  if(LE>0){
     const np=perpOf(d.dir);
     arrow(vadd(d.P,vmul(np,0.02)), vadd(vadd(d.P,vmul(np,0.02)), vmul(d.dir,LE)),
       {color:C.blue,w:2.6,headScale:.95,label:'@{E}',ldx:10,ldy:-13,lsize:12.5});
@@ -1093,9 +1169,12 @@ function readoutRows(){
       color: Math.abs(dev)<0.5?'#3E9B4F':'#B25D18', bold:true});
   } else if(state.mode==='point'){
     const d=pointModel();
-    rows.push({s:'q = '+sgnTxt(state.qP,2)+' nC　|　R = '+d.Rn.toFixed(2)+' m', color:'#5F7482'});
-    rows.push({s:'|@{E}| = '+d.E.toFixed(3)+' V/m　（球面 r₀ / 2r₀ / 3r₀ 之比 1 : 1/4 : 1/9）', color:'#22414F'});
-    rows.push({s:'对数斜率 = −2　（距离 ×2 ⇒ 场强 ÷4）', color:'#0F9ED5', bold:true});
+    rows.push({s:'q = '+sgnTxt(state.qP,2)+' nC　|　P 的球坐标：(R, θ, φ) = ('+d.Rn.toFixed(2)+' m, '+
+      Math.round(d.th)+'°, '+Math.round(d.ph)+'°)', color:'#5F7482'});
+    rows.push({s:'|@{E}| = '+d.E.toFixed(3)+' V/m　（只由 R 决定：r₀ / 2r₀ / 3r₀ 之比 1 : 1/4 : 1/9）',
+      color:'#22414F'});
+    rows.push({s:'固定 R、只改 θ / φ：P 留在 R = '+d.Rn.toFixed(2)+' m 的等位面上 —— 方向变，大小不变',
+      color:'#0F9ED5', bold:true});
   } else {
     /* ③ 电荷密度与连续叠加（合并页）：密度定义 + 场的累加 两行都要 */
     const mi=microInfo();
@@ -1144,6 +1223,18 @@ function tick(){
       if(nv<=0.0105){ state.shrink=false; renderPanel(); }
       needsRender=true; syncSliders(); updateReadout(); updateModeTag();
     }
+    /* ② 沿等位面扫掠：R 固定，只让 θ 或 φ 走 —— P 在球面上滑、E 转、|E| 不动。
+       θ 在 [25°,155°] 内往复（避开极轴退化），φ 单调绕圈。 */
+    if(state.mode==='point' && state.sweep){
+      if(state.sweep==='th'){
+        state.sth += 42*dt;
+        if(state.sth>155) state.sth=155-(state.sth-155);
+        if(state.sth<25)  state.sth=25+(25-state.sth);
+      } else {
+        state.sph = (state.sph+58*dt)%360;
+      }
+      needsRender=true; syncSliders(); updateReadout(); updateModeTag();
+    }
     if(needsRender) draw();
   }catch(err){ needsRender=false; console.error('draw/tick error:',err); }
   requestAnimationFrame(tick);
@@ -1169,7 +1260,8 @@ function chipRow(parent,items,isOn,onPick){
 }
 const SHOW_ITEMS={
   def:  [{k:'box',t:'坐标轴'}],
-  point:[{k:'fld',t:'场线（球对称）'},{k:'shells',t:'等距球面 r₀/2r₀/3r₀'},{k:'box',t:'坐标轴'}],
+  point:[{k:'fld',t:'场线（球对称）'},{k:'shells',t:'等距球面 r₀/2r₀/3r₀'},{k:'equi',t:'过 P 的等位面'},
+         {k:'guide',t:'|@{E}| 模长圆'},{k:'box',t:'坐标轴'}],
   cont: [{k:'prof',t:'按密度着色'},{k:'blk',t:'分块（N 块）'},{k:'micro',t:'微元 Δq（密度定义）'},
          {k:'dE',t:'dE 累加链'},{k:'anl',t:'积分对照箭头'},{k:'conv',t:'收敛曲线'},{k:'box',t:'坐标轴'}],
 };
@@ -1197,8 +1289,22 @@ function renderSubSec(sec){
   if(state.mode==='point'){
     sec.appendChild(h('<div class="sec-title">单个点电荷的空间场</div>'));
     chipRow(sec,SHOW_ITEMS.point,k=>state.show[k],k=>{state.show[k]=!state.show[k];renderPanel();updateAll();});
-    sec.appendChild(h('<div class="ex-note">'+richHTML('拖动紫色的<b>场点 P</b>（或看画布右上角的双对数小图）：'+
-      '距离每翻一倍，|@{E}| 就降到 <b>1/4</b>。三条虚线球面 <i>r</i>₀ / 2<i>r</i>₀ / 3<i>r</i>₀ 上的场强之比恒为 <b>1 : 1/4 : 1/9</b>。')+'</div>'));
+    sec.appendChild(h('<div class="sec-title" style="margin-top:14px">沿等位面扫掠（R 不变，只看方向）</div>'));
+    const sw=h('<div class="sub-chips"></div>').firstChild;
+    [{k:'th',t:'扫掠 θ'},{k:'ph',t:'扫掠 φ'}].forEach(it=>{
+      const on=state.sweep===it.k;
+      const b=h('<button class="chip o'+(on?' on':'')+'">'+(on?'⏸ 暂停 ':'▶ ')+it.t+'</button>').firstChild;
+      b.onclick=()=>{ state.sweep=(on?null:it.k); renderPanel(); updateAll(); };
+      sw.appendChild(b);
+    });
+    sec.appendChild(sw);
+    sec.appendChild(h('<div class="ex-note">'+richHTML('把 P 的位置写成球坐标 <b>(R, θ, φ)</b>（原点在源电荷）：'+
+      '固定 <b>R</b>、只改 θ 或 φ，P 就沿橙色的<b>等位面</b>滑动 —— 电场方向跟着转，'+
+      '但 |@{E}| <b>一字不变</b>（蓝色箭头长度固定，尖端永远落在那个 |@{E}| 模长圆上）。'+
+      '要让 P 换到别的等位面，只能改 <b>R</b>：距离翻倍 ⇒ |@{E}| 降到 1/4。')+'</div>'));
+    sec.appendChild(h('<div class="ex-note">'+richHTML('画布里直接<b>拖动 P</b> = 只在当前等位面上滑动（R 锁定）；'+
+      'θ 自 <b>+z</b> 起算 ∈ [0°,180°]，φ 自 <b>+x</b> 起算 ∈ [0°,360°)。'+
+      'θ → 0°/180° 时 P 到极轴上，φ 不再影响位置（极点退化）。')+'</div>'));
     return;
   }
   /* ③ 电荷密度与连续叠加（合并页） */
@@ -1236,6 +1342,12 @@ function supNote(){
   return 'N = '+state.NS+' 块叠加得 '+mag.toFixed(3)+' V/m，'+refField().lab+' '+ref.toFixed(3)+
     ' V/m，偏差 '+(Math.abs(mag-ref)/ref*100).toFixed(3)+'%。';
 }
+/* ② 的实时读数注：把「|E| 只由 R 决定」直接摆在滑块下面 */
+function pNote(){
+  const d=pointModel();
+  return 'P：(R, θ, φ) = ('+d.Rn.toFixed(2)+' m, '+Math.round(d.th)+'°, '+Math.round(d.ph)+'°)，'+
+    '|E| = '+d.E.toFixed(3)+' V/m。θ / φ 变化不改变 |E|，只有 R 变才改变它（∝ 1/R²）。';
+}
 function mkRange(sec,d){
   const r=h('<div class="slider-row'+(d.wide?' w':'')+'"><label>'+d.label+'</label>'+
     '<input type="range" id="s_'+d.k+'" min="'+d.min+'" max="'+d.max+'" step="'+d.step+'" value="'+d.get()+'">'+
@@ -1267,7 +1379,14 @@ function renderSliders(sec){
     sec.appendChild(h('<div class="sec-title">点电荷电量</div>'));
     mkRange(sec,{k:'qP',label:'q',wide:true,min:-2,max:2,step:0.1,
       get:()=>state.qP, set:v=>state.qP=v, fmt:v=>v.toFixed(1)+' nC'});
-    sec.appendChild(h('<div class="ex-note">改成负值：场线箭头全部掉头朝里（场指向电荷）。</div>'));
+    sec.appendChild(h('<div class="sec-title" style="margin-top:14px">场点 P 的球坐标（原点在源电荷）</div>'));
+    mkRange(sec,{k:'sr',label:'半径 R',wide:true,min:SR_RANGE[0],max:SR_RANGE[1],step:0.01,
+      get:()=>state.sr, set:v=>state.sr=v, fmt:v=>v.toFixed(2)+' m'});
+    mkRange(sec,{k:'sth',label:'θ',wide:true,min:0,max:180,step:1,
+      get:()=>state.sth, set:v=>state.sth=Math.round(v), fmt:v=>Math.round(v)+'°'});
+    mkRange(sec,{k:'sph',label:'φ',wide:true,min:0,max:360,step:1,
+      get:()=>state.sph, set:v=>state.sph=Math.round(v), fmt:v=>Math.round(v)+'°'});
+    sec.appendChild(h('<div class="ex-note" id="pNote">'+richHTML(pNote())+'</div>'));
     return;
   }
   /* ③ 合并页滑块：场点位置 d、切分份数 N、密度探针微元（位置 ξ / 尺寸） */
@@ -1287,18 +1406,29 @@ function renderSliders(sec){
     get:()=>state.mh, set:v=>{ state.mh=v; clampMicro(); }, fmt:v=>v.toFixed(2), after:()=>syncSliders()});
   sec.appendChild(h('<div class="ex-note" id="microNote">'+richHTML(microNote())+'</div>'));
 }
+/* ⚠️ 读数一律走 FMT 表：早年版用 toFixed(2) 覆盖，会把 mkRange 里写好的单位
+   （nC / m / °）全部吃掉 —— 滑块拖动一次单位就消失。 */
+const SLIDER_FMT={
+  q:  v=>v.toFixed(1)+' nC',  qt: v=>v.toFixed(2)+' nC', qP: v=>v.toFixed(1)+' nC',
+  sr: v=>v.toFixed(2)+' m',   sth:v=>Math.round(v)+'°',  sph:v=>Math.round(v)+'°',
+  mu: v=>v.toFixed(2),        mh: v=>v.toFixed(2),
+  sd: v=>v.toFixed(2)+' m',   NS: v=>String(Math.round(v)),
+};
 function syncSliders(){
-  const set=(k,v,d)=>{const s=document.getElementById('s_'+k); if(s)s.value=v;
-    const e=document.getElementById('v_'+k); if(e)e.textContent=(d!=null?v.toFixed(d):String(v));};
-  set('q',state.q,2); set('qt',state.qt,2); set('qP',state.qP,2);
+  const set=(k,v)=>{const s=document.getElementById('s_'+k);
+    if(s)s.value=(k==='sth'||k==='sph'||k==='NS')?Math.round(v):v;
+    const e=document.getElementById('v_'+k); if(e&&SLIDER_FMT[k]) e.textContent=SLIDER_FMT[k](v);};
+  set('q',state.q); set('qt',state.qt); set('qP',state.qP);
+  set('sr',state.sr); set('sth',state.sth); set('sph',state.sph);
   const sMu=document.getElementById('s_mu');
   if(sMu){ sMu.min=(state.geo==='surf'?0:-microLimit()); sMu.max=microLimit(); }
-  set('mu',state.mu,2); set('mh',state.mh,2);
+  set('mu',state.mu); set('mh',state.mh);
   const sSd=document.getElementById('s_sd');
   if(sSd){ const rr=SD_RANGE[state.geo]; sSd.min=rr[0]; sSd.max=rr[1]; }
-  set('sd',state.sd,2); set('NS',state.NS,null);
+  set('sd',state.sd); set('NS',state.NS);
   const mn=document.getElementById('microNote'); if(mn) mn.innerHTML=richHTML(microNote());
   const sn=document.getElementById('supNote'); if(sn) sn.innerHTML=richHTML(supNote());
+  const pn=document.getElementById('pNote'); if(pn) pn.innerHTML=richHTML(pNote());
 }
 
 const CARDS={
@@ -1350,6 +1480,19 @@ const CARDS={
       '<ul><li>每个点电荷各自产生一份场，总场是它们的<b>矢量和</b> —— 不是代数和</li>'+
       '<li>R_i 是第 i 个电荷到场点的距离，@{e}_{Ri} 是相应的单位矢量</li>'+
       '<li>这正是下一张「③ 电荷密度与连续叠加」的出发点</li></ul>'},
+    {k:'4',tab:'4. 球坐标 (R, θ, φ)',cls:'c4',body:
+      '<b>用球坐标描述场点</b>（原点放在源电荷处，轴与坐标轴平行）：'+
+      '<div class="frm">R = |@{r}|　θ = arccos(z′/R)　φ = arctan(y′/x′)　@{e}_R = @{r}/R</div>'+
+      '<div class="frm">R ∈ [0, ∞)　θ ∈ [0°, 180°]（自 +z 起算）　φ ∈ [0°, 360°)（自 +x 起算）</div>'+
+      '<ul><li><b>R</b>：到源的距离；<b>θ</b> 自 +z 轴起算的极角；<b>φ</b> 自 +x 轴起算的方位角</li>'+
+      '<li>E 的表达式里<b>只有 R</b> 出现 ⇒ 固定 R、改 θ/φ：P 沿<b>等位面（球面）</b>滑动，'+
+      '@{E} 方向跟着转、<b>大小一字不变</b>（蓝色箭头长度不变，尖端始终落在那个 |@{E}| 模长圆上）</li>'+
+      '<li>要改变 |@{E}|，只能动 <b>R</b>：它 ∝ 1/R²，距离翻倍 ⇒ 场强降到 1/4</li>'+
+      '<li>画布上的橙色虚线球面就是「过 P 的等位面」；θ / φ 的角弧标出了它们的起算方向</li>'+
+      '<li>那三条淡蓝虚线球面 <i>r</i>₀ / 2<i>r</i>₀ / 3<i>r</i>₀ 属于<b>同一族</b>等位面 —— '+
+      '它们只是 V ∝ 1/R 家族里挑出来的三个代表</li></ul>'+
+      '<div class="ex-note">θ → 0° 或 180° 时 P 落到极轴上，φ 不再影响位置（<b>极点退化</b>）—— '+
+      '这也是球坐标里 φ 只能在极点外定义的原因。</div>'},
   ],
   cont:[
     {k:'1',tab:'1. 密度：单位测度的电量',cls:'c1',body:
@@ -1422,12 +1565,15 @@ function updateReadout(){
   } else if(state.mode==='point'){
     const d=pointModel();
     html += kchip('点电荷 q =', sgnTxt(state.qP,2)+' nC');
-    html += kchip('距离 R =', d.Rn.toFixed(2)+' m');
+    html += kchip('半径 R =', d.Rn.toFixed(2)+' m');
+    html += kchip('θ =', Math.round(d.th)+'°');
+    html += kchip('φ =', Math.round(d.ph)+'°');
     html += kchip('|@{E}| =', d.E.toFixed(3)+' V/m','acc');
     html += kchip('方向 =', richHTML(state.qP>=0?'沿 @{e_R}（背离）':'沿 −@{e_R}（指向）'));
-    html += kchip('r₀ / 2r₀ / 3r₀ 之比 =', '1 : 0.250 : 0.111','acc');
-    document.getElementById('lgTitle').textContent='点电荷的场 · 1/R²';
-    document.getElementById('lgNote').innerHTML=richHTML('@{E} = q/(4πε₀R²)·@{e_R} ；距离翻倍 ⇒ 场强 1/4');
+    html += kchip('过 P 的等位面 =', 'R = '+d.Rn.toFixed(2)+' m 球面','acc');
+    html += kchip('r₀ / 2r₀ / 3r₀ 之比 =', '1 : 0.250 : 0.111');
+    document.getElementById('lgTitle').textContent='点电荷的场 · 球坐标 (R, θ, φ)';
+    document.getElementById('lgNote').innerHTML=richHTML('@{E} = q/(4πε₀R²)·@{e_R}：只依赖 R ⇒ R 不变时方向变、大小不变');
   } else {
     /* ③ 电荷密度与连续叠加（合并页） */
     const mi=microInfo();
@@ -1454,11 +1600,12 @@ function updateModeTag(){
   const sb=document.getElementById('moduleSub');
   /* ⚠️ 进 DOM 的串一律过 richHTML（否则 @{E} 会字面显示） */
   if(state.mode==='def') t.innerHTML=richHTML('电场强度的定义 · q = '+sgnTxt(state.q,2)+' nC，q_t = '+state.qt.toFixed(2)+' nC');
-  else if(state.mode==='point') t.innerHTML=richHTML('点电荷的场 · '+sgnTxt(state.qP,2)+' nC（球形对称，|@{E}| ∝ 1/R²）');
+  else if(state.mode==='point') t.innerHTML=richHTML('点电荷的场 · '+sgnTxt(state.qP,2)+' nC　P：(R, θ, φ) = ('+
+    state.sr.toFixed(2)+' m, '+Math.round(state.sth)+'°, '+Math.round(state.sph)+'°)');
   else t.innerHTML=richHTML('电荷密度与连续叠加 · '+geoWord()+'（'+(state.nonuni?'非均匀':'均匀')+'）　N = '+state.NS+' 块');
   if(sb) sb.innerHTML=richHTML(
     state.mode==='def'   ? '@{E} = lim (q_t→0) @{F}/q_t　场强的定义'
-  : state.mode==='point' ? '点电荷的场　@{E} = q/(4πε₀R²)·@{e_R}'
+  : state.mode==='point' ? '点电荷的场　@{E} = q/(4πε₀R²)·@{e_R}　（只依赖 R）'
   :                        geoSym()+' = lim Δq/'+geoMeas()+'　·　@{E} = Σ d@{E} → ∫ d@{E}');
 }
 
@@ -1505,7 +1652,7 @@ canvas.addEventListener('pointerdown',ev=>{
       if(Math.hypot(m.x-wp.x,m.y-wp.y)<38){ drag={x:m.x,y:m.y,btn:0,mode:'tp'}; ev.preventDefault(); return; }
     }
     if(state.mode==='point'){
-      const wp=pr(pt(state.pp.x,state.pp.y,state.pp.z));
+      const wp=pr(Ppos());
       if(Math.hypot(m.x-wp.x,m.y-wp.y)<38){ drag={x:m.x,y:m.y,btn:0,mode:'pp'}; ev.preventDefault(); return; }
     }
   }
@@ -1522,9 +1669,10 @@ canvas.addEventListener('pointermove',ev=>{
       state.tp.x=p.x; state.tp.y=p.y; needsRender=true; updateReadout(); updateModeTag(); }
   }
   else if(drag.mode==='pp'){
-    const w=screenToWorldZ(m.x,m.y,state.pp.z);
-    if(w){ const p=clampToZ(w,P_SRC,state.pp.z,0.28,1.45);
-      state.pp.x=p.x; state.pp.y=p.y; needsRender=true; updateReadout(); updateModeTag(); }
+    /* ★ P 只沿**等位面**滑动：把鼠标点投到「以源为心、半径 R 的球面」上，
+       于是拖动只改 θ / φ，R 一动不动 —— 这正是本页要讲的那件事。 */
+    const q=screenToSphere(m.x,m.y,P_SRC,state.sr);
+    if(q){ setPFromVec(q); needsRender=true; updateReadout(); updateModeTag(); syncSliders(); }
   }
   else if(drag.mode==='pan'){ cam.px+=dx; cam.py+=dy; needsRender=true; }
   else { cam.az-=dx*0.0075; cam.el=Math.max(-1.45,Math.min(1.45,cam.el+dy*0.0062)); needsRender=true; }
@@ -1547,7 +1695,7 @@ window.addEventListener('keydown',e=>{if(e.target.tagName==='INPUT')return;
 
 const modeTabs=document.getElementById('modeTabs');
 MT.forEach(m=>{const b=document.createElement('button');b.textContent=m.t;b.dataset.k=m.k;
-  b.onclick=()=>{ state.mode=m.k; state.cardTab='1'; syncModeTabs();
+  b.onclick=()=>{ state.mode=m.k; state.cardTab='1'; state.sweep=null; syncModeTabs();
     cam.az=.62; cam.el=.46; cam.px=0; cam.py=0;
     renderPanel(); updateAll(); };
   modeTabs.appendChild(b);});
