@@ -262,7 +262,7 @@ function P_(z,fn){prims.push({z,draw:fn});}
    否则它们会被自己所在的球面那层 Fresnel 厚边洗掉。默认 0 / +1e4 一段留空，互不打架。 */
 function line(a,b,o={}){const A=pr(a),B=pr(b);P_(o.z!=null?o.z:(A.d+B.d)/2,()=>{ctx.save();ctx.globalAlpha=o.alpha!=null?o.alpha:1;ctx.strokeStyle=o.color||C.gray;ctx.lineWidth=o.w||1.4;if(o.dash)ctx.setLineDash(o.dash);ctx.beginPath();ctx.moveTo(A.x,A.y);ctx.lineTo(B.x,B.y);ctx.stroke();ctx.restore();});}
 function arrowSeg(A,B,color,w,headScale){const dx=B.x-A.x,dy=B.y-A.y,L=Math.hypot(dx,dy);if(L<0.5)return;const ux=dx/L,uy=dy/L,hs=(headScale||1)*9;ctx.strokeStyle=color;ctx.lineWidth=w;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(A.x,A.y);ctx.lineTo(B.x-ux*hs*.55,B.y-uy*hs*.55);ctx.stroke();const ang=Math.atan2(dy,dx);ctx.beginPath();ctx.moveTo(B.x,B.y);ctx.lineTo(B.x-hs*Math.cos(ang-.42),B.y-hs*Math.sin(ang-.42));ctx.lineTo(B.x-hs*Math.cos(ang+.42),B.y-hs*Math.sin(ang+.42));ctx.closePath();ctx.fillStyle=color;ctx.fill();}
-function arrow(a,b,o={}){const A=pr(a),B=pr(b);P_(o.z!=null?o.z:(A.d+B.d)/2,()=>{ctx.save();ctx.globalAlpha=o.alpha!=null?o.alpha:1;if(o.dash)ctx.setLineDash(o.dash);arrowSeg(A,B,o.color||C.teal,o.w||2,o.headScale);ctx.restore();});if(o.label)text(vmul(vadd(a,b),.5),o.label,{color:o.color||C.teal,dx:o.ldx||0,dy:o.ldy!==undefined?o.ldy:-10,size:o.lsize||12.5,bold:true,align:o.lalign});}
+function arrow(a,b,o={}){const A=pr(a),B=pr(b);P_(o.z!=null?o.z:(A.d+B.d)/2,()=>{ctx.save();ctx.globalAlpha=o.alpha!=null?o.alpha:1;if(o.dash)ctx.setLineDash(o.dash);arrowSeg(A,B,o.color||C.teal,o.w||2,o.headScale);ctx.restore();});if(o.label)text(vmul(vadd(a,b),.5),o.label,{color:o.color||C.teal,dx:o.ldx||0,dy:o.ldy!==undefined?o.ldy:-10,size:o.lsize||12.5,bold:true,align:o.lalign,alpha:o.alpha});}
 function curve(ptsArr,o={}){if(ptsArr.length<2)return;const S=ptsArr.map(pr);P_(o.z!=null?o.z:S.reduce((s,p)=>s+p.d,0)/S.length,()=>{ctx.save();ctx.globalAlpha=o.alpha!=null?o.alpha:1;ctx.strokeStyle=o.color||C.gray;ctx.lineWidth=o.w||1.8;ctx.lineCap='round';if(o.dash)ctx.setLineDash(o.dash);ctx.beginPath();ctx.moveTo(S[0].x,S[0].y);for(let i=1;i<S.length;i++)ctx.lineTo(S[i].x,S[i].y);ctx.stroke();if(o.arrowEnd){const a=S[S.length-2],b=S[S.length-1];ctx.setLineDash([]);arrowSeg(a,b,o.color||C.gray,o.w||1.8,.75);}ctx.restore();});}
 function poly(ptsArr,o={}){if(ptsArr.length<3)return;const S=ptsArr.map(pr);P_(o.z!=null?o.z:S.reduce((s,p)=>s+p.d,0)/S.length,()=>{ctx.save();ctx.beginPath();ctx.moveTo(S[0].x,S[0].y);for(let i=1;i<S.length;i++)ctx.lineTo(S[i].x,S[i].y);ctx.closePath();if(o.fill){ctx.globalAlpha=o.fillAlpha!=null?o.fillAlpha:.15;ctx.fillStyle=o.fill;ctx.fill();}if(o.stroke!==false){ctx.globalAlpha=o.strokeAlpha!=null?o.strokeAlpha:(o.fillAlpha!=null?o.fillAlpha:1);ctx.strokeStyle=o.stroke||o.fill||C.gray;ctx.lineWidth=o.w||1;if(o.dash)ctx.setLineDash(o.dash);ctx.stroke();}ctx.restore();});}
 function marker(p,o={}){
@@ -276,11 +276,11 @@ function marker(p,o={}){
       ctx.strokeStyle=o.ring; ctx.lineWidth=2.2; ctx.stroke(); }
     ctx.restore(); });
   if(o.label) text(p, o.label, {color:o.color||C.orange,
-    dx:o.ldx!=null?o.ldx:10, dy:o.ldy!=null?o.ldy:-10, size:o.lsize||13, bold:true, align:o.lalign});
+    dx:o.ldx!=null?o.ldx:10, dy:o.ldy!=null?o.ldy:-10, size:o.lsize||13, bold:true, align:o.lalign, alpha:o.alpha});
 }
-function text(p,str,o={}){const S=pr(p);P_(1e6,()=>{ctx.save();const size=o.size||12.5,bold=!!o.bold;const lo=richLayout(ctx,parseRich(str),size,bold);richDraw(ctx,lo,S.x+(o.dx||0),S.y+(o.dy||0),o.align||'left',o.color||C.ink);ctx.restore();});}
+function text(p,str,o={}){const S=pr(p);P_(1e6,()=>{ctx.save();if(o.alpha!=null)ctx.globalAlpha*=o.alpha;const size=o.size||12.5,bold=!!o.bold;const lo=richLayout(ctx,parseRich(str),size,bold);richDraw(ctx,lo,S.x+(o.dx||0),S.y+(o.dy||0),o.align||'left',o.color||C.ink);ctx.restore();});}
 /* 屏幕坐标文本（不随平移缩放跑掉） */
-function textScreen(x,y,str,o={}){P_(1e6+1,()=>{ctx.save();const lo=richLayout(ctx,parseRich(str),o.size||12,!!o.bold);richDraw(ctx,lo,x,y,o.align||'left',o.color||C.ink);ctx.restore();});}
+function textScreen(x,y,str,o={}){P_(1e6+1,()=>{ctx.save();if(o.alpha!=null)ctx.globalAlpha*=o.alpha;const lo=richLayout(ctx,parseRich(str),o.size||12,!!o.bold);richDraw(ctx,lo,x,y,o.align||'left',o.color||C.ink);ctx.restore();});}
 /* 距离标注（★ 规范：距离一律用 dimLine，绝不用箭头） */
 function dimLine(a,b,o={}){
   line(a,b,o);
@@ -288,9 +288,9 @@ function dimLine(a,b,o={}){
   const dx=B.x-A.x,dy=B.y-A.y,L=Math.hypot(dx,dy);
   if(L<1)return;
   const px=-dy/L,py=dx/L,t=o.tick||6;
-  const tk=P=>{P_(o.z!=null?o.z:(A.d+B.d)/2,()=>{ctx.save();ctx.strokeStyle=o.color||C.gray;ctx.lineWidth=o.w||1.4;ctx.setLineDash([]);ctx.beginPath();ctx.moveTo(P.x+px*t,P.y+py*t);ctx.lineTo(P.x-px*t,P.y-py*t);ctx.stroke();ctx.restore();});};
+  const tk=P=>{P_(o.z!=null?o.z:(A.d+B.d)/2,()=>{ctx.save();if(o.alpha!=null)ctx.globalAlpha*=o.alpha;ctx.strokeStyle=o.color||C.gray;ctx.lineWidth=o.w||1.4;ctx.setLineDash([]);ctx.beginPath();ctx.moveTo(P.x+px*t,P.y+py*t);ctx.lineTo(P.x-px*t,P.y-py*t);ctx.stroke();ctx.restore();});};
   tk(A);tk(B);
-  if(o.label)text(vmul(vadd(a,b),.5),o.label,{color:o.color||C.gray,dx:o.ldx||0,dy:o.ldy!==undefined?o.ldy:-10,size:o.lsize||12.5,bold:true,align:o.lalign});
+  if(o.label)text(vmul(vadd(a,b),.5),o.label,{color:o.color||C.gray,dx:o.ldx||0,dy:o.ldy!==undefined?o.ldy:-10,size:o.lsize||12.5,bold:true,align:o.lalign,alpha:o.alpha});
 }
 function screenDot(p,rad,fill,alpha,z){const S=pr(p);P_(z!=null?z:S.d+0.02,()=>{ctx.save();ctx.globalAlpha=alpha!=null?alpha:1;ctx.beginPath();ctx.arc(S.x,S.y,rad,0,7);ctx.fillStyle=fill;ctx.fill();ctx.restore();});}
 function hexA(hex,a){const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);return 'rgba('+r+','+g+','+b+','+a+')';}
@@ -328,25 +328,38 @@ function ballRim(c,R,hexBase,w,alpha,o){
   if(R<=1e-6) return;
   o=o||{};
   const S=pr(c), rad=R*camScale;
-  P_(o.z!=null?o.z:S.d+0.02,()=>{ ctx.save(); ctx.strokeStyle=hexA(hexBase,alpha); ctx.lineWidth=w||1.3;
+  const aL=Math.atan2(SPH_LY,SPH_LX);
+  P_(o.z!=null?o.z:S.d+0.02,()=>{ ctx.save(); ctx.lineCap='round';
     if(o.dash) ctx.setLineDash(o.dash);
-    ctx.beginPath(); ctx.arc(S.x,S.y,rad,0,7); ctx.stroke(); ctx.restore(); });
+    /* ★ 与 shellBall 同一条规矩：拆成受光侧/背光侧两段 ——
+       否则一串同心圆是"平面上的圆"，加上明暗才是"退到远处的球"。 */
+    ctx.strokeStyle=hexA(hexBase,alpha*0.52); ctx.lineWidth=w||1.3;
+    ctx.beginPath(); ctx.arc(S.x,S.y,rad,aL-Math.PI/2,aL+Math.PI/2); ctx.stroke();
+    ctx.strokeStyle=hexA(hexBase,alpha); ctx.lineWidth=(w||1.3)*1.3;
+    ctx.beginPath(); ctx.arc(S.x,S.y,rad,aL+Math.PI/2,aL+Math.PI*1.5); ctx.stroke();
+    ctx.restore(); });
 }
 /* 半透明球面 —— ★ 球面就画成"一个面"，不再用经线/纬线网格代替（学生读不出网格是球）。
+   ★★ 球感（2026-09-23 二次返工，用户反馈"球视觉上看不太出来"）：
+   **同心的径向渐变只能做出"一块圆片"** —— 实测整圈边缘 alpha 0.68、中心 0.12，各向同性，
+   学生看到的是"描了边的橙圆盘"，不是球。真正让人读成球的是两条**不对称**：
+     ① 明暗不对称 —— 光源在屏幕左上方 ⇒ 左上亮、右下厚（叠一层斜向线性渐变）；
+     ② 轮廓不对称 —— 受光侧细而淡、背光侧粗而实（把剪影圆拆成两段弧）。
+   （透明玻璃壳本身没有强明暗交界，所以斜向那层要克制：体色 alpha 仍在 0.1 量级，
+     靠"高光 + 厚壁 + 双色轮廓"三条一起给球感。）
    配方与 1.3 的「半透明玻璃壳」同源（那里已经用过、用户认可），照抄而不是另发明一套：
      ① 背面（z = S.d − R）：极淡的一层体色，靠剪影略厚 —— 透过它才看得见壳里的电荷与场线；
-     ② 正面（z = S.d + R）：**偏心径向渐变**做 Fresnel 厚壁（中心几乎透明 → 掠射边缘陡增到
-        aRim）+ 一个偏心连白镜面高光 + 一圈同色剪影线；
+     ② 正面（z = S.d + R）：偏心径向渐变做 Fresnel 厚壁（中心几乎透明 → 掠射边缘陡增）
+        + 斜向明暗 + 双瓣镜面高光 + 两段式轮廓；
      ③ 轮廓仍用屏幕空间的剪影圆（正交投影下球面轮廓恰是圆，与相机角无关）。
    ⚠️ 踩过的坑（已用截图确认）：**逐四边形铺半透明色是行不通的**。球面在正交投影下，
    前后两半各自恰好盖满整个圆盘一次 ⇒ 复合透明度处处相等 ⇒ 屏幕上就是一块"橙色圆片"，
-   shade() 那点 0.80~1.00 的伪光照调制被 alpha 完全淹没。球感只能靠屏幕空间的
-   "高光 + 厚壁"给出来。实测：本体透明度必须压到 0.03 量级（不是 0.15），厚壁才能被读出来。
+   shade() 那点 0.80~1.00 的伪光照调制被 alpha 完全淹没。
    ★ 分层取 ±R（球面真实的前后极值）⇒ 壳内物体（电荷、场线、R 标注）自动落在两层之间
-     被罩住 = "包在玻璃球里"；而 P、θ/φ 角弧、E 箭头这些标注用 o.z 显式抬到壳体之上，
-     免得被自己脚下的厚壁洗掉。
+     被罩住 = "包在玻璃球里"；而 P、θ/φ 角弧、E 箭头这些标注用 o.z 显式抬到壳体之上。
    改 R ⇒ 球面整体放大/缩小；改 θ/φ ⇒ 这个球面一动不动。
    emph 强调档（本体/厚壁都加深）；rimA 覆盖厚壁透明度（不给就用强调档默认值）。 */
+const SPH_LX=-0.55, SPH_LY=-0.83;   /* 屏幕空间光方向（指向左上方光源，单位向量） */
 function shellBall(c,R,hexBase,emph,rimA){
   if(R<=1e-6) return;
   const S=pr(c), rr=R*camScale;
@@ -357,22 +370,43 @@ function shellBall(c,R,hexBase,emph,rimA){
     g.addColorStop(0,hexA(hexBase,aBody*0.50));
     g.addColorStop(1,hexA(hexBase,aBody*1.40));
     ctx.beginPath(); ctx.arc(S.x,S.y,rr,0,7); ctx.fillStyle=g; ctx.fill(); ctx.restore(); });
-  /* ② 正面：中心高透 → 掠射边缘变厚 + 镜面高光 + 轮廓 */
+  /* ② 正面 */
   P_(S.d+R*1.02,()=>{ ctx.save();
+    /* 2a 同心 Fresnel：中心高透 → 掠射边缘变厚（终值收到 aRim*0.82，免得整圈太"实"） */
     const g=ctx.createRadialGradient(S.x-rr*0.32,S.y-rr*0.36,rr*0.06,S.x,S.y,rr*1.02);
     g.addColorStop(0,   'rgba(255,255,255,'+(emph?0.20:0.13)+')');
     g.addColorStop(0.44,hexA(hexBase,aBody*0.30));
-    g.addColorStop(0.82,hexA(hexBase,aRim*0.32));
-    g.addColorStop(1,   hexA(hexBase,aRim));
+    g.addColorStop(0.82,hexA(hexBase,aRim*0.30));
+    g.addColorStop(1,   hexA(hexBase,aRim*0.82));
     ctx.beginPath(); ctx.arc(S.x,S.y,rr,0,7); ctx.fillStyle=g; ctx.fill();
-    const hx=S.x-rr*0.42, hy=S.y-rr*0.46, hr=rr*0.24;
+    /* 2b ★ 斜向明暗：左上传光、右下背光 —— "圆"变"球"的关键一层 */
+    const dl=ctx.createLinearGradient(S.x+SPH_LX*rr*0.95, S.y+SPH_LY*rr*0.95,
+                                      S.x-SPH_LX*rr*0.95, S.y-SPH_LY*rr*0.95);
+    dl.addColorStop(0,   'rgba(255,255,255,'+(emph?0.26:0.17)+')');
+    dl.addColorStop(0.46,hexA(hexBase,aBody*0.14));
+    dl.addColorStop(1,   hexA(hexBase,aBody*(emph?1.60:1.30)));
+    ctx.beginPath(); ctx.arc(S.x,S.y,rr,0,7); ctx.fillStyle=dl; ctx.fill();
+    /* 2c 双瓣镜面高光：大而软 + 小而亮（玻璃感） */
+    const hx=S.x+SPH_LX*rr*0.40, hy=S.y+SPH_LY*rr*0.44, hr=rr*0.30;
     const gh=ctx.createRadialGradient(hx,hy,0,hx,hy,hr);
-    gh.addColorStop(0,'rgba(255,255,255,'+(emph?0.52:0.34)+')');
+    gh.addColorStop(0,'rgba(255,255,255,'+(emph?0.50:0.32)+')');
     gh.addColorStop(1,'rgba(255,255,255,0)');
     ctx.beginPath(); ctx.arc(hx,hy,hr,0,7); ctx.fillStyle=gh; ctx.fill();
-    ctx.beginPath(); ctx.arc(S.x,S.y,rr,0,7);
-    ctx.strokeStyle=hexBase; ctx.globalAlpha=emph?0.92:0.52;
-    ctx.lineWidth=emph?1.9:1.3; ctx.stroke(); ctx.restore(); });
+    const hx2=S.x+SPH_LX*rr*0.52, hy2=S.y+SPH_LY*rr*0.56, hr2=rr*0.085;
+    const gh2=ctx.createRadialGradient(hx2,hy2,0,hx2,hy2,hr2);
+    gh2.addColorStop(0,'rgba(255,255,255,'+(emph?0.85:0.55)+')');
+    gh2.addColorStop(1,'rgba(255,255,255,0)');
+    ctx.beginPath(); ctx.arc(hx2,hy2,hr2,0,7); ctx.fillStyle=gh2; ctx.fill();
+    /* 2d ★ 两段式轮廓：受光侧细而淡、背光侧粗而实（同心圆变球面光边） */
+    const aL=Math.atan2(SPH_LY,SPH_LX);
+    ctx.lineCap='round';
+    ctx.beginPath(); ctx.arc(S.x,S.y,rr,aL-Math.PI/2,aL+Math.PI/2);
+    ctx.strokeStyle=hexA(hexBase,aRim*(emph?0.40:0.30));
+    ctx.lineWidth=emph?1.4:1.1; ctx.stroke();
+    ctx.beginPath(); ctx.arc(S.x,S.y,rr,aL+Math.PI/2,aL+Math.PI*1.5);
+    ctx.strokeStyle=hexA(hexBase,aRim*(emph?0.92:0.68));
+    ctx.lineWidth=emph?2.5:1.8; ctx.stroke();
+    ctx.restore(); });
 }
 
 /* ============================================================================
@@ -414,8 +448,15 @@ const state = {
   /* --- ② 点电荷的场（P 用球坐标 (R,θ,φ)：原点在源电荷、轴与世界轴平行） --- */
   qP:1.00,                    /* 点电荷电量 nC */
   sr:0.78,                    /* 半径 R (m)：唯一决定等位面与 |E| */
-  sth:55,                     /* 极角 θ (°) 自 +z 起算 ∈ [0,180] */
-  sph:40,                     /* 方位角 φ (°) 自 +x 起算 ∈ [0,360) */
+  /* ★★ 默认 (θ,φ) = (45°,90°) 是**扫出来的**，不是拍的（2026-09-23）：
+     E 的屏幕投影长度 = LE·camScale·√(1−depN²)，depN=(P−S)·camD/R。旧默认 (55°,40°) 的
+     depN=0.986（几乎正对镜头）⇒ 屏幕偏移只有 0.164R、E 只投影 **26.8px**（<80px 警戒线），
+     看上去就是贴在盘心的一根小短棍；而拖到另一头又变成 off=0.95R 贴着轮廓滑。
+     在 θ∈[25,155]×φ∈[0,355] 的全网格上按「off∈[0.66,0.78] ∧ depN≥0.30 ∧ E 指向右上
+     且屏幕长 ≥105px」筛出 8 个候选，(45°,90°) 是其中**数字最整**的：off=0.731、
+     E=103px、方向 -40°（右上空白象限，不与 x/y/z 轴打架）。 */
+  sth:45,                     /* 极角 θ (°) 自 +z 起算 ∈ [0,180] */
+  sph:90,                     /* 方位角 φ (°) 自 +x 起算 ∈ [0,360) */
   sweep:null,                 /* null | 'th' | 'ph'：沿等位面扫掠动画 */
   /* --- ③ 电荷密度与连续叠加（③④ 合并页） --- */
   geo:'vol',                  /* vol | surf | line */
@@ -700,6 +741,19 @@ function modePoint(){
   /* ★ 标注层深度梯子：等位面壳体横跨 c.d±R 一大段，凡"必须始终看得清"的元素
      （角弧 / 标记 / E 箭头）都要显式抬到壳体之上，否则会被自己脚下的 Fresnel 厚壁洗掉。 */
   const Z_RIM=1e4, Z_ARC=1e4+10, Z_MARK=1e4+20, Z_E=1e4+30;
+  /* ★★ 深度感（2026-09-23，用户反馈"P 动的时候感觉不到是在球面上动"）：
+     P 在球面的**前半球还是后半球** —— 正交投影下就是视线方向的分量 depN = (P−S)·camD / R。
+     depN>0 朝观察者；depN<0 已绕到球背面。整组 P 的标注（P 标记 / θφ 角弧 / E 箭头 / R 标注）
+     按 kNear **统一变淡** ⇒ 学生看得见"P 绕到球后面又绕回来"，而不是在平面圆盘上平移。
+     同一个量还决定 E 的屏幕投影长度：|投影| = LE·camScale·√(1−depN²)。
+     ⚠️ 默认参数必须让 √(1−depN²) 够大 —— 旧默认 (θ=55°,φ=40°) 的 depN=0.986（几乎正对镜头）
+        ⇒ 屏幕偏移只有 0.164R、E 只投影 26.8px，成了贴在盘心的小短棍。已改默认，见 state 处注释。 */
+  const depN=vdot(vsub(d.P,P_SRC),camD)/d.Rn;
+  const kNear=depN>=0 ? (0.80+0.20*depN) : (0.42+0.38*(1+depN));  /* 角弧 / E 箭头 / R 尺寸线 */
+  /* ⚠️ P 本体（标记点 + "P" 标签）**不能**跟着压到 0.42 —— 实测那样绕到背面就找不到 P 在哪了。
+     给它一个有下限的档：弧线可以淡到几乎看不见（那才是深度线索），但学生必须始终定位得到 P。 */
+  const kDot = 0.72+0.28*kNear;
+  const kTxt = 0.55+0.45*kNear;      /* 文字别压太狠，θ/φ 读数必须始终看得清 */
   /* 场线（球对称径向） */
   if(state.show.fld && Math.abs(qn)>0.06){
     for(const u of FL_DIRS){
@@ -735,21 +789,21 @@ function modePoint(){
       const arc=[];
       for(let i=0;i<=20;i++){ const a=t*i/20;
         arc.push(vadd(P_SRC, pt(d.Rn*Math.sin(a)*hx, d.Rn*Math.sin(a)*hy, d.Rn*Math.cos(a)))); }
-      line(P_SRC, vadd(P_SRC,pt(0,0,d.Rn)),{color:'#C4B0D6',w:1.1,alpha:.7,dash:[4,4],z:Z_ARC});
-      curve(arc,{color:'#9B59B6',w:1.9,alpha:.92,z:Z_ARC});
+      line(P_SRC, vadd(P_SRC,pt(0,0,d.Rn)),{color:'#C4B0D6',w:1.1,alpha:.7*kNear,dash:[4,4],z:Z_ARC});
+      curve(arc,{color:'#9B59B6',w:1.9,alpha:.92*kNear,z:Z_ARC});
       const m=vadd(P_SRC, pt(d.Rn*0.62*Math.sin(t/2)*hx, d.Rn*0.62*Math.sin(t/2)*hy, d.Rn*0.62*Math.cos(t/2)));
-      text(m,'θ = '+Math.round(d.th)+'°',{color:'#7A3E93',size:12,bold:true,dx:6,dy:-6});
+      text(m,'θ = '+Math.round(d.th)+'°',{color:'#7A3E93',size:12,bold:true,dx:6,dy:-6,alpha:kTxt});
     }
     /* φ：xy 平面内 +x → 水平投影，弧半径 = R·sinθ；两条径向线同起点、同终点圆 */
     if(rh>0.04 && d.th>1.5 && d.th<178.5){
       const arc=[];
       for(let i=0;i<=24;i++){ const a=d.ph*D2R*i/24; arc.push(vadd(P_SRC,pt(rh*Math.cos(a),rh*Math.sin(a),0))); }
-      line(P_SRC, vadd(P_SRC,pt(rh,0,0)),{color:'#8FC2DA',w:1.1,alpha:.8,dash:[4,4],z:Z_ARC});
-      line(P_SRC, vadd(P_SRC,pt(rh*hx,rh*hy,0)),{color:'#8FC2DA',w:1.1,alpha:.8,dash:[4,4],z:Z_ARC});
-      curve(arc,{color:'#2A7FA8',w:1.9,alpha:.92,z:Z_ARC});
+      line(P_SRC, vadd(P_SRC,pt(rh,0,0)),{color:'#8FC2DA',w:1.1,alpha:.8*kNear,dash:[4,4],z:Z_ARC});
+      line(P_SRC, vadd(P_SRC,pt(rh*hx,rh*hy,0)),{color:'#8FC2DA',w:1.1,alpha:.8*kNear,dash:[4,4],z:Z_ARC});
+      curve(arc,{color:'#2A7FA8',w:1.9,alpha:.92*kNear,z:Z_ARC});
       const ma=d.ph*D2R/2;
       text(vadd(P_SRC,pt(rh*1.10*Math.cos(ma),rh*1.10*Math.sin(ma),0)),'φ = '+Math.round(d.ph)+'°',
-        {color:'#1F6A8E',size:12,bold:true,dx:6,dy:8});
+        {color:'#1F6A8E',size:12,bold:true,dx:6,dy:8,alpha:kTxt});
     }
     if(d.th<=1.5||d.th>=178.5)
       text(vadd(P_SRC,pt(0,0,d.Rn*1.10)),'θ 在极轴上：φ 不再影响 P 的位置（极点退化）',
@@ -758,9 +812,9 @@ function modePoint(){
   /* 点电荷本体 */
   marker(P_SRC,{z:Z_MARK,r:5+2.0*Math.min(2,Math.abs(qn)), color:qn>=0?C.crimson:C.blue,
     ring:qn>=0?'#F6C9C2':'#C9E4F2', label:'q = '+sgnTxt(qn,2)+' nC', ldx:-14, ldy:-16, lalign:'right', lsize:12.5});
-  /* 场点 P */
-  marker(d.P,{z:Z_MARK, r:5.4,color:C.purple,ring:'#E6D6F0',label:'P',ldx:12,ldy:-12,lsize:12.5});
-  dimLine(P_SRC,d.P,{color:'#9DB3BF',w:1.3,dash:[5,4],label:'R = '+d.Rn.toFixed(2)+' m',ldx:0,ldy:-16,lsize:12});
+  /* 场点 P —— 弧线与 E 箭头按 kNear 变淡（后半球 = 被玻璃球罩住），P 本体只按 kDot 轻压 */
+  marker(d.P,{z:Z_MARK, r:5.4,color:C.purple,ring:'#E6D6F0',label:'P',ldx:12,ldy:-12,lsize:12.5,alpha:kDot});
+  dimLine(P_SRC,d.P,{color:'#9DB3BF',w:1.3,dash:[5,4],label:'R = '+d.Rn.toFixed(2)+' m',ldx:0,ldy:-16,lsize:12,alpha:kNear});
   /* E 箭头（长度 ∝ E，做饱和限幅以免近距离爆掉） */
   const EREF=KC*1.0/(0.65*0.65);
   const LE=Math.abs(qn)>0.06?Math.max(0.05,Math.min(0.90, d.E/EREF)):0;
@@ -768,15 +822,15 @@ function modePoint(){
      正交投影下这个球的轮廓就是一个圆 ⇒ 屏幕空间画虚线圆即可（相机怎么转都成立） */
   if(state.show.guide && LE>0.06){
     const Sp=pr(d.P), rad=LE*camScale;
-    P_(1e5+2,()=>{ ctx.save(); ctx.setLineDash([5,5]);
+    P_(1e5+2,()=>{ ctx.save(); ctx.setLineDash([5,5]); ctx.globalAlpha*=kNear;
       ctx.strokeStyle='rgba(15,158,213,.5)'; ctx.lineWidth=1.3;
       ctx.beginPath(); ctx.arc(Sp.x,Sp.y,rad,0,7); ctx.stroke(); ctx.restore(); });
-    textScreen(Sp.x+rad*0.72, Sp.y-rad*0.72, '|@{E}| 不变', {size:11,color:'#0B6E93'});
+    textScreen(Sp.x+rad*0.72, Sp.y-rad*0.72, '|@{E}| 不变', {size:11,color:'#0B6E93',alpha:kTxt});
   }
   if(LE>0){
     const np=perpOf(d.dir);
     arrow(vadd(d.P,vmul(np,0.02)), vadd(vadd(d.P,vmul(np,0.02)), vmul(d.dir,LE)),
-      {color:C.blue,w:2.6,headScale:.95,label:'@{E}',ldx:10,ldy:-13,lsize:12.5,z:Z_E});
+      {color:C.blue,w:2.6,headScale:.95,label:'@{E}',ldx:10,ldy:-13,lsize:12.5,z:Z_E,alpha:kNear});
   }
 }
 
