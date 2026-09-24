@@ -171,6 +171,7 @@ sub{font-size:.72em;vertical-align:-.24em;}
 
 <script>
 'use strict';
+
 /* ============================== 向量工具 ============================== */
 const pt=(x,y,z)=>({x,y,z});
 const vadd=(a,b)=>({x:a.x+b.x,y:a.y+b.y,z:a.z+b.z});
@@ -380,7 +381,6 @@ function shellBall(c,R,hexBase,emph,rimA){
     ctx.lineWidth=emph?2.5:1.8; ctx.stroke();
     ctx.restore(); });
 }
-
 /* ============================================================================
    2.2 静电场中的导体 —— 页面主体（渲染引擎与 2.1 同源，见上方「向量工具 / 图元」段）
 
@@ -439,7 +439,12 @@ const EARR_MAX = 0.90, EARR_GATE = 0.12;
 const eLen = (mag,E0)=>Math.max(0.05, Math.min(EARR_MAX, mag/(2*E0)));
 const FL_B  = [0, 0.45, 0.95, 1.32, 1.60, 1.723, 2.05, 2.60];   /* 场线瞄准距离（× A_C） */
 const FL_PH = [0, Math.PI/2, Math.PI, 3*Math.PI/2];             /* 4 条子午面（= 2 个平面） */
-const B_CRIT= Math.sqrt(3)*A_C;          /* 瞄准距离 > √3·a 的场线掠过导体，不落在球上 */
+/* ★ 临界瞄准距离 b_crit(t) = a·√(1+2t)：b < b_crit 的场线落在导体上，b > b_crit 的掠过。
+   推导：球面上 ψ = E₀sin²θ(a²/2 + t·a²) ⇒ ψ_max = E₀a²(1/2+t) = E₀b²/2 ⇒ b_crit = a√(1+2t)。
+   t=1（静电平衡）⇒ √3·a（与旧版一致）；t=0（"外场刚加上、电荷还没动"的匀强场）⇒ a，
+   恰好就是"擦过赤道的那条直线" —— 于是**同一个公式贯穿整个动画**。 */
+const Bcr  = tv => A_C*Math.sqrt(1+2*(tv==null?1:tv));
+const B_CRIT = A_C*Math.sqrt(3);        /* 兼容：静电平衡下的临界值 √3·a */
 
 const E0_RANGE=[2,20];                   /* 外场 kV/m */
 const RP_RANGE=[0.32,1.90];              /* 探针半径 m */
@@ -450,7 +455,9 @@ const TH_LIM=[2,178];                    /* 探针极角的可用范围（避开
 const state = {
   mode:'build',            /* build | concl | shield */
   E0:10,                   /* 外场 E₀ (kV/m) */
-  t:1,                     /* ① 建立进度 0→1 */
+  t:1,                     /* ① 自由电荷的迁移进度 0→1 */
+  g:1,                     /* ① 外加场的建立度 0→1（1 = 已建立；播放的"阶段②"期间被驱动） */
+  anim:null,               /* ① 全过程播放：null | {u:0→1, playing:bool} */
   rp:1.15,                 /* ② 探针半径 r (m) */
   thp:55,                  /* ② 探针极角 θ (°) */
   qc:0,                    /* ③ 腔内电荷 (µC) */
@@ -461,6 +468,57 @@ const state = {
   cardTab:'1',
 };
 const SWEEP_SPEED={rad:0.55, surf:34};   /* rad: m/s   surf: °/s */
+
+/* ══════════ ① 的「全过程播放」时间轴 ══════════
+   用户要的叙事：**一开始没有电场 → 加上外加场 → 导体里的自由电荷迁移 → 静电平衡**。
+   用一条内部时间轴 u ∈ [0,1] 驱动两个物理量（g 外场建立度、t 电荷迁移进度），
+   而不是把"没有外场"硬塞进 t 里 —— 那样 t 的物理含义（电荷迁移到哪一步）会被污染。
+     u ∈ [0   , 0.12]  阶段①  无外加电场：g=0, t=0（外场幅值 E₀·g 恒为 0）
+     u ∈ [0.12, 0.36]  阶段②  外加匀强场建立：g 0→1（光滑），t 仍为 0（电荷还没来得及动）
+     u ∈ [0.36, 1   ]  阶段③  自由电荷迁移：g=1，t 0→1（表面电荷堆起来、内部场被抵消）
+                        阶段④ = 阶段③的终点（t=1），不再单独占时间。
+   ⚠️ 用 smoothstep 而不是线性：两头速度为 0 ⇒ 场线"由直变弯"的起止不会哏一下。 */
+const ANIM_DUR = 5.6;                    /* 整段时长（秒） */
+const PH_FIELD = [0.12, 0.36];           /* 阶段②的 u 区间 */
+const PH_MIG   = [0.36, 1.00];           /* 阶段③的 u 区间 */
+const PH_IDLE  = [0.00, 0.12];           /* 阶段①的 u 区间 */
+const sstep = x => { x=Math.max(0,Math.min(1,x)); return x*x*(3-2*x); };
+const animG = u => sstep((u-PH_FIELD[0])/(PH_FIELD[1]-PH_FIELD[0]));
+const animT = u => sstep((u-PH_MIG[0])/(PH_MIG[1]-PH_MIG[0]));
+const STAGE_NAMES=['① 无外加电场','② 外加匀强场建立','③ 自由电荷迁移','④ 静电平衡'];
+const STAGE_NOTES=[
+  '还没有外加电场：导体里的自由电荷均匀分布、宏观不显电，内部也没有场',
+  '外加匀强场正在建立：电荷还没来得及动 ⇒ 场线笔直穿过导体',
+  '自由电荷正在迁移：正电荷顺场线、负电荷逆场线 ⇒ 表面堆出感应电荷',
+  '静电平衡：内部合场被抵消到 0、表面场垂直、导体是等位体',
+];
+/* 当前处于第几阶段（0~3）。没有动画在跑时由 (g,t) 反推 ⇒ 手动拖滑块也能正确显示阶段。
+   ⚠️ 边界：g=1 但 t=0（外场已就位、电荷还没动）算**②的末尾**而不是③ —— 那时场线还是笔直的，
+      正是 ② 的标志；若算成 ③，卡片会高亮"自由电荷迁移"而画面上什么都没迁。 */
+function stageOf(){
+  if(state.g<0.05) return 0;
+  if(state.g<0.995) return 1;
+  if(state.t<=0.02) return 1;
+  if(state.t<0.995) return 2;
+  return 3;
+}
+/* 时间轴反推（画进度条用）：没在播放时按当前 (g,t) 折算一个等效 u */
+function animU(){
+  if(state.anim) return state.anim.u;
+  if(state.g<0.995) return PH_FIELD[0]+(PH_FIELD[1]-PH_FIELD[0])*state.g;
+  return PH_MIG[0]+(PH_MIG[1]-PH_MIG[0])*state.t;
+}
+/* 步进一帧。返回 false（没在播）/ true（继续播）/ 'end'（刚播完）。 */
+function stepAnim(dt){
+  const A=state.anim;
+  if(!A || !A.playing) return false;
+  A.u=Math.min(1, A.u+dt/ANIM_DUR);
+  state.g=animG(A.u); state.t=animT(A.u);
+  if(A.u>=1){ state.g=1; state.t=1; state.anim=null; return 'end'; }
+  return true;
+}
+/* 退出动画、回到"手动"模式（g 归 1：手动调的是电荷迁移进度，外场默认已建立） */
+function stopAnim(){ state.anim=null; state.g=1; }
 
 /* ============================== 球坐标 ⇄ 直角坐标 ============================== */
 const sphPt=(r,th,ph)=>{const st=Math.sin(th);return pt(r*st*Math.cos(ph), r*st*Math.sin(ph), r*Math.cos(th));};
@@ -513,26 +571,31 @@ function shellVolt(r,th,E0,qc){
 const sigIn =(qc)=>-qc*1000/(4*Math.PI*B_C*B_C);
 const sigOut=(th,E0,qc)=>SIG_K*E0*Math.cos(th) + qc*1000/(4*Math.PI*A_C*A_C);
 
-/* ═══════════ ①② 的场线：解析流函数 ψ = E₀ sin²θ (r²/2 + a³/r) 的等值线 ═══════════
-   验证：E_r = (1/(r²sinθ))·∂ψ/∂θ = E₀cosθ(1+2a³/r³) ✓
-        E_θ = −(1/(r sinθ))·∂ψ/∂r = −E₀sinθ(1−a³/r³) ✓
-   球面上 ψ = E₀(3a²/2)·sin²θ ⇒ 等值线就是 θ=const ⇒ **场线垂直入射球面**（正是要讲的那条）。
-   远处瞄准距离 b：ψ(∞) = E₀b²/2 = ψ(球面) ⇒ sinθ₀ = b/(√3a) ⇒ 只有 b < √3·a 的线落在导体上。
+/* ═══════════ ①② 的场线：解析流函数 ψ = E₀ sin²θ (r²/2 + t·a³/r) 的等值线 ═══════════
+   ★★ 关键发现（整个"播放动画"就靠这一条）：**插值场也有精确流函数**。
+     fieldT 给出的外场（r ≥ a）是  E_r = E₀(1+2t·a³/r³)cosθ、E_θ = −E₀(1−t·a³/r³)sinθ，
+     把 a³/r³ 换成 k 后直接验证：
+       (1/(r²sinθ))·∂ψ/∂θ = E₀cosθ(1+2t·a³/r³) = E_r          ✓
+       −(1/(r sinθ))·∂ψ/∂r = −E₀sinθ(1−t·a³/r³) = E_θ          ✓
+     于是 t 从 0 到 1 的**每一帧**，场线都是"给定 ψ 解 r(θ)"的精确等值线，不是数值积分近似：
+       t = 1  ⇒  ψ = E₀sin²θ(r²/2 + a³/r)      （静电平衡，与旧版逐字相同）
+       t = 0  ⇒  ψ = E₀ r²sin²θ/2              （匀强场 ⇒ r·sinθ = b，**精确的直线**）
+     所以"场线随电荷迁移由直变弯"这件事也是解析的，而且 t→1 时与严格解**无缝衔接**。
 
-   ★ 为什么不用"沿 E 方向一步步积分"（本页第一版就是那么写的，实测不可靠）：
-     b 逼近 √3a 时场线贴着赤道滑行，一阶欧拉在那一带 **5% 级的角度误差**，
-     最接近掠射的那条（b=1.723a）甚至滑过赤道跑到下半空间（θ₀ 报 150.9°，真值 84.2°）。
-     改成"给定 ψ 解出 r(θ)"：每条线是**精确**的等值线，垂直入射这个性质由构造保证，与步长无关。
-     方程：sin²θ(r²/2 + a³/r) = b²/2  ⇒  r³ − (b²/sin²θ) r + 2a³ = 0（取最大正根）
-     该三次方程在物理分支上恰好有三个实根（判别式 Δ = a⁶ − P³/27 < 0，P = b²/sin²θ ≥ 3a²），
-     用三角形式解；P < 3a² 时无正根（对应"场线到不了的区域"），返回 NaN。 */
-function streamR(th,b){
+   等值线方程（C = E₀b²/2，b 是远处的瞄准距离）：
+     sin²θ(r²/2 + t·a³/r) = b²/2  ⇒  **r³ − (b²/sin²θ)·r + 2t·a³ = 0**（取最大正根）
+   球面上 ψ = E₀a²sin²θ(1/2+t) ⇒ 等值线就是 θ=const ⇒ **场线垂直入射球面**（正是要讲的那条）。
+   ⇒ 只有 b < a√(1+2t) 的线落在导体上（见 Bcr）。 */
+function streamR(th,b,tv){
   const s=Math.max(Math.sin(th),1e-7);
-  const P=b*b/(s*s), q=2*A_C*A_C*A_C, p=-P;
-  if(P < 3*A_C*A_C*(1-1e-9)) return NaN;           /* 该 θ 上没有场线（r 无正解） */
+  const P=b*b/(s*s), q=2*(tv==null?1:tv)*A_C*A_C*A_C, p=-P;
+  /* 三个实根的条件 D=(q/2)²+(p/3)³ ≤ 0 ⇒ P ≥ 3·(q/2)^(2/3)。
+     ⚠️ 写成 P ≥ 3a² 只对 t=1 成立；t=0 时 q=0（匀强场）**任何 b 都有正根**，
+        用旧条件会把整片直线场线判成"无解"（动画第 1 帧就空白）。 */
+  if(P < 3*Math.pow(Math.abs(q)/2, 2/3)*(1-1e-9)) return NaN;   /* 该 θ 上没有场线 */
   const D=(q/2)*(q/2)+(p/3)*(p/3)*(p/3);
-  /* ⚠️ P ≥ 3a² ⇒ 数学上 D ≤ 0 ⇒ **永远走三实根这一支**。
-     不能写 `if(D<0)` 把 D==0 丢给 Cardano：D=0 时那个三次方程是 (r−a)²(r+2a)=0，
+  /* ⚠️ 数学上上面那个条件保证 D ≤ 0 ⇒ **永远走三实根这一支**。
+     不能写 `if(D<0)` 把 D==0 丢给 Cardano：D=0 时三次方程是 (r−a)²(r+2a)=0，
      Cardano 公式只给出单根 −2a，**正好漏掉我们最需要的重根 r=a**（表面落点！）；
      浮点还会把 D 算成 ±1e-18 两边跳。所以给 D 留一个正容差，把边界一并收进三角支。 */
   if(D <= 1e-14*A_C*A_C*A_C*A_C*A_C*A_C){
@@ -547,17 +610,17 @@ function streamR(th,b){
   return r>0?r:NaN;
 }
 /* r(θ) 在 (0, 90°] 上单调递减 ⇒ 二分求"r = target"的角度 */
-function thetaAtR(target,b,thLo,thHi){
+function thetaAtR(target,b,tv,thLo,thHi){
   let lo=thLo, hi=thHi;
   for(let i=0;i<46;i++){
-    const m=(lo+hi)/2, r=streamR(m,b);
+    const m=(lo+hi)/2, r=streamR(m,b,tv);
     if(!isFinite(r)||r>target) lo=m; else hi=m;
   }
   return (lo+hi)/2;
 }
-/* 返回一批"xz 平面内的折线"（绕 z 轴转到各 φ 就是 3D 场线） */
-function dipolarLines(){
-  const Zmax=A_C*3.1, segs=[];
+/* 返回一批"xz 平面内的折线"（绕 z 轴转到各 φ 就是 3D 场线）。tv = 建立进度。 */
+function dipolarLines(tv){
+  const Zmax=A_C*3.1, segs=[], bc=Bcr(tv);
   FL_B.forEach(bm=>{
     const b=bm*A_C;
     if(b<1e-9){                                   /* b=0：沿 z 轴，上下各一段 */
@@ -565,12 +628,12 @@ function dipolarLines(){
       segs.push([pt(0,0,-Zmax),pt(0,0,-A_C)]);
       return;
     }
-    const hit=(b < B_CRIT*0.999);
-    const thEnd = hit ? Math.asin(Math.min(1,b/B_CRIT)) : Math.PI/2;
-    const thSt  = thetaAtR(Zmax,b,1e-4,thEnd*0.99999);
+    const hit=(b < bc*0.999);
+    const thEnd = hit ? Math.asin(Math.min(1,b/bc)) : Math.PI/2;
+    const thSt  = thetaAtR(Zmax,b,tv,1e-4,thEnd*0.99999);
     const N=34, up=[];
     for(let i=0;i<=N;i++){
-      const th=thSt+(thEnd-thSt)*i/N, r=streamR(th,b);
+      const th=thSt+(thEnd-thSt)*i/N, r=streamR(th,b,tv);
       if(!isFinite(r)) break;
       up.push(pt(r*Math.sin(th),0,r*Math.cos(th)));
     }
@@ -621,15 +684,11 @@ function traceLineF(fFn,bm,dir){
   return out;
 }
 function fieldLines(E0,t){
-  if(t==null || t>0.98) return dipolarLines();     /* 静电平衡：精确等值线 */
-  /* 建立过程中（t<1）内部也有场、流函数不再是常量 ⇒ 退回数值积分，并避开掠射的 b */
-  const fFn=(r,th)=>fieldAt(r,th,E0,t);
-  const segs=[];
-  FL_B_SHELL.forEach(bm=>{
-    if(bm*A_C < B_CRIT*0.998) { segs.push(traceLineF(fFn,bm,-1)); segs.push(traceLineF(fFn,bm,1)); }
-    else segs.push(traceLineF(fFn,bm,1));
-  });
-  return segs;
+  if(E0<1e-6) return [];                              /* 还没加外场 ⇒ 一条场线都没有 */
+  /* ★★ 任意 t 都走**精确等值线**（不再退回数值积分）—— 因为插值场也有流函数（见上方推导）。
+     旧版在 t<1 时用 RK4 是因为当时以为"球内有场 ⇒ 流函数不再是常量"；
+     实际上我们只画球**外**那一段，而外侧的 E 始终有同一个 ψ 族（球内另行用 drawInner 表现）。 */
+  return dipolarLines(t==null?1:t);
 }
 function shellLines(E0,qc){
   const fFn=(r,th)=>shellField(r,th,E0,qc);
@@ -676,9 +735,28 @@ function equiCurve(sign,E0,fac,Rmax){
   return out;
 }
 
+/* ══════════ ① 阶段①的"中性自由电荷" ══════════
+   外场还没加上时，导体里的自由电荷是**均匀**的（正负各半、宏观不显电）。
+   画在**赤道那一圈**：那里 σ 恒为 0（σ ∝ cosθ），所以它永远不会与后出现的感应电荷打架。
+   alpha 随外场 g 淡出 ⇒ 阶段②一开始它就退场，换成两极的感应电荷。 */
+function drawNeutralCharge(al){
+  if(al<=0.02) return;
+  const NV=8, rr=A_C*0.94;
+  for(let j=0;j<NV;j++){
+    const p=sphPt(rr,Math.PI/2,(j+0.42)/NV*2*Math.PI);
+    text(p, j%2 ? '−' : '+', {color: j%2 ? '#6E9BB5' : '#C0807B',
+      size:9, bold:true, align:'center', alpha:al*0.85});
+  }
+}
+
 /* ============================== 绘制：共用元素 ============================== */
-/* 匀强外场 E₀ 的"背景刻度"：短箭头，只标方向与大小，不参与严格解 */
+/* 匀强外场 E₀ 的"背景刻度"：短箭头，只标方向与大小，不参与严格解。
+   传入的是**当前实际幅值** E₀·g ⇒ 播放时它是从 0 长出来的（阶段①一条都没有）。 */
 function drawE0Hint(E0){
+  if(E0<0.05){                                   /* 阶段①：还没有外加场 */
+    text(pt(0,0,-A_C*2.5),'无外加电场',{color:'#9DB3BF',size:11.5,dy:16,align:'center'});
+    return;
+  }
   const s=0.16+0.055*E0;                         /* 箭头长度随 E₀ 增长（示意） */
   const G=A_C*1.75;
   for(let i=-1;i<=1;i++) for(let j=-1;j<=1;j++){
@@ -701,6 +779,8 @@ function textWidth(str,size){
   let w=0; for(const ch of str) w += (ch.charCodeAt(0)>0x2E80 ? 1.0 : 0.55);
   return w*size;
 }
+/* 富文本标记对宽度估计是噪声（`@{E}` 会被算成 5 个字）⇒ 估宽前先把标记剥掉 */
+const plainTxt = s => String(s).replace(/@\{([^}]*)\}/g,'$1').replace(/_([a-zA-Z0-9₀-₉])/g,'$1');
 function avoidText(p0,str,size,dx,dy,align){
   const s=pr(p0), a=[], w=textWidth(str,size), st=Math.max(9,size*0.62);
   let x0=s.x+(dx||0);
@@ -724,12 +804,14 @@ function drawSurfaceCharge(rr,sigFn,o){
   const placed = o.share || [];
   const w = o.avoidS || [];
   const gap = o.probeGap || 34;
+  const rj = o.avoidRect;                       /* 屏幕矩形 [x,y,w,h]：卡片区域整体不布点 */
   for(let i=0;i<NU;i++){
     const th=ths[i], s=sigFn(th), mag=mags[i]/mx;
     if(mag<0.10) continue;
     for(let j=0;j<NV;j++){
       const ph=(j+0.42)/NV*2*Math.PI;
       const p=sphPt(rr,th,ph), sp=pr(p);
+      if(rj && sp.x>rj[0]-6 && sp.x<rj[0]+rj[2]+6 && sp.y>rj[1]-6 && sp.y<rj[1]+rj[3]+6) continue;
       if(w.some(q=>Math.hypot(sp.x-q.x,sp.y-q.y)<gap)) continue;
       if(placed.some(q=>(q.x-sp.x)*(q.x-sp.x)+(q.y-sp.y)*(q.y-sp.y)<SEPS*SEPS)) continue;
       placed.push(sp);
@@ -739,27 +821,33 @@ function drawSurfaceCharge(rr,sigFn,o){
     }
   }
 }
-/* ① 的"电荷迁移"弧箭头：正电荷顺场线往 +z 极跑、负电荷逆场线往 −z 极跑 */
+/* ① 的"电荷迁移"弧箭头：正电荷顺场线往 +z 极跑、负电荷逆场线往 −z 极跑。
+   ★ 弧所在子午面**跟着相机方位走**：φ = cam.az + 0.55。
+     原先写死 φ = 0.42，而默认方位 az = 0.62 ⇒ 两者只差 0.20 rad(11°) ⇒ 那个平面几乎**侧对**相机，
+     整条弧投影成一条穿球而过的**直线**（实测竖直跨度 h=376px、水平只有 w=78px，看不出是弧）。
+     φ 跟着 az 走以后，任何机位下这条弧都"半开着"朝向观察者，而且深度恒为正（不会被球挡掉）。 */
 function drawFlow(E0,t){
-  if(t<=0.02||t>=0.985) return;
+  if(state.g<0.9) return;                        /* 外场还没建立，无从谈"顺/逆场线" */
+  if(t<=0.02||t>=0.985) return;                  /* 两端都不画：还没动 / 已停稳 */
   const a=0.55*(1-Math.abs(2*t-1))*2.4;          /* 中途最亮 */
-  const up=[],dn=[];
+  const ph=cam.az+0.55, up=[], dn=[];
   for(let k=0;k<=16;k++){
-    const th=Math.PI*0.50 - Math.PI*0.34*k/16;
-    up.push(sphPt(A_C*1.16,th,0.42));
-    const th2=Math.PI*0.50 + Math.PI*0.34*k/16;
-    dn.push(sphPt(A_C*1.16,th2,0.42));
+    const th=Math.PI*0.50 - Math.PI*0.30*k/16;   /* 上半：赤道 → 接近 +z 极 */
+    up.push(sphPt(A_C*1.16,th,ph-0.26));
+    const th2=Math.PI*0.50 + Math.PI*0.28*k/16;  /* 下半：赤道 → 接近 −z 极（别过 140°，否则沉到球后面） */
+    dn.push(sphPt(A_C*1.16,th2,ph+0.26));
   }
   curve(up,  {color:C.crimson,w:2.2,arrowEnd:true,alpha:Math.min(1,a)});
   curve(dn,  {color:'#2E7FA6',w:2.2,arrowEnd:true,alpha:Math.min(1,a)});
   text(up[up.length-1],'正电荷',{color:C.crimson,size:11,bold:true,dx:6,dy:-4,alpha:Math.min(1,a)});
   text(dn[dn.length-1],'负电荷',{color:'#2E7FA6',size:11,bold:true,dx:6,dy:10,alpha:Math.min(1,a)});
 }
-/* ① 的球内合场：箭头长度 ∝ (1−t)·E₀ ⇒ t→1 时"肉眼可见地缩到 0"。
+/* ① 的球内合场：箭头长度 ∝ (1−t)·E₀·g ⇒ t→1 时"肉眼可见地缩到 0"（阶段①整支不画）。
    ★ 刻意空出正中央一格 —— 那里要写"内部 |E| = ?"的读数，别叠字。 */
-function drawInner(E0,t){
+function drawInner(Ea,t,Eref){
   if(!state.show.inner || t>=0.995) return;
-  const L=eLen(E0*(1-t), E0), g=A_C*0.40;
+  if(Ea*(1-t) < 0.02*Eref) return;               /* 场小到看不见 ⇒ 一支都不画（别剩秃箭头） */
+  const L=eLen(Ea*(1-t), Eref), g=A_C*0.40;
   for(let i=-1;i<=1;i++) for(let j=-1;j<=1;j++){
     if(i===0&&j===0) continue;
     const x=i*g, y=j*g, z0=-L*0.5;
@@ -769,10 +857,13 @@ function drawInner(E0,t){
 }
 function drawFieldLines(E0,t){
   const segs=fieldLines(E0,t);
-  const col = (t==null||t>0.98) ? '#2E7FA6' : '#8FB3C6';
+  if(!segs.length) return;
+  const eq=(t==null||t>0.995);
+  const col = eq ? '#2E7FA6' : '#8FB3C6';
+  const al = (eq ? 0.62 : 0.50) * (t==null ? 1 : (0.30+0.70*state.g));   /* 阶段②里随外场一起淡入 */
   segs.forEach(sg=>{
     if(sg.length<2) return;
-    FL_PH.forEach(ph=>curve(sg.map(p=>rotZ(p,ph)), {color:col,w:1.25,alpha:t==null||t>0.98?0.62:0.5}));
+    FL_PH.forEach(ph=>curve(sg.map(p=>rotZ(p,ph)), {color:col,w:1.25,alpha:al}));
   });
 }
 function drawAxesFor(){ drawAxes(A_C*2.35); }
@@ -879,21 +970,39 @@ function drawBall(c,R,col,emph,rimA){
 }
 const probeP=()=>sphPt(state.rp, state.thp*D2R, 0);
 
-/* ══════════ ① 静电平衡的建立 ══════════ */
+/* ① 画布上的固定注记（球心读数 + 两条迁移弧的标签）—— 一起进避让表，别让 ⊕/⊖ 压上去。
+   ⚠️ 实测：不加避让时 '正电荷' 标签与一个 '+' 只差 (2,5) px（b10 自检抓到 6 例）。 */
+function buildLabels(Ea,t){
+  const L=[{p:O, s: Ea<0.05 ? '无外加电场：导体内部也没有场'
+      : (t>=0.995 ? '导体内部　@{E} ≡ 0' : '内部 |@{E}| = '+(Ea*(1-t)).toFixed(2)+' kV/m'),
+      sz:12.5, dx:0, dy:0, al:'center'}];
+  if(state.show.flow && state.g>=0.9 && t>0.02 && t<0.985){
+    const ph=cam.az+0.55;
+    L.push({p:sphPt(A_C*1.16, Math.PI*0.50-Math.PI*0.30, ph-0.26), s:'正电荷', sz:11, dx:6,  dy:-4, al:'left'});
+    L.push({p:sphPt(A_C*1.16, Math.PI*0.50+Math.PI*0.28, ph+0.26), s:'负电荷', sz:11, dx:6, dy:10, al:'left'});
+  }
+  return L;
+}
+/* ══════════ ① 静电平衡的建立（含"无外场 → 加场 → 电荷迁移 → 平衡"全过程播放） ══════════ */
 function sceneBuild(){
-  const E0=state.E0, t=state.t;
+  const E0=state.E0, g=state.g, t=state.t, Ea=E0*g;
   if(state.show.box) drawAxesFor();
-  if(state.show.lines) drawE0Hint(E0);
-  if(state.show.lines) drawFieldLines(E0,t);
+  if(state.show.lines) drawE0Hint(Ea);
+  if(state.show.lines) drawFieldLines(Ea,t);
   drawBall(O,A_C,COND_COL,false,0.30);
-  if(state.show.chg) drawSurfaceCharge(A_C*1.05, th=>sigma(th,E0,t), {alpha:t});
-  if(state.show.flow) drawFlow(E0,t);
-  drawInner(E0,t);
-  /* 关键读数直接写在球心：t<1 时报"还没抵消完"的数，t=1 时报"严格 0" */
-  if(t>=0.995)
-    text(O,'导体内部　@{E} ≡ 0',{color:C.green,size:13,bold:true,align:'center'});
-  else
-    text(O,'内部 |@{E}| = '+(E0*(1-t)).toFixed(2)+' kV/m',{color:'#8A5A20',size:12.5,bold:true,align:'center'});
+  /* 阶段①：导体自带的自由电荷均匀分布（赤道一圈、正负相间）——随外场淡出 */
+  if(state.show.chg) drawNeutralCharge(1-Math.min(1,state.g/0.12));
+  /* 感应电荷用**当前实际外场幅值** Ea；alpha 再乘 g ⇒ 阶段①一个符号都没有、阶段②淡入 */
+  if(state.show.chg){
+    let av=[];
+    buildLabels(Ea,t).forEach(l=>{ av=av.concat(avoidText(l.p, plainTxt(l.s), l.sz, l.dx, l.dy, l.al)); });
+    drawSurfaceCharge(A_C*1.05, th=>sigma(th,Ea,t), {alpha:t*g, avoidS:av, avoidRect:stageCardRect()});
+  }
+  if(state.show.flow) drawFlow(Ea,t);
+  drawInner(Ea,t,E0);
+  /* 关键读数直接写在球心：三种状态分开报，别把"没有外场"和"抵消掉了"混成一句 */
+  buildLabels(Ea,t).slice(0,1).forEach(l=>text(l.p, l.s,
+    {color: Ea<0.05 ? '#7A8F9B' : (t>=0.995 ? C.green : '#8A5A20'), size:l.sz, bold:true, align:'center'}));
 }
 
 /* ══════════ ② 静电平衡的四个结论 ══════════ */
@@ -1045,6 +1154,37 @@ function sceneShield(){
   }
 }
 
+/* ══════════ ① 的阶段指示卡（画布右上角） ══════════
+   四个阶段 + 一条进度条。它同时充当 ⊕/⊖ 的**禁布区**（avoidRect）——
+   否则阶段③里两极端点的电荷符号会正好压在卡片上。 */
+const STAGE_CARD_H=160;
+function stageCardRect(){ return [CARD_X(), CARD_Y, CARD_W, STAGE_CARD_H]; }
+function drawStageCard(){
+  const R=stageCardRect(), x0=R[0], y0=R[1], w=R[2], h=R[3];
+  crd(x0,y0,w,h);
+  const st=stageOf();
+  txt(x0+12,y0+15,'建立过程 · 四个阶段',{size:11.5,bold:true,color:'#1F3D4C'});
+  const rows=[
+    ['① 无外加电场','自由电荷均匀分布 ⇒ 宏观不显电、内部没有场'],
+    ['② 外加匀强场建立','电荷还没来得及动 ⇒ 场线笔直穿过导体'],
+    ['③ 自由电荷迁移','正电荷顺场线、负电荷逆场线 ⇒ 堆出感应电荷'],
+    ['④ 静电平衡','内部 @{E} ≡ 0 · 表面 @{E} ⊥ 面 · 等位体'],
+  ];
+  rows.forEach((r,i)=>{
+    const y=y0+34+i*24, on=(i===st);
+    txt(x0+15,y,r[0],{size:11.5,bold:on,color:on?'#0E6E4A':'#9AAAB4'});
+    txt(x0+15,y+11.5,r[1],{size:9,color:on?'#5F7482':'#BFC9D0'});
+  });
+  const bx=x0+15, by=y0+h-30, bw=w-30, u=animU();
+  ctx.save();
+  ctx.fillStyle='#E6EEF2'; rrPath(bx,by,bw,5,2.5); ctx.fill();
+  ctx.fillStyle=C.green;   rrPath(bx,by,Math.max(3,bw*u),5,2.5); ctx.fill();
+  [PH_FIELD[0],PH_FIELD[1]].forEach(f=>{ctx.fillStyle='#FFFFFF';ctx.fillRect(bx+bw*f-1,by-1.5,2,8);});
+  ctx.restore();
+  txt(x0+15,y0+h-16,(state.anim&&state.anim.playing)?'▶ 正在播放…':(state.anim?'⏸ 已暂停':'（未播放：可手动拖动滑块）'),
+    {size:9.5,color:'#9AAAB4'});
+}
+
 /* ══════════ 场景装配 ══════════ */
 function buildScene(){
   prims=[];                                  /* ★ 第一句必须是 prims=[]（否则每次重绘再叠一层） */
@@ -1053,6 +1193,7 @@ function buildScene(){
   else                      sceneShield();
 }
 function drawOverlays(){
+  if(state.mode==='build'){ drawStageCard(); return; }
   if(state.mode!=='shield') return;
   const x0=CARD_X(), y0=CARD_Y, w=CARD_W, h=118;
   crd(x0,y0,w,h);
@@ -1102,13 +1243,17 @@ function probeNote(){
          '切向分量占比 '+(p.ett*100).toFixed(1)+'% ⇒ @{E} 与法向夹 '+p.ang.toFixed(1)+'°（外部不垂直，只有表面才垂直）。';
 }
 function buildNote(){
-  const t=state.t, E0=state.E0;
+  const t=state.t, g=state.g, E0=state.E0, Ea=E0*g;
+  if(g<0.05) return '<b>还没有外加电场</b>：导体里的自由电荷均匀分布，宏观上既不显电、内部也没有场。'+
+    '按 <b>▶ 播放全过程</b>，看外加匀强场加上去以后会发生什么。';
+  if(g<0.995) return '<b>外加匀强场正在建立</b>（当前 '+Ea.toFixed(2)+' kV/m，刚到 '+Math.round(g*100)+'%）：'+
+    '场线<b>笔直穿过导体</b>，球内仍是原样的匀强场 —— 因为自由电荷<b>还没来得及动</b>。';
+  if(t<=0.005) return '<b>外场已经加上</b>（'+E0.toFixed(1)+' kV/m）：电荷还没开始迁移，'+
+    '球内球外是同一个匀强场 @{E}₀。';
   if(t>=0.995) return '<b>已达静电平衡</b>：内部 |@{E}| ≡ 0，表面电荷不再移动。'+
     '此时表面 σ(θ) = 3ε₀E₀cosθ ⇒ 总量 ∮σdS = 0（下半球负电荷与上半球正电荷恰好抵消）。';
-  if(t<=0.005) return '<b>刚加上外场</b>：还没有电荷迁移，球内球外都是同一个匀强场 @{E}₀。'+
-    '把进度条往右拖，看自由电荷怎么跑、内部场怎么被抵消掉。';
-  return '<b>正在建立</b>（进度 '+(t*100).toFixed(0)+'%）：正电荷顺场线往 +z 极跑、负电荷逆场线往 −z 极跑，'+
-    '它们在表面产生的场与外场反向 ⇒ 内部合场降到 '+(E0*(1-t)).toFixed(2)+' kV/m。'+
+  return '<b>自由电荷正在迁移</b>（迁移进度 '+Math.round(t*100)+'%）：正电荷顺场线往 +z 极跑、'+
+    '负电荷逆场线往 −z 极跑，表面堆出的感应电荷产生反向场 ⇒ 内部合场降到 '+(Ea*(1-t)).toFixed(2)+' kV/m。'+
     '<b>⚠️ 真实过程 ~10⁻¹⁸ s 就结束了，这里是为了看清机理而放慢的示意。</b>';
 }
 function shieldNote(){
@@ -1173,16 +1318,26 @@ function renderSubSec(sec){
   });
   const m=state.mode;
   if(m==='build'){
-    sec.appendChild(h('<div class="sec-title" style="margin-top:14px">过程</div>'));
+    sec.appendChild(h('<div class="sec-title" style="margin-top:14px">全过程播放</div>'));
     const bx=h('<div class="sub-chips"></div>').firstChild;
-    const rb=h('<button class="chip o">▶ 重放建立过程</button>').firstChild;
-    rb.onclick=()=>{ state.replay=!state.replay; if(state.replay){ state.t=0; } renderPanel(); };
+    /* 主按钮：播放 / 暂停。首次按下时把 (g,t) 一起归零 ⇒ 从"完全没有电场"开始 */
+    const pb=h('<button class="chip o" id="btnPlay">'+
+      ((state.anim&&state.anim.playing)?'⏸ 暂停':'▶ 播放全过程')+'</button>').firstChild;
+    pb.onclick=()=>{
+      if(state.anim) state.anim.playing=!state.anim.playing;
+      else { state.anim={u:0,playing:true}; state.g=0; state.t=0; }
+      renderPanel(); needsRender=true; syncSliders(); updateReadout(); updateModeTag();
+    };
+    bx.appendChild(pb);
+    const rb=h('<button class="chip" id="btnReplay">↺ 重播</button>').firstChild;
+    rb.onclick=()=>{ state.anim={u:0,playing:true}; state.g=0; state.t=0;
+      renderPanel(); needsRender=true; syncSliders(); updateReadout(); updateModeTag(); };
     bx.appendChild(rb);
-    const jb=h('<button class="chip">↺ 直接到静电平衡（t = 1）</button>').firstChild;
-    jb.onclick=()=>{ state.replay=false; state.t=1; renderPanel(); updateAll(); };
+    const jb=h('<button class="chip" id="btnEq">⏭ 直接到静电平衡</button>').firstChild;
+    jb.onclick=()=>{ stopAnim(); state.t=1; state.g=1; renderPanel(); updateAll(); };
     bx.appendChild(jb);
     sec.appendChild(bx);
-    sec.appendChild(h('<div class="ex-note">'+richHTML(buildNote())+'</div>'));
+    sec.appendChild(h('<div class="ex-note" id="buildNote">'+richHTML(buildNote())+'</div>'));
   } else if(m==='concl'){
     sec.appendChild(h('<div class="sec-title" style="margin-top:14px">把 P 送到关键位置</div>'));
     const bx=h('<div class="sub-chips"></div>').firstChild;
@@ -1235,6 +1390,7 @@ function syncSliders(){
   set('E0',state.E0); set('t',state.t); set('rp',state.rp); set('thp',Math.round(state.thp)); set('qc',state.qc);
   const pn=document.getElementById('probeNote'); if(pn) pn.innerHTML=richHTML(probeNote());
   const sn=document.getElementById('shieldNote'); if(sn) sn.innerHTML=richHTML(shieldNote());
+  const bn=document.getElementById('buildNote'); if(bn) bn.innerHTML=richHTML(buildNote());
 }
 function renderSliders(sec){
   sec.innerHTML='';
@@ -1243,12 +1399,14 @@ function renderSliders(sec){
   mkRange(sec,{k:'E0',label:'@{E}₀',wide:true,min:E0_RANGE[0],max:E0_RANGE[1],step:0.5,
     get:()=>state.E0, set:v=>state.E0=v, fmt:v=>v.toFixed(1)+' kV/m'});
   if(m==='build'){
-    sec.appendChild(h('<div class="sec-title" style="margin-top:14px">建立进度</div>'));
-    mkRange(sec,{k:'t',label:'进度 t',wide:true,min:0,max:1,step:0.01,
-      get:()=>state.t, set:v=>{state.t=v; state.replay=false;}, fmt:v=>Math.round(v*100)+'%'});
+    sec.appendChild(h('<div class="sec-title" style="margin-top:14px">电荷迁移进度</div>'));
+    mkRange(sec,{k:'t',label:'迁移进度 t',wide:true,min:0,max:1,step:0.01,
+      get:()=>state.t, set:v=>{state.t=v; stopAnim();}, fmt:v=>Math.round(v*100)+'%'});
     sec.appendChild(h('<div class="ex-note" style="margin-top:9px">'+richHTML(
-      't = 0 是"刚加上外场"、t = 1 是"静电平衡"。真实的电荷重分布只花 ~10⁻¹⁸ s，'+
-      '<b>拖动 t 只是为了把机理看清楚</b>，不要把中间状态当成会持续存在的物理过程。')+'</div>'));
+      '滑块只调"<b>电荷迁移</b>到哪一步"（外场默认已建立）。想看<b>完整的</b>过程（无外场 → 加场 → '+
+      '迁移 → 平衡），请按上方的 <b>▶ 播放全过程</b>。'+
+      '<br>真实的电荷重分布只花 ~10⁻¹⁸ s，<b>拖动只是为了把机理看清楚</b>，'+
+      '不要把中间状态当成会持续存在的物理过程。')+'</div>'));
   } else if(m==='concl'){
     sec.appendChild(h('<div class="sec-title" style="margin-top:14px">探针 P 的位置（球坐标）</div>'));
     mkRange(sec,{k:'rp',label:'半径 r',wide:true,min:RP_RANGE[0],max:RP_RANGE[1],step:0.01,
@@ -1410,17 +1568,20 @@ function updateReadout(){
   if(!state.showReadout){ strip.innerHTML=''; return; }
   let html='';
   if(state.mode==='build'){
-    const E0=state.E0, t=state.t;
+    const E0=state.E0, t=state.t, g=state.g, Ea=E0*g, st=stageOf();
+    html += kchip('阶段 =', STAGE_NAMES[st], st===3?'acc':'warn');
     html += kchip('外加场 @{E}₀ =', E0.toFixed(1)+' kV/m');
-    html += kchip('建立进度 t =', Math.round(t*100)+'%');
-    html += kchip('内部 |@{E}| =', (E0*(1-t)).toFixed(3)+' kV/m', t>=0.995?'acc':'warn');
-    html += kchip('表面 σ(0°) =', (t*SIG_K*E0).toFixed(1)+' nC/m²','acc');
+    html += kchip('当前外场 =', Ea.toFixed(2)+' kV/m');
+    html += kchip('外场建立 g =', Math.round(g*100)+'%');
+    html += kchip('电荷迁移 t =', Math.round(t*100)+'%');
+    html += kchip('内部 |@{E}| =', (Ea*(1-t)).toFixed(3)+' kV/m', t>=0.995?'acc':'warn');
+    html += kchip('表面 σ(0°) =', (t*SIG_K*Ea).toFixed(1)+' nC/m²','acc');
     html += kchip('表面 σ(90°) =', '0.0 nC/m²');
     html += kchip('感应电荷总量 =', '0.0 nC');
-    html += kchip('状态 =', t>=0.995?'静电平衡':'电荷仍在移动', t>=0.995?'acc':'warn');
+    html += kchip('状态 =', st===3?'静电平衡':(g<0.05?'无外场':(t<=0.02?'外场已加上、电荷未动':'电荷仍在移动')),
+      st===3?'acc':'warn');
     document.getElementById('lgTitle').textContent='静电平衡的建立';
-    document.getElementById('lgNote').innerHTML=richHTML(
-      '正电荷顺场线、负电荷逆场线 ⇒ 表面堆出感应电荷 ⇒ 它的场在内部抵消外场');
+    document.getElementById('lgNote').innerHTML=richHTML(STAGE_NAMES[st]+'　·　'+STAGE_NOTES[st]);
   } else if(state.mode==='concl'){
     const p=probeInfo();
     html += kchip('P 的位置 (r, θ) =', '('+p.r.toFixed(2)+' m, '+Math.round(state.thp)+'°)');
@@ -1460,7 +1621,9 @@ function updateModeTag(){
   const t=document.getElementById('modeTag'); if(!t)return;
   const sb=document.getElementById('moduleSub');
   if(state.mode==='build')
-    t.innerHTML=richHTML('静电平衡的建立 · @{E}₀ = '+state.E0.toFixed(1)+' kV/m，进度 t = '+Math.round(state.t*100)+'%');
+    t.innerHTML=richHTML('静电平衡的建立 · '+STAGE_NAMES[stageOf()]+
+      '　@{E}₀ = '+state.E0.toFixed(1)+' kV/m　外场建立 '+Math.round(state.g*100)+
+      '%　电荷迁移 '+Math.round(state.t*100)+'%');
   else if(state.mode==='concl'){
     const p=probeInfo();
     t.innerHTML=richHTML('四个结论 · P：(r, θ) = ('+p.r.toFixed(2)+' m, '+Math.round(state.thp)+'°)　'+
@@ -1491,10 +1654,13 @@ function tick(){
   const now=performance.now(); const dt=Math.min(0.05,(now-_lastT)/1000); _lastT=now;
   try{
     if(state.autoRotate){ cam.az+=0.0045; needsRender=true; }
-    if(state.replay){
-      state.t+=dt/2.4;
-      if(state.t>=1){ state.t=1; state.replay=false; renderPanel(); }
+    /* ① 的"全过程播放"：一条时间轴 u 同时驱动外场建立度 g 与电荷迁移 t（见 new_a.js 的推导） */
+    const ra=stepAnim(dt);
+    if(ra){
       needsRender=true; syncSliders(); updateReadout(); updateModeTag();
+      const pb=document.getElementById('btnPlay');
+      if(pb) pb.textContent=(state.anim&&state.anim.playing)?'⏸ 暂停':'▶ 播放全过程';
+      if(ra==='end') renderPanel();          /* 播完再重建一次面板（按钮文字/滑块归位） */
     }
     if(state.mode==='concl' && state.sweep){
       if(state.sweep==='rad'){
@@ -1592,7 +1758,7 @@ const MT=[{k:'build',t:'① 静电平衡的建立'},
           {k:'shield',t:'③ 静电屏蔽'}];
 const modeTabs=document.getElementById('modeTabs');
 MT.forEach(m=>{const b=document.createElement('button');b.textContent=m.t;b.dataset.k=m.k;
-  b.onclick=()=>{ state.mode=m.k; state.cardTab='1'; state.sweep=null; state.replay=false;
+  b.onclick=()=>{ state.mode=m.k; state.cardTab='1'; state.sweep=null; stopAnim();
     syncModeTabs(); cam.az=.62; cam.el=.40; cam.px=0; cam.py=0;
     renderPanel(); updateAll(); };
   modeTabs.appendChild(b);});
