@@ -454,10 +454,14 @@ function drawFlow(E0,t){
     const th2=Math.PI*0.50 + Math.PI*0.28*k/16;  /* 下半：赤道 → 接近 −z 极（别过 140°，否则沉到球后面） */
     dn.push(sphPt(A_C*1.16,th2,ph+0.26));
   }
-  curve(up,  {color:C.crimson,w:2.2,arrowEnd:true,alpha:Math.min(1,a)});
-  curve(dn,  {color:'#2E7FA6',w:2.2,arrowEnd:true,alpha:Math.min(1,a)});
-  text(up[up.length-1],'正电荷',{color:C.crimson,size:11,bold:true,dx:6,dy:-4,alpha:Math.min(1,a)});
-  text(dn[dn.length-1],'负电荷',{color:'#2E7FA6',size:11,bold:true,dx:6,dy:10,alpha:Math.min(1,a)});
+  /* 弧 + 末端大箭头（curve 的 arrowEnd 只有 6.8px，看不清"顺/逆场线"的方向） */
+  const A1=Math.min(1,a);
+  curve(up,{color:C.crimson,w:2.2,alpha:A1});
+  arrow(up[up.length-2],up[up.length-1],{color:C.crimson,w:2.2,headScale:1.25,alpha:A1});
+  curve(dn,{color:'#2E7FA6',w:2.2,alpha:A1});
+  arrow(dn[dn.length-2],dn[dn.length-1],{color:'#2E7FA6',w:2.2,headScale:1.25,alpha:A1});
+  text(up[up.length-1],'正电荷',{color:C.crimson,size:11,bold:true,dx:6,dy:-4,alpha:A1});
+  text(dn[dn.length-1],'负电荷',{color:'#2E7FA6',size:11,bold:true,dx:6,dy:10,alpha:A1});
 }
 /* ① 的球内场：**把"外场分量"和"感应场"分开画** —— 因为"内部电场与外电场相互抵消"
    这件事，只有两支**反向**箭头同时在场才看得见。
@@ -477,9 +481,9 @@ function drawInner(Ea,t,Eref){
     if(i===0&&j===0) continue;
     const x=i*g, y=j*g;
     arrow(pt(x-dx,y,-Lw*0.5), pt(x-dx,y, Lw*0.5),
-      {color:'#5E93AE',w:1.6,headScale:.68,alpha:.50+.22*(1-t),z:1e4+28});
+      {color:'#5E93AE',w:1.6,headScale:1.05,alpha:.50+.22*(1-t),z:1e4+28});
     if(t>0.02) arrow(pt(x+dx,y, Li*0.5), pt(x+dx,y,-Li*0.5),
-      {color:C.orange,w:1.8,headScale:.72,alpha:.55+.40*t,z:1e4+30});
+      {color:C.orange,w:1.8,headScale:1.15,alpha:.55+.40*t,z:1e4+30});
   }
 }
 function drawFieldLines(E0,t){
@@ -492,14 +496,60 @@ function drawFieldLines(E0,t){
      （实测球前 φ=π/2 与球后 φ=3π/2 都会），于是球内同时出现"竖直场线"和"内部场箭头"，
      既显得凌乱、又被读成**场线穿进了导体** —— 和本页最核心的结论直接打架。
      只在**屏幕空间**逐段取舍，点的世界坐标一个不动 ⇒ 落点 / 入射角 / 垂直性等断言不受影响。 */
-  const Rpx=A_C*camScale, S0=pr(O), IN_K=0.30;
+  const Rpx=A_C*camScale, S0=pr(O), IN_K=0.30, ARROW_K=1.15, ARROW_PX=26;
   const inside=p=>{const S=pr(p); return Math.hypot(S.x-S0.x, S.y-S0.y) < Rpx;};
-  const put=(pts,inh)=>{ if(pts.length>=2) curve(pts,{color:col,w:1.25,alpha:al*(inh?IN_K:1)}); };
+  const onScr=p=>{const S=pr(p); return S.x>=14&&S.x<=W-14&&S.y>=14&&S.y<=H-14;};
+  const sLen=(p,q)=>{const S1=pr(p), S2=pr(q); return Math.hypot(S2.x-S1.x, S2.y-S1.y);};
+  /* ★ 每条场线补一个**方向箭头**（原先场线完全没有箭头 ⇒ 学生看不出场线指向哪边）。
+     为什么不用 curve 的 arrowEnd：引擎把它的 headScale 写死成 .75（≈6.8px，太小且不可配），
+     所以改用 arrow() 单独画 —— 它的箭头尺寸能通过 headScale 调大。
+     ⚠️ 位置取**第一个亮段的中点**而不是末端：远端 (r=3.1a) 常常已经出了画布，
+        而末段落进剪影圆又是被压暗的，只有中点既在可见区、又代表这条线的走向。
+     ⚠️ 一条线会被拆成 1~3 段（球剪影内/外），所以用 arrowed 保证**一条线只出一个箭头**。 */
   segs.forEach(sg=>{
     if(sg.length<2) return;
     FL_PH.forEach(ph=>{
       const P=sg.map(p=>rotZ(p,ph));
-      let run=[P[0]], cur=inside(P[0]);
+      let run=[P[0]], cur=inside(P[0]), arrowed=false;
+      const put=(pts,inh)=>{
+        if(pts.length<2) return;
+        const a=al*(inh?IN_K:1);
+        curve(pts,{color:col,w:1.25,alpha:a});
+        if(!inh && !arrowed){
+          /* ⚠️ 方向：场线方向恒为 +z（外场 E₀ 沿 +z），但 dipolarLines() 输出的点序是
+             "从远端走向球面" —— 上半段 z 递减、下半段 z 递增，两种不一致（远端 z 的符号不同）。
+             所以按**这一对的 z 走向**定向，保证一律指向 +z。掠过球的线在中点处切向是纯径向的，
+             但那里 z 仍单调递减 ⇒ 这条判据同样给出正确的 +E 方向。
+             ⚠️ 长度：箭杆必须**按屏幕长度截取**，不能直接拿相邻两点当箭杆 ——
+                ① 场线采样点只有 ~8.6px 一段，照搬会画出一个**比箭头头（10.4px）还短**的箭杆
+                   ⇒ 看上去就是个没方向的小三角（用户"箭头太小、看不清方向"的真正来源）；
+                ② 沿 z 轴那两条 b=0 的场线只有 2 个点（r=3.1a ↔ r=a），照搬会画成 300px 巨型箭头。
+                所以：先向两端**逐点扩**到 ~26px，若仍然超长（只有 2 个点的轴线）再按参数截短。 */
+          const n=pts.length;
+          let k=Math.max(1, Math.floor(n/2));
+          if(!onScr(pts[k])){                       /* 中点若已出画布，就沿两端找第一个在画布里的点 */
+            for(let d=1; d<n && !onScr(pts[k]); d++){
+              if(k-d>=1 && onScr(pts[k-d])) k=k-d;
+              else if(k+d<=n-1 && onScr(pts[k+d])) k=k+d;
+            }
+          }
+          let i=k-1, j=k, turn=1;
+          while(sLen(pts[i],pts[j])<ARROW_PX && (i>0||j<n-1)){
+            if(turn===1&&j<n-1) j++; else if(i>0) i--; else if(j<n-1) j++; else break;
+            turn=-turn;
+          }
+          let A2=pts[i], B2=pts[j];
+          if(B2.z < A2.z){ const tm=A2; A2=B2; B2=tm; }          /* 让 B 端 z 大 ⇒ 箭头指 +z */
+          let P0=A2, P1=B2;
+          if(sLen(A2,B2)>ARROW_PX*1.5){                          /* 只剩 2 点那种长段：按参数截短 */
+            const f=(ARROW_PX*0.5)/sLen(A2,B2);
+            const mix=u=>pt(A2.x+(B2.x-A2.x)*u, A2.y+(B2.y-A2.y)*u, A2.z+(B2.z-A2.z)*u);
+            P0=mix(0.5-f); P1=mix(0.5+f);
+          }
+          arrowed=true;
+          arrow(P0, P1, {color:col,w:1.25,headScale:ARROW_K,alpha:a});
+        }
+      };
       for(let i=1;i<P.length;i++){
         const b2=inside(P[i]);
         if(b2!==cur){ run.push(P[i]); put(run,cur); run=[P[i-1],P[i]]; cur=b2; }

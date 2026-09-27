@@ -3,14 +3,14 @@ const R=[]; const T=(n,c,i)=>R.push((c?'PASS':'FAIL')+'|'+n+'|'+(i??''));
 const q=id=>document.getElementById(id);
 /* ---- 1. 播放按钮 ---- */
 document.querySelectorAll('#modeTabs button')[0].click();
-T('① 面板有播放/重播/到平衡三键', !!q('btnPlay')&&!!q('btnReplay')&&!!q('btnEq'));
+T('① 面板有播放/回到无外场/到平衡三键', !!q('btnPlay')&&!!q('btnNoField')&&!!q('btnEq'));
 q('btnPlay').click();
 T('点播放 ⇒ 起始态 (g,t)=(0,0) 且 anim 在跑',
   !!state.anim&&state.anim.playing===true&&state.g===0&&state.t===0, 'g='+state.g+' t='+state.t);
 T('点播放后画面处于阶段①', stageOf()===0);
 q('btnPlay').click(); T('再点 ⇒ 暂停', !!state.anim&&state.anim.playing===false);
 q('btnEq').click(); T('"到静电平衡" ⇒ (1,1) 且无动画', state.anim===null&&state.g===1&&state.t===1);
-q('btnReplay').click(); T('重播 ⇒ 回到 (0,0) 并在跑', !!state.anim&&state.g===0&&state.t===0);
+q('btnNoField').click(); T('回到无外场 ⇒ (0,0) 且已停', state.anim===null&&state.g===0&&state.t===0);
 /* ---- 2. 动画真的改变画面（文本 + 像素双哈希） ---- */
 function pix(){ const d=ctx.getImageData(0,0,canvas.width,canvas.height).data;
   let hx=0; for(let i=0;i<d.length;i+=4001) hx=(hx*31+d[i])>>>0; return hx; }

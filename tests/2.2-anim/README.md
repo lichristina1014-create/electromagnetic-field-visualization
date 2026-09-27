@@ -1,8 +1,13 @@
 # 2.2 静电场中的导体 · 回归自检脚本
 
 对应页面：`../2.2-conductor-electrostatic.html`
-覆盖提交：`e553ebc`（首版三页签）+ `b9aa342`（① 全过程播放）+ 内部场分解 / 场线压暗
-自检总数：**159 条，全绿**（143 条回归 + 16 条 `t3a`）
+覆盖提交：`e553ebc`（首版三页签）+ `b9aa342`（① 全过程播放）+ `e9632e8`（球内场分解、场线压暗）
+　　　　　+ 本轮（⏮ 回到无外场、场线方向箭头）
+自检总数：**179 条，全绿**（143 条回归 + 16 条 `t3a` + 20 条 `t3b`）
+
+> ⚠️⚠️ **改源码后忘记重跑 `build.py` ⇒ 自检会对着旧页面跑**（本轮真实踩过一次：
+> `pts[k].z` 的方向修正只改进了 `new_a.js`，HTML 里仍是旧的一行，于是 `t3b` 报 32 条"箭头指反"。
+> 症状是"源码明明是对的、页面行为却不对" —— 先 `shasum` 比一次再怀疑代码。）
 
 > 这些脚本是从 `/tmp` 抢救归档的 —— 它们是回归资产，改页面后应重跑一遍。
 
@@ -33,6 +38,7 @@ URL="file://$(cd .. && pwd)/2.2-conductor-electrostatic.html"
 | `t2b.js` | 16 | 时间轴：断点 / 单调 / 值域、`stepAnim` 步进与暂停、播完自动归位、`animU` 反推 |
 | `t2c.js` | 22 | 三按钮、**三阶段画布文本哈希 + 像素哈希互不相同**、阶段卡位置、阶段① 恰好 8 个中性电荷 |
 | `t3a.js` | 16 | **球内场分解**：t=0.5 时两支一一配对且长度比 = 0.500、t=0.95 时 0.950、t=1 / 无外场时一支都不画、**球剪影圆内的场线段被压暗且不拆断**、拆分后仍幂等、z 无 NaN |
+| `t3b.js` | 20 | **箭头可读性**：场线方向箭头"每条线恰好一个 / 一律指 +z / 箭杆屏幕定长 26~40px（不缩成 8px 小三角、不出 300px 巨型箭头）/ 不在导体内部 / ≥85% 在画布内"、球内两支与迁移弧的 `headScale`、**⏮ 回到无外场**按钮 ⇒ (0,0) 且停在阶段①、**id 不与相机复位按钮撞名** |
 
 ## 截图前置脚本（配 `cdpshot.js`）
 
@@ -48,6 +54,8 @@ URL="file://$(cd .. && pwd)/2.2-conductor-electrostatic.html"
 | `prep_t095.js` | (1, 0.95)　两支几乎等长（抵消） |
 | `prep_lines.js` | 只留场线、放大 1.5×（诊断"凌乱"用） |
 | `prep_cmp.js` | 固定 (1, 0.038) 且关坐标轴 —— **新旧像素对照**用 |
+| `prep_eq.js` | (1, 1)　　④ 静电平衡、只留场线（**验收场线方向箭头**用） |
+| `prep_noField.js` | 先 (1,1) 再按「⏮ 回到无外场」—— **验收复位按钮**用 |
 
 ```bash
 "$NODE" "$SK/cdpshot.js" "$URL" prep_a3.js /tmp/22/out_a3.png
@@ -66,13 +74,13 @@ URL="file://$(cd .. && pwd)/2.2-conductor-electrostatic.html"
 ```bash
 cd tests/2.2-anim
 /Users/lichenlu/.workbuddy/binaries/python/versions/3.13.12/bin/python3 build.py
-# → OK  lines=1792  bytes=118041
+# → OK  lines=1886  bytes=125040
 ```
 
 ⚠️ 改完源码**必须重跑 `build.py`**，否则改动不会进 HTML。
 
 校验重建结果与线上一致（应输出
-`6fee56a6eda30cca12351cc65e5f1dfdccfc288e29df2463bb5698b66f3dbd76`，且 `git status` 里该 HTML 无改动）：
+`671f1a9438bb68a464e3f3ffa22e2ac7706a29871f3f7bc594f3f15ea76ba5eb`，且 `git status` 里该 HTML 无改动）：
 
 ```bash
 shasum -a 256 ../../2.2-conductor-electrostatic.html
@@ -93,4 +101,6 @@ shasum -a 256 ../../2.2-conductor-electrostatic.html
   但 `BASE` 是硬编码绝对路径 —— 换机器要改。
 - 三项最近一轮的通用经验（辅助几何方位写死 / 固定注记进避让表 / 动画时间轴派生量）
   已回灌进 `headless-cdp-test` skill 的 `## Critical Gotchas` 第 22–24 条。
+- 本轮三条（**改源码没重建** / **新增按钮撞已有 id** / **箭杆被采样步长压成 8.6px**）
+  回灌进同一 skill 的第 25–27 条；本页细节见 memory `ref-22-conductor.md` §12。
 

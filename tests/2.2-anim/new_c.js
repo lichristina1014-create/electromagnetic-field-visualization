@@ -117,8 +117,16 @@ function renderSubSec(sec){
       renderPanel(); needsRender=true; syncSliders(); updateReadout(); updateModeTag();
     };
     bx.appendChild(pb);
-    const rb=h('<button class="chip" id="btnReplay">↺ 重播</button>').firstChild;
-    rb.onclick=()=>{ state.anim={u:0,playing:true}; state.g=0; state.t=0;
+    /* 复位键：把 (g,t) 归零并**停在**"无外加电场"（不自动播放）。
+       没有它的话，播放结束或按过「⏭ 直接到静电平衡」以后就永远停在平衡态，
+       想回去重讲②③只能手动拖两个滑块。
+       （"从头再播一次"仍由 ▶ 主按钮覆盖：它在非播放状态下本来就是归零+播放。） */
+    /* ⚠️⚠️ id 千万不要叫 btnReset —— 页面上早已有一个"复位视角"按钮占着这个 id
+       （见文件末尾 canvas 工具条那段），getElementById 会返回**文档里靠前的那一个**，
+       于是这里的 onclick 永远不触发、点击却"看起来"点在了新按钮上（test 里表现为
+       点了没反应且不报错）。凡新增按钮先 grep 一遍 id 是否已存在。 */
+    const rb=h('<button class="chip" id="btnNoField">⏮ 回到无外场</button>').firstChild;
+    rb.onclick=()=>{ stopAnim(); state.g=0; state.t=0;   /* ⚠️ 顺序：stopAnim() 会把 g 归 1 */
       renderPanel(); needsRender=true; syncSliders(); updateReadout(); updateModeTag(); };
     bx.appendChild(rb);
     const jb=h('<button class="chip" id="btnEq">⏭ 直接到静电平衡</button>').firstChild;
