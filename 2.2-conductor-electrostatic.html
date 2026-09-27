@@ -489,7 +489,7 @@ const STAGE_NAMES=['① 无外加电场','② 外加匀强场建立','③ 自由
 const STAGE_NOTES=[
   '还没有外加电场：导体里的自由电荷均匀分布、宏观不显电，内部也没有场',
   '外加匀强场正在建立：电荷还没来得及动 ⇒ 场线笔直穿过导体',
-  '自由电荷正在迁移：正电荷顺场线、负电荷逆场线 ⇒ 表面堆出感应电荷',
+  '自由电荷正在迁移：正电荷顺场线、负电荷逆场线 ⇒ 堆出感应电荷、产生与外场反向的场（橙色箭头）',
   '静电平衡：内部合场被抵消到 0、表面场垂直、导体是等位体',
 ];
 /* 当前处于第几阶段（0~3）。没有动画在跑时由 (g,t) 反推 ⇒ 手动拖滑块也能正确显示阶段。
@@ -842,17 +842,27 @@ function drawFlow(E0,t){
   text(up[up.length-1],'正电荷',{color:C.crimson,size:11,bold:true,dx:6,dy:-4,alpha:Math.min(1,a)});
   text(dn[dn.length-1],'负电荷',{color:'#2E7FA6',size:11,bold:true,dx:6,dy:10,alpha:Math.min(1,a)});
 }
-/* ① 的球内合场：箭头长度 ∝ (1−t)·E₀·g ⇒ t→1 时"肉眼可见地缩到 0"（阶段①整支不画）。
-   ★ 刻意空出正中央一格 —— 那里要写"内部 |E| = ?"的读数，别叠字。 */
+/* ① 的球内场：**把"外场分量"和"感应场"分开画** —— 因为"内部电场与外电场相互抵消"
+   这件事，只有两支**反向**箭头同时在场才看得见。
+       外场穿进导体的部分   E_外 = Ea        （浅蓝，朝 +z）
+       表面感应电荷产生的场 E_感 = −t·Ea     （橙，朝 −z，**与外场方向相反**）
+       两者叠加 = 球内合场 (1−t)Ea（t<1 时仍朝 +z，被逐步削弱到 0）
+   ⚠️ 注意物理上别写反：球内**合场**在 t<1 时始终与外场**同向**；真正与外场**反向**的是
+      **感应场**这一支。用户反馈"内部电场应该跟外场相反"指的就是它 ⇒ 单独画出来。
+   ★ 两支以 z=0 为中点、水平错开 ±dx（屏幕间距 ≥20px，否则两支被读成一根粗箭头）；
+     正中央一格留空 —— 那里写"内部 |E| = ?"的读数，别叠字。 */
 function drawInner(Ea,t,Eref){
-  if(!state.show.inner || t>=0.995) return;
-  if(Ea*(1-t) < 0.02*Eref) return;               /* 场小到看不见 ⇒ 一支都不画（别剩秃箭头） */
-  const L=eLen(Ea*(1-t), Eref), g=A_C*0.40;
+  if(!state.show.inner || t>=0.995) return;      /* 静电平衡：内部 |E| ≡ 0，两支都不画 */
+  if(Ea < 0.02*Eref) return;                     /* 还没有外场 */
+  const Lw=eLen(Ea,Eref), Li=eLen(t*Ea,Eref);
+  const g=A_C*0.40, dx=A_C*0.085;
   for(let i=-1;i<=1;i++) for(let j=-1;j<=1;j++){
     if(i===0&&j===0) continue;
-    const x=i*g, y=j*g, z0=-L*0.5;
-    arrow(pt(x,y,z0), pt(x,y,z0+L), {color:'#7A8F9B',w:1.8,headScale:.75,alpha:.55+.35*(1-t),
-      z:1e4+30});
+    const x=i*g, y=j*g;
+    arrow(pt(x-dx,y,-Lw*0.5), pt(x-dx,y, Lw*0.5),
+      {color:'#5E93AE',w:1.6,headScale:.68,alpha:.50+.22*(1-t),z:1e4+28});
+    if(t>0.02) arrow(pt(x+dx,y, Li*0.5), pt(x+dx,y,-Li*0.5),
+      {color:C.orange,w:1.8,headScale:.72,alpha:.55+.40*t,z:1e4+30});
   }
 }
 function drawFieldLines(E0,t){
@@ -861,9 +871,25 @@ function drawFieldLines(E0,t){
   const eq=(t==null||t>0.995);
   const col = eq ? '#2E7FA6' : '#8FB3C6';
   const al = (eq ? 0.62 : 0.50) * (t==null ? 1 : (0.30+0.70*state.g));   /* 阶段②里随外场一起淡入 */
+  /* ★ 落在**球剪影圆内**的线段压暗。正交投影下，掠过球的场线其最近点必然落进球剪影圆内
+     （实测球前 φ=π/2 与球后 φ=3π/2 都会），于是球内同时出现"竖直场线"和"内部场箭头"，
+     既显得凌乱、又被读成**场线穿进了导体** —— 和本页最核心的结论直接打架。
+     只在**屏幕空间**逐段取舍，点的世界坐标一个不动 ⇒ 落点 / 入射角 / 垂直性等断言不受影响。 */
+  const Rpx=A_C*camScale, S0=pr(O), IN_K=0.30;
+  const inside=p=>{const S=pr(p); return Math.hypot(S.x-S0.x, S.y-S0.y) < Rpx;};
+  const put=(pts,inh)=>{ if(pts.length>=2) curve(pts,{color:col,w:1.25,alpha:al*(inh?IN_K:1)}); };
   segs.forEach(sg=>{
     if(sg.length<2) return;
-    FL_PH.forEach(ph=>curve(sg.map(p=>rotZ(p,ph)), {color:col,w:1.25,alpha:al}));
+    FL_PH.forEach(ph=>{
+      const P=sg.map(p=>rotZ(p,ph));
+      let run=[P[0]], cur=inside(P[0]);
+      for(let i=1;i<P.length;i++){
+        const b2=inside(P[i]);
+        if(b2!==cur){ run.push(P[i]); put(run,cur); run=[P[i-1],P[i]]; cur=b2; }
+        else run.push(P[i]);
+      }
+      put(run,cur);
+    });
   });
 }
 function drawAxesFor(){ drawAxes(A_C*2.35); }
@@ -1253,7 +1279,10 @@ function buildNote(){
   if(t>=0.995) return '<b>已达静电平衡</b>：内部 |@{E}| ≡ 0，表面电荷不再移动。'+
     '此时表面 σ(θ) = 3ε₀E₀cosθ ⇒ 总量 ∮σdS = 0（下半球负电荷与上半球正电荷恰好抵消）。';
   return '<b>自由电荷正在迁移</b>（迁移进度 '+Math.round(t*100)+'%）：正电荷顺场线往 +z 极跑、'+
-    '负电荷逆场线往 −z 极跑，表面堆出的感应电荷产生反向场 ⇒ 内部合场降到 '+(Ea*(1-t)).toFixed(2)+' kV/m。'+
+    '负电荷逆场线往 −z 极跑。表面堆出的感应电荷产生一支<b>与外场反向</b>的场 —— 就是画布上的'+
+    '<b style="color:#E97132">橙色箭头</b>（'+(t*Ea).toFixed(2)+' kV/m，与外场的 '+
+    Ea.toFixed(2)+' kV/m 反向）；两者叠加后，内部合场降到 <b>'+(Ea*(1-t)).toFixed(2)+' kV/m</b>，'+
+    '到 t = 100% 时恰好抵消为 0。'+
     '<b>⚠️ 真实过程 ~10⁻¹⁸ s 就结束了，这里是为了看清机理而放慢的示意。</b>';
 }
 function shieldNote(){
@@ -1437,7 +1466,8 @@ const CARDS={
       '<div class="frm">@{F} = q@{E}　⇒　正电荷顺场线跑，负电荷逆场线跑</div>'+
       '<ul><li>一旦把导体放进外场，自由电荷就开始移动 —— 正电荷往 +z 极、负电荷往 −z 极</li>'+
       '<li>电荷在<b>表面</b>堆起来（内部无处可去：跑到对面的面就停住了）</li>'+
-      '<li>这些"感应电荷"自己又产生一份场，方向与外场<b>相反</b></li>'+
+      '<li>这些"感应电荷"自己又产生一份场，方向与外场<b>相反</b>'+
+      '（画布球内那支橙色箭头，和代表外场分量的蓝色箭头正好反向、长度随迁移增长）</li>'+
       '<li>堆到某一步：两个场在导体内部<b>处处等大反向</b> ⇒ 内部合场为 0 ⇒ 电荷不再受力、不再移动'+
       ' ⇒ 这就是<b>静电平衡</b></li></ul>'+
       '<div class="ex-note">关键是"内部恰好抵消"这件事没有近似 —— 只要还差一点点，'+
@@ -1570,11 +1600,17 @@ function updateReadout(){
   if(state.mode==='build'){
     const E0=state.E0, t=state.t, g=state.g, Ea=E0*g, st=stageOf();
     html += kchip('阶段 =', STAGE_NAMES[st], st===3?'acc':'warn');
+    /* ★ "内部场是被谁抵消掉的"是①的核心，把它的分解放在**最前面**。
+       读数条是横向滚动条（实测 2088px / 可见 998px），放在末尾等于学生根本看不到。 */
+    html += kchip('内部合场 |@{E}| =', (Ea*(1-t)).toFixed(3)+' kV/m', t>=0.995?'acc':'warn');
+    if(t>0.02 && t<0.995){
+      html += kchip('├ 外场分量 =', Ea.toFixed(2)+' kV/m');
+      html += kchip('└ 感应场（反向）=', '−'+(t*Ea).toFixed(2)+' kV/m','warn');
+    } else if(g>=0.05 && t<=0.02){
+      html += kchip('├ 外场（电荷还没动）=', Ea.toFixed(2)+' kV/m');
+    }
     html += kchip('外加场 @{E}₀ =', E0.toFixed(1)+' kV/m');
-    html += kchip('当前外场 =', Ea.toFixed(2)+' kV/m');
-    html += kchip('外场建立 g =', Math.round(g*100)+'%');
     html += kchip('电荷迁移 t =', Math.round(t*100)+'%');
-    html += kchip('内部 |@{E}| =', (Ea*(1-t)).toFixed(3)+' kV/m', t>=0.995?'acc':'warn');
     html += kchip('表面 σ(0°) =', (t*SIG_K*Ea).toFixed(1)+' nC/m²','acc');
     html += kchip('表面 σ(90°) =', '0.0 nC/m²');
     html += kchip('感应电荷总量 =', '0.0 nC');

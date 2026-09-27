@@ -38,7 +38,10 @@ function buildNote(){
   if(t>=0.995) return '<b>已达静电平衡</b>：内部 |@{E}| ≡ 0，表面电荷不再移动。'+
     '此时表面 σ(θ) = 3ε₀E₀cosθ ⇒ 总量 ∮σdS = 0（下半球负电荷与上半球正电荷恰好抵消）。';
   return '<b>自由电荷正在迁移</b>（迁移进度 '+Math.round(t*100)+'%）：正电荷顺场线往 +z 极跑、'+
-    '负电荷逆场线往 −z 极跑，表面堆出的感应电荷产生反向场 ⇒ 内部合场降到 '+(Ea*(1-t)).toFixed(2)+' kV/m。'+
+    '负电荷逆场线往 −z 极跑。表面堆出的感应电荷产生一支<b>与外场反向</b>的场 —— 就是画布上的'+
+    '<b style="color:#E97132">橙色箭头</b>（'+(t*Ea).toFixed(2)+' kV/m，与外场的 '+
+    Ea.toFixed(2)+' kV/m 反向）；两者叠加后，内部合场降到 <b>'+(Ea*(1-t)).toFixed(2)+' kV/m</b>，'+
+    '到 t = 100% 时恰好抵消为 0。'+
     '<b>⚠️ 真实过程 ~10⁻¹⁸ s 就结束了，这里是为了看清机理而放慢的示意。</b>';
 }
 function shieldNote(){
@@ -222,7 +225,8 @@ const CARDS={
       '<div class="frm">@{F} = q@{E}　⇒　正电荷顺场线跑，负电荷逆场线跑</div>'+
       '<ul><li>一旦把导体放进外场，自由电荷就开始移动 —— 正电荷往 +z 极、负电荷往 −z 极</li>'+
       '<li>电荷在<b>表面</b>堆起来（内部无处可去：跑到对面的面就停住了）</li>'+
-      '<li>这些"感应电荷"自己又产生一份场，方向与外场<b>相反</b></li>'+
+      '<li>这些"感应电荷"自己又产生一份场，方向与外场<b>相反</b>'+
+      '（画布球内那支橙色箭头，和代表外场分量的蓝色箭头正好反向、长度随迁移增长）</li>'+
       '<li>堆到某一步：两个场在导体内部<b>处处等大反向</b> ⇒ 内部合场为 0 ⇒ 电荷不再受力、不再移动'+
       ' ⇒ 这就是<b>静电平衡</b></li></ul>'+
       '<div class="ex-note">关键是"内部恰好抵消"这件事没有近似 —— 只要还差一点点，'+
@@ -355,11 +359,17 @@ function updateReadout(){
   if(state.mode==='build'){
     const E0=state.E0, t=state.t, g=state.g, Ea=E0*g, st=stageOf();
     html += kchip('阶段 =', STAGE_NAMES[st], st===3?'acc':'warn');
+    /* ★ "内部场是被谁抵消掉的"是①的核心，把它的分解放在**最前面**。
+       读数条是横向滚动条（实测 2088px / 可见 998px），放在末尾等于学生根本看不到。 */
+    html += kchip('内部合场 |@{E}| =', (Ea*(1-t)).toFixed(3)+' kV/m', t>=0.995?'acc':'warn');
+    if(t>0.02 && t<0.995){
+      html += kchip('├ 外场分量 =', Ea.toFixed(2)+' kV/m');
+      html += kchip('└ 感应场（反向）=', '−'+(t*Ea).toFixed(2)+' kV/m','warn');
+    } else if(g>=0.05 && t<=0.02){
+      html += kchip('├ 外场（电荷还没动）=', Ea.toFixed(2)+' kV/m');
+    }
     html += kchip('外加场 @{E}₀ =', E0.toFixed(1)+' kV/m');
-    html += kchip('当前外场 =', Ea.toFixed(2)+' kV/m');
-    html += kchip('外场建立 g =', Math.round(g*100)+'%');
     html += kchip('电荷迁移 t =', Math.round(t*100)+'%');
-    html += kchip('内部 |@{E}| =', (Ea*(1-t)).toFixed(3)+' kV/m', t>=0.995?'acc':'warn');
     html += kchip('表面 σ(0°) =', (t*SIG_K*Ea).toFixed(1)+' nC/m²','acc');
     html += kchip('表面 σ(90°) =', '0.0 nC/m²');
     html += kchip('感应电荷总量 =', '0.0 nC');

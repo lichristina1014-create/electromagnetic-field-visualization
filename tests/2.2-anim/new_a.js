@@ -106,7 +106,7 @@ const STAGE_NAMES=['① 无外加电场','② 外加匀强场建立','③ 自由
 const STAGE_NOTES=[
   '还没有外加电场：导体里的自由电荷均匀分布、宏观不显电，内部也没有场',
   '外加匀强场正在建立：电荷还没来得及动 ⇒ 场线笔直穿过导体',
-  '自由电荷正在迁移：正电荷顺场线、负电荷逆场线 ⇒ 表面堆出感应电荷',
+  '自由电荷正在迁移：正电荷顺场线、负电荷逆场线 ⇒ 堆出感应电荷、产生与外场反向的场（橙色箭头）',
   '静电平衡：内部合场被抵消到 0、表面场垂直、导体是等位体',
 ];
 /* 当前处于第几阶段（0~3）。没有动画在跑时由 (g,t) 反推 ⇒ 手动拖滑块也能正确显示阶段。
@@ -459,17 +459,27 @@ function drawFlow(E0,t){
   text(up[up.length-1],'正电荷',{color:C.crimson,size:11,bold:true,dx:6,dy:-4,alpha:Math.min(1,a)});
   text(dn[dn.length-1],'负电荷',{color:'#2E7FA6',size:11,bold:true,dx:6,dy:10,alpha:Math.min(1,a)});
 }
-/* ① 的球内合场：箭头长度 ∝ (1−t)·E₀·g ⇒ t→1 时"肉眼可见地缩到 0"（阶段①整支不画）。
-   ★ 刻意空出正中央一格 —— 那里要写"内部 |E| = ?"的读数，别叠字。 */
+/* ① 的球内场：**把"外场分量"和"感应场"分开画** —— 因为"内部电场与外电场相互抵消"
+   这件事，只有两支**反向**箭头同时在场才看得见。
+       外场穿进导体的部分   E_外 = Ea        （浅蓝，朝 +z）
+       表面感应电荷产生的场 E_感 = −t·Ea     （橙，朝 −z，**与外场方向相反**）
+       两者叠加 = 球内合场 (1−t)Ea（t<1 时仍朝 +z，被逐步削弱到 0）
+   ⚠️ 注意物理上别写反：球内**合场**在 t<1 时始终与外场**同向**；真正与外场**反向**的是
+      **感应场**这一支。用户反馈"内部电场应该跟外场相反"指的就是它 ⇒ 单独画出来。
+   ★ 两支以 z=0 为中点、水平错开 ±dx（屏幕间距 ≥20px，否则两支被读成一根粗箭头）；
+     正中央一格留空 —— 那里写"内部 |E| = ?"的读数，别叠字。 */
 function drawInner(Ea,t,Eref){
-  if(!state.show.inner || t>=0.995) return;
-  if(Ea*(1-t) < 0.02*Eref) return;               /* 场小到看不见 ⇒ 一支都不画（别剩秃箭头） */
-  const L=eLen(Ea*(1-t), Eref), g=A_C*0.40;
+  if(!state.show.inner || t>=0.995) return;      /* 静电平衡：内部 |E| ≡ 0，两支都不画 */
+  if(Ea < 0.02*Eref) return;                     /* 还没有外场 */
+  const Lw=eLen(Ea,Eref), Li=eLen(t*Ea,Eref);
+  const g=A_C*0.40, dx=A_C*0.085;
   for(let i=-1;i<=1;i++) for(let j=-1;j<=1;j++){
     if(i===0&&j===0) continue;
-    const x=i*g, y=j*g, z0=-L*0.5;
-    arrow(pt(x,y,z0), pt(x,y,z0+L), {color:'#7A8F9B',w:1.8,headScale:.75,alpha:.55+.35*(1-t),
-      z:1e4+30});
+    const x=i*g, y=j*g;
+    arrow(pt(x-dx,y,-Lw*0.5), pt(x-dx,y, Lw*0.5),
+      {color:'#5E93AE',w:1.6,headScale:.68,alpha:.50+.22*(1-t),z:1e4+28});
+    if(t>0.02) arrow(pt(x+dx,y, Li*0.5), pt(x+dx,y,-Li*0.5),
+      {color:C.orange,w:1.8,headScale:.72,alpha:.55+.40*t,z:1e4+30});
   }
 }
 function drawFieldLines(E0,t){
@@ -478,9 +488,25 @@ function drawFieldLines(E0,t){
   const eq=(t==null||t>0.995);
   const col = eq ? '#2E7FA6' : '#8FB3C6';
   const al = (eq ? 0.62 : 0.50) * (t==null ? 1 : (0.30+0.70*state.g));   /* 阶段②里随外场一起淡入 */
+  /* ★ 落在**球剪影圆内**的线段压暗。正交投影下，掠过球的场线其最近点必然落进球剪影圆内
+     （实测球前 φ=π/2 与球后 φ=3π/2 都会），于是球内同时出现"竖直场线"和"内部场箭头"，
+     既显得凌乱、又被读成**场线穿进了导体** —— 和本页最核心的结论直接打架。
+     只在**屏幕空间**逐段取舍，点的世界坐标一个不动 ⇒ 落点 / 入射角 / 垂直性等断言不受影响。 */
+  const Rpx=A_C*camScale, S0=pr(O), IN_K=0.30;
+  const inside=p=>{const S=pr(p); return Math.hypot(S.x-S0.x, S.y-S0.y) < Rpx;};
+  const put=(pts,inh)=>{ if(pts.length>=2) curve(pts,{color:col,w:1.25,alpha:al*(inh?IN_K:1)}); };
   segs.forEach(sg=>{
     if(sg.length<2) return;
-    FL_PH.forEach(ph=>curve(sg.map(p=>rotZ(p,ph)), {color:col,w:1.25,alpha:al}));
+    FL_PH.forEach(ph=>{
+      const P=sg.map(p=>rotZ(p,ph));
+      let run=[P[0]], cur=inside(P[0]);
+      for(let i=1;i<P.length;i++){
+        const b2=inside(P[i]);
+        if(b2!==cur){ run.push(P[i]); put(run,cur); run=[P[i-1],P[i]]; cur=b2; }
+        else run.push(P[i]);
+      }
+      put(run,cur);
+    });
   });
 }
 function drawAxesFor(){ drawAxes(A_C*2.35); }
