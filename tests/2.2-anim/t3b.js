@@ -15,10 +15,16 @@ const onC=x=>{const m=pr(pt((x.a.x+x.b.x)/2,(x.a.y+x.b.y)/2,(x.a.z+x.b.z)/2));
 /* ===== 1. 场线方向箭头（静电平衡态） ===== */
 stopAnim(); state.g=1; state.t=1; state.show.box=false; state.show.flow=false;
 prims=[]; buildScene();
-const nseg=fieldLines(state.E0,1).length;   /* 平衡态实际画出来的折线段数 × 4 个方位角 */
+const segs=fieldLines(state.E0,1);          /* 平衡态实际画出来的 xz 剖面折线 */
+/* ★ 2026-09-28 起场线只画"**正对镜头的那一个平面**"（原先画 2 个互相垂直的平面 = 4 个方位角）。
+   每条剖面折线被转到 φ 与 φ+π 两个方位上；而落在 z 轴上的段（x ≡ 0）转 φ 与 φ+π 得到同一批点，
+   faceCurves() 只放它过去一次 ⇒ **期望条数必须按实际的方位角数去算**，
+   不要再钉死 ×4 —— 那个常数是"4 条子午面"时代留下的，改布局时它不会报错、只会静默算错期望值。 */
+const nseg=segs.reduce((s,sg)=>s+((sg.length&&sg.every(p=>Math.abs(p.x)<1e-9))?1:2),0);
 const fa=A.filter(x=>isC(x.o,'#2e7fa6'));
-T('平衡态：场线上出现方向箭头', fa.length>=30, 'n='+fa.length+' 段数×4='+nseg*4);
-T('每条场线恰好一个方向箭头', fa.length===nseg*4, 'n='+fa.length+' 期望='+nseg*4);
+T('平衡态：场线上出现方向箭头', fa.length>=20, 'n='+fa.length);
+T('每条场线恰好一个方向箭头', fa.length===nseg,
+  'n='+fa.length+' 期望='+nseg+'（剖面 '+segs.length+' 段 × 2 个方位、轴上段只算 1）');
 T('场线箭头已放大（headScale ≥ 1.1）', fa.length>0&&fa.every(x=>x.o.headScale>=1.1),
   'hs='+(fa[0]?fa[0].o.headScale:'-'));
 T('场线箭头一律指向 +z（外场方向）', fa.every(x=>x.b.z>=x.a.z),

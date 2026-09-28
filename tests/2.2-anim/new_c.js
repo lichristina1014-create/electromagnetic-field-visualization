@@ -104,6 +104,11 @@ function renderSubSec(sec){
   chipRow(sec,SHOW_ITEMS[state.mode],k=>state.show[k],k=>{
     state.show[k]=!state.show[k]; needsRender=true; renderPanel();
   });
+  /* ★ 场线 / 等位面只画"**正对镜头的那一个剖面**"（2026-09-28 改，原先画 2 个互相垂直的平面 ⇒ 很乱）。
+     这句提示放在"显示"下面、三个页签共用 —— 否则用户转动视角时看到线在跟着转，会以为画面出了故障。 */
+  sec.appendChild(h('<div class="ex-note" style="margin-top:7px">'+richHTML(
+    '场线（连同等位面）只画 <b>正对镜头的那一个剖面</b>：转动画面时它会跟着转到你面前，'+
+    '一族线画在同一个平面里，才看得清"垂直入射、绕球弯折"。')+'</div>'));
   const m=state.mode;
   if(m==='build'){
     sec.appendChild(h('<div class="sec-title" style="margin-top:14px">全过程播放</div>'));
@@ -212,7 +217,7 @@ function renderSliders(sec){
     mkRange(sec,{k:'thp',label:'极角 θ',wide:true,min:TH_LIM[0],max:TH_LIM[1],step:1,
       get:()=>state.thp, set:v=>state.thp=Math.round(v), fmt:v=>Math.round(v)+'°'});
     sec.appendChild(h('<div class="ex-note" style="margin-top:9px">'+richHTML(
-      '导体球在匀强场里是**轴对称**的 ⇒ 绕 z 轴转 φ 什么都不变，所以两个坐标 (r, θ) 就够了。'+
+      '导体球在匀强场里是<b>轴对称</b>的 ⇒ 绕 z 轴转 φ 什么都不变，所以两个坐标 (r, θ) 就够了。'+
       'P 能在 xz 平面内<b>任意拖</b>，也能用这两个滑块精确打到数值。'+
       'r 的滑块在 0.80 m 处<b>会自动吸附</b>到导体表面 —— 那个位置最值得看。')+'</div>'));
   } else {

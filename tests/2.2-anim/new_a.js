@@ -38,7 +38,7 @@ const NAV = [
        2026-09-28 加 2.5 时是先改产物 HTML、事后才补回源的 ——
        补之前那次 build.py 会把这条导航**静默抹掉**。改导航务必两头同时改。 */
     { id:'ch2-5', t:'2.5 多导体系统的电容与串扰', ready:true,
-      href:'2.5-multi-conductor-crosstalk.html?v=20260928r14' },
+      href:'2.5-multi-conductor-crosstalk.html?v=20260928r15' },
   ]},
   { ch:'第 3 章 · 恒定磁场', items:[ {t:'3.1 比奥-萨伐尔定律'}, {t:'3.2 安培环路定理'} ]},
   { ch:'第 4 章 · 时变电磁场', items:[ {t:'4.1 麦克斯韦方程组'}, {t:'4.2 均匀平面波'} ]},
@@ -60,7 +60,26 @@ const Q_KV  = 1e-6/(4*Math.PI*EPS0)/1e3;
 const EARR_MAX = 0.90, EARR_GATE = 0.12;
 const eLen = (mag,E0)=>Math.max(0.05, Math.min(EARR_MAX, mag/(2*E0)));
 const FL_B  = [0, 0.45, 0.95, 1.32, 1.60, 1.723, 2.05, 2.60];   /* 场线瞄准距离（× A_C） */
-const FL_PH = [0, Math.PI/2, Math.PI, 3*Math.PI/2];             /* 4 条子午面（= 2 个平面） */
+/* ══════════════ 场线只画「正对镜头的那一圈」 ══════════════
+   ⚠️ 原先这里写死 FL_PH = [0, π/2, π, 3π/2] = **2 个互相垂直的平面**、共 4 条子午线。
+      两族线在画面上互相穿插，还把对方的曲线切得七零八落 ⇒ 用户反馈"外电场线看起来有点乱"。
+   ★ 现在只画**一圈**：屏幕正对着的那个剖面，并且**跟着相机一起转**
+      （用户原话："当我转动位置的话，始终显示就是电脑线面对的那个面的一圈的电场线"）。
+   ── 方位角为什么是 az + π/2？差 90° 就正好得到**最乱**的那个结果，千万别写反：
+      子午面 φ 的法向 n = (−sinφ, cosφ, 0)；视线 camD 的水平分量 = ce·(cos az, sin az)。
+        n·camD ∝ ce·sin(az − φ)  ⇒  φ = az      ⇒ n ⊥ camD ⇒ 平面**侧对**镜头（投影压成一条线，最乱）
+                                  ⇒  φ = az+π/2  ⇒ n ∥ camD ⇒ 平面**正对**镜头（完整张开、左右对称）
+      侧证：φ = az+π/2 时任意点的深度 = vdot(p,camD) = x·ce·cos(π/2) + z·se = **z·se**
+            —— 只跟 z 有关、与 x 无关 ⇒ 整个平面"等深"，不存在被球挡掉的那半边。
+   ⚠️ 平面是**无向**的：φ 与 φ+π 是同一个平面。而 dipolarLines() 给出的剖面折线只有 x ≥ 0 的那一半
+      （x = r·sinθ ≥ 0）⇒ **必须同时取 φ 与 φ+π** 才能拼出完整的一圈（左半 + 右半）。
+   ⚠️ 但**落在轴上的段**（x ≡ 0，即 b = 0 那条沿 ±z 的线）转 φ 与转 φ+π 得到同一批点 ⇒ 只能画一次，
+      否则它被叠画两遍、颜色比别的场线深一档（faceCurves() 统一处理这件事，三个调用点共用）。 */
+const facePH = ()=>{ const ph=cam.az+Math.PI/2; return [ph, ph+Math.PI]; };
+const faceCurves = sg =>{
+  const phs=facePH();
+  return (sg && sg.length && sg.every(p=>Math.abs(p.x)<1e-9)) ? phs.slice(0,1) : phs;
+};
 /* ★ 临界瞄准距离 b_crit(t) = a·√(1+2t)：b < b_crit 的场线落在导体上，b > b_crit 的掠过。
    推导：球面上 ψ = E₀sin²θ(a²/2 + t·a²) ⇒ ψ_max = E₀a²(1/2+t) = E₀b²/2 ⇒ b_crit = a√(1+2t)。
    t=1（静电平衡）⇒ √3·a（与旧版一致）；t=0（"外场刚加上、电荷还没动"的匀强场）⇒ a，
@@ -503,9 +522,11 @@ function drawFieldLines(E0,t){
   const eq=(t==null||t>0.995);
   const col = eq ? '#2E7FA6' : '#8FB3C6';
   const al = (eq ? 0.62 : 0.50) * (t==null ? 1 : (0.30+0.70*state.g));   /* 阶段②里随外场一起淡入 */
-  /* ★ 落在**球剪影圆内**的线段压暗。正交投影下，掠过球的场线其最近点必然落进球剪影圆内
-     （实测球前 φ=π/2 与球后 φ=3π/2 都会），于是球内同时出现"竖直场线"和"内部场箭头"，
-     既显得凌乱、又被读成**场线穿进了导体** —— 和本页最核心的结论直接打架。
+  /* ★ 落在**球剪影圆内**的线段压暗。★ 改成"只画正对镜头的那一个平面"以后这条更重要了：
+     那个平面**过球心**、又正对镜头 ⇒ 它横穿整个球，掠射场线（b > b_crit）的中段**必然**
+     落进球剪影圆里，于是球内同时出现"竖直场线"和"内部场箭头"，既显得凌乱、
+     又被读成**场线穿进了导体** —— 和本页最核心的结论直接打架。
+     （正对镜头时深度 = z·se ⇒ 平面上下两半一前一后各半，穿过剪影圆的那一段正好是 z ≈ 0 附近。）
      只在**屏幕空间**逐段取舍，点的世界坐标一个不动 ⇒ 落点 / 入射角 / 垂直性等断言不受影响。 */
   const Rpx=A_C*camScale, S0=pr(O), IN_K=0.30, ARROW_K=1.15, ARROW_PX=26;
   const inside=p=>{const S=pr(p); return Math.hypot(S.x-S0.x, S.y-S0.y) < Rpx;};
@@ -519,7 +540,9 @@ function drawFieldLines(E0,t){
      ⚠️ 一条线会被拆成 1~3 段（球剪影内/外），所以用 arrowed 保证**一条线只出一个箭头**。 */
   segs.forEach(sg=>{
     if(sg.length<2) return;
-    FL_PH.forEach(ph=>{
+    /* ★ 只旋出"正对镜头的那个平面"上的两条子午线（见 facePH/faceCurves 的推导；
+       轴上那条 b=0 的线只转一次，免得被叠画两遍）。 */
+    faceCurves(sg).forEach(ph=>{
       const P=sg.map(p=>rotZ(p,ph));
       let run=[P[0]], cur=inside(P[0]), arrowed=false;
       const put=(pts,inh)=>{

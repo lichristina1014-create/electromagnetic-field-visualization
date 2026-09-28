@@ -421,7 +421,7 @@ const NAV = [
        2026-09-28 加 2.5 时是先改产物 HTML、事后才补回源的 ——
        补之前那次 build.py 会把这条导航**静默抹掉**。改导航务必两头同时改。 */
     { id:'ch2-5', t:'2.5 多导体系统的电容与串扰', ready:true,
-      href:'2.5-multi-conductor-crosstalk.html?v=20260928r14' },
+      href:'2.5-multi-conductor-crosstalk.html?v=20260928r15' },
   ]},
   { ch:'第 3 章 · 恒定磁场', items:[ {t:'3.1 比奥-萨伐尔定律'}, {t:'3.2 安培环路定理'} ]},
   { ch:'第 4 章 · 时变电磁场', items:[ {t:'4.1 麦克斯韦方程组'}, {t:'4.2 均匀平面波'} ]},
@@ -443,7 +443,26 @@ const Q_KV  = 1e-6/(4*Math.PI*EPS0)/1e3;
 const EARR_MAX = 0.90, EARR_GATE = 0.12;
 const eLen = (mag,E0)=>Math.max(0.05, Math.min(EARR_MAX, mag/(2*E0)));
 const FL_B  = [0, 0.45, 0.95, 1.32, 1.60, 1.723, 2.05, 2.60];   /* 场线瞄准距离（× A_C） */
-const FL_PH = [0, Math.PI/2, Math.PI, 3*Math.PI/2];             /* 4 条子午面（= 2 个平面） */
+/* ══════════════ 场线只画「正对镜头的那一圈」 ══════════════
+   ⚠️ 原先这里写死 FL_PH = [0, π/2, π, 3π/2] = **2 个互相垂直的平面**、共 4 条子午线。
+      两族线在画面上互相穿插，还把对方的曲线切得七零八落 ⇒ 用户反馈"外电场线看起来有点乱"。
+   ★ 现在只画**一圈**：屏幕正对着的那个剖面，并且**跟着相机一起转**
+      （用户原话："当我转动位置的话，始终显示就是电脑线面对的那个面的一圈的电场线"）。
+   ── 方位角为什么是 az + π/2？差 90° 就正好得到**最乱**的那个结果，千万别写反：
+      子午面 φ 的法向 n = (−sinφ, cosφ, 0)；视线 camD 的水平分量 = ce·(cos az, sin az)。
+        n·camD ∝ ce·sin(az − φ)  ⇒  φ = az      ⇒ n ⊥ camD ⇒ 平面**侧对**镜头（投影压成一条线，最乱）
+                                  ⇒  φ = az+π/2  ⇒ n ∥ camD ⇒ 平面**正对**镜头（完整张开、左右对称）
+      侧证：φ = az+π/2 时任意点的深度 = vdot(p,camD) = x·ce·cos(π/2) + z·se = **z·se**
+            —— 只跟 z 有关、与 x 无关 ⇒ 整个平面"等深"，不存在被球挡掉的那半边。
+   ⚠️ 平面是**无向**的：φ 与 φ+π 是同一个平面。而 dipolarLines() 给出的剖面折线只有 x ≥ 0 的那一半
+      （x = r·sinθ ≥ 0）⇒ **必须同时取 φ 与 φ+π** 才能拼出完整的一圈（左半 + 右半）。
+   ⚠️ 但**落在轴上的段**（x ≡ 0，即 b = 0 那条沿 ±z 的线）转 φ 与转 φ+π 得到同一批点 ⇒ 只能画一次，
+      否则它被叠画两遍、颜色比别的场线深一档（faceCurves() 统一处理这件事，三个调用点共用）。 */
+const facePH = ()=>{ const ph=cam.az+Math.PI/2; return [ph, ph+Math.PI]; };
+const faceCurves = sg =>{
+  const phs=facePH();
+  return (sg && sg.length && sg.every(p=>Math.abs(p.x)<1e-9)) ? phs.slice(0,1) : phs;
+};
 /* ★ 临界瞄准距离 b_crit(t) = a·√(1+2t)：b < b_crit 的场线落在导体上，b > b_crit 的掠过。
    推导：球面上 ψ = E₀sin²θ(a²/2 + t·a²) ⇒ ψ_max = E₀a²(1/2+t) = E₀b²/2 ⇒ b_crit = a√(1+2t)。
    t=1（静电平衡）⇒ √3·a（与旧版一致）；t=0（"外场刚加上、电荷还没动"的匀强场）⇒ a，
@@ -886,9 +905,11 @@ function drawFieldLines(E0,t){
   const eq=(t==null||t>0.995);
   const col = eq ? '#2E7FA6' : '#8FB3C6';
   const al = (eq ? 0.62 : 0.50) * (t==null ? 1 : (0.30+0.70*state.g));   /* 阶段②里随外场一起淡入 */
-  /* ★ 落在**球剪影圆内**的线段压暗。正交投影下，掠过球的场线其最近点必然落进球剪影圆内
-     （实测球前 φ=π/2 与球后 φ=3π/2 都会），于是球内同时出现"竖直场线"和"内部场箭头"，
-     既显得凌乱、又被读成**场线穿进了导体** —— 和本页最核心的结论直接打架。
+  /* ★ 落在**球剪影圆内**的线段压暗。★ 改成"只画正对镜头的那一个平面"以后这条更重要了：
+     那个平面**过球心**、又正对镜头 ⇒ 它横穿整个球，掠射场线（b > b_crit）的中段**必然**
+     落进球剪影圆里，于是球内同时出现"竖直场线"和"内部场箭头"，既显得凌乱、
+     又被读成**场线穿进了导体** —— 和本页最核心的结论直接打架。
+     （正对镜头时深度 = z·se ⇒ 平面上下两半一前一后各半，穿过剪影圆的那一段正好是 z ≈ 0 附近。）
      只在**屏幕空间**逐段取舍，点的世界坐标一个不动 ⇒ 落点 / 入射角 / 垂直性等断言不受影响。 */
   const Rpx=A_C*camScale, S0=pr(O), IN_K=0.30, ARROW_K=1.15, ARROW_PX=26;
   const inside=p=>{const S=pr(p); return Math.hypot(S.x-S0.x, S.y-S0.y) < Rpx;};
@@ -902,7 +923,9 @@ function drawFieldLines(E0,t){
      ⚠️ 一条线会被拆成 1~3 段（球剪影内/外），所以用 arrowed 保证**一条线只出一个箭头**。 */
   segs.forEach(sg=>{
     if(sg.length<2) return;
-    FL_PH.forEach(ph=>{
+    /* ★ 只旋出"正对镜头的那个平面"上的两条子午线（见 facePH/faceCurves 的推导；
+       轴上那条 b=0 的线只转一次，免得被叠画两遍）。 */
+    faceCurves(sg).forEach(ph=>{
       const P=sg.map(p=>rotZ(p,ph));
       let run=[P[0]], cur=inside(P[0]), arrowed=false;
       const put=(pts,inh)=>{
@@ -1100,7 +1123,9 @@ function drawEqui(E0){
     [1,-1].forEach(sg=>{
       const c=equiCurve(sg,E0,fac,Rmax);
       if(c.length<3) return;
-      FL_PH.forEach(ph=>curve(c.map(p=>rotZ(p,ph)),{color:'#8FB3C6',w:1.15,dash:[5,5],alpha:0.50}));
+      /* ★ 与场线同一套规则：等位面剖面也只画"正对镜头的那一个平面"（facePH 见 new_a.js）。
+         equiCurve() 同样只给 x ≥ 0 的半条 ⇒ 必须 φ 与 φ+π 各转一次才拼得出完整的一圈。 */
+      faceCurves(c).forEach(ph=>curve(c.map(p=>rotZ(p,ph)),{color:'#8FB3C6',w:1.15,dash:[5,5],alpha:0.50}));
     });
   });
   const V1=E0*facs[0];
@@ -1198,7 +1223,9 @@ function sceneShield(){
   if(state.show.lines){
     shellLines(E0,qc).forEach(sg=>{
       if(sg.length<2) return;
-      FL_PH.forEach(ph=>curve(sg.map(p=>rotZ(p,ph)),{color:FLD_COL,w:1.25,alpha:0.62}));
+      /* ★ 同前：壳外场线也只画"正对镜头的那一个平面"（③ 的场线是用 RK4 追出来的 xz 剖面折线，
+         形状与 ① 不同，但"绕 z 轴转到哪个 φ"这件事共用 faceCurves() 一套规则）。 */
+      faceCurves(sg).forEach(ph=>curve(sg.map(p=>rotZ(p,ph)),{color:FLD_COL,w:1.25,alpha:0.62}));
     });
   }
   drawBall(O,A_C,COND_COL,true,0.40);           /* 外表面 */
@@ -1223,10 +1250,13 @@ function sceneShield(){
   drawSurfaceCharge(A_C*1.05,th=>sigOut(th,E0,qc),{alpha:1,avoidS:avS,share:sep,probeGap:30});
   text(labShell,'导体壳：内部 @{E} ≡ 0',{color:C.green,size:11.5,bold:true,dx:6,dy:-2});
 
-  /* 腔内点电荷 + 腔内的径向场线 */
+  /* 腔内点电荷 + 腔内的径向场线
+     ★ 方位角与场线**同一套规则**：只画"正对镜头的那一个平面"（facePH()，见 new_a.js）。
+       原先写死 [0, π/2, π, 3π/2] ⇒ 5 个 θ × 4 个 φ = 20 支箭头从球心炸出来，在这么小的腔里
+       糊成一团；改成 φ/φ+π 这 2 个方位后是 10 支，正好是教科书画点电荷场用的那个剖面。 */
   if(Math.abs(qc)>0.02){
     const dir=qc>0?1:-1;
-    const ths=[0.45,1.15,Math.PI/2,2.0,2.7], phs=[0,Math.PI/2,Math.PI,3*Math.PI/2];
+    const ths=[0.45,1.15,Math.PI/2,2.0,2.7], phs=facePH();
     ths.forEach(t0=>phs.forEach(p0=>{
       const a=sphPt(B_C*0.10,t0,p0), b=sphPt(B_C*0.985,t0,p0);
       if(dir>0) arrow(a,b,{color:'#B07A2A',w:1.6,headScale:.7,alpha:.85});
@@ -1406,6 +1436,11 @@ function renderSubSec(sec){
   chipRow(sec,SHOW_ITEMS[state.mode],k=>state.show[k],k=>{
     state.show[k]=!state.show[k]; needsRender=true; renderPanel();
   });
+  /* ★ 场线 / 等位面只画"**正对镜头的那一个剖面**"（2026-09-28 改，原先画 2 个互相垂直的平面 ⇒ 很乱）。
+     这句提示放在"显示"下面、三个页签共用 —— 否则用户转动视角时看到线在跟着转，会以为画面出了故障。 */
+  sec.appendChild(h('<div class="ex-note" style="margin-top:7px">'+richHTML(
+    '场线（连同等位面）只画 <b>正对镜头的那一个剖面</b>：转动画面时它会跟着转到你面前，'+
+    '一族线画在同一个平面里，才看得清"垂直入射、绕球弯折"。')+'</div>'));
   const m=state.mode;
   if(m==='build'){
     sec.appendChild(h('<div class="sec-title" style="margin-top:14px">全过程播放</div>'));
@@ -1514,7 +1549,7 @@ function renderSliders(sec){
     mkRange(sec,{k:'thp',label:'极角 θ',wide:true,min:TH_LIM[0],max:TH_LIM[1],step:1,
       get:()=>state.thp, set:v=>state.thp=Math.round(v), fmt:v=>Math.round(v)+'°'});
     sec.appendChild(h('<div class="ex-note" style="margin-top:9px">'+richHTML(
-      '导体球在匀强场里是**轴对称**的 ⇒ 绕 z 轴转 φ 什么都不变，所以两个坐标 (r, θ) 就够了。'+
+      '导体球在匀强场里是<b>轴对称</b>的 ⇒ 绕 z 轴转 φ 什么都不变，所以两个坐标 (r, θ) 就够了。'+
       'P 能在 xz 平面内<b>任意拖</b>，也能用这两个滑块精确打到数值。'+
       'r 的滑块在 0.80 m 处<b>会自动吸附</b>到导体表面 —— 那个位置最值得看。')+'</div>'));
   } else {

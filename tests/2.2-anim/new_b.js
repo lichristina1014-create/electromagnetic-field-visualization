@@ -60,7 +60,9 @@ function drawEqui(E0){
     [1,-1].forEach(sg=>{
       const c=equiCurve(sg,E0,fac,Rmax);
       if(c.length<3) return;
-      FL_PH.forEach(ph=>curve(c.map(p=>rotZ(p,ph)),{color:'#8FB3C6',w:1.15,dash:[5,5],alpha:0.50}));
+      /* ★ 与场线同一套规则：等位面剖面也只画"正对镜头的那一个平面"（facePH 见 new_a.js）。
+         equiCurve() 同样只给 x ≥ 0 的半条 ⇒ 必须 φ 与 φ+π 各转一次才拼得出完整的一圈。 */
+      faceCurves(c).forEach(ph=>curve(c.map(p=>rotZ(p,ph)),{color:'#8FB3C6',w:1.15,dash:[5,5],alpha:0.50}));
     });
   });
   const V1=E0*facs[0];
@@ -158,7 +160,9 @@ function sceneShield(){
   if(state.show.lines){
     shellLines(E0,qc).forEach(sg=>{
       if(sg.length<2) return;
-      FL_PH.forEach(ph=>curve(sg.map(p=>rotZ(p,ph)),{color:FLD_COL,w:1.25,alpha:0.62}));
+      /* ★ 同前：壳外场线也只画"正对镜头的那一个平面"（③ 的场线是用 RK4 追出来的 xz 剖面折线，
+         形状与 ① 不同，但"绕 z 轴转到哪个 φ"这件事共用 faceCurves() 一套规则）。 */
+      faceCurves(sg).forEach(ph=>curve(sg.map(p=>rotZ(p,ph)),{color:FLD_COL,w:1.25,alpha:0.62}));
     });
   }
   drawBall(O,A_C,COND_COL,true,0.40);           /* 外表面 */
@@ -183,10 +187,13 @@ function sceneShield(){
   drawSurfaceCharge(A_C*1.05,th=>sigOut(th,E0,qc),{alpha:1,avoidS:avS,share:sep,probeGap:30});
   text(labShell,'导体壳：内部 @{E} ≡ 0',{color:C.green,size:11.5,bold:true,dx:6,dy:-2});
 
-  /* 腔内点电荷 + 腔内的径向场线 */
+  /* 腔内点电荷 + 腔内的径向场线
+     ★ 方位角与场线**同一套规则**：只画"正对镜头的那一个平面"（facePH()，见 new_a.js）。
+       原先写死 [0, π/2, π, 3π/2] ⇒ 5 个 θ × 4 个 φ = 20 支箭头从球心炸出来，在这么小的腔里
+       糊成一团；改成 φ/φ+π 这 2 个方位后是 10 支，正好是教科书画点电荷场用的那个剖面。 */
   if(Math.abs(qc)>0.02){
     const dir=qc>0?1:-1;
-    const ths=[0.45,1.15,Math.PI/2,2.0,2.7], phs=[0,Math.PI/2,Math.PI,3*Math.PI/2];
+    const ths=[0.45,1.15,Math.PI/2,2.0,2.7], phs=facePH();
     ths.forEach(t0=>phs.forEach(p0=>{
       const a=sphPt(B_C*0.10,t0,p0), b=sphPt(B_C*0.985,t0,p0);
       if(dir>0) arrow(a,b,{color:'#B07A2A',w:1.6,headScale:.7,alpha:.85});
