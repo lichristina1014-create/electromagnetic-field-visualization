@@ -215,7 +215,7 @@ function parseRich(s){
 const RICHFONT='"PingFang SC","Microsoft YaHei",sans-serif';
 const RICHFONT_M='Georgia,"Times New Roman",serif';
 function richLayout(ctx,rich,size,bold){const subSize=size*0.74;const wM=bold?'700 ':'';const fN=wM+size+'px '+RICHFONT;const fNs=wM+subSize+'px '+RICHFONT;const fV='italic '+wM+size+'px '+RICHFONT_M;const fVs=wM+subSize+'px '+RICHFONT_M;const groups=rich.groups.map(()=>({x0:1e9,x1:-1e9,locked:false,top:1e9}));const out=[];let x=0;const oldBL=ctx.textBaseline;ctx.textBaseline='middle';rich.items.forEach(it=>{const sub=it.t==='s',vec=it.g>=0;const font=sub?(vec?fVs:fNs):(vec?fV:fN);ctx.font=font;const m=ctx.measureText(it.s),w=m.width;const dy=sub?size*0.20:0;const asc=(m.actualBoundingBoxAscent!=null)?m.actualBoundingBoxAscent:size*0.38;if(vec){const g=groups[it.g];if(!g.locked){if(sub)g.locked=true;else{if(x<g.x0)g.x0=x;g.x1=x+w;}}const top=dy-asc;if(top<g.top)g.top=top;}out.push({s:it.s,sub,x,w,font,dy});x+=w;});ctx.textBaseline=oldBL;return{items:out,groups,w:x,size,subSize};}
-function richDraw(ctx,lo,cx,cy,align,color){let ox=align==='center'?cx-lo.w/2:align==='right'?cx-lo.w:cx;const dy=it=>cy+it.dy;const ay=g=>cy+g.top-Math.max(2.2,lo.size*0.13);const span=g=>[ox+g.x0-0.6,ox+g.x1+0.6];ctx.save();ctx.textAlign='left';ctx.textBaseline='middle';ctx.lineJoin='round';ctx.lineCap='butt';ctx.lineWidth=3.4;ctx.strokeStyle='rgba(255,255,255,.92)';lo.items.forEach(it=>{ctx.font=it.font;ctx.strokeText(it.s,ox+it.x,dy(it));});lo.groups.forEach(g=>{if(g.x1<=g.x0)return;const y=ay(g),s=span(g);ctx.beginPath();ctx.moveTo(s[0],y);ctx.lineTo(s[1],y);ctx.stroke();});lo.groups.forEach(g=>{if(g.x1<=g.x0)return;const y=ay(g),s=span(g),ax=s[0],bx=s[1];ctx.strokeStyle=color;ctx.lineWidth=1.15;ctx.beginPath();ctx.moveTo(ax,y);ctx.lineTo(bx-1.2,y);ctx.stroke();const h=Math.min(3.6,Math.max(2.6,(bx-ax)*0.40));ctx.beginPath();ctx.moveTo(bx,y);ctx.lineTo(bx-h,y-h*0.52);ctx.lineTo(bx-h,y+h*0.52);ctx.closePath();ctx.fillStyle=color;ctx.fill();});lo.items.forEach(it=>{ctx.font=it.font;ctx.fillStyle=color;ctx.fillText(it.s,ox+it.x,dy(it));});ctx.restore();}
+function richDraw(ctx,lo,cx,cy,align,color,fat){let ox=align==='center'?cx-lo.w/2:align==='right'?cx-lo.w:cx;const dy=it=>cy+it.dy;const ay=g=>cy+g.top-Math.max(2.2,lo.size*0.13);const span=g=>[ox+g.x0-0.6,ox+g.x1+0.6];ctx.save();ctx.textAlign='left';ctx.textBaseline='middle';ctx.lineJoin='round';ctx.lineCap='butt';ctx.lineWidth=3.4;ctx.strokeStyle='rgba(255,255,255,.92)';lo.items.forEach(it=>{ctx.font=it.font;ctx.strokeText(it.s,ox+it.x,dy(it));});lo.groups.forEach(g=>{if(g.x1<=g.x0)return;const y=ay(g),s=span(g);ctx.beginPath();ctx.moveTo(s[0],y);ctx.lineTo(s[1],y);ctx.stroke();});lo.groups.forEach(g=>{if(g.x1<=g.x0)return;const y=ay(g),s=span(g),ax=s[0],bx=s[1];ctx.strokeStyle=color;ctx.lineWidth=1.15;ctx.beginPath();ctx.moveTo(ax,y);ctx.lineTo(bx-1.2,y);ctx.stroke();const h=Math.min(3.6,Math.max(2.6,(bx-ax)*0.40));ctx.beginPath();ctx.moveTo(bx,y);ctx.lineTo(bx-h,y-h*0.52);ctx.lineTo(bx-h,y+h*0.52);ctx.closePath();ctx.fillStyle=color;ctx.fill();});lo.items.forEach(it=>{ctx.font=it.font;if(fat>0){ctx.strokeStyle=color;ctx.lineWidth=fat;ctx.strokeText(it.s,ox+it.x,dy(it));}ctx.fillStyle=color;ctx.fillText(it.s,ox+it.x,dy(it));});ctx.restore();}
 function richHTML(s){const r=parseRich(s);let h='',gi=-1;r.items.forEach(it=>{const body=it.t==='s'?'<sub>'+it.s+'</sub>':it.s;if(it.g!==gi){if(gi>=0)h+='</span>';if(it.g>=0)h+='<span class="vec">';gi=it.g;}h+=body;});if(gi>=0)h+='</span>';return wrapSqrt(h);}
 function wrapSqrt(html){const out=[];let i=0;while(i<html.length){const k=html.indexOf('√(',i);if(k<0){out.push(html.slice(i));break;}out.push(html.slice(i,k));out.push('<span class="sqrt"><span class="in">');let j=k+2,depth=1;while(j<html.length&&depth>0){const c=html[j];if(c==='(')depth++;else if(c===')'){depth--;if(depth===0)break;}j++;}if(depth!==0){out.push(html.slice(k));return out.join('');}out.push(html.slice(k+2,j));out.push('</span></span>');i=j+1;}return out.join('');}
 
@@ -251,7 +251,7 @@ function marker(p,o={}){
   if(o.label) text(p, o.label, {color:o.color||C.orange,
     dx:o.ldx!=null?o.ldx:10, dy:o.ldy!=null?o.ldy:-10, size:o.lsize||13, bold:true, align:o.lalign, alpha:o.alpha});
 }
-function text(p,str,o={}){const S=pr(p);P_(1e6,()=>{ctx.save();if(o.alpha!=null)ctx.globalAlpha*=o.alpha;const size=o.size||12.5,bold=!!o.bold;const lo=richLayout(ctx,parseRich(str),size,bold);richDraw(ctx,lo,S.x+(o.dx||0),S.y+(o.dy||0),o.align||'left',o.color||C.ink);ctx.restore();});}
+function text(p,str,o={}){const S=pr(p);P_(1e6,()=>{ctx.save();if(o.alpha!=null)ctx.globalAlpha*=o.alpha;const size=o.size||12.5,bold=!!o.bold;const lo=richLayout(ctx,parseRich(str),size,bold);richDraw(ctx,lo,S.x+(o.dx||0),S.y+(o.dy||0),o.align||'left',o.color||C.ink,o.fat||0);ctx.restore();});}
 /* 屏幕坐标文本（不随平移缩放跑掉） */
 function textScreen(x,y,str,o={}){P_(1e6+1,()=>{ctx.save();if(o.alpha!=null)ctx.globalAlpha*=o.alpha;const lo=richLayout(ctx,parseRich(str),o.size||12,!!o.bold);richDraw(ctx,lo,x,y,o.align||'left',o.color||C.ink);ctx.restore();});}
 /* 距离标注（★ 规范：距离一律用 dimLine，绝不用箭头） */
@@ -421,7 +421,7 @@ const NAV = [
        2026-09-28 加 2.5 时是先改产物 HTML、事后才补回源的 ——
        补之前那次 build.py 会把这条导航**静默抹掉**。改导航务必两头同时改。 */
     { id:'ch2-5', t:'2.5 多导体系统的电容与串扰', ready:true,
-      href:'2.5-multi-conductor-crosstalk.html?v=20260928r15' },
+      href:'2.5-multi-conductor-crosstalk.html?v=20260928r16' },
   ]},
   { ch:'第 3 章 · 恒定磁场', items:[ {t:'3.1 比奥-萨伐尔定律'}, {t:'3.2 安培环路定理'} ]},
   { ch:'第 4 章 · 时变电磁场', items:[ {t:'4.1 麦克斯韦方程组'}, {t:'4.2 均匀平面波'} ]},
@@ -765,17 +765,34 @@ function equiCurve(sign,E0,fac,Rmax){
   return out;
 }
 
+/* ══════════════════ 电荷符号的字号 / 加粗（两处共用） ══════════════════
+   ★★ 2026-09-28：用户反馈"正电荷的加号看不清"。实测根因**不是**字号给得太小，而是
+      **PingFang 的 '+' 字形远小于字号**，而且笔画极细（下面都是把字形真画到离屏画布上量像素）：
+        字号 15 ⇒ 字形 8×8 px、臂厚 2 px      ← 改前最大的一档（mag=1，两极）
+        字号 9  ⇒ 字形 4×4 px、臂厚 1~2 px    ← 改前最小的一档
+        字号 27 ⇒ 字形 14×14 px、但臂厚**仍只有 2 px**（纯粹放大解决不了"细"）
+      ⇒ ① 字号按 11+19·mag（11…30，字形约 9…16 px）；
+         ② **加粗必须靠"同色描边"**：richDraw 的第 7 个参数 fat（见 2.1 引擎段的 richDraw）。
+            实测 字号 30 + fat 1.2 ⇒ 字形 16×16、臂厚 4 px（正好是"看得清"的量级）。
+      ⚠️ 为什么不能靠加字号：字号 36 才有 4 px 臂厚，而 mag 小的那些符号会跟着一起变巨大，
+         把"两极最密、赤道为零"的**密度梯度**抹平（那是 σ = 3ε₀E₀cosθ 的图形，是教学载荷）。
+         fat 是**与字号解耦**的，所以大符号粗、小符号也粗，梯度照旧由 size+alpha 承担。
+      ⚠️ 字号变大 ⇒ 屏幕最小间距必须同步抬高（SEPS 15 → 21），否则两极那一小片会糊成一团。 */
+const CHG_SZ  = mag => 11 + 19*mag;      /* 字形 ≈ 0.52×字号 ⇒ 约 9…16 px */
+const CHG_FAT = mag => 0.9 + 0.6*mag;    /* 同色描边宽度 ⇒ 臂厚约 3…4 px */
+
 /* ══════════ ① 阶段①的"中性自由电荷" ══════════
    外场还没加上时，导体里的自由电荷是**均匀**的（正负各半、宏观不显电）。
    画在**赤道那一圈**：那里 σ 恒为 0（σ ∝ cosθ），所以它永远不会与后出现的感应电荷打架。
-   alpha 随外场 g 淡出 ⇒ 阶段②一开始它就退场，换成两极的感应电荷。 */
+   alpha 随外场 g 淡出 ⇒ 阶段②一开始它就退场，换成两极的感应电荷。
+   ⚠️ 这一组 σ 是常数 ⇒ 不能套 CHG_SZ(mag)（会全变成最小档）；固定用中间档字号。 */
 function drawNeutralCharge(al){
   if(al<=0.02) return;
   const NV=8, rr=A_C*0.94;
   for(let j=0;j<NV;j++){
     const p=sphPt(rr,Math.PI/2,(j+0.42)/NV*2*Math.PI);
     text(p, j%2 ? '−' : '+', {color: j%2 ? '#6E9BB5' : '#C0807B',
-      size:9, bold:true, align:'center', alpha:al*0.85});
+      size:17, fat:1.1, bold:true, align:'center', alpha:al*0.85});
   }
 }
 
@@ -829,8 +846,17 @@ function drawSurfaceCharge(rr,sigFn,o){
   /* ⚠️ 必须做**屏幕空间最小间距**过滤：两极附近 NV 个 φ 会投影到几乎同一个点
      （实测相邻两个 ⊕ 只差 0.5 px ⇒ 糊成一团）。以"先放先得"的方式丢弃过近的符号。
      ⚠️ o.share 让**多次调用共用同一张已放表** —— ③ 的内表面 −q 与外表面 +q 是两次调用，
-        不共享时两者会在屏幕上叠在一起（实测 3 px）。 */
-  const SEPS=Math.max(15, (o.sep||15));
+        不共享时两者会在屏幕上叠在一起（实测 3 px）。
+     ⚠️⚠️ SEPS 是**跟着符号字号走的**，不是一个可以单独调的审美参数：2026-09-28 把字形从
+        8×8 px 放大到 16×16 px 时，SEPS 若仍留 15 px，两极那一小片会立刻互相压住。
+        改字号 ⇒ 必须同步改 SEPS（实测：15 px 与旧字形的组合下，最小间距**恰好**被压到
+        15.1 px，说明这个过滤器当时是"顶格"在工作的，一点余量都没有）。
+     ⚠️ 下限定 25 而不是 21：判"两个符号会不会互相压住"要看 `ctx.measureText` 的**前进宽**
+        （= 白描边光环的横向占地，T1D 的包围盒重叠判据就是这么算的），而不是字形的**墨迹宽**。
+        PingFang 的 U+2212 减号前进宽 ≈ 0.77em ⇒ 字号 30 时 23.1 px；SEPS=21 时实测
+        在 (−478,519)×(−501,518) 两处被 t1d 抓到 0.2 px 的盒相交（墨迹其实还差 4 px，
+        但那 0.2 px 说明"再挤一点就真的糊了"）⇒ 定 25 留 2 px 余量。 */
+  const SEPS=Math.max(25, (o.sep||25));
   const placed = o.share || [];
   const w = o.avoidS || [];
   const gap = o.probeGap || 34;
@@ -841,12 +867,12 @@ function drawSurfaceCharge(rr,sigFn,o){
     for(let j=0;j<NV;j++){
       const ph=(j+0.42)/NV*2*Math.PI;
       const p=sphPt(rr,th,ph), sp=pr(p);
-      if(rj && sp.x>rj[0]-6 && sp.x<rj[0]+rj[2]+6 && sp.y>rj[1]-6 && sp.y<rj[1]+rj[3]+6) continue;
+      if(rj && sp.x>rj[0]-10 && sp.x<rj[0]+rj[2]+10 && sp.y>rj[1]-10 && sp.y<rj[1]+rj[3]+10) continue;
       if(w.some(q=>Math.hypot(sp.x-q.x,sp.y-q.y)<gap)) continue;
       if(placed.some(q=>(q.x-sp.x)*(q.x-sp.x)+(q.y-sp.y)*(q.y-sp.y)<SEPS*SEPS)) continue;
       placed.push(sp);
       text(p, s>0?'+':'−', {color: s>0?C.crimson:'#2E7FA6',
-        size:7.5+7.5*mag, bold:true, align:'center',
+        size:CHG_SZ(mag), fat:CHG_FAT(mag), bold:true, align:'center',
         alpha:(0.25+0.75*mag)*al});
     }
   }
