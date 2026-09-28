@@ -1,0 +1,1298 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>2.5 多导体系统的电容与串扰 · 电磁场可视化平台</title>
+<style>
+
+:root{--teal:#156082;--teal-dark:#0E4A66;--teal-light:#E3EFF4;--orange:#E97132;--orange-light:#FDF0E7;--green:#3E9B4F;--green-light:#EAF5EC;--purple:#9B59B6;--crimson:#D04A3A;--blue:#0F9ED5;--ink:#1F3D4C;--muted:#5F7482;--line:#DCE6EB;--bg:#F2F6F8;}
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{height:100%;}
+body{font-family:"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--ink);overflow:hidden;}
+header{height:76px;background:#fff;border-bottom:1px solid var(--line);display:flex;align-items:center;padding:0 22px;gap:14px;}
+.logo{width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,var(--teal),#2E86AB);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:15px;text-decoration:none;}
+header h1{font-size:18px;font-weight:700;letter-spacing:.5px;}
+header .sub{font-size:12px;color:var(--muted);margin-top:2px;}
+header .badge{margin-left:auto;display:flex;flex-direction:column;align-items:flex-end;gap:4px;}
+header .badge .chip{font-size:12px;color:var(--teal);background:var(--teal-light);border:1px solid #C5DEE9;padding:4px 12px;border-radius:20px;white-space:nowrap;}
+header .badge .owner{font-size:11px;color:#5C6B73;background:#F4F7F9;border:1px solid #E2E8EC;padding:3px 10px;border-radius:20px;white-space:nowrap;display:inline-flex;align-items:center;gap:5px;}
+header .badge .owner b{color:var(--teal);font-weight:600;letter-spacing:.3px;}
+header .badge .owner::before{content:"";display:inline-block;width:5px;height:5px;background:var(--teal);border-radius:50%;}
+.layout{display:flex;height:calc(100vh - 76px);}
+aside{width:236px;background:#fff;border-right:1px solid var(--line);overflow-y:auto;padding:14px 0;flex-shrink:0;}
+aside::-webkit-scrollbar{width:6px;} aside::-webkit-scrollbar-thumb{background:#D5E0E6;border-radius:3px;}
+.nav-ch{font-size:12px;color:var(--muted);padding:12px 18px 6px;font-weight:600;letter-spacing:.5px;}
+.nav-item{display:flex;align-items:center;gap:8px;padding:9px 18px;font-size:13.5px;cursor:pointer;color:#3D5A68;border-left:3px solid transparent;transition:background .15s;text-decoration:none;}
+.nav-item:hover{background:#F5F9FB;}
+.nav-item.active{background:var(--teal-light);color:var(--teal-dark);font-weight:600;border-left-color:var(--teal);}
+.nav-item .dot{width:6px;height:6px;border-radius:50%;background:#C6D4DB;flex-shrink:0;}
+.nav-item.active .dot{background:var(--teal);}
+.nav-item.soon{color:#A5B6C0;cursor:not-allowed;}
+.nav-item.soon .dot{background:#E1E9ED;}
+.nav-item.soon::after{content:"建设中";font-size:10px;color:#B7C6CE;margin-left:auto;border:1px solid #DCE6EB;border-radius:8px;padding:1px 6px;}
+main{flex:1;display:flex;flex-direction:column;padding:14px 16px 12px;overflow:hidden;min-width:0;}
+.module-head{display:flex;align-items:center;gap:16px;margin-bottom:10px;flex-wrap:wrap;}
+.module-title{font-size:17px;font-weight:700;}
+.module-title small{font-weight:400;color:var(--muted);font-size:12px;margin-left:8px;}
+.seg{display:flex;background:#fff;border:1px solid var(--line);border-radius:10px;padding:3px;gap:2px;flex-wrap:wrap;}
+.seg button{border:none;background:transparent;padding:7px 15px;font-size:13px;border-radius:8px;cursor:pointer;color:var(--muted);font-family:inherit;transition:all .15s;white-space:nowrap;}
+.seg button:hover{color:var(--teal);}
+.seg button.on{background:var(--teal);color:#fff;font-weight:600;box-shadow:0 2px 6px rgba(21,96,130,.3);}
+.content-row{flex:1;display:flex;gap:14px;min-height:0;}
+.canvas-card{flex:1;background:#fff;border:1px solid var(--line);border-radius:14px;position:relative;overflow:hidden;min-width:0;display:flex;flex-direction:column;box-shadow:0 1px 4px rgba(30,60,80,.05);}
+#cv{width:100%;flex:1;min-height:0;min-width:0;display:block;cursor:grab;touch-action:none;}
+#cv:active{cursor:grabbing;}
+.cv-toolbar{position:absolute;top:12px;right:12px;display:flex;gap:8px;z-index:5;}
+.cv-toolbar button{border:1px solid var(--line);background:rgba(255,255,255,.92);border-radius:8px;padding:5px 12px;font-size:12px;color:var(--muted);cursor:pointer;font-family:inherit;backdrop-filter:blur(4px);transition:all .15s;}
+.cv-toolbar button:hover{color:var(--teal);border-color:var(--teal);}
+.cv-toolbar button.on{background:var(--teal);color:#fff;border-color:var(--teal);}
+.cv-mode-tag{position:absolute;top:12px;left:12px;font-size:12px;color:var(--teal-dark);background:rgba(227,239,244,.92);border:1px solid #C9E0EA;border-radius:8px;padding:5px 12px;z-index:4;pointer-events:none;font-weight:600;max-width:56%;}
+aside,.panel{transition:width .22s ease,padding .22s ease,border-width .22s ease;}
+body.nav-off aside{width:0;padding-top:0;padding-bottom:0;border-right-width:0;overflow:hidden;}
+body.panel-off .panel{width:0;border-left-width:0;border-right-width:0;overflow:hidden;}
+.fold-handle{position:absolute;top:50%;transform:translateY(-50%);z-index:6;width:15px;height:58px;padding:0;line-height:1;border:1px solid var(--line);background:rgba(255,255,255,.94);color:#A3B7C2;font-size:11px;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px);transition:all .15s;}
+.fold-handle:hover{color:var(--teal);border-color:var(--teal);background:#fff;}
+#foldNav{left:0;border-left:none;border-radius:0 9px 9px 0;}
+#foldPanel{right:0;border-right:none;border-radius:9px 0 0 9px;}
+.view-toggles{display:flex;gap:6px;margin-right:6px;}
+.view-toggles button{border:1px solid var(--line);background:#fff;border-radius:8px;padding:5px 11px;font-size:12px;color:var(--muted);cursor:pointer;font-family:inherit;transition:all .15s;}
+.view-toggles button:hover{border-color:var(--teal);color:var(--teal);}
+.view-toggles button.on{background:var(--teal);color:#fff;border-color:var(--teal);}
+.cv-pan-tag{position:absolute;top:12px;left:50%;transform:translateX(-50%);z-index:6;font-size:11.5px;color:#8A5A20;background:rgba(255,248,236,.95);border:1px solid #E7C48F;border-radius:8px;padding:5px 12px;display:none;align-items:center;gap:8px;}
+.cv-pan-tag.show{display:flex;}
+.cv-pan-tag button{border:1px solid #E0BE8C;background:#fff;border-radius:6px;padding:2px 9px;font-size:11.5px;color:#8A5A20;cursor:pointer;font-family:inherit;}
+.cv-pan-tag button:hover{background:#8A5A20;color:#fff;border-color:#8A5A20;}
+.cv-legend{position:absolute;bottom:14px;right:14px;z-index:5;background:rgba(255,255,255,.94);border:1px solid var(--line);border-radius:9px;padding:7px 11px 8px;font-size:11px;color:var(--muted);backdrop-filter:blur(4px);pointer-events:none;min-width:130px;}
+.cv-legend .lg-t{font-size:11px;color:var(--ink);font-weight:600;margin-bottom:5px;}
+.cv-legend .lg-note{font-size:10.5px;color:var(--muted);line-height:1.55;margin-top:4px;}
+.coord-strip{display:flex;gap:8px;padding:10px 12px;border-top:1px solid var(--line);background:#FBFDFE;flex-wrap:nowrap;overflow-x:auto;overflow-y:hidden;}
+.coord-strip::-webkit-scrollbar{height:5px;}
+.coord-strip::-webkit-scrollbar-thumb{background:#D5E0E6;border-radius:3px;}
+.coord-strip:empty{padding:0;border-top:none;}
+.coord-chip{font-size:12px;color:var(--muted);background:#F3F8FA;border:1px solid #E2ECF1;border-radius:8px;padding:5px 12px;white-space:nowrap;}
+.coord-chip b{color:var(--teal-dark);font-weight:600;margin-left:5px;font-family:Menlo,monospace;}
+.coord-chip i{font-style:italic;font-family:Georgia,serif;color:var(--ink);}
+.coord-chip.acc{background:#F5F0FA;border-color:#E2D4F0;}
+.coord-chip.acc b{color:#6B4E8A;}
+.coord-chip.warn{background:#FFF6EC;border-color:#F3DCC0;}
+.coord-chip.warn b{color:#B26A1E;}
+.panel{width:398px;flex-shrink:0;background:#fff;border:1px solid var(--line);border-radius:14px;display:flex;flex-direction:column;overflow-y:auto;box-shadow:0 1px 4px rgba(30,60,80,.05);}
+.panel::-webkit-scrollbar{width:6px;} .panel::-webkit-scrollbar-thumb{background:#D5E0E6;border-radius:3px;}
+.panel-sec{padding:14px 16px;border-bottom:1px solid #EEF3F6;}
+.panel-sec:last-child{border-bottom:none;}
+.readout-toggle{display:flex;align-items:center;gap:8px;padding:8px 10px;margin-bottom:12px;background:#F3F8FA;border:1px solid #E2ECF1;border-radius:8px;cursor:pointer;font-size:12.5px;line-height:1.5;color:var(--muted);}
+.readout-toggle:hover{border-color:#C6DAE3;background:#EDF4F7;}
+.readout-toggle input{accent-color:var(--teal);cursor:pointer;margin:0;}
+.readout-toggle b{color:var(--ink);}
+.sec-title{font-size:12px;color:var(--muted);font-weight:600;letter-spacing:1px;margin-bottom:10px;display:flex;align-items:center;gap:6px;}
+.sec-title::before{content:"";width:3px;height:12px;background:var(--teal);border-radius:2px;}
+.sub-chips{display:flex;gap:6px;flex-wrap:wrap;}
+.chip{border:1px solid var(--line);background:#fff;border-radius:16px;padding:4px 13px;font-size:12.5px;line-height:1.5;cursor:pointer;font-family:inherit;color:var(--muted);transition:all .15s;}
+.chip:hover{border-color:var(--teal);color:var(--teal);}
+.chip.on{background:var(--teal);border-color:var(--teal);color:#fff;font-weight:600;}
+.chip.pre{border-style:dashed;border-color:#C9D6DD;color:#7A8F9B;}
+.chip.pre:hover{border-color:var(--orange);color:var(--orange);background:#FFF8F2;}
+.chip.g.on{background:var(--green);border-color:var(--green);}
+.chip.o.on{background:var(--orange);border-color:var(--orange);}
+.chip.p.on{background:var(--purple);border-color:var(--purple);}
+.slider-row{display:flex;align-items:center;gap:10px;margin-bottom:9px;}
+.slider-row label{width:46px;font-size:13px;font-style:italic;font-family:Georgia,serif;color:var(--ink);text-align:right;flex-shrink:0;}
+.slider-row.w label{width:62px;font-style:normal;font-family:inherit;}
+.slider-row input[type=range]{flex:1;accent-color:var(--teal);height:4px;cursor:pointer;}
+.slider-row .val{width:62px;font-size:12px;color:var(--muted);font-family:Menlo,monospace;flex-shrink:0;}
+.ex-title{font-size:14.5px;font-weight:700;color:var(--teal-dark);margin-bottom:8px;line-height:1.45;}
+.ex-body{font-size:14px;line-height:1.7;color:#3A5462;}
+.ex-body b{color:var(--ink);}
+.ex-body ul{padding-left:18px;margin:6px 0;}
+.ex-body li{margin-bottom:3px;}
+.ex-note{font-size:12.5px;line-height:1.65;color:#6B8290;background:#F7FAFB;border:1px solid #E7EFF3;border-radius:8px;padding:8px 11px;margin-top:9px;}
+.frm{display:block;background:#F4F9FB;border:1px solid #DDE9EF;border-left:3px solid var(--teal);border-radius:8px;padding:10px 14px 10px 18px;margin:10px 0;font-size:14px;line-height:1.7;font-family:Georgia,"Times New Roman",serif;color:var(--ink);overflow-x:auto;white-space:nowrap;}
+.vec{position:relative;font-style:italic;font-weight:700;white-space:nowrap;}
+.vec::before,.vec::after{content:'';position:absolute;pointer-events:none;}
+.vec::before{left:0;right:.24em;top:-.28em;height:1px;background:currentColor;opacity:.9;}
+.vec::after{right:0;top:-.42em;width:0;height:0;border-left:.26em solid currentColor;border-top:.14em solid transparent;border-bottom:.14em solid transparent;}
+sub{font-size:.72em;vertical-align:-.24em;}
+.vec sub{font-style:normal;font-weight:600;}
+.sqrt{display:inline-block;position:relative;padding-left:.62em;margin-left:.05em;font-style:normal;}
+.sqrt::before{content:"√";position:absolute;left:.02em;top:-.12em;font-size:1.1em;font-family:"Cambria Math","STIX Two Math","Latin Modern Math","Times New Roman",Georgia,serif;}
+.sqrt .in{display:inline-block;border-top:1.15px solid currentColor;padding:.10em .06em .02em .06em;border-radius:4px 4px 0 0;line-height:1.1;}
+.card-tabs{display:flex;gap:6px;flex-wrap:wrap;margin:4px 0 10px;}
+.card-tab{cursor:pointer;font-family:inherit;font-size:12.5px;padding:5px 9px;border-radius:9px;border:1px solid var(--line);background:#fff;color:var(--muted);transition:all .15s;line-height:1.4;white-space:nowrap;flex:1;text-align:center;min-width:0;}
+.card-tab:hover{border-color:var(--teal);color:var(--teal);}
+.card-tab.c1.on{background:#156082;border-color:#156082;color:#fff;font-weight:600;}
+.card-tab.c2.on{background:#0F9ED5;border-color:#0F9ED5;color:#fff;font-weight:600;}
+.card-tab.c3.on{background:#E97132;border-color:#E97132;color:#fff;font-weight:600;}
+.card-tab.c4.on{background:#9B59B6;border-color:#9B59B6;color:#fff;font-weight:600;}
+.card-body{background:#FCFEFE;border:1px solid #E2ECF1;border-radius:8px;padding:12px 16px 8px;border-left:4px solid var(--teal);}
+.card-body.c1{border-left-color:#156082;} .card-body.c2{border-left-color:#0F9ED5;}
+.card-body.c3{border-left-color:#E97132;} .card-body.c4{border-left-color:#9B59B6;}
+#toast{position:fixed;bottom:26px;left:50%;transform:translateX(-50%);background:rgba(31,61,76,.94);color:#fff;font-size:13px;padding:9px 20px;border-radius:22px;opacity:0;pointer-events:none;transition:opacity .25s;z-index:99;}
+#toast.show{opacity:1;}
+
+/* 2.1 追加：滑块分组标签（1.3 有定义、1.5 漏了，这里补齐） */
+.slider-group-label{font-size:12px;font-weight:600;color:var(--crimson);margin:4px 0 8px;}
+.slider-group-label.q{color:var(--blue);}
+.slider-group-label.g{color:var(--green);}
+.slider-group-label.o{color:var(--orange);}
+/* 2.1 追加：画布内小面板（1/R² 曲线 / 收敛曲线）的标题用不着额外样式，坐标条已够 */
+/* ── 2.5 追加：读数行 / 结论条 / 活路表 ── */
+.kv{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:13px;color:#5F7482;padding:5px 0;border-bottom:1px dashed #EBF1F4;}
+.kv:last-child{border-bottom:none;}
+.kv b{color:#1F3D4C;font-family:Menlo,monospace;font-weight:600;font-size:13px;}
+.verdict{margin-top:9px;border-radius:8px;padding:8px 11px;font-size:12.5px;line-height:1.55;font-weight:600;}
+.verdict.bad{background:#FDECEA;border:1px solid #F2C3BC;color:#A8392A;}
+.verdict.ok{background:#EAF5EC;border:1px solid #C2E0C8;color:#2F7A3E;}
+table.trail{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:8px;}
+table.trail th{background:#F3F8FA;color:#5F7482;font-weight:600;text-align:left;padding:6px 8px;border-bottom:1px solid #E2ECF1;font-size:11.5px;}
+table.trail td{padding:6px 8px;border-bottom:1px solid #F0F5F8;color:#3A5462;}
+table.trail td.dim{color:#93A8B4;}
+table.trail td.me{font-family:Menlo,monospace;font-weight:600;color:#156082;}
+#coordStrip .coord-chip{flex-shrink:0;}
+</style>
+</head>
+<body>
+<header>
+  <a class="logo" href="index.html" title="返回平台首页">E&M</a>
+  <div><h1>2.5 多导体系统的电容与串扰</h1><div class="sub">互容 C_m · 3W 规则 · 边沿决定串扰 · i = C·du/dt</div></div>
+  <div class="view-toggles" id="viewToggles"><button id="tglNav" title="折叠 / 展开左侧目录（快捷键 [ ）">☰ 目录</button><button id="tglPanel" title="折叠 / 展开右侧控制面板（快捷键 ] ）">☰ 面板</button></div>
+  <div class="badge"><div class="chip">《工程电磁场》 ×《电磁场与电磁波》</div><div class="owner"><b>© 2026 Li Chenlu</b> All Rights Reserved</div></div>
+</header>
+<div class="layout">
+  <aside id="nav"></aside>
+  <main>
+    <div class="module-head">
+      <div class="module-title" id="moduleTitle">多导体系统的电容与串扰<small id="moduleSub">PCB 上的「隐形电容」</small></div>
+      <div class="seg" id="modeTabs"></div>
+    </div>
+    <div class="content-row">
+      <div class="canvas-card">
+        <canvas id="cv"></canvas>
+        <div class="cv-mode-tag" id="modeTag"></div>
+        <div class="cv-pan-tag" id="panTag"><span>画面已平移</span><button id="btnPanReset">回到原点</button></div>
+        <div class="cv-toolbar"><button id="btnReset">复位视角</button><button id="btnRotate">自动平移</button></div>
+        <div class="cv-legend" id="legend"><div class="lg-t" id="lgTitle">互容 C_m</div><div class="lg-note" id="lgNote">受害线悬空 · 净电荷为零</div></div>
+        <button class="fold-handle" id="foldNav" title="折叠 / 展开左侧目录">‹</button>
+        <button class="fold-handle" id="foldPanel" title="折叠 / 展开右侧面板">›</button>
+        <div class="coord-strip" id="coordStrip"></div>
+      </div>
+      <div class="panel" id="panel"></div>
+    </div>
+  </main>
+</div>
+<div id="toast"></div>
+<script>
+'use strict';
+/* ============================== 向量工具 ============================== */
+const pt=(x,y,z)=>({x,y,z});
+const vadd=(a,b)=>({x:a.x+b.x,y:a.y+b.y,z:a.z+b.z});
+const vsub=(a,b)=>({x:a.x-b.x,y:a.y-b.y,z:a.z-b.z});
+const vmul=(a,s)=>({x:a.x*s,y:a.y*s,z:a.z*s});
+const vdot=(a,b)=>a.x*b.x+a.y*b.y+a.z*b.z;
+const vlen=a=>Math.hypot(a.x,a.y,a.z);
+const vnorm=a=>{const l=vlen(a)||1;return vmul(a,1/l);};
+const vcross=(a,b)=>({x:a.y*b.z-a.z*b.y, y:a.z*b.x-a.x*b.z, z:a.x*b.y-a.y*b.x});
+const D2R=Math.PI/180, R2D=180/Math.PI;
+
+/* ============================== 富文本引擎（同源） ============================== */
+function parseRich(s){
+  const items=[], groups=[]; const st={g:-1};
+  (function walk(str){
+    let buf='';
+    const flush=()=>{ if(buf){ items.push({t:'n',s:buf,g:st.g}); buf=''; } };
+    for(let i=0;i<str.length;){
+      const c=str[i];
+      if(c==='@' && str[i+1]==='{'){
+        const j=str.indexOf('}', i+2);
+        if(j<0){ buf+=c; i++; continue; }
+        flush();
+        const save=st.g; st.g=groups.length; groups.push(1);
+        walk(str.slice(i+2,j)); st.g=save; i=j+1; continue;
+      }
+      if(c==='_'){
+        flush();
+        if(str[i+1]==='{'){ const j=str.indexOf('}',i+2);
+          if(j>=0){ items.push({t:'s',s:str.slice(i+2,j),g:st.g}); i=j+1; continue; } }
+        items.push({t:'s',s:str[i+1]||'',g:st.g}); i+=2; continue;
+      }
+      if(c==='<'){ const j=str.indexOf('>',i);
+        if(j>=0){ buf+=str.slice(i,j+1); i=j+1; continue; } }
+      buf+=c; i++;
+    }
+    flush();
+  })(String(s));
+  return {items, groups};
+}
+const RICHFONT='"PingFang SC","Microsoft YaHei",sans-serif';
+const RICHFONT_M='Georgia,"Times New Roman",serif';
+function richLayout(ctx,rich,size,bold){const subSize=size*0.74;const wM=bold?'700 ':'';const fN=wM+size+'px '+RICHFONT;const fNs=wM+subSize+'px '+RICHFONT;const fV='italic '+wM+size+'px '+RICHFONT_M;const fVs=wM+subSize+'px '+RICHFONT_M;const groups=rich.groups.map(()=>({x0:1e9,x1:-1e9,locked:false,top:1e9}));const out=[];let x=0;const oldBL=ctx.textBaseline;ctx.textBaseline='middle';rich.items.forEach(it=>{const sub=it.t==='s',vec=it.g>=0;const font=sub?(vec?fVs:fNs):(vec?fV:fN);ctx.font=font;const m=ctx.measureText(it.s),w=m.width;const dy=sub?size*0.20:0;const asc=(m.actualBoundingBoxAscent!=null)?m.actualBoundingBoxAscent:size*0.38;if(vec){const g=groups[it.g];if(!g.locked){if(sub)g.locked=true;else{if(x<g.x0)g.x0=x;g.x1=x+w;}}const top=dy-asc;if(top<g.top)g.top=top;}out.push({s:it.s,sub,x,w,font,dy});x+=w;});ctx.textBaseline=oldBL;return{items:out,groups,w:x,size,subSize};}
+function richDraw(ctx,lo,cx,cy,align,color){let ox=align==='center'?cx-lo.w/2:align==='right'?cx-lo.w:cx;const dy=it=>cy+it.dy;const ay=g=>cy+g.top-Math.max(2.2,lo.size*0.13);const span=g=>[ox+g.x0-0.6,ox+g.x1+0.6];ctx.save();ctx.textAlign='left';ctx.textBaseline='middle';ctx.lineJoin='round';ctx.lineCap='butt';ctx.lineWidth=3.4;ctx.strokeStyle='rgba(255,255,255,.92)';lo.items.forEach(it=>{ctx.font=it.font;ctx.strokeText(it.s,ox+it.x,dy(it));});lo.groups.forEach(g=>{if(g.x1<=g.x0)return;const y=ay(g),s=span(g);ctx.beginPath();ctx.moveTo(s[0],y);ctx.lineTo(s[1],y);ctx.stroke();});lo.groups.forEach(g=>{if(g.x1<=g.x0)return;const y=ay(g),s=span(g),ax=s[0],bx=s[1];ctx.strokeStyle=color;ctx.lineWidth=1.15;ctx.beginPath();ctx.moveTo(ax,y);ctx.lineTo(bx-1.2,y);ctx.stroke();const h=Math.min(3.6,Math.max(2.6,(bx-ax)*0.40));ctx.beginPath();ctx.moveTo(bx,y);ctx.lineTo(bx-h,y-h*0.52);ctx.lineTo(bx-h,y+h*0.52);ctx.closePath();ctx.fillStyle=color;ctx.fill();});lo.items.forEach(it=>{ctx.font=it.font;ctx.fillStyle=color;ctx.fillText(it.s,ox+it.x,dy(it));});ctx.restore();}
+function richHTML(s){const r=parseRich(s);let h='',gi=-1;r.items.forEach(it=>{const body=it.t==='s'?'<sub>'+it.s+'</sub>':it.s;if(it.g!==gi){if(gi>=0)h+='</span>';if(it.g>=0)h+='<span class="vec">';gi=it.g;}h+=body;});if(gi>=0)h+='</span>';return wrapSqrt(h);}
+function wrapSqrt(html){const out=[];let i=0;while(i<html.length){const k=html.indexOf('√(',i);if(k<0){out.push(html.slice(i));break;}out.push(html.slice(i,k));out.push('<span class="sqrt"><span class="in">');let j=k+2,depth=1;while(j<html.length&&depth>0){const c=html[j];if(c==='(')depth++;else if(c===')'){depth--;if(depth===0)break;}j++;}if(depth!==0){out.push(html.slice(k));return out.join('');}out.push(html.slice(k+2,j));out.push('</span></span>');i=j+1;}return out.join('');}
+
+/* ============================== 颜色 / 相机 / 图元 ============================== */
+const C = {teal:'#156082',orange:'#E97132',green:'#3E9B4F',purple:'#9B59B6',crimson:'#D04A3A',blue:'#0F9ED5',gray:'#8CA0AC',light:'#C9D6DD',ink:'#22414F',grid:'#EAF0F4',muted:'#7A8F9B'};
+
+let canvas,ctx,W=800,H=600,DPR=1;
+const cam={az:0.62,el:0.46,zoom:1,px:0,py:0};
+let camU,camV,camD,camScale,CX2,CY;
+function setupCamera(){const ca=Math.cos(cam.az),sa=Math.sin(cam.az);const ce=Math.cos(cam.el),se=Math.sin(cam.el);camD={x:ce*ca,y:ce*sa,z:se};camU={x:-sa,y:ca,z:0};camV={x:-ca*se,y:-sa*se,z:ce};camScale=Math.min(W,H)/3.2*cam.zoom;CX2=W/2;CY=H*0.55;}
+function pr(p){return{x:CX2+cam.px+camScale*vdot(p,camU),y:CY+cam.py-camScale*vdot(p,camV),d:vdot(p,camD)};}
+
+let prims=[];
+function P_(z,fn){prims.push({z,draw:fn});}
+/* ⚠️ 各图元的 o.z：**可选**覆盖画家算法的深度。半透明壳体（等位面）会横跨一大段
+   深度，凡是"必须始终看得清"的标注（P、θ/φ 角弧、E 箭头）都要显式抬到壳体之上，
+   否则它们会被自己所在的球面那层 Fresnel 厚边洗掉。默认 0 / +1e4 一段留空，互不打架。 */
+function line(a,b,o={}){const A=pr(a),B=pr(b);P_(o.z!=null?o.z:(A.d+B.d)/2,()=>{ctx.save();ctx.globalAlpha=o.alpha!=null?o.alpha:1;ctx.strokeStyle=o.color||C.gray;ctx.lineWidth=o.w||1.4;if(o.dash)ctx.setLineDash(o.dash);ctx.beginPath();ctx.moveTo(A.x,A.y);ctx.lineTo(B.x,B.y);ctx.stroke();ctx.restore();});}
+function arrowSeg(A,B,color,w,headScale){const dx=B.x-A.x,dy=B.y-A.y,L=Math.hypot(dx,dy);if(L<0.5)return;const ux=dx/L,uy=dy/L,hs=(headScale||1)*9;ctx.strokeStyle=color;ctx.lineWidth=w;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(A.x,A.y);ctx.lineTo(B.x-ux*hs*.55,B.y-uy*hs*.55);ctx.stroke();const ang=Math.atan2(dy,dx);ctx.beginPath();ctx.moveTo(B.x,B.y);ctx.lineTo(B.x-hs*Math.cos(ang-.42),B.y-hs*Math.sin(ang-.42));ctx.lineTo(B.x-hs*Math.cos(ang+.42),B.y-hs*Math.sin(ang+.42));ctx.closePath();ctx.fillStyle=color;ctx.fill();}
+function arrow(a,b,o={}){const A=pr(a),B=pr(b);P_(o.z!=null?o.z:(A.d+B.d)/2,()=>{ctx.save();ctx.globalAlpha=o.alpha!=null?o.alpha:1;if(o.dash)ctx.setLineDash(o.dash);arrowSeg(A,B,o.color||C.teal,o.w||2,o.headScale);ctx.restore();});if(o.label)text(vmul(vadd(a,b),.5),o.label,{color:o.color||C.teal,dx:o.ldx||0,dy:o.ldy!==undefined?o.ldy:-10,size:o.lsize||12.5,bold:true,align:o.lalign,alpha:o.alpha});}
+function curve(ptsArr,o={}){if(ptsArr.length<2)return;const S=ptsArr.map(pr);P_(o.z!=null?o.z:S.reduce((s,p)=>s+p.d,0)/S.length,()=>{ctx.save();ctx.globalAlpha=o.alpha!=null?o.alpha:1;ctx.strokeStyle=o.color||C.gray;ctx.lineWidth=o.w||1.8;ctx.lineCap='round';if(o.dash)ctx.setLineDash(o.dash);ctx.beginPath();ctx.moveTo(S[0].x,S[0].y);for(let i=1;i<S.length;i++)ctx.lineTo(S[i].x,S[i].y);ctx.stroke();if(o.arrowEnd){const a=S[S.length-2],b=S[S.length-1];ctx.setLineDash([]);arrowSeg(a,b,o.color||C.gray,o.w||1.8,.75);}ctx.restore();});}
+function poly(ptsArr,o={}){if(ptsArr.length<3)return;const S=ptsArr.map(pr);P_(o.z!=null?o.z:S.reduce((s,p)=>s+p.d,0)/S.length,()=>{ctx.save();ctx.beginPath();ctx.moveTo(S[0].x,S[0].y);for(let i=1;i<S.length;i++)ctx.lineTo(S[i].x,S[i].y);ctx.closePath();if(o.fill){ctx.globalAlpha=o.fillAlpha!=null?o.fillAlpha:.15;ctx.fillStyle=o.fill;ctx.fill();}if(o.stroke!==false){ctx.globalAlpha=o.strokeAlpha!=null?o.strokeAlpha:(o.fillAlpha!=null?o.fillAlpha:1);ctx.strokeStyle=o.stroke||o.fill||C.gray;ctx.lineWidth=o.w||1;if(o.dash)ctx.setLineDash(o.dash);ctx.stroke();}ctx.restore();});}
+function marker(p,o={}){
+  const S=pr(p);
+  P_(o.z!=null?o.z:S.d+0.02, ()=>{ ctx.save();
+    ctx.globalAlpha=o.alpha!=null?o.alpha:1;
+    ctx.beginPath(); ctx.arc(S.x,S.y,o.r||5,0,7);
+    ctx.fillStyle=o.color||C.orange; ctx.fill();
+    ctx.lineWidth=2; ctx.strokeStyle='#fff'; ctx.stroke();
+    if(o.ring){ ctx.beginPath(); ctx.arc(S.x,S.y,(o.r||5)+4,0,7);
+      ctx.strokeStyle=o.ring; ctx.lineWidth=2.2; ctx.stroke(); }
+    ctx.restore(); });
+  if(o.label) text(p, o.label, {color:o.color||C.orange,
+    dx:o.ldx!=null?o.ldx:10, dy:o.ldy!=null?o.ldy:-10, size:o.lsize||13, bold:true, align:o.lalign, alpha:o.alpha});
+}
+function text(p,str,o={}){const S=pr(p);P_(1e6,()=>{ctx.save();if(o.alpha!=null)ctx.globalAlpha*=o.alpha;const size=o.size||12.5,bold=!!o.bold;const lo=richLayout(ctx,parseRich(str),size,bold);richDraw(ctx,lo,S.x+(o.dx||0),S.y+(o.dy||0),o.align||'left',o.color||C.ink);ctx.restore();});}
+/* 屏幕坐标文本（不随平移缩放跑掉） */
+function textScreen(x,y,str,o={}){P_(1e6+1,()=>{ctx.save();if(o.alpha!=null)ctx.globalAlpha*=o.alpha;const lo=richLayout(ctx,parseRich(str),o.size||12,!!o.bold);richDraw(ctx,lo,x,y,o.align||'left',o.color||C.ink);ctx.restore();});}
+/* 距离标注（★ 规范：距离一律用 dimLine，绝不用箭头） */
+function dimLine(a,b,o={}){
+  line(a,b,o);
+  const A=pr(a),B=pr(b);
+  const dx=B.x-A.x,dy=B.y-A.y,L=Math.hypot(dx,dy);
+  if(L<1)return;
+  const px=-dy/L,py=dx/L,t=o.tick||6;
+  const tk=P=>{P_(o.z!=null?o.z:(A.d+B.d)/2,()=>{ctx.save();if(o.alpha!=null)ctx.globalAlpha*=o.alpha;ctx.strokeStyle=o.color||C.gray;ctx.lineWidth=o.w||1.4;ctx.setLineDash([]);ctx.beginPath();ctx.moveTo(P.x+px*t,P.y+py*t);ctx.lineTo(P.x-px*t,P.y-py*t);ctx.stroke();ctx.restore();});};
+  tk(A);tk(B);
+  if(o.label)text(vmul(vadd(a,b),.5),o.label,{color:o.color||C.gray,dx:o.ldx||0,dy:o.ldy!==undefined?o.ldy:-10,size:o.lsize||12.5,bold:true,align:o.lalign,alpha:o.alpha});
+}
+function screenDot(p,rad,fill,alpha,z){const S=pr(p);P_(z!=null?z:S.d+0.02,()=>{ctx.save();ctx.globalAlpha=alpha!=null?alpha:1;ctx.beginPath();ctx.arc(S.x,S.y,rad,0,7);ctx.fillStyle=fill;ctx.fill();ctx.restore();});}
+function hexA(hex,a){const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);return 'rgba('+r+','+g+','+b+','+a+')';}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   2.5 多导体系统的电容与串扰 —— 页面主体
+   渲染引擎（向量工具 / 富文本 / 图元）从 2.2 原样继承，此处只做两件事：
+     ① 用「正交剖面相机」覆盖 setupCamera / pr —— 让世界 x→屏幕右、世界 z→屏幕上，
+        世界 y 退化为纯图层深度。于是 PCB 横截面可以用精确的屏幕空间绘制（写实），
+        同时所有既有图元（line/arrow/curve/poly/text/dimLine）继续可用（标注）。
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* 显示窗口（世界坐标）：板宽方向 x、高度方向 z。
+   ⚠️ 横向**必须随 gap 自适应**：写死一个大 x 区间会让 gap 小时两条走线挤成一条细带、
+   画面上下留出大片空白（实测剖面只占画布 15% 高）。纵向 z 区间固定。 */
+const VIEW = { z0: -0.30, z1: 1.92, padL: 1.05, padR: 0.56 };
+const VCZ0 = (VIEW.z0 + VIEW.z1) / 2;
+let VCX = 1.25, VCZ = VCZ0;
+let BX0 = -2.30, BX1 = 4.80;            /* 介质板横向范围：总比视野宽 ⇒ 呈"长条板" */
+const CAM_MAX = 205;                    /* 放大上限：gap 很小时别把剖面顶到顶部 UI 上 */
+function setupCamera() {
+  const gp = isFinite(state.gap) ? state.gap : 1.0;
+  const x0 = -VIEW.padL, x1 = 2 + gp + VIEW.padR;
+  const vw = x1 - x0, vh = VIEW.z1 - VIEW.z0;
+  VCX = (x0 + x1) / 2; VCZ = VCZ0;
+  camScale = Math.min(W / (vw + 0.30), H / (vh + 0.22), CAM_MAX) * cam.zoom;
+  BX0 = x0 - 1.25; BX1 = x1 + 1.25;
+  CX2 = W / 2; CY = H / 2;
+}
+function pr(p) {
+  return { x: CX2 + cam.px + camScale * (p.x - VCX),
+           y: CY + cam.py - camScale * (p.z - VCZ), d: -p.y };
+}
+const SX = x => CX2 + cam.px + camScale * (x - VCX);
+const SY = z => CY + cam.py - camScale * (z - VCZ);
+/* 图层高度（越小越靠后） */
+const Z = { board: -60, gnd: -55, sub: -50, trace: -40, mask: -34, pot: 0, field: 10,
+            net: 20, ui: 1e6 };
+
+/* ═══════════════════════════════════════════════════ 目录 ═════════════════ */
+const NAV = [
+  { ch:'第 1 章 · 矢量分析', items:[
+    { id:'coord',  t:'1.1 三种常见坐标系', ready:true, href:'index.html' },
+    { id:'ch1-2',  t:'1.2 矢量的代数运算', ready:true, href:'1.2-vector-algebra.html' },
+    { id:'ch1-3',  t:'1.3 方向导数与梯度', ready:true, href:'1.3-directional-derivative.html' },
+    { id:'ch1-4',  t:'1.4 通量与散度',     ready:true, href:'1.4-divergence-flux.html' },
+    { id:'ch1-5',  t:'1.5 环量与旋度',     ready:true, href:'1.5-curl-circulation.html' },
+  ]},
+  { ch:'第 2 章 · 静电场', items:[
+    { id:'ch2-1', t:'2.1 电场强度与电荷密度', ready:true, href:'2.1-field-charge-density.html' },
+    { id:'ch2-2', t:'2.2 静电场中的导体', ready:true, href:'2.2-conductor-electrostatic.html' },
+    { t:'2.3 高斯定理及其应用' },
+    { t:'2.4 电介质与极化' },
+    { id:'ch2-5', t:'2.5 多导体系统的电容与串扰', ready:true, active:true },
+  ]},
+  { ch:'第 3 章 · 恒定磁场', items:[ {t:'3.1 比奥-萨伐尔定律'}, {t:'3.2 安培环路定理'} ]},
+  { ch:'第 4 章 · 时变电磁场', items:[ {t:'4.1 麦克斯韦方程组'}, {t:'4.2 均匀平面波'} ]},
+];
+
+/* ═══════════════════════════════ 物理内核 ═══════════════════════════════ */
+const EPS0 = 8.8541878128e-12;
+const epsf = (a, b) => 2 * a * b / (a + b);
+/* 计算域：板宽 12.4W 固定（周期侧边界），驱动线钉在 x∈[0,W]，受害线随 gap 右移。
+   网格与介电系数**不随 gap 变** ⇒ 可继承上一帧的解做初值。 */
+const PCB_GEO = { W: 1.0, h: 1.0, t: 0.175, er: 4.3, x0: -3.2, x1: 9.2, ytop: 5.0, nx: 280 };
+
+/* 互容 / 受害线对地电容的查找表（nx=400 收敛网格，周期侧边界，均匀介质简化）。
+   ★ 标定核对：gap=1W ⇒ Vv/Vdd=0.209 ⇒ 3.3V×0.209=0.69V（与课件图A 的 0.69V 一致）；
+     Cm=6.33 pF/m ⇒ 10cm 平行段 0.63 pF（逐字稿给 0.6 pF，量级一致）。 */
+const GAP_TAB=[0.2,0.25,0.3,0.35,0.4,0.45,0.5,0.55,0.6,0.65,0.7,0.75,0.8,0.85,0.9,0.95,1,1.05,1.1,1.15,1.2,1.25,1.3,1.35,1.4,1.45,1.5,1.55,1.6,1.65,1.7,1.75,1.8,1.85,1.9,1.95,2,2.05,2.1,2.15,2.2,2.25,2.3,2.35,2.4,2.45,2.5,2.55,2.6,2.65,2.7,2.75,2.8,2.85,2.9,2.95,3,3.05,3.1,3.15,3.2,3.25,3.3,3.35,3.4,3.45,3.5,3.55,3.6,3.65,3.7,3.75,3.8,3.85,3.9,3.95,4];
+const CMT=[2.147521,1.844754,1.727052,1.535664,1.45826,1.32135,1.210097,1.16132,1.074616,1.037455,0.965777,0.904062,0.877309,0.823887,0.777109,0.755402,0.714941,0.697316,0.660615,0.628,0.612637,0.583616,0.571,0.543869,0.519581,0.509051,0.486024,0.4765,0.455485,0.436601,0.428456,0.410238,0.393845,0.385975,0.370848,0.364359,0.349572,0.336251,0.329832,0.31745,0.312166,0.299939,0.288921,0.284235,0.273299,0.263444,0.258676,0.24944,0.245529,0.236299,0.227984,0.223953,0.216131,0.212831,0.204973,0.197894,0.194912,0.187781,0.184972,0.178236,0.172169,0.169619,0.163485,0.157959,0.155272,0.150043,0.147849,0.142547,0.137771,0.135446,0.130919,0.129022,0.124422,0.120277,0.118541,0.114324,0.110524];
+const CVT=[4.593057,4.313453,4.207531,4.039302,4.022066,3.858475,3.768682,3.730351,3.66402,3.685312,3.58439,3.5413,3.572023,3.487807,3.458038,3.444601,3.420254,3.458765,3.389033,3.371167,3.36298,3.347957,3.390395,3.328315,3.316883,3.360842,3.301812,3.346479,3.288876,3.281268,3.326855,3.271146,3.265176,3.262393,3.257212,3.303848,3.250292,3.24621,3.244305,3.240756,3.288116,3.23602,3.233247,3.280959,3.229545,3.227399,3.226403,3.22457,3.272751,3.222179,3.220837,3.220225,3.219127,3.267711,3.217768,3.217071,3.265896,3.216273,3.26525,3.2158,3.215659,3.264875,3.215687,3.215876,3.21602,3.216404,3.266044,3.217232,3.217956,3.218369,3.219302,3.269433,3.220972,3.222276,3.272769,3.224527,3.226239];
+const N_TAB = GAP_TAB.length;
+function tabAt(gp) {
+  if (gp <= GAP_TAB[0]) return { Cm: CMT[0], Cv: CVT[0] };
+  if (gp >= GAP_TAB[N_TAB - 1]) return { Cm: CMT[N_TAB - 1], Cv: CVT[N_TAB - 1] };
+  let i = 0; while (GAP_TAB[i + 1] < gp) i++;
+  const f = (gp - GAP_TAB[i]) / (GAP_TAB[i + 1] - GAP_TAB[i]);
+  return { Cm: CMT[i] + (CMT[i + 1] - CMT[i]) * f, Cv: CVT[i] + (CVT[i + 1] - CVT[i]) * f };
+}
+const CmUnit = gp => tabAt(gp).Cm * EPS0 * 1e12;              /* pF/m */
+const VvRatio = gp => { const t = tabAt(gp); return t.Cm / t.Cv; };
+const CddUnit = gp => { const t = tabAt(gp); return (t.Cv + t.Cm) * EPS0 * 1e12; };
+
+/* ---- 有限差分（red-black SOR，与 Python 原型逐位同源） ---- */
+function pcbGrid(o) {
+  o = o || {};
+  const W = o.W != null ? o.W : 1.0, h = o.h != null ? o.h : 1.0;
+  const t = o.t != null ? o.t : 0.175, er = o.er != null ? o.er : 4.3;
+  const x0 = o.x0 != null ? o.x0 : -3.2, x1 = o.x1 != null ? o.x1 : 9.2;
+  const ytop = o.ytop != null ? o.ytop : 5.0, nx = o.nx != null ? o.nx : 280;
+  const dx = (x1 - x0) / nx, ny = Math.round(ytop / dx), N = nx * ny;
+  const Xs = new Float64Array(nx), Ys = new Float64Array(ny);
+  for (let ix = 0; ix < nx; ix++) Xs[ix] = x0 + (ix + 0.5) * dx;
+  for (let iy = 0; iy < ny; iy++) Ys[iy] = (iy + 0.5) * dx;
+  const eps = new Float64Array(N);
+  for (let iy = 0; iy < ny; iy++) {
+    const air = Ys[iy] > h;
+    for (let ix = 0; ix < nx; ix++) eps[iy * nx + ix] = air ? 1.0 : er;
+  }
+  const ex = new Float64Array(N), exm = new Float64Array(N),
+        ey = new Float64Array(N), eym = new Float64Array(N), den = new Float64Array(N);
+  for (let iy = 0; iy < ny; iy++) for (let ix = 0; ix < nx; ix++) {
+    const i = iy * nx + ix, e = eps[i];
+    if (ix > 0) ex[i] = epsf(e, eps[i - 1]);
+    if (ix < nx - 1) exm[i] = epsf(eps[i + 1], e);
+    if (iy > 0) ey[i] = epsf(e, eps[i - nx]);
+    if (iy < ny - 1) eym[i] = epsf(eps[i + nx], e);
+    den[i] = ex[i] + exm[i] + ey[i] + eym[i];
+  }
+  const gnd = new Uint8Array(N);
+  for (let iy = 0; iy < ny; iy++) if (Ys[iy] <= t) {
+    const base = iy * nx;
+    for (let ix = 0; ix < nx; ix++) gnd[base + ix] = 1;
+  }
+  return { nx, ny, N, dx, x0, x1, ytop, Xs, Ys, eps, ex, exm, ey, eym, den, gnd, W, h, t, er };
+}
+function pcbMasks(g, gap) {
+  const nx = g.nx, ny = g.ny, W = g.W, h = g.h, t = g.t;
+  const drv = new Uint8Array(g.N), vic = new Uint8Array(g.N);
+  for (let iy = 0; iy < ny; iy++) {
+    const Y = g.Ys[iy];
+    if (!(Y >= h && Y <= h + t)) continue;
+    const base = iy * nx;
+    for (let ix = 0; ix < nx; ix++) {
+      const X = g.Xs[ix];
+      if (X >= 0 && X <= W) drv[base + ix] = 1;
+      if (X >= W + gap && X <= 2 * W + gap) vic[base + ix] = 1;
+    }
+  }
+  return { drv, vic };
+}
+function pcbSolveField(g, fixed, init, sweeps, omega, tol) {
+  sweeps = sweeps || 900; omega = omega || 1.9; tol = tol || 1e-4;
+  const nx = g.nx, ny = g.ny, N = g.N;
+  const V = (init && init.length === N) ? init : new Float64Array(N);
+  const free = new Uint8Array(N).fill(1);
+  for (let k = 0; k < fixed.length; k++) {
+    const m = fixed[k][0], val = fixed[k][1];
+    for (let i = 0; i < N; i++) if (m[i]) { V[i] = val; free[i] = 0; }
+  }
+  const ex = g.ex, exm = g.exm, ey = g.ey, eym = g.eym, den = g.den;
+  let s = 0;
+  for (s = 0; s < sweeps; s++) {
+    let dmax = 0;
+    for (let par = 0; par < 2; par++) {
+      for (let iy = 0; iy < ny; iy++) {
+        let ix = ((iy & 1) === par) ? 0 : 1;
+        for (; ix < nx; ix += 2) {
+          const i = iy * nx + ix;
+          if (!free[i] || den[i] <= 0) continue;
+          const ir = (ix < nx - 1) ? i + 1 : iy * nx;
+          const il = (ix > 0) ? i - 1 : iy * nx + nx - 1;
+          const idn = (iy < ny - 1) ? i + nx : ix;
+          const iup = (iy > 0) ? i - nx : (ny - 1) * nx + ix;
+          const nv = (ex[i] * V[ir] + exm[i] * V[il] + ey[i] * V[idn] + eym[i] * V[iup]) / den[i];
+          const diff = nv > V[i] ? nv - V[i] : V[i] - nv;
+          if (diff > dmax) dmax = diff;
+          V[i] += omega * (nv - V[i]);
+        }
+      }
+    }
+    if (dmax < tol) break;
+  }
+  return { V, sweeps: s + 1 };
+}
+function pcbCharge(V, g, mask) {
+  const nx = g.nx, ny = g.ny, eps = g.eps;
+  let Vc = 0;
+  for (let i = 0; i < g.N; i++) if (mask[i]) { Vc = V[i]; break; }
+  let tot = 0;
+  for (let iy = 0; iy < ny; iy++) for (let ix = 0; ix < nx; ix++) {
+    const i = iy * nx + ix;
+    if (!mask[i]) continue;
+    const e = eps[i];
+    if (ix < nx - 1 && !mask[i + 1]) tot += 0.5 * (e + eps[i + 1]) * (Vc - V[i + 1]);
+    if (ix > 0 && !mask[i - 1]) tot += 0.5 * (e + eps[i - 1]) * (Vc - V[i - 1]);
+    if (iy < ny - 1 && !mask[i + nx]) tot += 0.5 * (e + eps[i + nx]) * (Vc - V[i + nx]);
+    if (iy > 0 && !mask[i - nx]) tot += 0.5 * (e + eps[i - nx]) * (Vc - V[i - nx]);
+  }
+  return tot;
+}
+
+/* ---- 场：双线性插值取电位与 E ---- */
+function fieldAt(g, V, x, z) {
+  const fx = (x - g.x0) / g.dx - 0.5, fz = z / g.dx - 0.5;
+  const ix = Math.floor(fx), iz = Math.floor(fz);
+  if (ix < 0 || iz < 0 || ix >= g.nx - 1 || iz >= g.ny - 1) return null;
+  const tx = fx - ix, tz = fz - iz;
+  const i00 = iz * g.nx + ix, i10 = i00 + 1, i01 = i00 + g.nx, i11 = i01 + 1;
+  const v00 = V[i00], v10 = V[i10], v01 = V[i01], v11 = V[i11];
+  const v = (v00 * (1 - tx) + v10 * tx) * (1 - tz) + (v01 * (1 - tx) + v11 * tx) * tz;
+  const gx = ((v10 - v00) * (1 - tz) + (v11 - v01) * tz) / g.dx;
+  const gz = ((v01 - v00) * (1 - tx) + (v11 - v10) * tx) / g.dx;
+  return { v, ex: -gx, ez: -gz };
+}
+/* 从 (x,z) 逆着电位梯度（顺着 E）追一条电力线 */
+function traceFieldLine(g, V, x, z, maxSteps) {
+  const out = [];
+  const step = g.dx * 0.85;
+  let bad = 0;
+  for (let k = 0; k < (maxSteps || 420); k++) {
+    const e1 = fieldAt(g, V, x, z);
+    if (!e1) break;
+    let mx = e1.ex, mz = e1.ez;
+    let m = Math.hypot(mx, mz);
+    if (m < 1e-7) break;
+    mx /= m; mz /= m;
+    const xm = x + mx * step * 0.5, zm = z + mz * step * 0.5;
+    const e2 = fieldAt(g, V, xm, zm);
+    if (e2) {
+      let ax = e2.ex, az = e2.ez;
+      const m2 = Math.hypot(ax, az);
+      if (m2 > 1e-7) { mx = ax / m2; mz = az / m2; }
+    }
+    out.push(pt(x, 0, z));
+    x += mx * step; z += mz * step;
+    if (x < g.x0 || x > g.x1 || z < 0.02 || z > g.ytop - 0.05) break;
+  }
+  out.push(pt(x, 0, z));
+  return out;
+}
+/* marching squares：输出等值线段（世界坐标） */
+function isoLines(g, V, level) {
+  const nx = g.nx, ny = g.ny, segs = [];
+  V_LOOP:
+  for (let iz = 0; iz < ny - 1; iz++) {
+    const b0 = iz * nx;
+    for (let ix = 0; ix < nx - 1; ix++) {
+      const i = b0 + ix;
+      const v00 = V[i], v10 = V[i + 1], v01 = V[i + nx], v11 = V[i + nx + 1];
+      const mn = Math.min(v00, v10, v01, v11), mx = Math.max(v00, v10, v01, v11);
+      if (level < mn || level > mx) continue;
+      const x0 = g.Xs[ix], x1 = g.Xs[ix + 1], z0 = g.Ys[iz], z1 = g.Ys[iz + 1];
+      const ip = (a, b, xa, xb) => xa + (xb - xa) * ((level - a) / (b - a || 1e-12));
+      const pts = [];
+      if ((v00 - level) * (v10 - level) < 0) pts.push([ip(v00, v10, x0, x1), z0]);
+      if ((v10 - level) * (v11 - level) < 0) pts.push([x1, ip(v10, v11, z0, z1)]);
+      if ((v11 - level) * (v01 - level) < 0) pts.push([ip(v01, v11, x0, x1), z1]);
+      if ((v01 - level) * (v00 - level) < 0) pts.push([x0, ip(v00, v01, z0, z1)]);
+      if (pts.length >= 2) segs.push([pts[0][0], pts[0][1], pts[1][0], pts[1][1]]);
+      if (segs.length > 6000) break V_LOOP;
+    }
+  }
+  return segs;
+}
+
+
+/* ═════════════════════════════ 状态与派生量 ═════════════════════════════ */
+const state = {
+  mode: 'mutual',                 /* mutual | edge | rescue */
+  gap: 1.0,                       /* 两线间隙（单位 W） */
+  tr: 0.1,                        /* 边沿时间 ns */
+  L: 10,                          /* 平行长度 cm */
+  Vdd: 3.3, Z0: 50, limit: 0.350, /* V / Ω / 噪声容限 V */
+  show: { pot: true, field: true, net: true, scope: true },
+  cardTab: '1',
+  autoRotate: false,
+};
+
+/* 动态噪声：i = C_m·dV/dt，注入受害线后向两端分流入地，每端看到 Z₀/2
+   ⇒ V_noise = i·Z₀/2（逐字稿原话「注入电流兵分两路，每路各遇约 50Ω」） */
+function noiseOf() {
+  const Cmu = CmUnit(state.gap);                  /* pF/m */
+  const Cmt = Cmu * 1e-12 * (state.L / 100);      /* F */
+  const trs = state.tr * 1e-9;
+  const i = Cmt * state.Vdd / trs;                /* A */
+  const Vn = i * (state.Z0 / 2);                  /* V */
+  return { Cmu, Cmt, trs, i, Vn };
+}
+const vvNow = () => state.Vdd * VvRatio(state.gap);   /* 悬空受害线的静态电位 V */
+
+/* 确定性伪随机（纤维纹理、触点等，保证同一参数每次渲染一致） */
+const rnd = i => { const x = Math.sin(i * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); };
+
+/* ═════════════════════════ 写实的 PCB 横截面 ═════════════════════════ */
+const BH = PCB_GEO.h, BT = PCB_GEO.t;          /* 走线底面 1.0、铜厚 0.175（物理值，供 FD 用） */
+/* ⚠️ 渲染用的「视觉铜厚」比物理值大：真实 PCB 铜厚只有 0.175W，按真实比例画出来是一条
+   看不见的细线，学生读不出"铜走线"。教学图把厚度夸大是通行做法，尺寸线仍标注 t。 */
+const TV = 0.285;
+/* ⚠️ BX0 / BX1（介质板横向范围）由 setupCamera() 随取景一起算，见 app 段① */
+const MASK_A = 0.30;                            /* 阻焊层相对透明度 */
+
+function drawBoard() {
+  const ySubT = SY(BH), ySubB = SY(BT), yGndB = SY(0);
+  const xa = SX(BX0), xb = SX(BX1), wpx = xb - xa;
+  /* 回流平面（板底整层铜） */
+  P_(Z.gnd, () => {
+    const g = ctx.createLinearGradient(0, yGndB, 0, ySubB);
+    g.addColorStop(0, '#8B5320'); g.addColorStop(0.55, '#B87333'); g.addColorStop(1, '#DCA467');
+    ctx.fillStyle = g; ctx.fillRect(xa, ySubB, wpx, yGndB - ySubB);
+    ctx.strokeStyle = 'rgba(120,72,26,.85)'; ctx.lineWidth = 1;
+    ctx.strokeRect(xa + .5, ySubB + .5, wpx - 1, yGndB - ySubB - 1);
+  });
+  /* FR4 介质基板 */
+  P_(Z.sub, () => {
+    const g = ctx.createLinearGradient(0, ySubT, 0, ySubB);
+    g.addColorStop(0, '#E7EFD6'); g.addColorStop(0.42, '#D9E5C0');
+    g.addColorStop(1, '#C4D3A4');
+    ctx.fillStyle = g; ctx.fillRect(xa, ySubT, wpx, ySubB - ySubT);
+    ctx.save(); ctx.beginPath(); ctx.rect(xa, ySubT, wpx, ySubB - ySubT); ctx.clip();
+    /* 玻璃纤维纹理：两族斜向短纤维 */
+    for (let k = 0; k < 150; k++) {
+      const px = xa + rnd(k * 3 + 1) * wpx, py = ySubT + rnd(k * 3 + 2) * (ySubB - ySubT);
+      const a = (rnd(k * 3 + 3) - 0.5) * 0.5, len = 10 + rnd(k * 5 + 7) * 16;
+      ctx.beginPath(); ctx.moveTo(px, py);
+      ctx.lineTo(px + Math.cos(a) * len, py + Math.sin(a) * len);
+      ctx.strokeStyle = 'rgba(255,255,255,.5)'; ctx.lineWidth = 0.9; ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(px, py + 2);
+      ctx.lineTo(px + Math.cos(a) * len * 0.7, py + 2 + Math.sin(a) * len * 0.7);
+      ctx.strokeStyle = 'rgba(163,182,132,.35)'; ctx.stroke();
+    }
+    ctx.restore();
+    ctx.strokeStyle = 'rgba(150,170,120,.75)'; ctx.lineWidth = 1;
+    ctx.strokeRect(xa + .5, ySubT + .5, wpx - 1, ySubB - ySubT - 1);
+  });
+}
+/* 走线：蚀刻后是**梯形**截面（顶面略窄），加铜的金属渐变与顶面高光 */
+function drawTrace(x0, w, strong) {
+  const yB = SY(BH), yT = SY(BH + TV);
+  const bev = w * 0.075;
+  P_(Z.trace, () => {
+    const xa = SX(x0), xb = SX(x0 + w);
+    const g = ctx.createLinearGradient(0, yT, 0, yB);
+    g.addColorStop(0, '#EFC08A'); g.addColorStop(0.30, '#CE8F4A');
+    g.addColorStop(0.72, '#A86228'); g.addColorStop(1, '#7E4517');
+    ctx.beginPath();
+    ctx.moveTo(SX(x0 + bev), yT); ctx.lineTo(SX(x0 + w - bev), yT);
+    ctx.lineTo(xb, yB); ctx.lineTo(xa, yB); ctx.closePath();
+    ctx.fillStyle = g; ctx.fill();
+    ctx.strokeStyle = 'rgba(110,62,20,.9)'; ctx.lineWidth = strong ? 1.3 : 1; ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(SX(x0 + bev) + .5, yT + 1.3); ctx.lineTo(SX(x0 + w - bev) - .5, yT + 1.3);
+    ctx.strokeStyle = 'rgba(255,244,226,.9)'; ctx.lineWidth = 1.5; ctx.stroke();
+  });
+}
+/* 阻焊（绿油）：整板覆盖，随走线起伏 ⇒ 画成「基板顶面薄层 + 走线顶面薄层」 */
+function drawMask(gap) {
+  const mk = 0.034;
+  P_(Z.mask, () => {
+    ctx.fillStyle = 'rgba(46,139,87,' + MASK_A + ')';
+    ctx.fillRect(SX(BX0), SY(BH + mk), SX(BX1) - SX(BX0), SY(BH) - SY(BH + mk));
+    for (const a of [0, 1 + gap]) {
+      ctx.fillRect(SX(a), SY(BH + TV + mk), SX(a + 1) - SX(a), SY(BH + TV) - SY(BH + TV + mk));
+    }
+    ctx.strokeStyle = 'rgba(30,105,66,.5)'; ctx.lineWidth = 0.8;
+    ctx.beginPath();
+    ctx.moveTo(SX(BX0), SY(BH + mk)); ctx.lineTo(SX(BX1), SY(BH + mk));
+    ctx.stroke();
+  });
+}
+/* 尺寸标注（★ 距离一律 dimLine） */
+function drawDims(gap) {
+  const zo = 0.085;
+  dimLine(pt(0, 0, BH + TV + zo), pt(1, 0, BH + TV + zo),
+          { color: '#8C6A3F', w: 1.2, lsize: 11.5, label: 'W', ldy: -11, z: Z.net });
+  dimLine(pt(1, 0, BH + TV + zo), pt(1 + gap, 0, BH + TV + zo),
+          { color: C.crimson, w: 1.3, lsize: 11.5, label: gap.toFixed(2) + ' W',
+            ldy: -11, z: Z.net });
+  dimLine(pt(2 + gap + 0.20, 0, 0), pt(2 + gap + 0.20, 0, BH),
+          { color: '#8C6A3F', w: 1.2, lsize: 11.5, label: 'h', ldx: 14, ldy: 3, z: Z.net });
+  dimLine(pt(-0.34, 0, 0), pt(-0.34, 0, BT),
+          { color: '#8C6A3F', w: 1.2, lsize: 11, label: 't', ldx: -12, ldy: 9, z: Z.net });
+}
+
+/* ═════════════════════════ 场：电力线 + 等势线 ═════════════════════════ */
+function drawPotential(g, V) {
+  if (!state.show.pot) return;
+  const lv = [0.08, 0.16, 0.24, 0.34, 0.44, 0.54, 0.64, 0.74, 0.84, 0.92];
+  for (let k = 0; k < lv.length; k++) {
+    const segs = isoLines(g, V, lv[k]);
+    if (!segs.length) continue;
+    const t = k / (lv.length - 1);
+    const a = 0.30 + 0.24 * Math.sin(Math.PI * (0.2 + 0.6 * t));
+    P_(Z.pot + k * 0.01, () => {
+      ctx.save();
+      ctx.strokeStyle = 'rgba(' + Math.round(28 + 46 * t) + ',' + Math.round(124 + 32 * t)
+                      + ',' + Math.round(176 + 22 * t) + ',' + a.toFixed(3) + ')';
+      ctx.lineWidth = 1.15;
+      ctx.beginPath();
+      for (const s of segs) { ctx.moveTo(SX(s[0]), SY(s[1])); ctx.lineTo(SX(s[2]), SY(s[3])); }
+      ctx.stroke(); ctx.restore();
+    });
+  }
+}
+/* 追一条场线并判定终点落在哪个导体上 */
+function traceOne(g, V, sx, sz, gap) {
+  const pts = traceFieldLine(g, V, sx, sz, 420);
+  if (pts.length < 2) return { pts, kind: 'open' };
+  const e = pts[pts.length - 1];
+  let kind = 'open';
+  if (e.z <= BT + 0.06) kind = 'gnd';
+  else if (e.z < BH + 0.50) {
+    if (e.x >= 1 + gap - 0.12 && e.x <= 2 + gap + 0.12) kind = 'vic';
+    else if (e.x >= -0.12 && e.x <= 1.12) kind = 'drv';
+  }
+  return { pts, kind };
+}
+function drawField(g, V, gap) {
+  if (!state.show.field) return;
+  const off = g.dx * 0.62;
+  const seeds = [];
+  for (let k = 1; k <= 13; k++) seeds.push([k / 14, BH + TV + off]);       /* 顶面 */
+  for (let k = 1; k <= 5; k++) seeds.push([-off, BH + TV * (k / 6)]);      /* 左侧面 */
+  for (let k = 1; k <= 5; k++) seeds.push([1 + off, BH + TV * (k / 6)]);   /* 右侧面 */
+  for (let k = 1; k <= 5; k++) seeds.push([k / 6, BH - off]);             /* 底面朝着回流平面 */
+  const toVic = [], toGnd = [], other = [];
+  for (const s of seeds) {
+    const r = traceOne(g, V, s[0], s[1], gap);
+    if (r.pts.length < 5) continue;
+    (r.kind === 'vic' ? toVic : r.kind === 'gnd' ? toGnd : other).push(r.pts);
+  }
+  const stroke = (paths, col, w, alpha) => {
+    if (!paths.length) return;
+    P_(Z.field, () => {
+      ctx.save(); ctx.globalAlpha = alpha; ctx.strokeStyle = col; ctx.lineWidth = w;
+      ctx.lineCap = 'round'; ctx.beginPath();
+      for (const p of paths) {
+        ctx.moveTo(SX(p[0].x), SY(p[0].z));
+        for (let i = 1; i < p.length; i++) ctx.lineTo(SX(p[i].x), SY(p[i].z));
+      }
+      ctx.stroke(); ctx.restore();
+    });
+  };
+  stroke(other, '#C44232', 1.1, 0.38);
+  stroke(toGnd, '#C44232', 1.25, 0.60);
+  /* ★ 漏到受害线的那一簇场线 = 互容的直接证据：间隙拉大，它肉眼可见地变稀 */
+  stroke(toVic, '#7048C8', 1.95, 0.92);
+  const arrow = (paths, col, al) => {
+    for (const p of paths) {
+      const n = p.length; if (n < 12) continue;
+      const k = Math.max(5, Math.floor(n * 0.40));
+      const A = pr(p[k]), B = pr(p[k + 1]);
+      const L = Math.hypot(B.x - A.x, B.y - A.y);
+      if (L < 1.2) continue;
+      const ang = Math.atan2(B.y - A.y, B.x - A.x), hs = 7.0;
+      P_(Z.field + 0.02, () => {
+        ctx.save(); ctx.globalAlpha = al; ctx.beginPath(); ctx.moveTo(B.x, B.y);
+        ctx.lineTo(B.x - hs * Math.cos(ang - .42), B.y - hs * Math.sin(ang - .42));
+        ctx.lineTo(B.x - hs * Math.cos(ang + .42), B.y - hs * Math.sin(ang + .42));
+        ctx.closePath(); ctx.fillStyle = col; ctx.fill(); ctx.restore();
+      });
+    }
+  };
+  arrow(toGnd, '#C44232', 0.68);
+  arrow(toVic, '#7048C8', 0.95);
+  FAR.nToVic = toVic.length;
+}
+
+/* ═════════════════════════ 画布上的叠加小图 ═════════════════════════ */
+/* 电容网络（右下角） */
+function drawNet(gap) {
+  if (!state.show.net) return;
+  /* ⚠️ 三张叠加卡排成**底部一行**（左统计 / 中示波器 / 右网络）。顶部整块留给电力线，
+     否则取景一放大，右上角的示波器就会压住「受害线」走线标签。 */
+  const W2 = 212, H2 = 126, x0 = W - W2 - 14, y0 = H - H2 - 14;
+  P_(Z.ui, () => {
+    ctx.save();
+    ctx.fillStyle = 'rgba(255,255,255,.94)';
+    ctx.strokeStyle = '#DCE6EB'; ctx.lineWidth = 1;
+    roundRect(x0, y0, W2, H2, 9); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#22414F'; ctx.font = '600 11px "PingFang SC",sans-serif';
+    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+    ctx.fillText('等效电容网络', x0 + 11, y0 + 17);
+    const yA = y0 + 38, yB = y0 + 88;
+    const xD = x0 + 44, xV = x0 + 156;
+    /* 两条竖直支路 */
+    ctx.strokeStyle = '#8CA0AC'; ctx.lineWidth = 1.4;
+    for (const xx of [xD, xV]) {
+      ctx.beginPath(); ctx.moveTo(xx, yA + 6); ctx.lineTo(xx, yA + 22); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(xx, yA + 34); ctx.lineTo(xx, yB); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(xx - 11, yA + 22); ctx.lineTo(xx + 11, yA + 22); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(xx - 11, yA + 30); ctx.lineTo(xx + 11, yA + 30); ctx.stroke();
+    }
+    /* 互容支路 */
+    const yM = yA + 6;
+    ctx.beginPath(); ctx.moveTo(xD, yM); ctx.lineTo(xD + 20, yM); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(xV - 20, yM); ctx.lineTo(xV, yM); ctx.stroke();
+    ctx.strokeStyle = C.crimson; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo((xD + xV) / 2 - 9, yM - 8); ctx.lineTo((xD + xV) / 2 + 9, yM - 8); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo((xD + xV) / 2 - 9, yM + 8); ctx.lineTo((xD + xV) / 2 + 9, yM + 8); ctx.stroke();
+    ctx.strokeStyle = '#8CA0AC'; ctx.lineWidth = 1.4;
+    ctx.beginPath(); ctx.moveTo(xD + 20, yM); ctx.lineTo((xD + xV) / 2 - 9, yM); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo((xD + xV) / 2 + 9, yM); ctx.lineTo(xV - 20, yM); ctx.stroke();
+    /* 接地轨 */
+    const yG = y0 + 100;
+    ctx.beginPath(); ctx.moveTo(xD, yB); ctx.lineTo(xD, yG); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(xV, yB); ctx.lineTo(xV, yG); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(xD - 12, yG); ctx.lineTo(xV + 12, yG); ctx.stroke();
+    for (let k = 0; k < 3; k++) {
+      ctx.beginPath();
+      ctx.moveTo(xD + (xV - xD) / 2 - 9 + k * 9, yG);
+      ctx.lineTo(xD + (xV - xD) / 2 - 13 + k * 9, yG + 5); ctx.stroke();
+    }
+    /* 文字 */
+    ctx.font = '11px "PingFang SC",sans-serif';
+    ctx.fillStyle = C.teal; ctx.fillText('驱动线', xD - 17, y0 + 30);
+    ctx.fillStyle = C.blue; ctx.fillText('受害线', xV - 17, y0 + 30);
+    ctx.fillStyle = C.crimson; ctx.font = '600 11.5px "PingFang SC",sans-serif';
+    ctx.fillText('C_m', (xD + xV) / 2 - 11, yM - 13);
+    ctx.font = '11px "PingFang SC",sans-serif'; ctx.fillStyle = '#5F7482';
+    ctx.fillText('C₁', xD - 20, yA + 30); ctx.fillText('C₂', xV + 15, yA + 30);
+    ctx.fillStyle = '#7A8F9B'; ctx.font = '10.5px "PingFang SC",sans-serif';
+    /* ⚠️ 必须居中画在接地轨正下方：靠 xV+20 起画会顶出画布右边缘（实测 r=W+27，末几字被裁） */
+    ctx.textAlign = 'center';
+    ctx.fillText('回流平面 (GND)', (xD + xV) / 2, yG + 17);
+    ctx.restore();
+  });
+}
+/* 底部中间：时域波形（驱动沿 + 受害线噪声 + 噪声容限） */
+function drawScope() {
+  if (!state.show.scope) return;
+  const nz = noiseOf();
+  const W2 = 240, H2 = 126, x0 = Math.round((W - W2) / 2), y0 = H - H2 - 14;
+  const padL = 42, padR = 12, padT = 24, padB = 20;
+  const gx0 = x0 + padL, gx1 = x0 + W2 - padR, gy0 = y0 + padT, gy1 = y0 + H2 - padB;
+  const span = Math.max(1.6, state.tr * 12);           /* 显示的 ns 跨度 */
+  /* ⚠️ 纵轴必须"容得下容限线 + 噪声峰 + 读数标签"。老写法 vMax=min(Vdd*1.06, Vn*2.6)：
+     gap 一拉大 Vn 变小 ⇒ vMax 被压到 0.45 ⇒ 3.3 V 驱动沿被画到 ~600px 之外，
+     一条长竖线直接飞出卡片（颜色 #B9C9D2，实测抓到）。驱动沿改走独立归一化。 */
+  const vMax = Math.max(0.45, state.limit * 1.55, nz.Vn * 1.45);
+  const tx = t => gx0 + (t / span) * (gx1 - gx0);
+  const vy = v => gy1 - (v / vMax) * (gy1 - gy0);
+  const vyD = v => gy1 - (v / state.Vdd) * (gy1 - gy0 - 8);   /* 驱动沿：只讲边沿快慢 */
+  P_(Z.ui + 1, () => {
+    ctx.save();
+    ctx.fillStyle = 'rgba(255,255,255,.95)';
+    ctx.strokeStyle = '#DCE6EB'; ctx.lineWidth = 1;
+    roundRect(x0, y0, W2, H2, 9); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#22414F'; ctx.font = '600 11px "PingFang SC",sans-serif';
+    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+    ctx.fillText('受害线噪声 · 灰 = 驱动沿 3.3 V', x0 + 11, y0 + 16);
+    /* 网格 */
+    ctx.strokeStyle = '#EFF4F7'; ctx.lineWidth = 1;
+    for (let k = 0; k <= 4; k++) {
+      const yy = gy0 + (gy1 - gy0) * k / 4;
+      ctx.beginPath(); ctx.moveTo(gx0, yy); ctx.lineTo(gx1, yy); ctx.stroke();
+    }
+    /* 容限线 */
+    const yLim = vy(state.limit);
+    ctx.setLineDash([4, 3]); ctx.strokeStyle = C.crimson; ctx.lineWidth = 1.3;
+    ctx.beginPath(); ctx.moveTo(gx0, yLim); ctx.lineTo(gx1, yLim); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = C.crimson; ctx.font = '10px "PingFang SC",sans-serif';
+    ctx.textAlign = 'right';
+    ctx.fillText((state.limit * 1e3).toFixed(0) + ' mV', gx0 - 4, yLim + 3.4);
+    ctx.textAlign = 'left';
+    /* ★ 波形一律裁在绘图区内：任何越界都必须在框内被切掉，不能飞出去 */
+    ctx.save();
+    ctx.beginPath(); ctx.rect(gx0, gy0, gx1 - gx0, gy1 - gy0); ctx.clip();
+    /* 驱动沿（灰，独立归一化 ⇒ 永远画在框内） */
+    const t0 = span * 0.14, trs = state.tr;
+    ctx.strokeStyle = '#B9C9D2'; ctx.lineWidth = 1.6;
+    ctx.beginPath();
+    ctx.moveTo(gx0, vyD(0));
+    ctx.lineTo(tx(t0), vyD(0));
+    ctx.lineTo(tx(t0 + trs), vyD(state.Vdd));
+    ctx.lineTo(gx1, vyD(state.Vdd));
+    ctx.stroke();
+    /* 受害线噪声：耦合尖峰（上升随 t_r，随后指数衰减） */
+    const yN = vy(nz.Vn);
+    ctx.strokeStyle = C.blue; ctx.lineWidth = 2; ctx.beginPath();
+    ctx.moveTo(gx0, vy(0));
+    for (let k = 0; k <= 120; k++) {
+      const t = gx0 + (gx1 - gx0) * k / 120;
+      const tt = (t - gx0) / (gx1 - gx0) * span;
+      let v = 0;
+      if (tt > t0) {
+        const dt = tt - t0;
+        v = dt < trs ? nz.Vn * (dt / trs) : nz.Vn * Math.exp(-(dt - trs) / Math.max(span * 0.20, trs * 2.2));
+      }
+      ctx.lineTo(t, vy(v));
+    }
+    ctx.stroke();
+    ctx.fillStyle = C.blue; ctx.font = '600 11px "PingFang SC",sans-serif';
+    ctx.fillText((nz.Vn * 1e3).toFixed(0) + ' mV', tx(t0 + trs) + 5, yN - 4);
+    ctx.restore();
+    ctx.restore();
+  });
+}
+function roundRect(x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y); ctx.lineTo(x + w - r, y); ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+  ctx.lineTo(x + w, y + h - r); ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  ctx.lineTo(x + r, y + h); ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+  ctx.lineTo(x, y + r); ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
+}
+
+/* 左下角：耦合场线统计（与画布上那簇紫色曲线直接呼应） */
+function drawStats() {
+  if (W < 700) return;                    /* 画布太窄时让位给示波器与网络卡 */
+  const W2 = 190, H2 = 126, x0 = 14, y0 = H - H2 - 14;
+  P_(Z.ui + 1, () => {
+    ctx.save();
+    ctx.fillStyle = 'rgba(255,255,255,.95)';
+    ctx.strokeStyle = '#DCE6EB'; ctx.lineWidth = 1;
+    roundRect(x0, y0, W2, H2, 9); ctx.fill(); ctx.stroke();
+    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+    ctx.fillStyle = '#22414F'; ctx.font = '600 11px "PingFang SC",sans-serif';
+    ctx.fillText('漏到受害线的场线', x0 + 12, y0 + 19);
+    ctx.strokeStyle = '#7048C8'; ctx.lineWidth = 2.4; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(x0 + 13, y0 + 46); ctx.lineTo(x0 + 40, y0 + 46); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x0 + 33, y0 + 42); ctx.lineTo(x0 + 40, y0 + 46);
+    ctx.lineTo(x0 + 33, y0 + 50); ctx.stroke();
+    ctx.fillStyle = '#7048C8'; ctx.font = '700 16px Menlo,monospace';
+    ctx.fillText(String(FAR.nToVic), x0 + 48, y0 + 52);
+    ctx.fillStyle = '#7A8F9B'; ctx.font = '10.5px "PingFang SC",sans-serif';
+    ctx.fillText('间隙拉大 ⇒ 这一簇变稀', x0 + 12, y0 + 84);
+    ctx.fillStyle = '#9AAAB4'; ctx.font = '10.5px "PingFang SC",sans-serif';
+    ctx.fillText('紫色 = 漏到受害线的场', x0 + 12, y0 + 104);
+    ctx.restore();
+  });
+}
+
+/* ═════════════════════════════ 场景装配 ═════════════════════════════ */
+let FAR = { V: null, g: null, VA: null, VB: null, gap: -1, sweeps: 0, nToVic: 0 };
+
+function buildScene() {
+  prims = [];                                     /* ★ 首句必须清空 */
+  const gap = state.gap;
+  const g = FAR.g;
+  if (!g) return;
+
+  drawBoard();
+  if (g) {
+    /* 走线（铜）→ 阻焊 → 场 → 标注 */
+    drawTrace(0, 1, true);
+    drawTrace(1 + gap, 1, false);
+    if (state.show.mask !== false) drawMask(gap);
+    if (FAR.V) {
+      drawPotential(g, FAR.V);
+      drawField(g, FAR.V, gap);
+    }
+  }
+  /* 走线标签 */
+  text(pt(0.5, -2, BH + TV + 0.62), '驱动线', { color: C.crimson, size: 12, bold: true, align: 'center' });
+  text(pt(1.5 + gap, -2, BH + TV + 0.62), '受害线', { color: C.blue, size: 12, bold: true, align: 'center' });
+  drawDims(gap);
+
+  /* 受害线静电位（页签 ①/③ 的重点读数）：marker 落在走线顶面，读数抬到走线名之下 */
+  const vv = vvNow();
+  marker(pt(1.5 + gap, -3, BH + TV + 0.05), { color: C.blue, r: 4, z: Z.net });
+  text(pt(1.5 + gap, -3, BH + TV + 0.30), vv.toFixed(2) + ' V',
+       { color: C.blue, size: 13, bold: true, align: 'center', z: Z.net + 1 });
+
+  /* 介质界面注记（贴着左边写，避免被右边缘裁掉） */
+  text(pt(-VIEW.padL + 0.22, -2, BT + 0.26), '回流平面', { color: '#8B5320', size: 11, align: 'left', alpha: .95 });
+  text(pt(-VIEW.padL + 0.22, -2, (BT + BH) / 2), 'FR4  ε_r = 4.3', { color: '#7E8E5A', size: 11, align: 'left', alpha: .95 });
+
+  if (state.show.net) drawNet(gap);
+  if (state.show.scope) drawScope();
+  drawStats();
+}
+function drawOverlays() {
+  const pt2 = document.getElementById('panTag');
+  if (pt2) pt2.classList.toggle('show', Math.abs(cam.px) > 2 || Math.abs(cam.py) > 2);
+}
+
+
+/* ═════════════════════════════ 面板基础 ═════════════════════════════ */
+const panelEl = document.getElementById('panel');
+function h(html) { const d = document.createElement('div'); d.innerHTML = html; return d; }
+function kchip(k, v, cls) {
+  return '<span class="coord-chip ' + (cls || '') + '">' + richHTML(k) + '<b>' + v + '</b></span>';
+}
+function secEl(title) {
+  const s = h('<div class="panel-sec"><div class="sec-title">' + richHTML(title) + '</div></div>').firstChild;
+  panelEl.appendChild(s); return s;
+}
+function cardBody(html, cls) {
+  return '<div class="card-body' + (cls || '') + '"><div class="ex-body">' + richHTML(html) + '</div></div>';
+}
+/* 滑块：d = {label,min,max,step,val,fmt,set,wide} —— ★ label 与 fmt 结果都要过 richHTML */
+function mkRange(host, d) {
+  const row = h('<div class="slider-row' + (d.wide ? ' w' : '') + '">'
+    + '<label>' + richHTML(d.label) + '</label>'
+    + '<input type="range" min="' + d.min + '" max="' + d.max + '" step="' + d.step + '" value="' + d.val + '">'
+    + '<span class="val">' + richHTML(d.fmt(d.val)) + '</span></div>').firstChild;
+  const inp = row.querySelector('input'), vEl = row.querySelector('.val');
+  inp.oninput = () => { const v = parseFloat(inp.value); d.set(v); vEl.innerHTML = richHTML(d.fmt(v)); };
+  d.el = inp; d.valEl = vEl; d.isRange = true;
+  host.appendChild(row); return row;
+}
+function chipRow(host, items, onPick) {
+  const box = h('<div class="sub-chips"></div>').firstChild;
+  items.forEach(it => {
+    const c = h('<button class="chip ' + (it.cls || '') + '">' + richHTML(it.t) + '</button>').firstChild;
+    c.onclick = () => { onPick(it); box.querySelectorAll('.chip').forEach(x => x.classList.remove('on')); c.classList.add('on'); };
+    box.appendChild(c);
+  });
+  host.appendChild(box); return box;
+}
+const sliders = [];
+function addRange(host, d) { const r = mkRange(host, d); sliders.push(d); return r; }
+function syncSliders() {
+  for (const d of sliders) {
+    if (!d.el) continue;
+    const v = d.get();
+    if (Math.abs(parseFloat(d.el.value) - v) > 1e-9) d.el.value = v;
+    d.valEl.innerHTML = richHTML(d.fmt(v));
+  }
+}
+
+/* ═════════════════════════════ 页签内容 ═════════════════════════════ */
+const MT = [{ k: 'mutual', t: '① 看不见的元件' },
+            { k: 'edge',   t: '② 直流无害，边沿现形' },
+            { k: 'rescue', t: '③ 救活这块板' }];
+const CARDS = {
+  mutual: [
+    { t: 'PCB / 走线 / 回流平面', b: 'PCB 就是印制电路板，铜箔嵌在绝缘板里。走线是传信号的那条铜笔。回流平面是铺满整层的铜——电流从走线出去，最终都要回到电源负极，这块铜板是它们的「回程高速公路」。' },
+    { t: '边缘效应', b: '教科书里平行板电容公式旁边有一行小字：「忽略边缘效应」——假装场线全是笔直的平行线。<b>真实的场线到了边缘会向外「鼓」出去</b>，弯到板外的空间里。场线鼓出去，就意味着有电场漏到了你以为它不存在的地方。' },
+    { t: '互容 C_m', b: '两条本不相连的导体，因为各自截获了对方的电场，形成一个原理图上找不到、却真实存在的电容——工程上叫<b>互容</b>。大一电路里的电容是你主动画进图纸的元件；互容是没人邀请、自己跑来的。' },
+    { t: '3W 规则', b: 'W 指走线自身宽度。布线时让两条线的间隙至少拉到 3W，串扰能降到不伤大雅的水平。<b>它不是老师傅的戒律，它就是右边那幅场解的速记版。</b>' },
+  ],
+  edge: [
+    { t: '边沿时间 t_r', b: '方波电压从底部爬到顶部所花的时间（严格定义：10% 爬到 90%）。<b>边沿越陡，t_r 越小，「快」不是时钟频率高，是爬坡陡。</b>现代 FPGA、内存芯片的边沿只有 0.2 ns——光才跑 6 厘米，电压已经从 0 爬到 3.3 伏。' },
+    { t: '位移电流', b: '绝缘介质里没有电荷移动，但电场变化时效果上等价于有电流通过，麦克斯韦管它叫<b>位移电流</b> ∂D/∂t。这就是你背的 i = C·du/dt 的「场论出身」——电路课告诉你怎么算，电磁场课告诉你它为什么存在。' },
+    { t: '噪声容限 / 误码', b: '数字电路靠电压高低判断 0 和 1。容限就是判断的安全余量：<b>超过它，1 会被误判成 0，这就叫误码。</b>3.3 V 逻辑的容限约 350 mV。' },
+    { t: '为什么静态无害', b: '直流下受害线电位升上去就稳在那里，既不发热也不翻转逻辑电平。<b>真正干坏事的从来不是「高」，是「变化得快」。</b>' },
+  ],
+  rescue: [
+    { t: '三条活路的场论翻译', b: '拉间隙——受害线截获的漏场更少，互容随间隙按幂律下降；放缓边沿——电压爬坡变缓，du/dt 变小；削平行长度——截获面积变小。<b>三个旋钮，每个都是在操纵「场」。</b>' },
+    { t: '工程上还有两招', b: '<b>串联端接</b>：在芯片输出脚串一个几十欧姆的小电阻，把边沿磨缓——代价是信号变慢，所以叫「拿速度换安静」。<b>地屏蔽线</b>：在两条线之间多布一条接地的铜线，把漏过来的场线直接接走、引入大地——就是高中物理的静电屏蔽。' },
+  ],
+};
+
+function cardsHTML(key) {
+  const list = CARDS[key]; if (!list) return '';
+  const cls = ['c1', 'c2', 'c3', 'c4'];
+  const tabs = list.map((c, i) =>
+    '<button class="card-tab ' + cls[i % 4] + (String(i + 1) === state.cardTab ? ' on' : '') + '" data-i="' + i + '">' + richHTML(c.t) + '</button>').join('');
+  const cur = list[(parseInt(state.cardTab, 10) || 1) - 1] || list[0];
+  const idx = sliceIdx(list, cur);
+  return '<div class="card-tabs">' + tabs + '</div>'
+       + '<div class="card-body ' + cls[idx % 4] + '"><div class="ex-title">' + richHTML(cur.t) + '</div>'
+       + '<div class="ex-body">' + richHTML(cur.b) + '</div></div>';
+}
+const sliceIdx = (l, c) => { for (let i = 0; i < l.length; i++) if (l[i] === c) return i; return 0; };
+function bindCards() {
+  panelEl.querySelectorAll('.card-tab').forEach(b => {
+    b.onclick = () => { state.cardTab = String(parseInt(b.dataset.i, 10) + 1); renderPanel(); needsRender = true; };
+  });
+}
+
+/* ─────────── 页签 ①：互容（可控间隙） ─────────── */
+function panelMutual() {
+  const s = secEl('间隙 gap —— 拖它看受害线电位怎么变');
+  addRange(s, { label: 'gap', min: 0.2, max: 4.0, step: 0.05, val: state.gap,
+    fmt: v => v.toFixed(2) + ' W', get: () => state.gap,
+    set: v => { state.gap = v; invalidateField(); updateAll(); } });
+  const s2 = secEl('关键读数');
+  s2.appendChild(h('<div id="liveRead"></div>').firstChild);
+  const s3 = secEl('教学卡');
+  s3.appendChild(h('<div id="liveCards">' + cardsHTML('mutual') + '</div>').firstChild);
+  bindCards();
+}
+/* ─────────── 页签 ②：边沿 ─────────── */
+function panelEdge() {
+  const s = secEl('边沿时间 t_r —— 从 74 系列到现代芯片');
+  addRange(s, { label: 't_r', min: 0, max: 40, step: 0.5, val: sliderFromTr(state.tr),
+    fmt: k => trFromSlider(k) >= 1 ? trFromSlider(k).toFixed(2) + ' ns' : (trFromSlider(k) * 1e3).toFixed(0) + ' ps',
+    get: () => sliderFromTr(state.tr),
+    set: k => { state.tr = trFromSlider(k); updateAll(); } });
+  const s2 = secEl('关键读数');
+  s2.appendChild(h('<div id="liveRead"></div>').firstChild);
+  const s3 = secEl('教学卡');
+  s3.appendChild(h('<div id="liveCards">' + cardsHTML('edge') + '</div>').firstChild);
+  bindCards();
+}
+const TR_MIN = 0.05, TR_MAX = 5.0, TR_N = 40;
+const trFromSlider = k => TR_MIN * Math.pow(TR_MAX / TR_MIN, k / TR_N);
+const sliderFromTr = v => Math.round(TR_N * Math.log(v / TR_MIN) / Math.log(TR_MAX / TR_MIN));
+
+/* ─────────── 页签 ③：救活这块板 ─────────── */
+const TRAILS = [
+  { t: '间隙 → 3W', apply: () => { state.gap = 3.0; }, why: '受害线截获的漏场更少，互容下降' },
+  { t: '边沿 → 1 ns', apply: () => { state.tr = 1.0; }, why: '电压爬坡变缓，du/dt 变小' },
+  { t: '长度 → 5 cm', apply: () => { state.L = 5; }, why: '截获面积变小' },
+];
+function panelRescue() {
+  const s = secEl('三个旋钮 —— 谁来把它救活？');
+  addRange(s, { label: '间隙', wide: true, min: 0.2, max: 4.0, step: 0.05, val: state.gap,
+    fmt: v => v.toFixed(2) + ' W', get: () => state.gap,
+    set: v => { state.gap = v; invalidateField(); updateAll(); } });
+  addRange(s, { label: '边沿 t_r', wide: true, min: 0, max: 40, step: 0.5, val: sliderFromTr(state.tr),
+    fmt: k => trFromSlider(k) >= 1 ? trFromSlider(k).toFixed(2) + ' ns' : (trFromSlider(k) * 1e3).toFixed(0) + ' ps',
+    get: () => sliderFromTr(state.tr), set: k => { state.tr = trFromSlider(k); updateAll(); } });
+  addRange(s, { label: '平行长度', wide: true, min: 2, max: 20, step: 0.5, val: state.L,
+    fmt: v => v.toFixed(1) + ' cm', get: () => state.L, set: v => { state.L = v; updateAll(); } });
+
+  const s2 = secEl('一键试招（课件示意值 vs 本页严格场解）');
+  const box = h('<div class="sub-chips" style="margin-bottom:8px"></div>').firstChild;
+  TRAILS.forEach(tr => {
+    const b = h('<button class="chip c on">' + richHTML(tr.t) + '</button>').firstChild;
+    b.onclick = () => { tr.apply(); syncSliders(); invalidateField(); updateAll(); renderPanel(); toast(tr.t + '：' + tr.why); };
+    box.appendChild(b);
+  });
+  s2.appendChild(box);
+  s2.appendChild(h('<div id="liveRead"></div>').firstChild);
+  s2.appendChild(h('<div id="trailTable"></div>').firstChild);
+
+  const s3 = secEl('教学卡');
+  s3.appendChild(h('<div id="liveCards">' + cardsHTML('rescue') + '</div>').firstChild);
+  bindCards();
+}
+
+/* ═════════════════════════════ 读数与状态 ═════════════════════════════ */
+function vvRow() {
+  const vv = vvNow();
+  const ratio = VvRatio(state.gap);
+  return '<div class="kv"><span>受害线电位</span><b style="color:' + C.blue + '">' + vv.toFixed(3) + ' V</b></div>'
+       + '<div class="kv"><span>耦合比 C_m / C_v</span><b>' + ratio.toFixed(4) + '</b></div>'
+       + '<div class="kv"><span>互容 C_m</span><b>' + CmUnit(state.gap).toFixed(2) + ' pF/m</b></div>'
+       + '<div class="kv"><span>受害线对地电容 C_v</span><b>' + CddUnit(state.gap).toFixed(1) + ' pF/m</b></div>';
+}
+function noiseHTML() {
+  const nz = noiseOf();
+  const over = nz.Vn > state.limit;
+  const bad = over ? C.crimson : C.green;
+  return '<div class="kv"><span>总互容 C_m·L</span><b>' + (nz.Cmt * 1e12).toFixed(3) + ' pF</b></div>'
+       + '<div class="kv"><span>耦合电流 i = C·du/dt</span><b>' + (nz.i * 1e3).toFixed(2) + ' mA</b></div>'
+       + '<div class="kv"><span>受害线噪声 V = i·Z₀/2</span><b style="color:' + bad + '">' + (nz.Vn * 1e3).toFixed(0) + ' mV</b></div>'
+       + '<div class="kv"><span>噪声容限</span><b>' + (state.limit * 1e3).toFixed(0) + ' mV</b></div>'
+       + '<div class="verdict ' + (over ? 'bad' : 'ok') + '">'
+       + (over ? '⚠ 超容限 ' + ((nz.Vn - state.limit) * 1e3).toFixed(0) + ' mV —— 会误码'
+               : '✓ 低于容限 ' + ((state.limit - nz.Vn) * 1e3).toFixed(0) + ' mV —— 安全') + '</div>';
+}
+function trailTableHTML() {
+  const rows = [
+    ['间隙 → 3W', '67 mV', v => { const o = state.gap; state.gap = 3.0; const r = noiseOf().Vn; state.gap = o; return r; }],
+    ['边沿 → 1 ns', '50 mV', v => { const o = state.tr; state.tr = 1.0; const r = noiseOf().Vn; state.tr = o; return r; }],
+    ['长度 → 5 cm', '165 mV', v => { const o = state.L; state.L = 5; const r = noiseOf().Vn; state.L = o; return r; }],
+  ];
+  let s = '<table class="trail"><tr><th>活路</th><th>课件示意</th><th>本页（其余不变）</th></tr>';
+  for (const r of rows) s += '<tr><td>' + r[0] + '</td><td class="dim">' + r[1] + '</td><td class="me">' + (r[2]() * 1e3).toFixed(0) + ' mV</td></tr>';
+  s += '</table><div class="ex-note">课件给的是教学示意值。本页每一格都是同一套场解当场算出来的：<b>边沿那一路精确吻合（50 mV）</b>；间隙与长度两路的绝对值和课件略有出入，因为互容随间隙是幂律下降（≈ gap<sup>-1.2</sup>）而不是线性的。</div>';
+  return s;
+}
+function updateLivePanels() {
+  const lr = document.getElementById('liveRead');
+  if (lr) lr.innerHTML = state.mode === 'mutual' ? vvRow() : noiseHTML();
+  const tt = document.getElementById('trailTable');
+  if (tt) tt.innerHTML = trailTableHTML();
+}
+function updateReadout() {
+  const strip = document.getElementById('coordStrip');
+  if (!strip) return;
+  const nz = noiseOf();
+  const over = nz.Vn > state.limit;
+  const chips = [
+    kchip('间隙 gap', state.gap.toFixed(2) + ' W'),
+    kchip('互容 C_m', CmUnit(state.gap).toFixed(2) + ' pF/m'),
+    kchip('受害线电位', vvNow().toFixed(3) + ' V', 'acc'),
+    kchip('边沿 t_r', state.tr >= 1 ? state.tr.toFixed(2) + ' ns' : (state.tr * 1e3).toFixed(0) + ' ps'),
+    kchip('平行长度 L', state.L.toFixed(1) + ' cm'),
+    kchip('耦合电流', (nz.i * 1e3).toFixed(2) + ' mA'),
+    kchip('噪声电压', (nz.Vn * 1e3).toFixed(0) + ' mV', over ? 'warn' : 'acc'),
+    kchip('容限', (state.limit * 1e3).toFixed(0) + ' mV'),
+    kchip('状态', over ? '⚠ 超限' : '✓ 安全', over ? 'warn' : 'acc'),
+  ];
+  strip.innerHTML = chips.join('');
+}
+function updateModeTag() {
+  const el = document.getElementById('modeTag'); if (!el) return;
+  const nz = noiseOf();
+  let s;
+  if (state.mode === 'mutual') s = '受害线悬空 ⇒ 净电荷为零 ⇒ 电位被抬到 ' + vvNow().toFixed(2) + ' V';
+  else if (state.mode === 'edge') s = '边沿 ' + (state.tr >= 1 ? state.tr.toFixed(2) + ' ns' : (state.tr * 1e3).toFixed(0) + ' ps')
+    + ' ⇒ 噪声 ' + (nz.Vn * 1e3).toFixed(0) + ' mV（容限 ' + (state.limit * 1e3).toFixed(0) + ' mV）';
+  else s = (nz.Vn > state.limit ? '⚠ 噪声 ' + (nz.Vn * 1e3).toFixed(0) + ' mV 超容限 '
+                                : '✓ 噪声 ' + (nz.Vn * 1e3).toFixed(0) + ' mV 已降到容限下 ') + '· 动旋钮前先想清楚场的道理';
+  el.innerHTML = richHTML(s);
+  const lg = document.getElementById('lgTitle'), ln = document.getElementById('lgNote');
+  if (lg) lg.textContent = state.mode === 'mutual' ? '互容 C_m' : '耦合噪声';
+  if (ln) ln.innerHTML = richHTML(state.mode === 'mutual'
+    ? '受害线悬空 · 净电荷为零 · V_v/V_dd = C_m/C_v'
+    : 'i = C·du/dt · V_noise = i·Z₀/2 · 3.3 V 逻辑容限 ≈ 350 mV');
+}
+function toast(msg) {
+  const t = document.getElementById('toast'); if (!t) return;
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove('show'), 1800);
+}
+
+/* ═════════════════════════════ 场景/场解刷新 ═════════════════════════════ */
+let solveDirty = true;
+function invalidateField() { solveDirty = true; needsRender = true; }
+function solveFieldNow() {
+  const g = FAR.g; if (!g) return;
+  const gap = state.gap;
+  const m = pcbMasks(g, gap);
+  const A = pcbSolveField(g, [[m.drv, 1.0], [m.vic, 0.0], [g.gnd, 0.0]], FAR.VA, 900, 1.9, 1e-4);
+  FAR.VA = A.V; FAR.sweeps = A.sweeps;
+  const B = pcbSolveField(g, [[m.drv, 0.0], [m.vic, 1.0], [g.gnd, 0.0]], FAR.VB, 900, 1.9, 1e-4);
+  FAR.VB = B.V;
+  const vv = VvRatio(gap);
+  const V = new Float64Array(g.N);
+  for (let i = 0; i < g.N; i++) V[i] = FAR.VA[i] + vv * (FAR.VB[i] - FAR.VA[i]);
+  FAR.V = V; FAR.gap = gap;
+  needsRender = true;
+}
+
+/* ═════════════════════════════ 渲染循环 ═════════════════════════════ */
+let needsRender = true;
+function draw() {
+  setupCamera(); ctx.clearRect(0, 0, W, H);
+  buildScene();
+  prims.sort((a, b) => a.z - b.z);
+  for (const p of prims) p.draw(ctx);
+  drawOverlays();
+  needsRender = false;
+}
+function tick() {
+  try {
+    if (solveDirty) { solveDirty = false; solveFieldNow(); updateLivePanels(); updateReadout(); }
+    if (state.autoRotate) { cam.px += 0.35; needsRender = true; }
+    if (needsRender) draw();
+  } catch (err) { needsRender = false; console.error('draw/tick error:', err); }
+  requestAnimationFrame(tick);
+}
+function updateAll() { needsRender = true; syncSliders(); updateLivePanels(); updateReadout(); updateModeTag(); }
+
+/* ═════════════════════════════ 交互 ═════════════════════════════ */
+const canvasEl = document.getElementById('cv');
+ctx = canvasEl.getContext('2d');
+let drag = null;
+const localPos = ev => { const r = canvasEl.getBoundingClientRect(); return { x: ev.clientX - r.left, y: ev.clientY - r.top }; };
+canvasEl.addEventListener('pointerdown', ev => {
+  canvasEl.setPointerCapture(ev.pointerId);
+  const m = localPos(ev); drag = { x: m.x, y: m.y }; ev.preventDefault();
+});
+canvasEl.addEventListener('pointermove', ev => {
+  if (!drag) return;
+  const m = localPos(ev), dx = m.x - drag.x, dy = m.y - drag.y;
+  drag.x = m.x; drag.y = m.y;
+  cam.px += dx; cam.py += dy; needsRender = true;
+});
+canvasEl.addEventListener('pointerup', () => { drag = null; });
+canvasEl.addEventListener('pointercancel', () => { drag = null; });
+canvasEl.addEventListener('contextmenu', e => e.preventDefault());
+canvasEl.addEventListener('wheel', e => {
+  e.preventDefault();
+  cam.zoom = Math.max(0.5, Math.min(3.0, cam.zoom * (e.deltaY < 0 ? 1.08 : 1 / 1.08)));
+  needsRender = true;
+}, { passive: false });
+document.getElementById('btnReset').onclick = () => {
+  cam.zoom = 1; cam.px = 0; cam.py = 0; state.autoRotate = false; needsRender = true;
+};
+document.getElementById('btnRotate').onclick = e => {
+  state.autoRotate = !state.autoRotate; e.target.classList.toggle('on', state.autoRotate);
+};
+document.getElementById('btnPanReset').onclick = () => { cam.px = 0; cam.py = 0; needsRender = true; };
+function bindFold(bid, cls) {
+  document.getElementById(bid).onclick = () => {
+    document.body.classList.toggle(cls); setTimeout(resize, 60); setTimeout(resize, 260);
+  };
+}
+bindFold('foldNav', 'nav-off'); bindFold('foldPanel', 'panel-off');
+document.getElementById('tglNav').onclick = () => { document.body.classList.toggle('nav-off'); setTimeout(resize, 260); };
+document.getElementById('tglPanel').onclick = () => { document.body.classList.toggle('panel-off'); setTimeout(resize, 260); };
+window.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT') return;
+  if (e.key === '[') { document.body.classList.toggle('nav-off'); setTimeout(resize, 260); }
+  if (e.key === ']') { document.body.classList.toggle('panel-off'); setTimeout(resize, 260); }
+});
+const modeTabsEl = document.getElementById('modeTabs');
+MT.forEach(m => {
+  const b = document.createElement('button'); b.textContent = m.t; b.dataset.k = m.k;
+  b.onclick = () => {
+    state.mode = m.k; state.cardTab = '1';
+    state.show.scope = (m.k !== 'mutual');
+    syncModeTabs(); cam.px = 0; cam.py = 0; cam.zoom = 1;
+    renderPanel(); invalidateField(); updateAll();
+  };
+  modeTabsEl.appendChild(b);
+});
+function syncModeTabs() {
+  Array.from(modeTabsEl.children).forEach(b => b.classList.toggle('on', b.dataset.k === state.mode));
+}
+function resize() {
+  const r = canvasEl.getBoundingClientRect();
+  const nw = Math.max(60, Math.round(r.width)), nh = Math.max(60, Math.round(r.height));
+  DPR = Math.min(2, window.devicePixelRatio || 1);
+  if (nw === W && nh === H && canvasEl.width === Math.round(nw * DPR)) return;
+  W = nw; H = nh; canvasEl.width = Math.round(W * DPR); canvasEl.height = Math.round(H * DPR);
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0); needsRender = true;
+}
+new ResizeObserver(() => resize()).observe(canvasEl);
+
+/* ═════════════════════════════ 启动 ═════════════════════════════ */
+const navEl = document.getElementById('nav');
+NAV.forEach(gp => {
+  navEl.appendChild(h('<div class="nav-ch">' + gp.ch + '</div>'));
+  gp.items.forEach(it => {
+    const cls = 'nav-item' + (it.active ? ' active' : '') + (it.ready ? '' : ' soon');
+    navEl.appendChild(h('<a class="' + cls + '" ' + (it.href ? 'href="' + it.href + '"' : '') + '><span class="dot"></span>' + it.t + '</a>'));
+  });
+});
+
+function renderPanel() {
+  if (!panelEl) return;
+  sliders.length = 0;
+  panelEl.innerHTML = '';
+  if (state.mode === 'mutual') panelMutual();
+  else if (state.mode === 'edge') panelEdge();
+  else panelRescue();
+  updateLivePanels();
+  syncSliders();
+}
+FAR.g = pcbGrid(PCB_GEO);
+syncModeTabs();
+resize();
+renderPanel();
+solveFieldNow();
+updateAll();
+tick();
+
+</script>
+</body>
+</html>
