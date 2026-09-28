@@ -14,7 +14,7 @@ function walk(el,path){
 const sweep=md=>{ ['panel','coordStrip','legend','modeTag'].forEach(id=>{
     const e=document.getElementById(id); if(e) walk(e, md+'|'+id); }); };
 let nChip=0,nCard=0,nTab=0;
-for(const md of ['build','concl','shield']){
+for(const md of ['build','shield']){
   const tb=Array.from(document.querySelectorAll('#modeTabs button')).find(b=>b.dataset.k===md);
   if(!tb){ T('页签存在 '+md,false); continue; }
   nTab++; tb.click();
@@ -38,7 +38,7 @@ for(const md of ['build','concl','shield']){
   sweep(md);
 }
 walk(document.body,'body');
-T('扫查覆盖面', nTab===3&&nChip>=20&&nCard===10&&nText>300,
+T('扫查覆盖面', nTab===2&&nChip>=14&&nCard===6&&nText>300,
   'tabs='+nTab+' chips='+nChip+' cards='+nCard+' textNodes='+nText+' els='+nEl);
 T('无 @{ 字面泄漏', leak.length===0, 'n='+leak.length+(leak[0]?' 例:'+leak[0]:''));
 T('无 undefined 字面', undef.length===0, 'n='+undef.length+(undef[0]?' 例:'+undef[0]:''));
@@ -49,24 +49,24 @@ const mt=document.getElementById('moduleTitle').innerText,
 T('模块标题=2.2', mt.indexOf('静电场中的导体')>=0, mt);
 T('副标题随页签', sb.length>8, sb);
 T('页头=2.2', h1.indexOf('2.2')>=0, h1);
-/* 画布图例（lgTitle/lgNote）三个页签都要有 2.2 语义、且非空 */
+/* 画布图例（lgTitle/lgNote）两个页签都要有 2.2 语义、且非空 */
 let lgAll='', lgOk=true;
-for(const md of ['build','concl','shield']){
+for(const md of ['build','shield']){
   state.mode=md; renderPanel(); updateAll();
   const s=document.getElementById('lgTitle').innerText+document.getElementById('lgNote').innerText;
   if(s.length<12) lgOk=false;
   lgAll+=s;
 }
-T('三页签图例非空', lgOk&&lgAll.length>60, 'len='+lgAll.length);
+T('两页签图例非空', lgOk&&lgAll.length>40, 'len='+lgAll.length);
 T('图例含 2.2 关键词', /导体|静电|等位|屏蔽/.test(lgAll), lgAll.replace(/\n/g,' ').slice(0,70));
 /* 每个页签的读数条都非空、且含该页签的关键串 */
 let ok=true, inf=[];
-for(const md of ['build','concl','shield']){
+for(const md of ['build','shield']){
   state.mode=md; renderPanel(); updateAll();
   const s=document.getElementById('coordStrip').innerText;
   if(s.length<20){ ok=false; }
   inf.push(md+':'+s.length);
 }
-T('三页签读数条均非空', ok, inf.join(' '));
+T('两页签读数条均非空', ok, inf.join(' '));
 return R.join('\n')+'\nDONE';
 })();

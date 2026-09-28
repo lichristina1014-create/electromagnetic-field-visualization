@@ -56,13 +56,7 @@ for(let i=0;i<20;i++) for(let j=0;j<12;j++){
 }
 T('t=1 与严格解逐点相同', m1===0, 'maxΔ='+m1);
 T('t=0 球内 = 匀强场', m0===0, 'maxΔ='+m0);
-/* ⑨ 等位面求根 */
-let mxq=0;
-[0.85,1.45,2.05].forEach(c=>{ for(let j=1;j<20;j++){
-  const th=j/20*Math.PI/2, r=equiR(c/Math.cos(th));
-  mxq=Math.max(mxq,Math.abs((r-a*a*a/(r*r))-c/Math.cos(th))); }});
-T('等位面求根 u(r)=K', mxq<1e-9, 'maxΔ='+mxq.toExponential(2));
-/* ⑩ 场线：命中线终点恰在球面、掠过线两端都在 r=Zmax */
+/* ⑨ 场线：命中线终点恰在球面、掠过线两端都在 r=Zmax */
 const segs=dipolarLines();
 const Zmax=a*3.1;
 let bad=0, ends=0;
@@ -71,7 +65,7 @@ segs.forEach(s=>{ const r=vlen(s[s.length-1]);
 T('命中线终点恰在球面', bad===0&&ends===12, 'bad='+bad+' ends='+ends+' segs='+segs.length);
 const miss=segs.filter(s=>Math.abs(vlen(s[s.length-1])-Zmax)<1e-9);
 T('掠过线两端都在 r=Zmax', miss.length===2, 'miss='+miss.length);
-/* ⑪ 入射角 sinθ₀ = b/(√3a)：逐段量落点极角，与 b 的解析值配对 */
+/* ⑩ 入射角 sinθ₀ = b/(√3a)：逐段量落点极角，与 b 的解析值配对 */
 const hitB=[0,0.45,0.95,1.32,1.60,1.723].map(bm=>bm/Math.sqrt(3)).sort((x,y)=>x-y);
 const got=segs.map(s=>s[s.length-1]).filter(p=>Math.abs(vlen(p)-a)<1e-9&&p.z>0)
               .map(p=>Math.sin(Math.acos(Math.min(1,p.z/a)))).sort((x,y)=>x-y);
@@ -79,14 +73,14 @@ let mxa=0;
 if(got.length===hitB.length) hitB.forEach((v,i)=>{ mxa=Math.max(mxa,Math.abs(v-got[i])); });
 else mxa=9;
 T('入射角 sinθ₀=b/(√3a)', mxa<1e-9, 'maxΔ='+mxa.toExponential(2)+' n='+got.length);
-/* ⑫ ③ 空腔壳三段场 + 电位 */
+/* ⑪ ③ 空腔壳三段场 + 电位 */
 const qc=1.2;
 T('腔内 E = Q_KVq/r²', Math.abs(shellField(0.3,0.7,E0,qc).Er-Q_KV*qc/0.09)<1e-12);
 T('壳内 |E| ≡ 0', (()=>{const f=shellField(0.65,1.2,E0,qc);return f.Er===0&&f.Eth===0;})());
 T('壳外 = 免球场 + q 场',
   Math.abs(shellField(1.6,0.4,E0,qc).Er-(E0*(1+2*Math.pow(a/1.6,3))*Math.cos(0.4)+Q_KV*qc/2.56))<1e-12);
 T('壳（含内外表面）V ≡ 0', shellVolt(0.7,1.0,E0,qc)===0 && shellVolt(B_C,1.4,E0,qc)===0 && shellVolt(a,0.3,E0,qc)===0);
-/* ⑬ 内/外表面总量 = ∓q（外表面补 dθ 因子） */
+/* ⑫ 内/外表面总量 = ∓q（外表面补 dθ 因子） */
 T('内表面总量 = −q', Math.abs(sigIn(qc)*4*Math.PI*B_C*B_C/1000+qc)<1e-9);
 const N=4000; let so=0;
 for(let j=0;j<N;j++){ const th=(j+0.5)/N*Math.PI; so+=sigOut(th,E0,qc)*Math.sin(th); }

@@ -9,37 +9,66 @@ const R=[]; const T=(n,c,i)=>R.push((c?'PASS':'FAIL')+'|'+n+'|'+(i??''));
 const tabOf=k=>Array.from(document.querySelectorAll('#modeTabs button')).find(b=>b.dataset.k===k);
 const rangeIds=()=>Array.from(document.querySelectorAll('#panel input[type=range]')).map(e=>e.id).sort();
 
-/* ── ① 控件没了：三个页签分别点数滑块 ───────────────────────────── */
+/* ── ① 控件没了：两个页签分别点数滑块 ───────────────────────────── */
 const rep={};
-for(const k of ['build','concl','shield']){
+for(const k of ['build','shield']){
   const tb=tabOf(k); if(tb) tb.click();
   rep[k]=rangeIds();
 }
 T('① build 面板只剩 t 滑块（s_E0 已删）', rep.build.join(',')==='s_t',
   '得='+rep.build.join(',')+' 期望=s_t');
-T('② concl 面板是 r/θ 两个滑块', rep.concl.join(',')==='s_rp,s_thp', '得='+rep.concl.join(','));
 T('③ shield 面板只剩 q 滑块', rep.shield.join(',')==='s_qc', '得='+rep.shield.join(','));
 T('#s_E0 在文档里彻底不存在',
   document.getElementById('s_E0')===null && document.querySelectorAll('#s_E0').length===0);
+/* ★ 2026-09-28 追加：原来 ② 探针页的 r/θ 两个滑块也必须一起消失 */
+T('「② 静电平衡的四个结论」页签已删除（只剩 2 个页签、没有 k=concl）',
+  document.querySelectorAll('#modeTabs button').length===2 && tabOf('concl')===undefined,
+  '页签数='+document.querySelectorAll('#modeTabs button').length
+  +' k='+Array.from(document.querySelectorAll('#modeTabs button')).map(b=>b.dataset.k).join(','));
+T('r/θ 两个滑块（s_rp / s_thp）已从文档里消失',
+  document.getElementById('s_rp')===null && document.getElementById('s_thp')===null);
+T('面板里不再有「把 P 送到关键位置」/「沿半径扫」/「沿表面扫」',
+  !/把 P 送到关键位置|沿半径扫|沿表面扫|探针 P 的位置/.test(document.getElementById('panel').innerText));
 
 /* ── ①b 面板里不再有「外加匀强场」这一节标题 ─────────────────────── */
 let nTitle=0, hits=[];
-for(const k of ['build','concl','shield']){
+for(const k of ['build','shield']){
   const tb=tabOf(k); if(tb) tb.click();
   const ts=Array.from(document.querySelectorAll('#panel .sec-title'));
   nTitle+=ts.length;
   ts.forEach(t=>{ const s=t.innerText.trim(); if(/外加匀强场|外加场\s*E/.test(s)) hits.push(k+':'+s); });
 }
 T('面板已无「外加匀强场」标题（共扫到 '+nTitle+' 个 sec-title）',
-  nTitle>=3 && hits.length===0, 'nTitle='+nTitle+' 命中=['+hits.join(' | ')+']');
+  nTitle>=2 && hits.length===0, 'nTitle='+nTitle+' 命中=['+hits.join(' | ')+']');
 
 /* ── ② 死代码清干净 ───────────────────────────────────────────── */
 T('E0_RANGE 常量已删除', typeof E0_RANGE==='undefined', typeof E0_RANGE);
 T('SLIDER_FMT.E0 已删除', typeof SLIDER_FMT.E0==='undefined', String(SLIDER_FMT.E0));
-T('syncSliders() 不再引用 s_E0（不抛错即可）', (()=>{ try{ syncSliders(); return true; }
+/* ★ 2026-09-28：② 探针页删干净以后，这些符号也必须全部不存在。
+   ⚠️ 判据必须用**裸 `typeof 名字`**：`typeof` 对"不存在的标识符"返回 'undefined' 而**不抛错**，
+   而且它同时能看见 `const/let` 声明（全局词法环境）与 `function` 声明（window 属性）。
+   写成 `typeof window[name]` 就错了 —— `const` 声明**不会**挂到 window 上，
+   那样这条断言即使符号还活着也会通过（空转）。 */
+const gone=n=>{ try{ return eval('typeof '+n)==='undefined'; }catch(e){ return 'ERR:'+e.message; } };
+const G1=['probeInfo','probeNote','zoneWord','probeJac','overProbe','snapRp','clampRp','clampThp','probeP'];
+T('探针相关符号全部消失（'+G1.join('/')+'）', G1.every(gone), G1.map(n=>n+'='+gone(n)).join(' '));
+const G2=['RP_RANGE','TH_LIM','SWEEP_SPEED','P_HIT'];
+T('② 独占常量全部消失（'+G2.join('/')+'）', G2.every(gone), G2.map(n=>n+'='+gone(n)).join(' '));
+const G3=['sceneConcl','drawEqui','drawProbe','chartVz','equiCurve','equiR','fieldAt','evec'];
+T('② 独占的绘制/曲线全部消失（'+G3.join('/')+'）', G3.every(gone), G3.map(n=>n+'='+gone(n)).join(' '));
+/* ⚠️ 反向对照：**不能**把该留的也删了 —— volt / fieldE / fieldT / eLen 是解析解本体与 t1a 的闸门 */
+const K=['volt','fieldE','fieldT','eLen','sigma','drawInner','drawSurfaceCharge'];
+T('解析解本体仍在（'+K.join('/')+'）', K.every(n=>!gone(n)), K.map(n=>n+'='+gone(n)).join(' '));
+T('state 里 rp / thp / sweep 三个字段也不存在了',
+  state.rp===undefined && state.thp===undefined && state.sweep===undefined,
+  'rp='+state.rp+' thp='+state.thp+' sweep='+state.sweep);
+T('state.show 里 equi / dec / vz 三个开关也不存在了',
+  state.show.equi===undefined && state.show.dec===undefined && state.show.vz===undefined,
+  Object.keys(state.show).join(','));
+T('syncSliders() 不再引用 s_E0 / probeNote（不抛错即可）', (()=>{ try{ syncSliders(); return true; }
   catch(e){ return 'ERR:'+e.message; } })()===true);
-T('三个页签 renderPanel() 都不抛错', (()=>{
-  try{ for(const k of ['build','concl','shield']){ const tb=tabOf(k); if(tb) tb.click(); renderPanel(); }
+T('两个页签 renderPanel() 都不抛错', (()=>{
+  try{ for(const k of ['build','shield']){ const tb=tabOf(k); if(tb) tb.click(); renderPanel(); }
        return true; } catch(e){ return 'ERR:'+e.message; } })()===true);
 
 /* ── ②b 讲解卡里不再有"去拖那个滑块"的死指引 ──────────────────── */
@@ -69,8 +98,6 @@ T('① 读数条仍报「外加场 E₀ = 10.0 kV/m」',
   /E₀/.test(stripB) && /10\.0\s*kV\/m/.test(stripB), 'strip='+stripB.slice(0,140));
 { const tb=tabOf('shield'); if(tb) tb.click(); }
 state.mode='shield'; renderPanel(); updateAll();
-/* ⚠️ ② concl（探针页）的读数条**本来就不报 E₀**（它聚焦在 P 的 r/θ 与 E 的分解上），
-   所以只能拿 ① 与 ③ 来验"外场值仍在读数里"。别把"这个页签本来就没有"当成回归。 */
 const fullS=document.getElementById('coordStrip').innerText.replace(/\n/g,' ');
 T('③ 读数条仍报外场值', /10\.0\s*kV\/m/.test(fullS), 'strip='+fullS.slice(0,140));
 
@@ -93,7 +120,7 @@ T('|E|=E₀ 的典型场点箭头长度合理（0.40~0.55 m）', (()=>{
 
 /* ── ④ 状态还原 ────────────────────────────────────────────── */
 { const tb=tabOf('build'); if(tb) tb.click(); }
-state.mode='build'; stopAnim(); state.g=1; state.t=1; state.rp=1.15; state.thp=55; state.qc=0;
+state.mode='build'; stopAnim(); state.g=1; state.t=1; state.qc=0;
 renderPanel(); updateAll();
 T('状态已还原到默认', state.g===1&&state.t===1&&state.E0===10);
 return R.join('\n')+'\nDONE';

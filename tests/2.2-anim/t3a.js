@@ -14,7 +14,7 @@ const NW='#5e93ae', OR='#e97132';          /* 外场分量 / 感应场 */
 
 function run(g,t){
   stopAnim(); state.g=g; state.t=t;
-  state.show.box=false; state.show.flow=false; state.show.equi=false;
+  state.show.box=false; state.show.flow=false;
   prims=[]; buildScene();
 }
 const inn=()=>A.filter(x=>isC(x.o,NW)||isC(x.o,OR));

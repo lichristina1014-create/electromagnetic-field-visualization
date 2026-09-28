@@ -1,3 +1,4 @@
 .DS_Store
 deploy-to-github.sh
 tests/2.5-pcb/bundle.js
+tests/2.2-anim/out/

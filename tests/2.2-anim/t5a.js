@@ -95,13 +95,7 @@ T('③ 换机位后依然零缩短', Math.abs(r2-1)<1e-9, 'ratio='+r2.toFixed(12
 T('③ 换机位后箭头条数不减（≥ 默认机位的 90%）', B0.fl.length>=nArrowExp(1)*0.9,
   B0.fl.length+'/'+nArrowExp(1)+'（el 变了会改变剪影的切法，条数允许小幅变化）');
 
-/* ── ④ 三个页签共用同一套规则 ───────────────────────────────── */
-state.mode='concl'; state.show.equi=true; state.show.chg=false; state.show.vz=false;
-prims=[]; CU=[]; buildScene();
-const EQ=CU.filter(c=>isC(c.o,'#8fb3c6'));
-T('② 等位面剖面也只在同一个平面里',
-  EQ.length>0&&inPlane(azs([].concat(...EQ.map(c=>c.pts))),PHc()),
-  'n='+EQ.length+' az='+JSON.stringify(azs([].concat(...EQ.map(c=>c.pts)))));
+/* ── ④ 两个页签共用同一套规则（原 ② 探针页已删，等位面那条断言随之删除） ── */
 tabOf('shield').click();
 state.mode='shield'; state.qc=1; state.show.chg=false;
 prims=[]; CU=[]; AR=[]; buildScene();
@@ -117,11 +111,11 @@ tabOf('build').click(); state.mode='build'; renderPanel();
 T('面板里有"只画正对镜头的那一个剖面"的提示（用户才知道线为什么跟着转）',
   /正对镜头的那一个剖面/.test(document.getElementById('panel').innerText));
 const bad=[];
-for(const m of ['build','concl','shield']){
+for(const m of ['build','shield']){
   tabOf(m).click();
-  for(const ck of ['1','2','3','4']){ state.cardTab=ck; renderPanel();
+  for(const ck of ['1','2','3']){ state.cardTab=ck; renderPanel();
     if(document.getElementById('panel').innerText.includes('**')&&!bad.includes(m+'#'+ck)) bad.push(m+'#'+ck); } }
-T('三个页签的面板文案里没有字面 ** （richHTML 不认它，会原样显示星号）',
+T('两个页签的面板文案里没有字面 ** （richHTML 不认它，会原样显示星号）',
   bad.length===0, bad.join(',')||'干净');
 window.curve=oc; window.arrow=oa;
 return R.join('\n')+'\nDONE';

@@ -38,7 +38,7 @@ const NAV = [
        2026-09-28 加 2.5 时是先改产物 HTML、事后才补回源的 ——
        补之前那次 build.py 会把这条导航**静默抹掉**。改导航务必两头同时改。 */
     { id:'ch2-5', t:'2.5 多导体系统的电容与串扰', ready:true,
-      href:'2.5-multi-conductor-crosstalk.html?v=20260928r16' },
+      href:'2.5-multi-conductor-crosstalk.html?v=20260928r17' },
   ]},
   { ch:'第 3 章 · 恒定磁场', items:[ {t:'3.1 比奥-萨伐尔定律'}, {t:'3.2 安培环路定理'} ]},
   { ch:'第 4 章 · 时变电磁场', items:[ {t:'4.1 麦克斯韦方程组'}, {t:'4.2 均匀平面波'} ]},
@@ -94,27 +94,21 @@ const B_CRIT = A_C*Math.sqrt(3);        /* 兼容：静电平衡下的临界值 
    它是个"空转控件"。⇒ 凡"拖动后画面不变"的参数不该做成滑块（见 ref-22）。
    E₀ 本身仍是真实物理量，留在 state 里（=10）；
    而"外场从无到有"这个**真正有画面变化**的过程由 ▶ 播放全过程的 g 驱动。 */
-const RP_RANGE=[0.32,1.90];              /* 探针半径 m */
-const QC_RANGE=[-2,2];                   /* 腔内电荷 µC */
-const TH_LIM=[2,178];                    /* 探针极角的可用范围（避开极点退化） */
+const QC_RANGE=[-2,2];                   /* 腔内电荷 µC（③ 静电屏蔽） */
 
 /* ============================== 状态 ============================== */
 const state = {
-  mode:'build',            /* build | concl | shield */
+  mode:'build',            /* build | shield（原 'concl' 页签已删，见 new_c.js 的 MT） */
   E0:10,                   /* 外场 E₀ (kV/m)：**固定值，UI 不再可调**（滑块已删，见上） */
   t:1,                     /* ① 自由电荷的迁移进度 0→1 */
   g:1,                     /* ① 外加场的建立度 0→1（1 = 已建立；播放的"阶段②"期间被驱动） */
   anim:null,               /* ① 全过程播放：null | {u:0→1, playing:bool} */
-  rp:1.15,                 /* ② 探针半径 r (m) */
-  thp:55,                  /* ② 探针极角 θ (°) */
   qc:0,                    /* ③ 腔内电荷 (µC) */
-  sweep:null,              /* ② 自动扫掠：'rad' | 'surf' */
-  show:{box:true, lines:true, chg:true, inner:true, flow:true, equi:true, dec:true, vz:true},
+  show:{box:true, lines:true, chg:true, inner:true, flow:true},
   showReadout:true,
   autoRotate:false,
   cardTab:'1',
 };
-const SWEEP_SPEED={rad:0.55, surf:34};   /* rad: m/s   surf: °/s */
 
 /* ══════════ ① 的「全过程播放」时间轴 ══════════
    用户要的叙事：**一开始没有电场 → 加上外加场 → 导体里的自由电荷迁移 → 静电平衡**。
@@ -174,6 +168,12 @@ const eTh =(th,ph)=>pt(Math.cos(th)*Math.cos(ph), Math.cos(th)*Math.sin(ph), -Ma
 const clamp1=v=>Math.max(-1,Math.min(1,v));
 
 /* ============================== 解析场 ============================== */
+/* ⚠️ 下面 fieldE / fieldT / volt 在**生产代码里已不再被调用**（2026-09-28 删掉「② 静电平衡的
+   四个结论」探针页签后，它们唯一的调用者就是那个探针的读数组件）。**保留**的理由有两条：
+     ① 它们是本页的**解析解本体**，就是页首那段公式（V、E_r、E_θ、σ）的可执行版本；
+     ② 自检 t1a 用它们做**物理交叉验证**（远场回归 E₀、赤道表面 |E|≈0、σ ≡ ε₀E_r|表面、
+        V(a,θ) ≡ 0、t=1 与严格解逐点相等…）—— 删了它就等于拆掉这一页唯一的"数学正确性闸门"。
+   同理 sigma() 仍是 ① 的绘制入口，不能删。 */
 /* 严格解（r ≥ a 用外解、r < a 严格为 0）；θ 自 +z 起算。返回 {Er,Eth}，单位 kV/m。
    ⚠️ 边界必须是**严格小于**：r = a（导体表面）属于"外部解"，那里 E_n = 3E₀cosθ、E_θ = 0。
       写成 r ≤ a 会把表面误判成内部而返回 0 —— 那样"表面场垂直且等于 σ/ε₀"这条结论
@@ -191,11 +191,6 @@ function fieldT(r,th,E0,t){
   if(r<A_C) return {Er:E0*(1-t)*Math.cos(th), Eth:-E0*(1-t)*Math.sin(th)};
   const k=A_C*A_C*A_C/(r*r*r);
   return {Er:E0*(1+2*t*k)*Math.cos(th), Eth:-E0*(1-t*k)*Math.sin(th)};
-}
-const fieldAt=(r,th,E0,t)=>(t==null?fieldE(r,th,E0):fieldT(r,th,E0,t));
-function evec(r,th,ph,E0,t){
-  const f=fieldAt(r,th,E0,t);
-  return vadd(vmul(eR(th,ph),f.Er), vmul(eTh(th,ph),f.Eth));
 }
 /* 电位 kV。r ≤ a 恒为 0 ⇒ 导体是等位体（参考点取在导体上）。 */
 function volt(r,th,E0){ return r<=A_C ? 0 : -E0*(r - A_C*A_C*A_C/(r*r))*Math.cos(th); }
@@ -218,7 +213,7 @@ function shellVolt(r,th,E0,qc){
 const sigIn =(qc)=>-qc*1000/(4*Math.PI*B_C*B_C);
 const sigOut=(th,E0,qc)=>SIG_K*E0*Math.cos(th) + qc*1000/(4*Math.PI*A_C*A_C);
 
-/* ═══════════ ①② 的场线：解析流函数 ψ = E₀ sin²θ (r²/2 + t·a³/r) 的等值线 ═══════════
+/* ═══════════ ① 的场线：解析流函数 ψ = E₀ sin²θ (r²/2 + t·a³/r) 的等值线 ═══════════
    ★★ 关键发现（整个"播放动画"就靠这一条）：**插值场也有精确流函数**。
      fieldT 给出的外场（r ≥ a）是  E_r = E₀(1+2t·a³/r³)cosθ、E_θ = −E₀(1−t·a³/r³)sinθ，
      把 a³/r³ 换成 k 后直接验证：
@@ -349,39 +344,6 @@ function shellLines(E0,qc){
 /* 把 xz 平面内的折线绕 z 轴旋到 φ，得到一条子午线 */
 const rotZ=(p,ph)=>pt(p.x*Math.cos(ph), p.x*Math.sin(ph), p.z);
 
-/* ═══════════════ 等位面：V = V₀ 的曲面（xz 剖面内是一条"帽形"曲线） ═══════════════
-   V = −E₀·cosθ·u(r)，u(r) = r − a³/r²（u 在 r>a 上严格递增，u(a)=0）
-   ⇒ 给定 |V₀| 与 θ：u = |V₀|/(E₀|cosθ|) ⇒ 解 u(r)=K，牛顿迭代几轮即可。
-   注意 V 的符号 = −sign(cosθ)：上半空间 V<0、下半空间 V>0 ⇒ 每个等位面只存在于一"半"。
-   θ→90° 时 cosθ→0 ⇒ u→∞ ⇒ 等位面延伸向无穷远（这就是"远处又还原成水平面"）。 */
-function equiR(K){
-  let r=A_C+K;                                   /* r³−Kr²−a³=0，r=a 处为负、+∞ 处为正 ⇒ 唯一正根 */
-  for(let i=0;i<26;i++){
-    const g=r*r*r-K*r*r-A_C*A_C*A_C, gp=3*r*r-2*K*r;
-    if(Math.abs(gp)<1e-12) break;
-    const nr=r-g/gp;
-    if(!isFinite(nr)||nr<=0) break;
-    if(Math.abs(nr-r)<1e-12){ r=nr; break; }
-    r=nr;
-  }
-  return r;
-}
-/* 返回半条等位面（θ 从 0 或 180 起、到能画得下的最大角为止）的剖面折线 */
-function equiCurve(sign,E0,fac,Rmax){
-  const V0=E0*fac;                               /* |V₀| = E₀·fac，fac 单位 m ⇒ 形状与 E₀ 无关 */
-  const umax=Rmax - A_C*A_C*A_C/(Rmax*Rmax);
-  const cmin=Math.min(1, V0/(E0*umax));          /* cosθ 的下限 */
-  const thEnd=Math.acos(Math.max(0.02,cmin));
-  const N=34, out=[];
-  for(let i=0;i<=N;i++){
-    const th=thEnd*i/N;
-    const r=equiR(V0/(E0*Math.max(0.02,Math.cos(th))));
-    const tc=sign>0 ? th : Math.PI-th;           /* 上半空间取 θ，下半空间取 180°−θ */
-    out.push(sphPt(Math.min(r,Rmax),tc,0));
-  }
-  return out;
-}
-
 /* ══════════════════ 电荷符号的字号 / 加粗（两处共用） ══════════════════
    ★★ 2026-09-28：用户反馈"正电荷的加号看不清"。实测根因**不是**字号给得太小，而是
       **PingFang 的 '+' 字形远小于字号**，而且笔画极细（下面都是把字形真画到离屏画布上量像素）：
@@ -476,7 +438,7 @@ function drawSurfaceCharge(rr,sigFn,o){
   const SEPS=Math.max(25, (o.sep||25));
   const placed = o.share || [];
   const w = o.avoidS || [];
-  const gap = o.probeGap || 34;
+  const gap = o.labelGap || 34;                 /* 与 o.avoidS 里那些"注记锚点"的最小屏幕间距 */
   const rj = o.avoidRect;                       /* 屏幕矩形 [x,y,w,h]：卡片区域整体不布点 */
   for(let i=0;i<NU;i++){
     const th=ths[i], s=sigFn(th), mag=mags[i]/mx;
@@ -644,62 +606,3 @@ function crd(x,y,w,h){
   ctx.restore();
 }
 const CARD_W=248, CARD_X=()=>W-CARD_W-16, CARD_Y=62;
-
-/* ════════════ 小卡：电位沿 z 轴的剖面 —— "导体内部是一条水平线" ════════════
-   这是"导体是等位体"最直接的证据：|z| < a 的一段严格平（V=0），出球面才弯。 */
-function chartVz(){
-  const x0=CARD_X(), y0=CARD_Y, w=CARD_W, h=150;
-  crd(x0,y0,w,h);
-  txt(x0+12,y0+15,'电位沿 z 轴的剖面　V(z)',{size:11.5,bold:true,color:'#1F3D4C'});
-  const px0=x0+40, py0=y0+32, pw=w-56, ph=h-66;
-  const E0=state.E0;
-  const ZR=A_C*2.2;
-  const Vmax=E0*(ZR-A_C*A_C*A_C/(ZR*ZR));        /* z=+ZR 处的 |V| 作为纵轴满量程 */
-  const fx=z=>px0+pw*(z+ZR)/(2*ZR);
-  const fy=v=>py0+ph*0.5-ph*0.45*(v/Vmax);
-  /* 轴 */
-  ctx.save(); ctx.strokeStyle='#EEF3F6'; ctx.lineWidth=1;
-  [0.5,-0.5].forEach(k=>{const y=fy(k*Vmax); ctx.beginPath(); ctx.moveTo(px0,y); ctx.lineTo(px0+pw,y); ctx.stroke();});
-  ctx.strokeStyle='#DCE6EB'; ctx.beginPath(); ctx.moveTo(px0,fy(0)); ctx.lineTo(px0+pw,fy(0)); ctx.stroke();
-  ctx.restore();
-  /* 导体那一段：粗绿线，标「等位」 */
-  const xL=fx(-A_C), xR=fx(A_C), y0v=fy(0);
-  ctx.save(); ctx.strokeStyle=C.green; ctx.lineWidth=3.4; ctx.lineCap='round';
-  ctx.beginPath(); ctx.moveTo(xL,y0v); ctx.lineTo(xR,y0v); ctx.stroke(); ctx.restore();
-  ctx.save(); ctx.fillStyle='rgba(62,155,79,.10)';
-  ctx.fillRect(xL,py0,xR-xL,ph); ctx.restore();
-  /* V(z) 两条曲线：z>0 用 θ=0（V=−E₀u）、z<0 用 θ=180°（V=+E₀u） */
-  ctx.save(); ctx.strokeStyle=C.blue; ctx.lineWidth=2.2; ctx.beginPath();
-  let first=true;
-  for(let i=0;i<=80;i++){
-    const z=ZR*i/80, v=-E0*(z-A_C*A_C*A_C/(z*z||1e-9));
-    const X=fx(Math.max(z,A_C)), Y=fy(z<=A_C?0:v);
-    if(first){ctx.moveTo(X,Y);first=false;} else ctx.lineTo(X,Y);
-  }
-  ctx.stroke();
-  ctx.beginPath(); first=true;
-  for(let i=0;i<=80;i++){
-    const z=-ZR*i/80, az=Math.abs(z), v=E0*(az-A_C*A_C*A_C/(az*az||1e-9));
-    const X=fx(Math.min(z,-A_C)), Y=fy(z>=-A_C?0:v);
-    if(first){ctx.moveTo(X,Y);first=false;} else ctx.lineTo(X,Y);
-  }
-  ctx.stroke(); ctx.restore();
-  /* 探针位置竖线 */
-  if(state.mode==='concl'){
-    const P=sphPt(state.rp,state.thp*D2R,0);
-    if(Math.abs(P.x)<1e-6){
-      const zc=P.z; const v=volt(Math.abs(zc),zc>=0?0:Math.PI,E0)*Math.sign(zc||1);
-      const X=fx(Math.max(-ZR,Math.min(ZR,zc)));
-      ctx.save(); ctx.setLineDash([4,4]); ctx.strokeStyle='#B9CBD6'; ctx.lineWidth=1;
-      ctx.beginPath(); ctx.moveTo(X,py0); ctx.lineTo(X,py0+ph); ctx.stroke(); ctx.restore();
-      ctx.save(); ctx.beginPath(); ctx.arc(X,fy(v),4.2,0,7); ctx.fillStyle=C.purple; ctx.fill();
-      ctx.strokeStyle='#fff'; ctx.lineWidth=2; ctx.stroke(); ctx.restore();
-    }
-  }
-  txt(px0-6,py0+4,'+'+(Vmax).toFixed(0),{size:10,color:'#7A8F9B',align:'right'});
-  txt(px0-6,y0v+4,'0',{size:10,color:'#7A8F9B',align:'right'});
-  txt(px0-6,py0+ph+4,'−'+(Vmax).toFixed(0),{size:10,color:'#7A8F9B',align:'right'});
-  txt(xL,py0+ph+16,'−a',{size:10,color:'#7A8F9B',align:'center'});
-  txt(xR,py0+ph+16,'+a',{size:10,color:'#7A8F9B',align:'center'});
-  txt(x0+w/2,py0+ph+28,'导体内部（绿色段）严格水平 ⇒ 等位体（V 单位 kV）',{size:10,color:'#2C6B3B',align:'center'});
-}

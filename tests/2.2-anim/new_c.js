@@ -1,32 +1,8 @@
-/* ══════════════════════════════ 读数与判定 ══════════════════════════════ */
-function probeInfo(){
-  const E0=state.E0, r=state.rp, th=state.thp*D2R;
-  const f=fieldE(r,th,E0);
-  const mag=Math.hypot(f.Er,f.Eth);
-  const onSurf = Math.abs(r-A_C)<1e-6;
-  const zone = r<A_C-1e-6 ? 'in' : (onSurf ? 'surf' : 'out');
-  const ang = mag>1e-9 ? Math.acos(Math.min(1,Math.abs(f.Er)/mag))*R2D : 0;
-  return {E0,r,th,Er:f.Er,Eth:f.Eth,mag,V:volt(r,th,E0),zone,ang,
-          ett: mag>1e-9 ? Math.abs(f.Eth)/mag : 0,
-          sig: onSurf ? sigma(th,E0,null) : null};
-}
-function zoneWord(z){ return z==='in'?'导体内部':(z==='surf'?'导体表面':'导体外部'); }
+/* ══════════════════════════ 面板底部的实时结论条 ══════════════════════════
+   ① buildNote / ③ shieldNote —— 随页签切换与参数变化实时刷新。
+   ⚠️ 凡进 DOM 的串必须过 richHTML()（它只认 @{...} 与 _x 下标，不认 Markdown）。 */
 const sgnTxt=(v,d)=>(v>0?'+':'')+v.toFixed(d);
 
-/* ② 面板底部的实时结论条 */
-function probeNote(){
-  const p=probeInfo();
-  const E0=state.E0;
-  if(p.zone==='in')
-    return '<b>P 在导体内部</b>：严格解给出 @{E} ≡ 0（不是"很小"，是恒等于 0）、'+
-           'V ≡ 0。这正是"导体是等位体"的由来 —— 内部没有场，也就没有电位差。';
-  if(p.zone==='surf')
-    return '<b>P 正好落在导体表面</b>（r = a）：E_θ ≡ 0 ⇒ @{E} 严格沿法向；'+
-           '法向分量 E_n = 3E₀cosθ = '+p.Er.toFixed(2)+' kV/m，而 σ = ε₀E_n = '+p.sig.toFixed(1)+' nC/m²。'+
-           'V 与 θ 无关、恒为 0 ⇒ 表面是等位面。';
-  return '<b>P 在导体外部</b>：E_n = '+p.Er.toFixed(2)+' kV/m、E_t = '+p.Eth.toFixed(2)+' kV/m，'+
-         '切向分量占比 '+(p.ett*100).toFixed(1)+'% ⇒ @{E} 与法向夹 '+p.ang.toFixed(1)+'°（外部不垂直，只有表面才垂直）。';
-}
 function buildNote(){
   const t=state.t, g=state.g, E0=state.E0, Ea=E0*g;
   if(g<0.05) return '<b>还没有外加电场</b>：导体里的自由电荷均匀分布，宏观上既不显电、内部也没有场。'+
@@ -73,8 +49,6 @@ function chipRow(parent,items,isOn,onPick){
 const SHOW_ITEMS={
   build: [{k:'lines',t:'外场 @{E}₀ 与场线'},{k:'chg',t:'表面感应电荷'},{k:'flow',t:'电荷迁移方向'},
           {k:'inner',t:'球内合场'},{k:'box',t:'坐标轴'}],
-  concl: [{k:'lines',t:'外场 @{E}₀ 与场线'},{k:'equi',t:'等位面 V = const'},{k:'chg',t:'表面感应电荷'},
-          {k:'dec',t:'@{E} 的法向 / 切向分解'},{k:'vz',t:'V 沿 z 剖面小卡'},{k:'box',t:'坐标轴'}],
   shield:[{k:'lines',t:'外场 @{E}₀ 与场线'},{k:'chg',t:'感应电荷'},{k:'box',t:'坐标轴'}],
 };
 function mkRange(sec,d){
@@ -92,11 +66,6 @@ function mkRange(sec,d){
   };
   sec.appendChild(r);
 }
-function clampRp(){ state.rp=Math.max(RP_RANGE[0],Math.min(RP_RANGE[1],state.rp)); }
-function clampThp(){ state.thp=Math.max(TH_LIM[0],Math.min(TH_LIM[1],state.thp)); }
-/* ⚠️ 让「表面」这个位置**够得着**：r 的步长 0.01、最小值 0.32，恰好能落到 0.80；
-   但浮点误差会让 0.7999999 被判成"内部" ⇒ 显式吸附（这是本页最关键的一个位置）。 */
-function snapRp(){ if(Math.abs(state.rp-A_C)<0.006) state.rp=A_C; clampRp(); }
 
 function renderSubSec(sec){
   sec.innerHTML='';
@@ -104,10 +73,10 @@ function renderSubSec(sec){
   chipRow(sec,SHOW_ITEMS[state.mode],k=>state.show[k],k=>{
     state.show[k]=!state.show[k]; needsRender=true; renderPanel();
   });
-  /* ★ 场线 / 等位面只画"**正对镜头的那一个剖面**"（2026-09-28 改，原先画 2 个互相垂直的平面 ⇒ 很乱）。
-     这句提示放在"显示"下面、三个页签共用 —— 否则用户转动视角时看到线在跟着转，会以为画面出了故障。 */
+  /* ★ 场线只画"**正对镜头的那一个剖面**"（2026-09-28 改，原先画 2 个互相垂直的平面 ⇒ 很乱）。
+     这句提示放在"显示"下面、两个页签共用 —— 否则用户转动视角时看到线在跟着转，会以为画面出了故障。 */
   sec.appendChild(h('<div class="ex-note" style="margin-top:7px">'+richHTML(
-    '场线（连同等位面）只画 <b>正对镜头的那一个剖面</b>：转动画面时它会跟着转到你面前，'+
+    '场线只画 <b>正对镜头的那一个剖面</b>：转动画面时它会跟着转到你面前，'+
     '一族线画在同一个平面里，才看得清"垂直入射、绕球弯折"。')+'</div>'));
   const m=state.mode;
   if(m==='build'){
@@ -139,28 +108,6 @@ function renderSubSec(sec){
     bx.appendChild(jb);
     sec.appendChild(bx);
     sec.appendChild(h('<div class="ex-note" id="buildNote">'+richHTML(buildNote())+'</div>'));
-  } else if(m==='concl'){
-    sec.appendChild(h('<div class="sec-title" style="margin-top:14px">把 P 送到关键位置</div>'));
-    const bx=h('<div class="sub-chips"></div>').firstChild;
-    const sb=h('<button class="chip">放到导体表面（r = a）</button>').firstChild;
-    sb.onclick=()=>{ state.sweep=null; state.rp=A_C; renderPanel(); updateAll(); };
-    bx.appendChild(sb);
-    const ib=h('<button class="chip">放进导体内部</button>').firstChild;
-    ib.onclick=()=>{ state.sweep=null; state.rp=A_C*0.55; renderPanel(); updateAll(); };
-    bx.appendChild(ib);
-    const ob=h('<button class="chip">挪到导体外部</button>').firstChild;
-    ob.onclick=()=>{ state.sweep=null; state.rp=A_C*1.7; renderPanel(); updateAll(); };
-    bx.appendChild(ob);
-    sec.appendChild(bx);
-    const bx2=h('<div class="sub-chips" style="margin-top:8px"></div>').firstChild;
-    const rw=h('<button class="chip g'+(state.sweep==='rad'?' on':'')+'">▶ 沿半径扫（内 → 表 → 外）</button>').firstChild;
-    rw.onclick=()=>{ state.sweep = state.sweep==='rad'?null:'rad'; renderPanel(); };
-    bx2.appendChild(rw);
-    const sw=h('<button class="chip g'+(state.sweep==='surf'?' on':'')+'">▶ 沿表面扫（θ 变）</button>').firstChild;
-    sw.onclick=()=>{ state.sweep = state.sweep==='surf'?null:'surf'; state.rp=A_C; renderPanel(); };
-    bx2.appendChild(sw);
-    sec.appendChild(bx2);
-    sec.appendChild(h('<div class="ex-note" id="probeNote">'+richHTML(probeNote())+'</div>'));
   } else {
     sec.appendChild(h('<div class="sec-title" style="margin-top:14px">腔内情形</div>'));
     const bx=h('<div class="sub-chips"></div>').firstChild;
@@ -179,16 +126,13 @@ function renderSubSec(sec){
 }
 const SLIDER_FMT={
   t: v=>Math.round(v*100)+'%',
-  rp:v=>v.toFixed(2)+' m',
-  thp:v=>Math.round(v)+'°',
   qc:v=>sgnTxt(v,2)+' µC',
 };
 function syncSliders(){
   const set=(k,v)=>{const s=document.getElementById('s_'+k);
     if(s)s.value=v;
     const e=document.getElementById('v_'+k); if(e) e.textContent=SLIDER_FMT[k]?SLIDER_FMT[k](v):String(v);};
-  set('t',state.t); set('rp',state.rp); set('thp',Math.round(state.thp)); set('qc',state.qc);
-  const pn=document.getElementById('probeNote'); if(pn) pn.innerHTML=richHTML(probeNote());
+  set('t',state.t); set('qc',state.qc);
   const sn=document.getElementById('shieldNote'); if(sn) sn.innerHTML=richHTML(shieldNote());
   const bn=document.getElementById('buildNote'); if(bn) bn.innerHTML=richHTML(buildNote());
 }
@@ -208,18 +152,6 @@ function renderSliders(sec){
       '迁移 → 平衡），请按上方的 <b>▶ 播放全过程</b>。'+
       '<br>真实的电荷重分布只花 ~10⁻¹⁸ s，<b>拖动只是为了把机理看清楚</b>，'+
       '不要把中间状态当成会持续存在的物理过程。')+'</div>'));
-  } else if(m==='concl'){
-    sec.appendChild(h('<div class="sec-title">探针 P 的位置（球坐标）</div>'));
-    mkRange(sec,{k:'rp',label:'半径 r',wide:true,min:RP_RANGE[0],max:RP_RANGE[1],step:0.01,
-      get:()=>state.rp, set:v=>{ state.rp=v; snapRp(); }, fmt:v=>v.toFixed(2)+' m',
-      after:()=>{ if(document.getElementById('s_rp')) document.getElementById('s_rp').value=state.rp;
-                  syncSliders(); }});
-    mkRange(sec,{k:'thp',label:'极角 θ',wide:true,min:TH_LIM[0],max:TH_LIM[1],step:1,
-      get:()=>state.thp, set:v=>state.thp=Math.round(v), fmt:v=>Math.round(v)+'°'});
-    sec.appendChild(h('<div class="ex-note" style="margin-top:9px">'+richHTML(
-      '导体球在匀强场里是<b>轴对称</b>的 ⇒ 绕 z 轴转 φ 什么都不变，所以两个坐标 (r, θ) 就够了。'+
-      'P 能在 xz 平面内<b>任意拖</b>，也能用这两个滑块精确打到数值。'+
-      'r 的滑块在 0.80 m 处<b>会自动吸附</b>到导体表面 —— 那个位置最值得看。')+'</div>'));
   } else {
     sec.appendChild(h('<div class="sec-title">腔内点电荷</div>'));
     mkRange(sec,{k:'qc',label:'q',wide:true,min:QC_RANGE[0],max:QC_RANGE[1],step:0.1,
@@ -263,45 +195,6 @@ const CARDS={
       '<div class="ex-note">按上方的 <b>▶ 播放全过程</b>：开头那一小段（阶段①）就是"还没有外场"，'+
       '那时 σ 一个符号都不画、内部依然恒为 0 —— 结论与 E₀ 的大小无关，'+
       '只与"有没有导体"有关。</div>'},
-  ],
-  concl:[
-    {k:'1',tab:'1. 四条结论',cls:'c1',body:
-      '<b>静电平衡时，导体满足：</b>'+
-      '<div class="frm">① 内部 @{E} ≡ 0　　② 电荷只分布在表面（内部净电荷为零）</div>'+
-      '<div class="frm">③ 表面 @{E} ⊥ 表面　　④ 导体是等位体，表面是等位面</div>'+
-      '<ul><li>②的推理：在导体内部任取一个高斯面，面上 @{E} ≡ 0 ⇒ 面内净电荷 = 0 ⇒ '+
-      '内部处处无净电荷，电荷只能跑到表面上</li>'+
-      '<li>③的推理：若表面有切向分量，表面自由电荷就受切向力 ⇒ 会继续移动 ⇒ 与"平衡"矛盾</li>'+
-      '<li>④的推理：内部 @{E}=0 ⇒ 内部任意两点电位差 = ∫@{E}·d@{l} = 0 ⇒ 内部等位；'+
-      '表面 @{E}⊥d@{l} ⇒ 沿表面移动也不做功 ⇒ 表面也是等位面</li></ul>'},
-    {k:'2',tab:'2. 用探针验证',cls:'c2',body:
-      '<b>把 P 拖到三个区域，看读数怎么变</b>（这就是上面四条结论的实验）：'+
-      '<div class="frm">内部：|@{E}| = 0，V = 0　　表面：E_t = 0，V = 0　　外部：E_t ≠ 0</div>'+
-      '<ul><li><b>拖到内部</b>（r &lt; a）：蓝色箭头消失，|@{E}| 读数恒为 0，'+
-      'V 恒为 0 —— 而且不管 θ 怎么变都是 0</li>'+
-      '<li><b>拖到表面</b>（r = a，会自动吸附）：绿色切向分量 E_t ≡ 0 ⇒ '+
-      '橙色 E_n 与蓝色 @{E} <b>完全重合</b>（夹角 0°），这就是"垂直"</li>'+
-      '<li><b>拖到外部</b>（r &gt; a）：切向分量冒出来了，E 与法向夹一个角；'+
-      '越往外这个角越大（r → ∞ 时回到 90°，因为那已经是匀强场）</li>'+
-      '<li>电位剖面小卡：|z| &lt; a 那一段是<b>一条水平线</b> ⇒ 等位体的直接证据</li></ul>'},
-    {k:'3',tab:'3. 表面场与曲率',cls:'c3',body:
-      '<b>导体表面场的大小与面电荷密度是同一个数：</b>'+
-      '<div class="frm">@{E}_表面 = (σ/ε₀)·@{ê}_n　⇒　|@{E}| = σ/ε₀</div>'+
-      '<ul><li>本页的球是严格解：|@{E}|(θ) = 3E₀|cosθ| —— 两极最强、赤道为零</li>'+
-      '<li>⚠️ 赤道（θ=90°）处 σ = 0 <b>且</b> @{E} = 0：这是球体的特例，'+
-      '不是"导体表面处处有场"</li>'+
-      '<li>一般导体表面曲率越大处 σ 越密、场越强 ⇒ <b>尖端放电</b>、'+
-      '避雷针要把尖端"钝化"都由此而来</li>'+
-      '<li>本页画的是球（曲率处处相同），所以 σ 的起伏完全来自外场 cosθ 这个因子</li></ul>'},
-    {k:'4',tab:'4. 等位面的形状',cls:'c4',body:
-      '<b>导体把等位面"掰"了一下：</b>'+
-      '<div class="frm">V(r,θ) = −E₀(r − a³/r²)·cosθ　(r ≥ a)　；　V ≡ 0　(r ≤ a)</div>'+
-      '<ul><li>没有导体时，匀强场的等位面是一族<b>水平面</b> z = const</li>'+
-      '<li>放进球以后：球本身就是 V = 0 的等位面，附近的等位面被它"顶"成帽形，'+
-      '越远越平（远处又还原成水平面）</li>'+
-      '<li>画布上的淡蓝虚线就是几个 V = ±E₀·0.85 / 1.45 / 2.05 的等位面</li>'+
-      '<li>⚠️ V 的符号由 −cosθ 定：上半空间 V &lt; 0、下半空间 V &gt; 0 ⇒ '+
-      '每个等位面只存在于一"半"空间（V = 0 那个面是唯一完整的，就是导体本身）</li></ul>'},
   ],
   shield:[
     {k:'1',tab:'1. 屏蔽外场',cls:'c1',body:
@@ -392,20 +285,6 @@ function updateReadout(){
       st===3?'acc':'warn');
     document.getElementById('lgTitle').textContent='静电平衡的建立';
     document.getElementById('lgNote').innerHTML=richHTML(STAGE_NAMES[st]+'　·　'+STAGE_NOTES[st]);
-  } else if(state.mode==='concl'){
-    const p=probeInfo();
-    html += kchip('P 的位置 (r, θ) =', '('+p.r.toFixed(2)+' m, '+Math.round(state.thp)+'°)');
-    html += kchip('所在区域 =', zoneWord(p.zone), p.zone==='out'?'':'acc');
-    html += kchip('|@{E}| =', p.mag.toFixed(3)+' kV/m', p.zone==='in'?'acc':'');
-    html += kchip('法向分量 @{E}_n =', p.Er.toFixed(3)+' kV/m','acc');
-    html += kchip('切向分量 @{E}_t =', p.Eth.toFixed(3)+' kV/m', Math.abs(p.Eth)<1e-9?'acc':'warn');
-    html += kchip('切向占比 =', (p.ett*100).toFixed(1)+'%', p.ett<1e-9?'acc':'warn');
-    html += kchip('@{E} 与法向夹角 =', p.ang.toFixed(1)+'°', p.ang<1e-9?'acc':'warn');
-    html += kchip('电位 V(P) =', p.V.toFixed(3)+' kV', p.zone==='in'||p.zone==='surf'?'acc':'');
-    if(p.sig!=null) html += kchip('该点 σ =', p.sig.toFixed(1)+' nC/m²','acc');
-    document.getElementById('lgTitle').textContent='静电平衡的四个结论 · 探针 P';
-    document.getElementById('lgNote').innerHTML=richHTML(
-      '内部 @{E}≡0 · 表面 @{E}⊥面 · 导体是等位体（V≡0）· 电荷只在表面');
   } else {
     const E0=state.E0, qc=state.qc;
     const rHalf=B_C*0.5, rIn=B_C*0.95, rOut=A_C*1.0, rFar=A_C*2.0;
@@ -434,16 +313,11 @@ function updateModeTag(){
     t.innerHTML=richHTML('静电平衡的建立 · '+STAGE_NAMES[stageOf()]+
       '　@{E}₀ = '+state.E0.toFixed(1)+' kV/m　外场建立 '+Math.round(state.g*100)+
       '%　电荷迁移 '+Math.round(state.t*100)+'%');
-  else if(state.mode==='concl'){
-    const p=probeInfo();
-    t.innerHTML=richHTML('四个结论 · P：(r, θ) = ('+p.r.toFixed(2)+' m, '+Math.round(state.thp)+'°)　'+
-      zoneWord(p.zone)+'　|@{E}| = '+p.mag.toFixed(3)+' kV/m');
-  } else
+  else
     t.innerHTML=richHTML('静电屏蔽 · q = '+sgnTxt(state.qc,2)+' µC　腔内 |@{E}| = '+
       (Q_KV*Math.abs(state.qc)/(B_C*B_C*0.25)).toFixed(2)+' kV/m（r = b/2）');
   if(sb) sb.innerHTML=richHTML(
     state.mode==='build'  ? '正电荷顺场线、负电荷逆场线 ⇒ 表面感应电荷 ⇒ 内部合场被抵消到 0'
-  : state.mode==='concl'  ? '内部 @{E} ≡ 0　·　表面 @{E} ⊥ 表面　·　导体是等位体（V ≡ 0）'
   :                         '腔内无场（屏蔽外场）　·　腔内电荷只以"总量"影响外部（屏蔽内场）');
 }
 
@@ -472,21 +346,6 @@ function tick(){
       if(pb) pb.textContent=(state.anim&&state.anim.playing)?'⏸ 暂停':'▶ 播放全过程';
       if(ra==='end') renderPanel();          /* 播完再重建一次面板（按钮文字/滑块归位） */
     }
-    if(state.mode==='concl' && state.sweep){
-      if(state.sweep==='rad'){
-        state.rp += dt*SWEEP_SPEED.rad;
-        if(state.rp>RP_RANGE[1]) state.rp=RP_RANGE[1]-(state.rp-RP_RANGE[1]);
-        if(state.rp<RP_RANGE[0]) state.rp=RP_RANGE[0]+(RP_RANGE[0]-state.rp);
-      } else {
-        state.rp=A_C;
-        state.thp += dt*SWEEP_SPEED.surf;
-        if(state.thp>TH_LIM[1]) state.thp=TH_LIM[1]-(state.thp-TH_LIM[1]);
-        if(state.thp<TH_LIM[0]) state.thp=TH_LIM[0]+(TH_LIM[0]-state.thp);
-      }
-      needsRender=true; syncSliders();
-      updateReadout(); updateModeTag();
-      const pn=document.getElementById('probeNote'); if(pn) pn.innerHTML=richHTML(probeNote());
-    }
     if(needsRender) draw();
   }catch(err){ needsRender=false; console.error('draw/tick error:',err); }
   requestAnimationFrame(tick);
@@ -496,59 +355,23 @@ function updateAll(){ needsRender=true; syncSliders(); updateReadout(); updateMo
 /* ══════════════════════════════ 交互 ══════════════════════════════ */
 let drag=null;
 function localPos(ev){const r=canvas.getBoundingClientRect();return{x:ev.clientX-r.left,y:ev.clientY-r.top};}
-/* 探针 P = (r, θ) 两个自由度 ⇒ 拖动 = 把鼠标位移反解成 (Δr, Δθ)。
-   两个世界基：B₁ = ∂P/∂r = (sinθ, 0, cosθ)、B₂ = ∂P/∂θ = (r cosθ, 0, −r sinθ)。
-   它们在当前相机下的屏幕投影构成 2×2 矩阵 J；解 J·(Δr,Δθ) = mouseΔ 即可。
-   ★ 与 2.1 线电荷的 xyJac() 是同一套技术（那里的两个基是 x̂/ŷ），这里换成 (r,θ) 的两个自然基。
-   ★ J 会在"两个基的投影共线"时退化（例如 θ→0 时 B₂ ∥ x̂ 而视线正对 x̂）⇒ |det| 加下限，
-     灵敏度被钳住（拖起来变钝）但绝不会飞出去，且越界还会被 clamp 兜住。 */
-const P_HIT=26;
-function probeJac(){
-  const th=state.thp*D2R, r=state.rp;
-  const B1=pt(Math.sin(th),0,Math.cos(th));
-  const B2=pt(r*Math.cos(th),0,-r*Math.sin(th));
-  const P1={x:camScale*vdot(B1,camU), y:-camScale*vdot(B1,camV)};
-  const P2={x:camScale*vdot(B2,camU), y:-camScale*vdot(B2,camV)};
-  const det0=P1.x*P2.y-P1.y*P2.x;
-  const ref=camScale*camScale*vlen(B1)*vlen(B2);
-  if(!isFinite(det0)||ref<1e-9) return null;
-  return {P1,P2,det0,ref};
-}
-function overProbe(m){
-  if(state.mode!=='concl') return false;
-  const w=pr(probeP());
-  return Math.hypot(m.x-w.x,m.y-w.y)<P_HIT;
-}
 canvas=document.getElementById('cv');
 ctx=canvas.getContext('2d');
 canvas.addEventListener('pointerdown',ev=>{
   canvas.setPointerCapture(ev.pointerId);
   const m=localPos(ev);
-  if(ev.button===0 && overProbe(m)){ drag={x:m.x,y:m.y,btn:0,mode:'probe'}; ev.preventDefault(); return; }
   drag={x:m.x,y:m.y,btn:ev.button,mode:(ev.button===2||ev.ctrlKey)?'pan':'rot'};
   ev.preventDefault();
 });
 canvas.addEventListener('pointermove',ev=>{
   const m=localPos(ev);
-  if(!drag){ canvas.style.cursor = overProbe(m) ? 'move' : ''; return; }
+  if(!drag) return;
   const dx=m.x-drag.x, dy=m.y-drag.y; drag.x=m.x; drag.y=m.y;
-  if(drag.mode==='probe'){
-    state.sweep=null;
-    const J=probeJac();
-    if(J){
-      const det=(Math.abs(J.det0) < 0.25*J.ref) ? ((J.det0>=0?1:-1)*0.25*J.ref) : J.det0;
-      state.rp += (dx*J.P2.y - dy*J.P2.x)/det;
-      state.thp += (J.P1.x*dy - J.P1.y*dx)/det*R2D;
-      snapRp(); clampThp();
-      needsRender=true; syncSliders(); updateReadout(); updateModeTag();
-      const pn=document.getElementById('probeNote'); if(pn) pn.innerHTML=richHTML(probeNote());
-    }
-  }
-  else if(drag.mode==='pan'){ cam.px+=dx; cam.py+=dy; needsRender=true; }
+  if(drag.mode==='pan'){ cam.px+=dx; cam.py+=dy; needsRender=true; }
   else { cam.az-=dx*0.0075; cam.el=Math.max(-1.45,Math.min(1.45,cam.el+dy*0.0062)); needsRender=true; }
 });
-canvas.addEventListener('pointerup',()=>{ if(drag&&drag.mode==='probe') syncSliders(); drag=null; });
-canvas.addEventListener('pointercancel',()=>{ if(drag&&drag.mode==='probe') syncSliders(); drag=null; });
+canvas.addEventListener('pointerup',()=>{ drag=null; });
+canvas.addEventListener('pointercancel',()=>{ drag=null; });
 canvas.addEventListener('contextmenu',e=>e.preventDefault());
 canvas.addEventListener('wheel',e=>{e.preventDefault();cam.zoom=Math.max(.45,Math.min(3.2,cam.zoom*(e.deltaY<0?1.09:1/1.09)));needsRender=true;},{passive:false});
 document.getElementById('btnReset').onclick=()=>{ cam.az=.62; cam.el=.40; cam.zoom=1; cam.px=0; cam.py=0; needsRender=true; };
@@ -563,12 +386,14 @@ window.addEventListener('keydown',e=>{if(e.target.tagName==='INPUT')return;
   if(e.key===']'){document.body.classList.toggle('panel-off');setTimeout(resize,260);}});
 
 /* ══════════════════════════════ 页签 ══════════════════════════════ */
+/* ⚠️ 2026-09-28：原「② 静电平衡的四个结论」页签整页删除（用户反馈：四条结论在 ① 的
+   「⏭ 直接到静电平衡」之后已经显而易见，属重复）。删页签 ⇒ 下面的索引、状态字段
+   （rp / thp / sweep / show.equi|dec|vz）与探针 P 的全部代码一并清掉。 */
 const MT=[{k:'build',t:'① 静电平衡的建立'},
-          {k:'concl',t:'② 静电平衡的四个结论'},
           {k:'shield',t:'③ 静电屏蔽'}];
 const modeTabs=document.getElementById('modeTabs');
 MT.forEach(m=>{const b=document.createElement('button');b.textContent=m.t;b.dataset.k=m.k;
-  b.onclick=()=>{ state.mode=m.k; state.cardTab='1'; state.sweep=null; stopAnim();
+  b.onclick=()=>{ state.mode=m.k; state.cardTab='1'; stopAnim();
     syncModeTabs(); cam.az=.62; cam.el=.40; cam.px=0; cam.py=0;
     renderPanel(); updateAll(); };
   modeTabs.appendChild(b);});
@@ -589,7 +414,6 @@ NAV.forEach(g=>{nav.appendChild(h('<div class="nav-ch">'+g.ch+'</div>'));
   g.items.forEach(it=>{const cls='nav-item'+(it.active?' active':'')+(it.ready?'':' soon');
     nav.appendChild(h('<a class="'+cls+'" '+(it.href?'href="'+it.href+'"':'')+'><span class="dot"></span>'+it.t+'</a>'));});});
 
-clampRp(); clampThp();
 syncModeTabs();
 resize();
 renderPanel();

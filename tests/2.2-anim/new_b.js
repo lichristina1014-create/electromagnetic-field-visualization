@@ -1,21 +1,14 @@
-/* ══════════════════════════════ 场景（三个页签） ══════════════════════════════ */
+/* ══════════════════════════ 场景（两个页签：① 建立 · ③ 屏蔽） ══════════════════════════ */
 const O=pt(0,0,0);
 const COND_COL='#3E7C99';      /* 导体（球 / 壳）的基色 */
 const FLD_COL ='#2E7FA6';      /* 场线 */
-const ZL=1e4+40;               /* 探针相关图元的深度档：必须压在球壳正面之上，不然会被洗掉 */
+const ZL=1e4+40;               /* 高深度档：③ 的腔心标记 / 腔内读数必须压在球壳正面之上，否则被半透明壳洗掉 */
 
-/* z 轴方向的角弧（θ 从 +z 起算）—— 与 1.x 的 meridianArc 同义，这里只用到 φ 固定的一条 */
-function arcZ(r0,th0,th1,ph,n){
-  const a=[];
-  for(let i=0;i<=n;i++) a.push(sphPt(r0, th0+(th1-th0)*i/n, ph));
-  return a;
-}
-/* 导体球的统一画法：半透明玻璃壳（同源 shellBall）+ 剪影圆，ed 强调档给 ② 用 */
+/* 导体球的统一画法：半透明玻璃壳（同源 shellBall）+ 剪影圆；emph = 强调档（③ 的球壳用） */
 function drawBall(c,R,col,emph,rimA){
   shellBall(c,R,col,!!emph,rimA);
   ballRim(c,R,col,emph?1.9:1.5,emph?0.95:0.8);
 }
-const probeP=()=>sphPt(state.rp, state.thp*D2R, 0);
 
 /* ① 画布上的固定注记（球心读数 + 两条迁移弧的标签）—— 一起进避让表，别让 ⊕/⊖ 压上去。
    ⚠️ 实测：不加避让时 '正电荷' 标签与一个 '+' 只差 (2,5) px（b10 自检抓到 6 例）。 */
@@ -52,106 +45,6 @@ function sceneBuild(){
     {color: Ea<0.05 ? '#7A8F9B' : (t>=0.995 ? C.green : '#8A5A20'), size:l.sz, bold:true, align:'center'}));
 }
 
-/* ══════════ ② 静电平衡的四个结论 ══════════ */
-/* 等位面：V = ∓E₀·fac 的"帽形"曲面。fac 的单位是 m ⇒ 形状与 E₀ 无关（只是整体缩放）。 */
-function drawEqui(E0){
-  const Rmax=A_C*3.3, facs=[0.85,1.45,2.05];
-  facs.forEach((fac,i)=>{
-    [1,-1].forEach(sg=>{
-      const c=equiCurve(sg,E0,fac,Rmax);
-      if(c.length<3) return;
-      /* ★ 与场线同一套规则：等位面剖面也只画"正对镜头的那一个平面"（facePH 见 new_a.js）。
-         equiCurve() 同样只给 x ≥ 0 的半条 ⇒ 必须 φ 与 φ+π 各转一次才拼得出完整的一圈。 */
-      faceCurves(c).forEach(ph=>curve(c.map(p=>rotZ(p,ph)),{color:'#8FB3C6',w:1.15,dash:[5,5],alpha:0.50}));
-    });
-  });
-  const V1=E0*facs[0];
-  text(sphPt(A_C*1.72,0.30,0.55),'V = −'+(E0*0.85).toFixed(1)+' kV 等位面',
-    {color:'#7A8F9B',size:11,dx:6,dy:-4});
-  text(sphPt(A_C*1.72,Math.PI-0.30,0.55),'V = +'+(E0*0.85).toFixed(1)+' kV 等位面',
-    {color:'#7A8F9B',size:11,dx:6,dy:10});
-}
-/* ★ 探针 P 的几何：P / E 终点 / E_n 终点 / E_t 终点。
-   "画"与"避让"共用同一套坐标 ⇒ 以后改比例不会出现"标注躲错地方"。
-   三个分量**共用同一个比例 s = L/|E|**，⇒ E = E_n + E_t 的平行四边形严格闭合
-   （若改成逐分量各自 eLen，饱和区会被各自钳住 ⇒ 矩形变形）。 */
-function probeGeom(E0){
-  const th=state.thp*D2R, r=state.rp;
-  const P=probeP(), f=fieldE(r,th,E0);
-  const E=vadd(vmul(eR(th,0),f.Er), vmul(eTh(th,0),f.Eth)), mag=vlen(E);
-  const L=eLen(mag,E0);
-  const g={P,f,E,mag,nr:eR(th,0),nt:eTh(th,0),L,s:0,tip:null,Pr:null,Pt:null,Ers:0,Ets:0,shown:false};
-  if(mag>1e-9 && L>=EARR_GATE){
-    const s=L/mag; g.s=s; g.shown=true; g.tip=vadd(P,vmul(E,s));
-    g.Ers=Math.abs(f.Er)*s; g.Ets=Math.abs(f.Eth)*s;
-    if(g.Ers>1e-9) g.Pr=vadd(P,vmul(g.nr,f.Er*s));
-    if(g.Ets>1e-9) g.Pt=vadd(P,vmul(g.nt,f.Eth*s));
-  }
-  return g;
-}
-const probeAvoid=E0=>{const g=probeGeom(E0),a=[g.P];
-  [g.tip,g.Pr,g.Pt].forEach(v=>{if(v)a.push(v);}); return a.map(p=>pr(p));};
-/* θ 角弧上那个 'θ' 的锚点（drawProbe 里用同一个式子算出来，这里复算一遍给它避让） */
-const probeThetaLab=()=>{ const r=state.rp, ra=Math.min(Math.max(r,A_C*0.55),A_C*1.15)*0.52;
-  return sphPt(ra*1.16, state.thp*D2R/2, 0); };
-/* 画布上的固定注记（与其锚点一起让给 ⊕/⊖） */
-const LBL_SURF=()=>sphPt(A_C*1.02,0.30,Math.PI*0.72);
-function drawProbe(E0){
-  const th=state.thp*D2R, r=state.rp;
-  const g=probeGeom(E0), P=g.P, f=g.f, mag=g.mag;
-  /* 半径：距离一律用 dimLine（本项目规范：距离绝不用箭头） */
-  if(r>A_C+1e-6){
-    const Lr=Math.hypot(pr(P).x-pr(O).x, pr(P).y-pr(O).y);
-    if(Lr>=70) dimLine(O,P,{color:'#9DB3BF',w:1.2,dash:[5,4],label:'r = '+r.toFixed(2)+' m',
-      ldx:10,ldy:-8,lsize:11,z:ZL});
-  }
-  /* θ 角弧（自 +z 轴起算） */
-  const ra=Math.min(Math.max(r,A_C*0.55),A_C*1.15)*0.52;
-  line(O,pt(0,0,ra),{color:'#C9D8E0',w:1.1,z:ZL-2});
-  curve(arcZ(ra,0,Math.max(th,0.12),0,14),{color:C.orange,w:1.7,arrowEnd:true,z:ZL-2});
-  text(sphPt(ra*1.16,th/2,0),'θ',{color:C.orange,size:12,bold:true,dx:4,dy:-3});
-  /* E 矢量 + 法向/切向分解 */
-  if(g.shown){
-    const showN=state.show.dec&&g.Pr&&g.Ers>=0.09, showT=state.show.dec&&g.Pt&&g.Ets>=0.09;
-    if(showN&&showT){
-      line(g.Pr,g.tip,{color:'#C9D6DD',w:1,dash:[4,4],z:ZL-1});
-      line(g.Pt,g.tip,{color:'#C9D6DD',w:1,dash:[4,4],z:ZL-1});
-      arrow(P,g.Pr,{color:C.orange,w:2,headScale:.85,label:'@{E}_n',ldx:10,ldy:-8,lsize:11,z:ZL});
-      arrow(P,g.Pt,{color:C.green,w:2,headScale:.85,label:'@{E}_t',ldx:10,ldy:12,lsize:11,z:ZL});
-      arrow(P,g.tip,{color:C.blue,w:2.7,headScale:1.0,label:'@{E}',ldx:12,ldy:-14,lsize:12,z:ZL+1});
-    } else if(showN){
-      /* ★ 切向分量为零（恰好落在导体表面上）⇒ E ≡ E_n 是**同一支箭头**。
-         此时若仍旧画两支蓝/橙箭头 + 两个标签，标签会在同一点上叠字（实测 7.5 px）。 */
-      arrow(P,g.tip,{color:C.blue,w:2.7,headScale:1.0,label:'@{E} = @{E}_n',ldx:12,ldy:-14,lsize:12,z:ZL+1});
-    } else {
-      arrow(P,g.tip,{color:C.blue,w:2.7,headScale:1.0,label:'@{E}',ldx:12,ldy:-14,lsize:12,z:ZL+1});
-    }
-  }
-  marker(P,{r:5.5,color:C.purple,ring:'#E6D6F0',label:'P',ldx:-28,ldy:14,lsize:12.5,z:ZL+2});
-  /* ⚠️ P 的标签放**左下**：右下是 E_t 的标签（arrow 的标签画在杆的中点！实测两者只差 3.5 px） */
-}
-function sceneConcl(){
-  const E0=state.E0;
-  if(state.show.box) drawAxesFor();
-  if(state.show.lines) drawE0Hint(E0);
-  if(state.show.equi) drawEqui(E0);
-  if(state.show.lines) drawFieldLines(E0,null);
-  drawBall(O,A_C,COND_COL,true,0.42);
-  /* ⊕/⊖ 要让开：P、E/E_n/E_t 的标注区、"导体表面"注记、以及 r 尺寸线的标签
-     （尺寸线标签画在 O—P 的中点 + (10,−8)，见 dimLine） */
-  const lp=LBL_SURF();
-  if(state.show.chg){
-    const av=probeAvoid(E0).concat(avoidText(lp,'导体表面：V = 0 等位面',11.5,6,-2),
-      avoidText(probeThetaLab(),'θ',12,4,-3),
-      avoidText(vmul(probeP(),0.5),'r = '+state.rp.toFixed(2)+' m',11,10,-8),
-      avoidText(probeP(),'P',12.5,-28,14));
-    drawSurfaceCharge(A_C*1.05, th=>sigma(th,E0,null), {alpha:1, avoidS:av, probeGap:34});
-  }
-  text(lp,'导体表面：V = 0 等位面',{color:C.green,size:11.5,bold:true,dx:6,dy:-2});
-  drawProbe(E0);
-  if(state.show.vz) chartVz();
-}
-
 /* ══════════ ③ 静电屏蔽 ══════════ */
 function sceneShield(){
   const E0=state.E0, qc=state.qc;
@@ -183,8 +76,8 @@ function sceneShield(){
             .concat(avoidText(O,eLab,11.5,0,34,'center'))
         : avoidText(O,'腔内无电荷 ⇒ E ≡ 0',12.5,0,0,'center'));
   if(Math.abs(qc)>0.02)
-    drawSurfaceCharge(B_C*0.93,()=>sigIn(qc),{alpha:1,nu:5,nv:6,avoidS:avS,share:sep,probeGap:30});
-  drawSurfaceCharge(A_C*1.05,th=>sigOut(th,E0,qc),{alpha:1,avoidS:avS,share:sep,probeGap:30});
+    drawSurfaceCharge(B_C*0.93,()=>sigIn(qc),{alpha:1,nu:5,nv:6,avoidS:avS,share:sep,labelGap:30});
+  drawSurfaceCharge(A_C*1.05,th=>sigOut(th,E0,qc),{alpha:1,avoidS:avS,share:sep,labelGap:30});
   text(labShell,'导体壳：内部 @{E} ≡ 0',{color:C.green,size:11.5,bold:true,dx:6,dy:-2});
 
   /* 腔内点电荷 + 腔内的径向场线
@@ -243,7 +136,6 @@ function drawStageCard(){
 function buildScene(){
   prims=[];                                  /* ★ 第一句必须是 prims=[]（否则每次重绘再叠一层） */
   if(state.mode==='build')  sceneBuild();
-  else if(state.mode==='concl') sceneConcl();
   else                      sceneShield();
 }
 function drawOverlays(){

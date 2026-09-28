@@ -109,7 +109,7 @@ T('屏幕最小间距 ≥ 20 px（改前恰好顶在 15.1 px）', md>=20, 'min='
       字形从 8×8 长到 17×16 后，"锚点在卡外 6px"就可能变成"墨迹压卡 2px"。 */
 const rc=stageCardRect();
 const cardOv=[];
-[0,1,2].forEach(i=>{
+[0,1].forEach(i=>{
   document.querySelectorAll('#modeTabs button')[i].click();
   stopAnim();
   [[1,1],[0,0]].forEach(gt=>{
@@ -123,7 +123,7 @@ const cardOv=[];
     draw(); ctx.fillText=old;
   });
 });
-T('电荷符号墨迹不压阶段卡（3 页签 × 2 状态）', cardOv.length===0,
+T('电荷符号墨迹不压阶段卡（2 页签 × 2 状态）', cardOv.length===0,
   cardOv.length?cardOv.slice(0,3).join(' | '):'0 例');
 
 /* ── 6. 面板/讲解文案不得泄漏（richHTML 不认 Markdown） ── */
@@ -133,7 +133,7 @@ document.querySelectorAll('#modeTabs button').forEach((b,bi)=>{
   document.querySelectorAll('.frm,.ex-body,.ex-note,.card-body,.panel,.coord-strip,.slider-group-label')
     .forEach(e=>{ const t=e.innerText; if(t.indexOf('@{')>=0||/\*\*/.test(t)||/\bundefined\b/.test(t)) leak++; });
 });
-T('面板扫查有覆盖（≥ 15 个元素）', n>=3&&leak===0, '页签='+n+' 泄漏='+leak);
+T('面板扫查有覆盖（≥ 15 个元素）', n>=2&&leak===0, '页签='+n+' 泄漏='+leak);
 
 /* 还原 */
 Object.keys(state.show).forEach(k=>{ state.show[k]=keep[k]; });
