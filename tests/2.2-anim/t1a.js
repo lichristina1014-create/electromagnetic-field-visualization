@@ -86,5 +86,39 @@ const N=4000; let so=0;
 for(let j=0;j<N;j++){ const th=(j+0.5)/N*Math.PI; so+=sigOut(th,E0,qc)*Math.sin(th); }
 so*=(2*Math.PI*a*a)*(Math.PI/N);
 T('外表面总量 = +q', Math.abs(so/1000-qc)/qc<1e-5, so.toFixed(4)+' nC');
+/* ⑬ ③ 的不变性 + 教学判据（2026-09-28 补，起因是"外壁是不是全是正电荷、外场会不会
+   影响腔内"这一问）。⭐ 不变性一律用**逐位相等 `===`**，不用容差 —— 容差只能证明"差不多
+   不受影响"，`===` 才证明"这个参数根本没参与运算"。
+   ① 实心球 vs 空腔壳：`sceneBuild()`（①）从不引用 `B_C`，只有 `sceneShield()`（③）用 ⇒
+      ① 是实心球、没有内壁；本节的"内壁量"只属于 ③。 */
+const cav=[[0.15,0.4],[0.30,1.1],[0.50,2.6]].map(([r,th])=>({
+  p:shellField(r,th,1,qc), q:shellField(r,th,1000,qc), s:shellField(r,th,-777,qc)}));
+T('腔内 E 逐位不受 E₀ 影响（1 / 1000 / −777 kV/m，3 个位点）',
+  cav.every(o=>o.p.Er===o.q.Er && o.q.Er===o.s.Er && o.p.Eth===o.q.Eth && o.q.Eth===o.s.Eth),
+  'r=b/2 处 Er='+cav[1].p.Er.toFixed(9)+' kV/m');
+T('腔内场是纯径向点电荷场（Eth ≡ 0）', cav.every(o=>o.p.Eth===0), 'Eth='+cav[0].p.Eth);
+/* ⚠️ 用**函数元数**钉住"外场不许进入内壁公式"：`sigIn(qc)` 一旦被改成 `sigIn(qc,E0)`，
+   元数立刻从 1 变成 2 ⇒ 这条会响。纯行为断言做不到这一点（值仍会相等）。 */
+T('内壁 σ 只依赖 q（元数 = 1）且恒负、均匀',
+  sigIn.length===1 && sigIn(qc)<0 && Math.abs(sigIn(qc)+qc*1000/(4*Math.PI*B_C*B_C))<1e-12,
+  'arity='+sigIn.length+'　σ='+sigIn(qc).toFixed(2)+' nC/m²');
+let sh=0; for(let j=0;j<N;j++){ const th=(j+0.5)/N*Math.PI; sh+=sigOut(th,E0,qc)*Math.sin(th)*2*Math.PI*a*a; }
+sh*=Math.PI/N;
+/* ⚠️ 净电荷只能按**相对容差**判，别写绝对 `1e-9`（我第一版就栽在这里）：
+   外壁通量是 N=4000 的**中点法**积分。奇数项 `cosθ·sinθ` 被 θ↔π−θ 对称性**精确**消掉
+   （所以 E₀ 那一项零误差），但常数项的通量 Σsin(θⱼ)Δθ = csc(π/2N)·(π/N) = 2 + π²/(12N²)
+   ⇒ 系统性偏大 5.14e-8（相对 2.57e-8），×1200 nC = **3.08e-5 nC** —— 实测正是这个数。
+   和 `sigma(π/2) ≠ 0`（`Math.cos(π/2)=6.1e-17`）属同一类：断言必须带**与分析相符**的容差。 */
+const qIn=sigIn(qc)*4*Math.PI*B_C*B_C;            /* ≡ −qc·1000，代数恒等 */
+const net=(qIn+sh)/1000;                           /* µC */
+T('球壳净电荷 ≡ 0（内壁 −q ＋ 外壁 +q）', Math.abs(net)/qc<1e-6,
+  net.toExponential(2)+' µC　相对 '+Math.abs(net/qc).toExponential(1));
+/* 教学判据：外壁**不是**"全是正电荷"。σ_out = 3ε₀E₀cosθ + q/(4πa²)，两项同量级时
+   背场一侧翻负。θ₀ = acos(−q/(4πa²·3ε₀E₀))。⚠️ 这条钉住的是"页面确实能画出负的外壁"。 */
+const Amp=SIG_K*E0, Bq=qc*1000/(4*Math.PI*a*a);
+const th0=Bq<Amp ? Math.acos(-Bq/Amp) : 0;
+T('外壁并非全正：θ > θ₀ 的那一片翻负',
+  th0>0 && sigOut(th0+0.05,E0,qc)<0 && sigOut(Math.max(0,th0-0.05),E0,qc)>0,
+  'θ₀='+(th0*180/Math.PI).toFixed(1)+'°，θ=180° 处 '+sigOut(Math.PI,E0,qc).toFixed(0)+' nC/m²');
 return R.join('\n')+'\nDONE';
 })();
