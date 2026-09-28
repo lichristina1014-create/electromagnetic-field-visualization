@@ -119,7 +119,7 @@ function renderSubSec(sec){
     bx.appendChild(pb);
     /* 复位键：把 (g,t) 归零并**停在**"无外加电场"（不自动播放）。
        没有它的话，播放结束或按过「⏭ 直接到静电平衡」以后就永远停在平衡态，
-       想回去重讲②③只能手动拖两个滑块。
+       而"外场建立"（阶段②）只能由 ▶ 播放驱动 ⇒ 就再也回不去了。
        （"从头再播一次"仍由 ▶ 主按钮覆盖：它在非播放状态下本来就是归零+播放。） */
     /* ⚠️⚠️ id 千万不要叫 btnReset —— 页面上早已有一个"复位视角"按钮占着这个 id
        （见文件末尾 canvas 工具条那段），getElementById 会返回**文档里靠前的那一个**，
@@ -173,7 +173,6 @@ function renderSubSec(sec){
   }
 }
 const SLIDER_FMT={
-  E0:v=>v.toFixed(1)+' kV/m',
   t: v=>Math.round(v*100)+'%',
   rp:v=>v.toFixed(2)+' m',
   thp:v=>Math.round(v)+'°',
@@ -183,7 +182,7 @@ function syncSliders(){
   const set=(k,v)=>{const s=document.getElementById('s_'+k);
     if(s)s.value=v;
     const e=document.getElementById('v_'+k); if(e) e.textContent=SLIDER_FMT[k]?SLIDER_FMT[k](v):String(v);};
-  set('E0',state.E0); set('t',state.t); set('rp',state.rp); set('thp',Math.round(state.thp)); set('qc',state.qc);
+  set('t',state.t); set('rp',state.rp); set('thp',Math.round(state.thp)); set('qc',state.qc);
   const pn=document.getElementById('probeNote'); if(pn) pn.innerHTML=richHTML(probeNote());
   const sn=document.getElementById('shieldNote'); if(sn) sn.innerHTML=richHTML(shieldNote());
   const bn=document.getElementById('buildNote'); if(bn) bn.innerHTML=richHTML(buildNote());
@@ -191,11 +190,12 @@ function syncSliders(){
 function renderSliders(sec){
   sec.innerHTML='';
   const m=state.mode;
-  sec.appendChild(h('<div class="sec-title">外加匀强场</div>'));
-  mkRange(sec,{k:'E0',label:'@{E}₀',wide:true,min:E0_RANGE[0],max:E0_RANGE[1],step:0.5,
-    get:()=>state.E0, set:v=>state.E0=v, fmt:v=>v.toFixed(1)+' kV/m'});
+  /* ⚠️ 这里原本还有「外加匀强场 E₀」滑块（2026-09-28 删除）：
+     本页所有场量 E / V / σ 都 ∝ E₀，而 E 箭头的显示比例 eLen = mag/(2E₀)
+     又把 E₀ 归一化掉了 ⇒ 拖动它时画面几乎不动，是个空转控件。
+     外场现固定 10 kV/m；"从无到有"的建立过程由 ▶ 播放全过程 的 g 驱动。 */
   if(m==='build'){
-    sec.appendChild(h('<div class="sec-title" style="margin-top:14px">电荷迁移进度</div>'));
+    sec.appendChild(h('<div class="sec-title">电荷迁移进度</div>'));
     mkRange(sec,{k:'t',label:'迁移进度 t',wide:true,min:0,max:1,step:0.01,
       get:()=>state.t, set:v=>{state.t=v; stopAnim();}, fmt:v=>Math.round(v*100)+'%'});
     sec.appendChild(h('<div class="ex-note" style="margin-top:9px">'+richHTML(
@@ -204,7 +204,7 @@ function renderSliders(sec){
       '<br>真实的电荷重分布只花 ~10⁻¹⁸ s，<b>拖动只是为了把机理看清楚</b>，'+
       '不要把中间状态当成会持续存在的物理过程。')+'</div>'));
   } else if(m==='concl'){
-    sec.appendChild(h('<div class="sec-title" style="margin-top:14px">探针 P 的位置（球坐标）</div>'));
+    sec.appendChild(h('<div class="sec-title">探针 P 的位置（球坐标）</div>'));
     mkRange(sec,{k:'rp',label:'半径 r',wide:true,min:RP_RANGE[0],max:RP_RANGE[1],step:0.01,
       get:()=>state.rp, set:v=>{ state.rp=v; snapRp(); }, fmt:v=>v.toFixed(2)+' m',
       after:()=>{ if(document.getElementById('s_rp')) document.getElementById('s_rp').value=state.rp;
@@ -216,7 +216,7 @@ function renderSliders(sec){
       'P 能在 xz 平面内<b>任意拖</b>，也能用这两个滑块精确打到数值。'+
       'r 的滑块在 0.80 m 处<b>会自动吸附</b>到导体表面 —— 那个位置最值得看。')+'</div>'));
   } else {
-    sec.appendChild(h('<div class="sec-title" style="margin-top:14px">腔内点电荷</div>'));
+    sec.appendChild(h('<div class="sec-title">腔内点电荷</div>'));
     mkRange(sec,{k:'qc',label:'q',wide:true,min:QC_RANGE[0],max:QC_RANGE[1],step:0.1,
       get:()=>state.qc, set:v=>state.qc=Math.round(v*10)/10, fmt:v=>sgnTxt(v,2)+' µC'});
     sec.appendChild(h('<div class="ex-note" style="margin-top:9px">'+richHTML(
@@ -245,7 +245,8 @@ const CARDS={
       '<ul><li>两极（θ = 0°、180°）σ 最大、符号相反；赤道（θ = 90°）σ = 0</li>'+
       '<li>总量 ∮σ dS = 0 —— 正负电荷<b>一样多</b>，因为导体本来不带电</li>'+
       '<li>画布上的 ⊕/⊖ 符号：字号与浓淡 ∝ |σ|，所以"两极密、赤道空"是看出来的</li>'+
-      '<li>把外场 E₀ 调大：σ 按比例整体变大，但<b>分布形状完全不变</b>（还是 cosθ）</li></ul>'},
+      '<li>σ 的大小正比于外场（本页 E₀ = 10 kV/m）：外场越强 σ 整体越大，'+
+      '但<b>分布形状完全不变</b>（还是 cosθ）</li></ul>'},
     {k:'3',tab:'3. 若把外场撤掉',cls:'c3',body:
       '<b>撤掉外场（E₀ = 0）会怎样？</b>'+
       '<div class="frm">σ(θ) = 3ε₀E₀cosθ = 0　⇒　感应电荷全部消失</div>'+
@@ -254,8 +255,9 @@ const CARDS={
       '<li>⇒ 这个感应电荷是<b>外场引起</b>的，不是导体自带的</li>'+
       '<li>对比记忆：带电导体球的 σ 是均匀的（自带的电荷，只受自身斥力）；'+
       '这里的不均匀 σ 是外场"掰"出来的</li></ul>'+
-      '<div class="ex-note">把 E₀ 拉到最小 2 kV/m 看看：感应电荷符号变淡、内部是 0 —— '+
-      '结论与 E₀ 的大小无关，只与"有没有导体"有关。</div>'},
+      '<div class="ex-note">按上方的 <b>▶ 播放全过程</b>：开头那一小段（阶段①）就是"还没有外场"，'+
+      '那时 σ 一个符号都不画、内部依然恒为 0 —— 结论与 E₀ 的大小无关，'+
+      '只与"有没有导体"有关。</div>'},
   ],
   concl:[
     {k:'1',tab:'1. 四条结论',cls:'c1',body:

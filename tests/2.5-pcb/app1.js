@@ -37,14 +37,17 @@ const Z = { board: -60, gnd: -55, sub: -50, trace: -40, mask: -34, pot: 0, field
 const NAV = [
   { ch:'第 1 章 · 矢量分析', items:[
     { id:'coord',  t:'1.1 三种常见坐标系', ready:true, href:'index.html' },
-    { id:'ch1-2',  t:'1.2 矢量的代数运算', ready:true, href:'1.2-vector-algebra.html' },
-    { id:'ch1-3',  t:'1.3 方向导数与梯度', ready:true, href:'1.3-directional-derivative.html' },
-    { id:'ch1-4',  t:'1.4 通量与散度',     ready:true, href:'1.4-divergence-flux.html' },
-    { id:'ch1-5',  t:'1.5 环量与旋度',     ready:true, href:'1.5-curl-circulation.html' },
+    { id:'ch1-2',  t:'1.2 矢量的代数运算', ready:true, href:'1.2-vector-algebra.html?v=20260928r14' },
+    { id:'ch1-3',  t:'1.3 方向导数与梯度', ready:true, href:'1.3-directional-derivative.html?v=20260928r14' },
+    { id:'ch1-4',  t:'1.4 通量与散度',     ready:true, href:'1.4-divergence-flux.html?v=20260928r14' },
+    { id:'ch1-5',  t:'1.5 环量与旋度',     ready:true, href:'1.5-curl-circulation.html?v=20260928r14' },
   ]},
   { ch:'第 2 章 · 静电场', items:[
-    { id:'ch2-1', t:'2.1 电场强度与电荷密度', ready:true, href:'2.1-field-charge-density.html' },
-    { id:'ch2-2', t:'2.2 静电场中的导体', ready:true, href:'2.2-conductor-electrostatic.html' },
+    { id:'ch2-1', t:'2.1 电场强度与电荷密度', ready:true, href:'2.1-field-charge-density.html?v=20260928r14' },
+    /* ⚠️ 此处原来 6 条链接**全都没有 ?v=**（全站唯一漏掉版本戳的 NAV）⇒
+       从 2.5 点过去时命中的是不带参数的 URL，改过的页面会读到旧缓存。
+       2026-09-28 补齐，与其余各页 NAV 的写法一致（index.html 不带参数）。 */
+    { id:'ch2-2', t:'2.2 静电场中的导体', ready:true, href:'2.2-conductor-electrostatic.html?v=20260928r14' },
     { t:'2.3 高斯定理及其应用' },
     { t:'2.4 电介质与极化' },
     { id:'ch2-5', t:'2.5 多导体系统的电容与串扰', ready:true, active:true },
