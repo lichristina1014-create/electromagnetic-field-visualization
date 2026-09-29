@@ -164,19 +164,48 @@ T('分子点阵数量 = MOL_NX×MOL_NY×MOL_NZ 且两两镜像（Σz 严格为 0
 T('polarDir 在 s=0 时原样返回（不改动杂乱取向）',
   dirs.every(u=>{ const v=polarDir(u,0); return Math.abs(v.x-u.x)<1e-15 && Math.abs(v.z-u.z)<1e-15; }), 'ok');
 T('polarDir 在 s=1 时全部指向 +z', dirs.every(u=>Math.abs(polarDir(u,1).z-1)<1e-12), 'ok');
-/* ★★ 用户反馈"播放完极性分子没有取向排列"的直接判据：
-   满场（E₀ = E_MAX）时**不许有任何一根哑铃指向场外的方向**（u.z 必须 > 0），
-   而且平均朝向要足够"立起来"。原来 A_VIS=3 ⇒ s 只有 0.67 ⇒ 有一批分子还在往下指，
-   看上去就是"没排列"（示意放大的量级选小了，等于没放）。 */
+/* ★★ 用户两次反馈"极性分子没有取向排列 / 还是歪歪扭扭各不相同"的直接判据。
+   第一次把 A_VIS 3 → 16 ⇒ s(E₀=10) = 0.81，而当时只断言了"没有一根朝 −z" ⇒ 通过了，
+   但用户**仍然不满意** —— 教训：**判据太弱**，等于空转。
+   s = 0.81 ⇒ cosθ′ ∈ [0.625, 1] ⇒ 极角最大仍有 **50°**，再被相机仰角一投影，
+   屏幕上就有一批"接近水平"的杆。⇒ 世界空间只够证明"不朝下"，**观感必须用屏幕空间判据**。 */
 {
   const sv=visAlign(E_MAX).s;
   const czs=dirs.map(u=>polarDir(u,sv).z);
   const down=czs.filter(c=>c<=0).length;
   T('满场下没有一根哑铃指向 −z（取向与 @{E} 同向）', down===0,
     's='+sv.toFixed(3)+'　u.z ∈ ['+Math.min(...czs).toFixed(3)+','+Math.max(...czs).toFixed(3)+']　朝下 '+down+' 根');
-  T('满场下取向足够"立起来"（示意 ⟨cosθ⟩ ≥ 0.8，肉眼能看出排列）', sv>=0.8, '⟨cosθ⟩='+sv.toFixed(3));
-  T('默认场 E₀=DIP 默认 10 kV/m 也看得出排列（示意 ⟨cosθ⟩ ≥ 0.6）',
-    visAlign(10).s>=0.6, '⟨cosθ⟩(10 kV/m)='+visAlign(10).s.toFixed(3));
+  T('满场示意 ⟨cosθ⟩ ≥ 0.95（极角 ≤ 18°，一眼就是"都立着"）', sv>=0.95, '⟨cosθ⟩='+sv.toFixed(3));
+  T('默认场 E₀=DIP 默认 10 kV/m 也 ≥ 0.90（极角 ≤ 26°）',
+    visAlign(10).s>=0.90, '⟨cosθ⟩(10 kV/m)='+visAlign(10).s.toFixed(3));
+  T('弱场仍看得出"没排齐"（E₀=1 ⇒ s ≤ 0.60，否则"场越强越整齐"被压平）',
+    visAlign(1).s<=0.60, '⟨cosθ⟩(1 kV/m)='+visAlign(1).s.toFixed(3));
+}
+/* ★★★ 屏幕空间判据 —— 用户眼睛真正看到的那个量：
+   把每根杆的两个端点用 pr() 投影到屏幕，量它与"屏幕上的 +z 方向"的夹角。
+   世界空间 u.z ≥ 0.625 只说明"没朝下"；屏幕上 50° 的倾斜看起来就是"歪"。
+   ⚠️ 必须先把相机跑起来（chk2 是纯物理脚本，此前没画过 ⇒ camScale 还是初值）。 */
+{
+  draw();                                          /* 初始化相机，pr() 才有意义 */
+  const A0=pr(pt(0,0,0)), A1=pr(pt(0,0,1));
+  let zx=A1.x-A0.x, zy=A1.y-A0.y; const zl=Math.hypot(zx,zy)||1; zx/=zl; zy/=zl;
+  const sv=visAlign(10).s, angs=[];
+  molPositions(-SLAB_CX).forEach((p,i)=>{
+    const u=polarDir(dirs[i%dirs.length], sv);
+    const a=pr(vsub(p,vmul(u,MOL_ARM))), b=pr(vadd(p,vmul(u,MOL_ARM)));
+    let dx=b.x-a.x, dy=b.y-a.y; const L=Math.hypot(dx,dy);
+    if(L<0.5) return;                              /* 纵深方向被压扁的杆，投影长度会退化 */
+    dx/=L; dy/=L;
+    let ang=Math.acos(Math.max(-1,Math.min(1,dx*zx+dy*zy)))*180/Math.PI;
+    if(ang>90) ang=180-ang;                        /* 杆是无向的：只看"偏向"，不看正负 */
+    angs.push(ang);
+  });
+  const mean=angs.reduce((x,y)=>x+y,0)/angs.length;
+  const over=angs.filter(x=>x>40).length, mx=Math.max(...angs);
+  T('屏幕上：默认场下每根杆与「屏幕 +z」的夹角 ≤ 40°（观感就是"都立着"）',
+    angs.length>0 && mx<=40, 'n='+angs.length+'　平均 '+mean.toFixed(1)+'°　最大 '+mx.toFixed(1)+'°');
+  T('屏幕上：夹角 >40° 的杆数为 0（旧版 A_VIS=3 时是 11/18）',
+    over===0, '>40° 的 '+over+' 根 / '+angs.length);
 }
 
 /* ══════ E. 极化模型的恒等式 ══════ */
