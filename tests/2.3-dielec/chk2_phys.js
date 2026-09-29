@@ -141,9 +141,20 @@ T('真实水的 a 极小 ⇒ 永远在线性区',
   aReal(30)<1e-4 && Math.abs(langevin(aReal(30))/aReal(30)-1/3)<1e-6,
   'a(30 kV/m)='+aReal(30).toExponential(2)+'　L/(a/3)='+(langevin(aReal(30))/(aReal(30)/3)).toFixed(9));
 const dirs=molDirs();
-T('分子点阵数量 = 3×3×2 = 18 且两两镜像（Σz 严格为 0）',
-  dirs.length===18 && Math.abs(dirs.reduce((a,u)=>a+u.z,0))<1e-15,
-  'n='+dirs.length+'  Σz='+dirs.reduce((a,u)=>a+u.z,0).toExponential(2));
+/* ⚠️ 别把点数钉死成 18：点阵密度是要调的（2026-09-29 用户要求"上下各再加一组偶极子"，
+   让分子一直铺到上下表面，才看得见"表面留下没配对的电荷" ⇒ 3×3×2 → 3×3×4）。
+   判据写成"**跟着 MOL_NX/Y/Z 走**"，只要"数量对得上点阵、Σz 严格为 0"就行。
+   顺带检查：点阵最上层/最下层必须**贴近板面**（否则表面电荷又看不见了）。 */
+T('分子点阵数量 = MOL_NX×MOL_NY×MOL_NZ 且两两镜像（Σz 严格为 0）',
+  dirs.length===MOL_NX*MOL_NY*MOL_NZ && Math.abs(dirs.reduce((a,u)=>a+u.z,0))<1e-15,
+  'n='+dirs.length+'（点阵 '+MOL_NX+'×'+MOL_NY+'×'+MOL_NZ+'）  Σz='+dirs.reduce((a,u)=>a+u.z,0).toExponential(2));
+{
+  const zs=molPositions(0).map(p=>p.z);
+  const zmax=Math.max(...zs), gap=SLAB_HZ-zmax;
+  T('点阵铺到上下表面附近（离板面 ≤ 0.10 m）',
+    zmax>0 && gap<=0.10 && Math.abs(Math.min(...zs)+zmax)<1e-12,
+    'z ∈ [±'+zmax.toFixed(3)+']，板半高 '+SLAB_HZ.toFixed(2)+' ⇒ 距板面 '+gap.toFixed(3)+' m');
+}
 [0,0.3,0.62,1,3].forEach(sv=>{
   const s=langevin(sv);
   const mean=dirs.reduce((acc,u)=>acc+polarDir(u,s).z,0)/dirs.length;
@@ -153,6 +164,20 @@ T('分子点阵数量 = 3×3×2 = 18 且两两镜像（Σz 严格为 0）',
 T('polarDir 在 s=0 时原样返回（不改动杂乱取向）',
   dirs.every(u=>{ const v=polarDir(u,0); return Math.abs(v.x-u.x)<1e-15 && Math.abs(v.z-u.z)<1e-15; }), 'ok');
 T('polarDir 在 s=1 时全部指向 +z', dirs.every(u=>Math.abs(polarDir(u,1).z-1)<1e-12), 'ok');
+/* ★★ 用户反馈"播放完极性分子没有取向排列"的直接判据：
+   满场（E₀ = E_MAX）时**不许有任何一根哑铃指向场外的方向**（u.z 必须 > 0），
+   而且平均朝向要足够"立起来"。原来 A_VIS=3 ⇒ s 只有 0.67 ⇒ 有一批分子还在往下指，
+   看上去就是"没排列"（示意放大的量级选小了，等于没放）。 */
+{
+  const sv=visAlign(E_MAX).s;
+  const czs=dirs.map(u=>polarDir(u,sv).z);
+  const down=czs.filter(c=>c<=0).length;
+  T('满场下没有一根哑铃指向 −z（取向与 @{E} 同向）', down===0,
+    's='+sv.toFixed(3)+'　u.z ∈ ['+Math.min(...czs).toFixed(3)+','+Math.max(...czs).toFixed(3)+']　朝下 '+down+' 根');
+  T('满场下取向足够"立起来"（示意 ⟨cosθ⟩ ≥ 0.8，肉眼能看出排列）', sv>=0.8, '⟨cosθ⟩='+sv.toFixed(3));
+  T('默认场 E₀=DIP 默认 10 kV/m 也看得出排列（示意 ⟨cosθ⟩ ≥ 0.6）',
+    visAlign(10).s>=0.6, '⟨cosθ⟩(10 kV/m)='+visAlign(10).s.toFixed(3));
+}
 
 /* ══════ E. 极化模型的恒等式 ══════ */
 let maxE=0, maxP=0;

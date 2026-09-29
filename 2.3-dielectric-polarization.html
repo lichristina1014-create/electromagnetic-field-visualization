@@ -6,7 +6,7 @@
 <title>2.3 静电场中的电介质 · 电磁场可视化平台</title>
 <style>
 
-:root{--teal:#156082;--teal-dark:#0E4A66;--teal-light:#E3EFF4;--orange:#E97132;--orange-light:#FDF0E7;--green:#3E9B4F;--green-light:#EAF5EC;--purple:#9B59B6;--crimson:#D04A3A;--blue:#0F9ED5;--ink:#1F3D4C;--muted:#5F7482;--line:#DCE6EB;--bg:#F2F6F8;}
+:root{--teal:#156082;--teal-dark:#0E4A66;--teal-light:#E3EFF4;--orange:#E97132;--orange-light:#FDF0E7;--green:#3E9B4F;--green-light:#EAF5EC;--purple:#9B59B6;--crimson:#D04A3A;--blue:#0F9ED5;--ink:#1F3D4C;--muted:#5F7482;--line:#DCE6EB;--bg:#F2F6F8;--panel-w:398px;}
 *{margin:0;padding:0;box-sizing:border-box;}
 html,body{height:100%;}
 body{font-family:"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--ink);overflow:hidden;}
@@ -55,6 +55,15 @@ body.panel-off .panel{width:0;border-left-width:0;border-right-width:0;overflow:
 .fold-handle:hover{color:var(--teal);border-color:var(--teal);background:#fff;}
 #foldNav{left:0;border-left:none;border-radius:0 9px 9px 0;}
 #foldPanel{right:0;border-right:none;border-radius:9px 0 0 9px;}
+/* ★ 右侧面板的**自由宽度**（不只是"收起 / 展开"两态）：面板左缘贴一条拖动抓取条。
+   ⚠️ 拖动时必须把 .panel 的 `transition:width` 关掉（body.resizing），
+      否则宽度会有 0.22s 的追赶延迟，鼠标跑得越快面板越"跟不上"。 */
+.panel-resizer{flex:0 0 11px;width:11px;margin:0 -5px;align-self:stretch;cursor:col-resize;position:relative;z-index:7;}
+.panel-resizer::before{content:"";position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:3px;height:46px;border-radius:2px;background:#DCE6EB;transition:background .15s,height .15s;}
+.panel-resizer:hover::before,.panel-resizer.dragging::before{background:var(--teal);height:72px;}
+body.resizing,body.resizing .panel,body.resizing aside{transition:none!important;}
+body.resizing{user-select:none;cursor:col-resize;}
+body.panel-off .panel-resizer{display:none;}
 .view-toggles{display:flex;gap:6px;margin-right:6px;}
 .view-toggles button{border:1px solid var(--line);background:#fff;border-radius:8px;padding:5px 11px;font-size:12px;color:var(--muted);cursor:pointer;font-family:inherit;transition:all .15s;}
 .view-toggles button:hover{border-color:var(--teal);color:var(--teal);}
@@ -77,7 +86,9 @@ body.panel-off .panel{width:0;border-left-width:0;border-right-width:0;overflow:
 .coord-chip.acc b{color:#6B4E8A;}
 .coord-chip.warn{background:#FFF6EC;border-color:#F3DCC0;}
 .coord-chip.warn b{color:#B26A1E;}
-.panel{width:398px;flex-shrink:0;background:#fff;border:1px solid var(--line);border-radius:14px;display:flex;flex-direction:column;overflow-y:auto;box-shadow:0 1px 4px rgba(30,60,80,.05);}
+/* ⚠️ 面板宽度走 CSS 变量 --panel-w（而不是写死 398px）：拖动抓取条时只改变量，
+   body.panel-off 的 width:0 仍然靠更高优先级生效，两者不打架。 */
+.panel{width:var(--panel-w,398px);flex-shrink:0;background:#fff;border:1px solid var(--line);border-radius:14px;display:flex;flex-direction:column;overflow-y:auto;box-shadow:0 1px 4px rgba(30,60,80,.05);}
 .panel::-webkit-scrollbar{width:6px;} .panel::-webkit-scrollbar-thumb{background:#D5E0E6;border-radius:3px;}
 .panel-sec{padding:14px 16px;border-bottom:1px solid #EEF3F6;}
 .panel-sec:last-child{border-bottom:none;}
@@ -162,6 +173,7 @@ sub{font-size:.72em;vertical-align:-.24em;}
         <button class="fold-handle" id="foldPanel" title="折叠 / 展开右侧面板">›</button>
         <div class="coord-strip" id="coordStrip"></div>
       </div>
+      <div class="panel-resizer" id="panelResizer" title="拖动调整面板宽度（双击复位为 398px）"></div>
       <div class="panel" id="panel"></div>
     </div>
   </main>
@@ -226,7 +238,34 @@ const C = {teal:'#156082',orange:'#E97132',green:'#3E9B4F',purple:'#9B59B6',crim
 let canvas,ctx,W=800,H=600,DPR=1;
 const cam={az:0.62,el:0.40,zoom:1,px:0,py:0};
 let camU,camV,camD,camScale,CX2,CY;
-function setupCamera(){const ca=Math.cos(cam.az),sa=Math.sin(cam.az);const ce=Math.cos(cam.el),se=Math.sin(cam.el);camD={x:ce*ca,y:ce*sa,z:se};camU={x:-sa,y:ca,z:0};camV={x:-ca*se,y:-sa*se,z:ce};camScale=Math.min(W,H)/3.2*cam.zoom;CX2=W/2;CY=H*0.55;}
+/* ══════════ 右上角信息卡的几何 + "HUD 安全区" ══════════
+   ⚠️ 根因：信息卡（叠加在画布上）固定贴右上，而场景原来是**按整个画布**居中的
+      ⇒ 画布越窄，两边的"中心"越靠拢，卡片左缘就会压到介质盒上。
+      实测（camScale=202.5、②③ 场景屏幕半宽 ≈164px、卡片宽 252 + 边距）：
+         场景右缘 = W/2 + 164，卡片左缘 = W − 268 ⇒ **W < 864 就开始重叠**。
+      用户反馈的正是这个（窄窗口下卡片盖住了右边的介质盒）。
+   ⇒ 两条规则（都不改 camScale，只在必要时才缩，避免"为了不遮挡把图缩小"）：
+      ① 只要够宽就把场景居中不动（W ≥ 864 时行为与旧版**完全一致**）；
+      ② 不够宽就把场景整体左移到卡片左边；实在放不下（cx 被压到可用区的 30% 以左）
+         才整体缩小，保证既不遮挡、也不裁切。 */
+const CARD_W=252, CARD_X=()=>W-CARD_W-16, CARD_Y=62;
+const CARD_RESERVE=CARD_W+26;      /* 右侧留给"卡片 + 工具条 + 图例"的整条带 */
+const HALF_SCENE=0.92;             /* 场景在屏幕水平方向的半宽（世界单位；②③ 实测 0.81，① 取 0.90） */
+function setupCamera(){
+  const ca=Math.cos(cam.az),sa=Math.sin(cam.az),ce=Math.cos(cam.el),se=Math.sin(cam.el);
+  camD={x:ce*ca,y:ce*sa,z:se};camU={x:-sa,y:ca,z:0};camV={x:-ca*se,y:-sa*se,z:ce};
+  let cs=Math.min(W,H)/3.2*cam.zoom;
+  const usable=Math.max(240,W-CARD_RESERVE);
+  let half=HALF_SCENE*cs;
+  /* ① 可用区里根本摆不下整幅场景 ⇒ 先整体缩小（宁可小一点，也不要既被裁又被盖）。 */
+  if(2*half > usable-16){ cs=Math.min(cs,(usable-16)/(2*HALF_SCENE)); half=HALF_SCENE*cs; }
+  /* ② 尽量居中；会压到卡片时左移。 */
+  let cx=Math.min(W/2, W-CARD_RESERVE-10-half);
+  /* ③ 左移过头撞到左边界 ⇒ 再移回来（这一步只会在"卡片+场景真放不下"的极端宽度下触发，
+       此时宁可让卡片压到一点，也不要裁掉场景左半边）。 */
+  if(cx-half<6) cx=6+half;
+  camScale=cs; CX2=Math.max(8,cx); CY=H*0.55;
+}
 function pr(p){return{x:CX2+cam.px+camScale*vdot(p,camU),y:CY+cam.py-camScale*vdot(p,camV),d:vdot(p,camD)};}
 
 let prims=[];
@@ -366,18 +405,18 @@ function drawE0Hint(E0,ext,zBase){
 /* ============================== 目录 ============================== */
 const NAV = [
   { ch:'第 1 章 · 矢量分析', items:[
-    { id:'coord',  t:'1.1 三种常见坐标系', ready:true, href:'index.html?v=20260929r18' },
-    { id:'ch1-2',  t:'1.2 矢量的代数运算', ready:true, href:'1.2-vector-algebra.html?v=20260929r18' },
-    { id:'ch1-3',  t:'1.3 方向导数与梯度', ready:true, href:'1.3-directional-derivative.html?v=20260929r18' },
-    { id:'ch1-4',  t:'1.4 通量与散度',     ready:true, href:'1.4-divergence-flux.html?v=20260929r18' },
-    { id:'ch1-5',  t:'1.5 环量与旋度',     ready:true, href:'1.5-curl-circulation.html?v=20260929r18' },
+    { id:'coord',  t:'1.1 三种常见坐标系', ready:true, href:'index.html?v=20260929r19' },
+    { id:'ch1-2',  t:'1.2 矢量的代数运算', ready:true, href:'1.2-vector-algebra.html?v=20260929r19' },
+    { id:'ch1-3',  t:'1.3 方向导数与梯度', ready:true, href:'1.3-directional-derivative.html?v=20260929r19' },
+    { id:'ch1-4',  t:'1.4 通量与散度',     ready:true, href:'1.4-divergence-flux.html?v=20260929r19' },
+    { id:'ch1-5',  t:'1.5 环量与旋度',     ready:true, href:'1.5-curl-circulation.html?v=20260929r19' },
   ]},
   { ch:'第 2 章 · 静电场', items:[
-    { id:'ch2-1', t:'2.1 电场强度与电荷密度', ready:true, href:'2.1-field-charge-density.html?v=20260929r18' },
-    { id:'ch2-2', t:'2.2 静电场中的导体',     ready:true, href:'2.2-conductor-electrostatic.html?v=20260929r18' },
+    { id:'ch2-1', t:'2.1 电场强度与电荷密度', ready:true, href:'2.1-field-charge-density.html?v=20260929r19' },
+    { id:'ch2-2', t:'2.2 静电场中的导体',     ready:true, href:'2.2-conductor-electrostatic.html?v=20260929r19' },
     { id:'ch2-3', t:'2.3 静电场中的电介质',   ready:true, active:true },
     { t:'2.4 高斯定理及其应用' },
-    { id:'ch2-5', t:'2.5 多导体系统的电容与串扰', ready:true, href:'2.5-multi-conductor-crosstalk.html?v=20260929r18' },
+    { id:'ch2-5', t:'2.5 多导体系统的电容与串扰', ready:true, href:'2.5-multi-conductor-crosstalk.html?v=20260929r19' },
   ]},
   { ch:'第 3 章 · 恒定磁场', items:[ {t:'3.1 比奥-萨伐尔定律'}, {t:'3.2 安培环路定理'} ]},
   { ch:'第 4 章 · 时变电磁场', items:[ {t:'4.1 麦克斯韦方程组'}, {t:'4.2 均匀平面波'} ]},
@@ -449,18 +488,31 @@ const E0_D0 = 10;                           /* 默认外场，与 2.2 的固定�
    朗之万函数 L(a) ≈ a/3 ⇒ 取向度 ~1.5e-5 —— **分子几乎完全没转，画面上什么都看不出来**。
    （这不是本页的缺陷，而是真实的物理：**通常场强下取向极化永远落在线性区**，
      正是"P ∝ E"、正是线性介质的来源。饱和只在 ~1e9 V/m 量级才出现。）
-   ⇒ 为了让"取向过程"在屏幕上可见，把 a 线性放大到 E = E_MAX 时 a = 3：
-        a_vis = A_VIS · E₀/E_MAX，  A_VIS = 3。
-      页面读数条同时给出**真实的 a 与 L(a)**，并标注"示意放大"，两者都能看到。 */
-const A_VIS = 3.0;
+   ⇒ 为了让"取向过程"在屏幕上可见，把 a 线性放大：a_vis = A_VIS · E₀/E_MAX。
+      ⚠️⚠️ A_VIS 取 3 时**画面上根本看不出"排列"**（用户实测反馈："播放完极性分子没有取向排列"）：
+         E₀ = 10（默认）⇒ a_vis = 1 ⇒ L(1) = 0.313 ⇒ ⟨cosθ′⟩ = 0.31 ⇒ 平均极角仍有 ~72°，
+         分子只是"稍微偏向 +z"，看上去依旧杂乱 —— 示意放大的量级选小了，等于没放。
+      ⇒ 改取 A_VIS = 16：E₀ = 10 ⇒ a_vis = 5.33 ⇒ L = 0.81（平均极角 ~36°，一眼就是"都朝上"）；
+         E₀ = 30 ⇒ a_vis = 16 ⇒ L = 0.94。全过程仍由朗之万函数单调饱和，形状没被篡改。
+      ⚠️ 这只是**视觉比例**，不是物理值：真实 a 与 L(a) 依旧逐条给出（读数条 / 信息卡都标"示意放大"）。
+         判定"画面对不对"的自检也只看 ⟨cosθ′⟩ ≡ L(a_vis) 这条恒等式，不依赖 A_VIS 的具体数值。 */
+const A_VIS = 16.0;
 const P0_WATER = 1.85*3.33564e-30;          /* 水分子的固有偶极矩 C·m（1 D = 3.33564e-30） */
 const KT_300   = 1.380649e-23*300;          /* k_B·T（T = 300 K）J */
 
 /* 两块介质的几何 —— 并排放在 x 轴上，外场沿 +z（与 2.2 同一个方向） */
 const SLAB_HX = 0.40, SLAB_HY = 0.34, SLAB_HZ = 0.34;
 const SLAB_CX = 0.52;                        /* 板心 x = ±SLAB_CX */
-const MOL_NX = 3, MOL_NY = 3, MOL_NZ = 2;    /* 分子点阵 3×3×2 = 18 个/板 */
-const MOL_SP = {x:0.26, y:0.22, z:0.20};     /* 点阵间距 m */
+/* ══════════════ 分子点阵 ══════════════
+   ★★ 点阵**必须一直铺到上下两个表面附近**，否则"首尾相接、内部抵消，只剩上下表面留下一层没配对的电荷"
+      这句话在画面上根本看不出来 —— 原来取 3×3×2、z 只到 ±0.10（板半高 0.34），
+      所有分子都挤在板中央，表面附近是空的（用户反馈：要在上下各再加一组）。
+   ⇒ 竖向 4 层、铺到 ±0.27（离板面 0.07），横向 3 列、纵深 3 排：
+        最上面那层露出 +、最下面那层露出 −，中间三层两两首尾相接 ⇒ 一眼看出"哪里的电荷被抵消了"。
+   ⚠️ 层距 0.18 vs 分子全长 2·MOL_ARM = 0.124 ⇒ 相邻分子之间留 ~11px 的缝，
+      既贴得住"相接"、又不会糊成一根柱子。 */
+const MOL_NX = 3, MOL_NY = 3, MOL_NZ = 4;    /* 分子点阵 3×3×4 = 36 个/板 */
+const MOL_SP = {x:0.28, y:0.24, z:0.18};     /* 点阵间距 m（z 层距 0.18 ⇒ 覆盖 ±0.27） */
 const MOL_ARM = 0.062;                       /* 极性分子：正/负中心的半间距（固有偶极矩的长度示意） */
 const MOL_SEP_MAX = MOL_ARM*0.92;            /* 非极性分子：加满场时正负中心被拉开的半间距 */
 const EXT_M = 1.30;                          /* ②③ 的坐标轴长度 */
@@ -469,18 +521,22 @@ const EXT_M = 1.30;                          /* ②③ 的坐标轴长度 */
 const state = {
   mode:'dipole',           /* dipole | nofield | poling */
   d: DIP_D0,               /* ① 偶极子间距 m */
-  E0: E0_D0,               /* ③ 外场 kV/m */
-  g: 1,                    /* ③ 外场建立度 0→1（▶ 播放全过程时被驱动） */
-  anim:null,               /* ③ 播放：null | {u:0→1, playing:bool} */
+  E0: E0_D0,               /* ③ 外场 kV/m（终值） */
+  t: 1,                    /* ★ ③ 的"极化进程"0→1 —— **可停在任意时刻**（进度条直接改它） */
+  g: 1,                    /* ③ 当前外场建立度 = animG(t)：滑块/播放都写 t，g 由 t 导出 */
+  anim:null,               /* ③ 播放：null | {u:0→1, playing:bool}（u 与 t 同步） */
   show:{box:true, lines:true, far:false, chg:true, mol:true, field:true},
   showReadout:true,
   autoRotate:false,
   cardTab:'1',
 };
 
-/* ══════════ ③ 的「全过程播放」时间轴（与 2.2 的 ▶ 播放全过程 同一套观感） ══════════
-     u ∈ [0, 0.18]  阶段①  无外加电场（g = 0）
-     u ∈ [0.18, 1]  阶段②  外场建立 g 0→1：分子转动 / 拉开，表面电荷随之长出来
+/* ══════════ ③ 的「全过程播放」时间轴 ══════════
+     t ∈ [0, 0.18]  阶段①  无外加电场（g = 0）
+     t ∈ [0.18, 1]  阶段②  外场建立 g 0→1：分子转动 / 拉开，表面电荷随之长出来
+   ★★ t 就是面板上那根**进度条**的值，可以停在任意时刻（不是"只能看一遍的动画"）：
+        g = animG(t) 是 t 的纯函数 ⇒ 进度条拖到哪儿，画面/读数就定在哪儿；
+        播放只是"让 t 自己往前走"（每帧 t += dt/ANIM_DUR）。
    ⚠️ 用 smoothstep：两头速度为 0 ⇒ 分子不至于"哏"地弹到终态。 */
 const ANIM_DUR = 4.6;
 const PH_FIELD = [0.18, 1.00];
@@ -489,11 +545,15 @@ function stepAnim(dt){
   const A=state.anim;
   if(!A || !A.playing) return false;
   A.u=Math.min(1, A.u+dt/ANIM_DUR);
+  state.t=A.u;                       /* ← 进度条与画面共用同一个量 */
   state.g=animG(A.u);
-  if(A.u>=1){ state.g=1; state.anim=null; return 'end'; }
+  if(A.u>=1){ state.t=1; state.g=1; state.anim=null; return 'end'; }
   return true;
 }
-function stopAnim(){ state.anim=null; state.g=1; }
+/* ⚠️ stopAnim() **只负责停下**，不再顺手把 g 置 1 —— 现在"停在哪个时刻"由 t 决定：
+   若它还自作主张 g=1，那么按「⏮ 回到无外场」（先 stopAnim 再 g=0）就会一闪，
+   而且"拖进度条到中间 ⇒ 播放 ⇒ 暂停"会莫名跳回终态。 */
+function stopAnim(){ state.anim=null; }
 
 const ZL = 1e4+40;      /* 高深度档：标注必须压在介质盒/球壳之上，否则被半透明面洗掉 */
 const O  = pt(0,0,0);
@@ -695,7 +755,7 @@ function crd(x,y,w,h){
   rrPath(x,y,w,h,10); ctx.strokeStyle='#DCE6EB'; ctx.lineWidth=1; ctx.stroke();
   ctx.restore();
 }
-const CARD_W=252, CARD_X=()=>W-CARD_W-16, CARD_Y=62;
+/* CARD_W / CARD_X / CARD_Y 已上移到相机段（setupCamera 的 HUD 安全区要用，别在这里重复定义） */
 
 /* ══════════════════════════ ① 电偶极子的场 ══════════════════════════ */
 function sceneDipole(){
@@ -1084,24 +1144,38 @@ function renderSubSec(sec){
   } else if(state.mode==='poling'){
     note = '外场沿 <b>+z</b>（绿轴）。<b>上表面</b>是 +σ_p、<b>下表面</b>是 −σ_p —— 因为极化强度 @{P} 沿 +z，'+
       '上下两个面的外向法矢 n̂ 正好反向，σ_p = @{P}·n̂ 于是反号。<br>'+
-      '⚠️ 注意这是<b>两块介质各自的</b>极化电荷，两块板合起来的<b>净</b>极化电荷恒为 0。';
+      '⚠️ 注意这是<b>两块介质各自的</b>极化电荷，两块板合起来的<b>净</b>极化电荷恒为 0。<br>'+
+      '★ 分子点阵<b>一直铺到上下两个表面</b>：中间几层首尾相接、被抵消掉了，'+
+      '只有最上面一层露出 +、最下面一层露出 − —— 这才让"表面极化电荷"这句结论<b>看得见</b>。';
   }
   if(note) sec.appendChild(h('<div class="ex-note" style="margin-top:7px">'+richHTML(note)+'</div>'));
   if(state.mode==='poling'){
-    sec.appendChild(h('<div class="sec-title" style="margin-top:14px">全过程播放</div>'));
+    sec.appendChild(h('<div class="sec-title" style="margin-top:14px">极化进程 · 全过程</div>'));
+    /* ★★ 进度条：t 就是"极化进行到哪儿"，可以拖到**任意时刻**停住 ——
+       不再只是一遍过的动画。▶ 播放 = 让 t 自己往前走；拖它 = 把 t 定在那一刻。
+       ⚠️ 拖动时要顺手把播放停掉（anim.playing=false），否则画面一边被拖着走、一边被动画推着走。 */
+    mkRange(sec,{k:'t',label:'进程 t',wide:true,min:0,max:1,step:0.01,
+      get:()=>state.t,
+      set:v=>{ state.t=v; state.g=animG(v); if(state.anim) state.anim.playing=false; },
+      fmt:v=>Math.round(v*100)+'%',
+      after:()=>{ syncNotes(); updatePlayBtn(); }});
+    sec.appendChild(h('<div class="ex-note" style="margin-top:4px">'+
+      richHTML('t 在 <b>0~18%</b> 之间是「还没有外加场」；<b>18%→100%</b> 才在建立外场 —— '+
+        '所以把 t 拖到 5% 和拖到 18% 画面是一样的（都还没加场）。')+'</div>'));
     const pb=h('<button class="chip o" id="btnPlay">'+((state.anim&&state.anim.playing)?'⏸ 暂停':'▶ 播放全过程')+'</button>').firstChild;
     pb.onclick=()=>{
       if(state.anim) state.anim.playing=!state.anim.playing;
-      else { state.anim={u:0,playing:true}; state.g=0; }
+      /* 从当前 t 续播；若已经播到底（t=1）则从头再来 */
+      else { const u=(state.t>=0.999?0:state.t); state.anim={u, playing:true}; state.t=u; state.g=animG(u); }
       renderPanel(); needsRender=true; syncSliders(); updateReadout(); updateModeTag();
     };
     const bx=h('<div class="sub-chips"></div>').firstChild; bx.appendChild(pb);
-    /* ⚠️ id 不要再叫 btnReset —— 页面上 canvas 工具条已经有一个"复位视角"按钮占着 id="btnReset"
+    /* ⚠️ id 不要再叫 btnReset —— 页面上 canvas 工具条已经有一个"复位视角"按钮占着 id="btnViewReset"
        （见 2.2 的同类坑：重名时 getElementById 返回文档里靠前的那个，点击"看起来"发生了却由别人处理，且不报错）。 */
     const rb=h('<button class="chip" id="btnNoField">⏮ 回到无外场</button>').firstChild;
-    rb.onclick=()=>{ stopAnim(); state.g=0; renderPanel(); syncSliders(); updateAll(); };
+    rb.onclick=()=>{ stopAnim(); state.t=0; state.g=0; renderPanel(); syncSliders(); updateAll(); };
     const fb=h('<button class="chip" id="btnFull">⏭ 直接到最强场</button>').firstChild;
-    fb.onclick=()=>{ stopAnim(); state.g=1; renderPanel(); updateAll(); };
+    fb.onclick=()=>{ stopAnim(); state.t=1; state.g=1; renderPanel(); updateAll(); };
     bx.appendChild(rb); bx.appendChild(fb);
     sec.appendChild(bx);
     sec.appendChild(h('<div class="ex-note" id="polNote">'+richHTML(mediaNote(state.E0*state.g, state.mode))+'</div>'));
@@ -1111,17 +1185,28 @@ function renderSubSec(sec){
     sec.appendChild(h('<div class="ex-note" id="dipNote" style="margin-top:12px">'+richHTML(dipNote())+'</div>'));
   }
 }
+/* ⚠️ 这里的格式必须与 mkRange 建滑块时的 fmt **完全一致**：
+   syncSliders() 每帧都在跑（播放时），格式不一致就会出现"一拖就变一位小数"的抖动。 */
 const SLIDER_FMT={
-  d: v=>v.toFixed(3)+' m',
-  E0:v=>v.toFixed(1)+' kV/m',
+  d: v=>v.toFixed(2)+' m',
+  E0:v=>v.toFixed(0)+' kV/m',
+  t: v=>Math.round(v*100)+'%',
 };
-function syncSliders(){
-  const set=(k,v)=>{ const s=document.getElementById('s_'+k); if(s) s.value=v;
-    const e=document.getElementById('v_'+k); if(e) e.textContent=SLIDER_FMT[k]?SLIDER_FMT[k](v):String(v); };
-  set('d',state.d); set('E0',state.E0);
+/* 三块"实时结论"（dipNote / noNote / polNote）的正文刷新 —— 播放与拖动进度条都要用 */
+function syncNotes(){
   const dn=document.getElementById('dipNote'); if(dn) dn.innerHTML=richHTML(dipNote());
   const nn=document.getElementById('noNote');  if(nn) nn.innerHTML=richHTML(mediaNote(0, state.mode));
   const pn=document.getElementById('polNote'); if(pn) pn.innerHTML=richHTML(mediaNote(state.E0*state.g, state.mode));
+}
+function updatePlayBtn(){
+  const pb=document.getElementById('btnPlay'); if(!pb) return;
+  pb.textContent=(state.anim&&state.anim.playing)?'⏸ 暂停':'▶ 播放全过程';
+}
+function syncSliders(){
+  const set=(k,v)=>{ const s=document.getElementById('s_'+k); if(s) s.value=v;
+    const e=document.getElementById('v_'+k); if(e) e.textContent=SLIDER_FMT[k]?SLIDER_FMT[k](v):String(v); };
+  set('d',state.d); set('E0',state.E0); set('t',state.t);   /* t 进度条随播放实时走 */
+  syncNotes();
 }
 function renderSliders(sec){
   sec.innerHTML='';
@@ -1146,10 +1231,15 @@ function renderSliders(sec){
   } else {
     sec.appendChild(h('<div class="sec-title">外加匀强场</div>'));
     mkRange(sec,{k:'E0',label:'@{E}₀',wide:true,min:0,max:E_MAX,step:1,
-      get:()=>state.E0, set:v=>{ state.E0=v; stopAnim(); state.g=1; }, fmt:v=>v.toFixed(0)+' kV/m'});
+      get:()=>state.E0,
+      /* 拖 E₀ = 手动设定"外场终值"。既然是手动设场，就把进程一并推到终点（t=1）看稳态：
+         t 若停在 0，则 E = E₀·g 里 g(0)=0 ⇒ 拖 E₀ 画面上什么都不动（那才叫莫名其妙）。 */
+      set:v=>{ state.E0=v; stopAnim(); state.t=1; state.g=1; },
+      fmt:v=>v.toFixed(0)+' kV/m',
+      after:()=>{ syncSliders(); updatePlayBtn(); }});
     sec.appendChild(h('<div class="ex-note" style="margin-top:9px">'+richHTML(
-      '拖动滑块 = 手动设定外场；按 <b>▶ 播放全过程</b> 则从"完全没有场"一路长到 '+
-      state.E0.toFixed(0)+' kV/m，可以看清分子是<b>怎么一步步动起来</b>的。<br>'+
+      '拖动滑块 = 手动设定外场<b>终值</b>（会自动把下面的进程 t 推到 100%）；'+
+      '想看清分子<b>怎么一步步动起来</b>，用下面那根 <b>进程 t</b> 进度条，或者按 <b>▶ 播放全过程</b>。<br>'+
       '⚠️ 画面上"分子转了多少"是<b>示意放大</b>过的（见下方讲解卡）：'+
       '真实取向度 L(a) 在工程场强下只有 10⁻⁵ 量级 —— 正因为如此，取向极化才总是线性的。')+'</div>'));
   }
@@ -1252,7 +1342,16 @@ const CARDS={
       '<div class="ex-note">★ 这就是可以"用表面电荷代替全体分子"的严格理由：'+
       '内部抵消是<b>逐点</b>成立的（不是近似），所以内部的场与"一堆杂乱电荷"无关，'+
       '只由表面那层决定。极化强度 @{P} 的数值恰好等于表面电荷密度 —— '+
-      '这也是检验"单位对不对"的最快办法：P 的单位 C/m² 与面电荷密度完全一致。</div>'},
+      '这也是检验"单位对不对"的最快办法：P 的单位 C/m² 与面电荷密度完全一致。<br>'+
+      '<b>⚠️ 但"内部逐点抵消"有一个前提：介质是均匀的。</b>'+
+      '上面那条链子之所以接得严丝合缝，是因为每个格点上的分子数密度 N 处处相同 —— '+
+      '前一个分子的 + 端，恰好等于后一个分子的 − 端。<br>'+
+      '如果介质<b>不均匀</b>（N 随位置变化，比如两种介质的分界面、或掺了杂质的区域），'+
+      '某个小体积里"头"多"尾"少 ⇒ 就不再有严格的逐点抵消，'+
+      '<b>内部会剩下未被抵消的净电荷</b>（束缚电荷体密度 ρ_b = −∇·@{P}），'+
+      '此时"只有表面有电荷"这句话就不再成立。<br>'+
+      '⇒ 一句话记住：<b>∇·@{P} = 0 才有"只有面电荷"；∇·@{P} ≠ 0 的地方，内部也会冒出体电荷。</b>'+
+      '本页画的是均匀介质，所以内部干干净净。</div>'},
     {k:'3',tab:'3. 退极化场与 ε_r',cls:'c3',body:
       '<b>表面电荷不是白留的 —— 它自己会产生一份与外场反向的场：</b>'+
       '<div class="frm">@{E}内 = @{E}₀ + @{E}退 = @{E}₀ − @{P}/ε₀</div>'+
@@ -1302,10 +1401,20 @@ function renderPanel(){
   updateReadout(); updateModeTag();
 }
 
+/* ⚠️ 图例（.cv-legend）是 absolute + bottom:14px，而 .canvas-card 里**还有一条数据条**（.coord-strip）
+   也贴在底部 ⇒ 图例默认会**压在数据条上面**（chip 多的页签尤其明显：③ 有 8 个 chip，直接撞上）。
+   修法：把图例的 bottom 改成"数据条高度 + 14"（数据条被关掉时高度为 0，自动落回底部）。
+   数据条内容一变（切页签）高度就会变 ⇒ 在 updateReadout / resize 里都要重算。 */
+function placeLegend(){
+  const st=document.getElementById('coordStrip'), lg=document.getElementById('legend');
+  if(!st||!lg) return;
+  lg.style.bottom=(st.offsetHeight+14)+'px';
+}
+
 /* ══════════════════════════ 画布下方实时数据条 ══════════════════════════ */
 function updateReadout(){
   const strip=document.getElementById('coordStrip'); if(!strip) return;
-  if(!state.showReadout){ strip.innerHTML=''; return; }
+  if(!state.showReadout){ strip.innerHTML=''; placeLegend(); return; }
   let html='';
   const lgT=document.getElementById('lgTitle'), lgN=document.getElementById('lgNote');
   if(state.mode==='dipole'){
@@ -1337,7 +1446,12 @@ function updateReadout(){
     /* ⚠️ chip 的顺序 = 对照表能不能一眼看全。数据条是 flex-wrap:nowrap + overflow-x:auto，
        排成"水×4 再 PE×3"会把最要紧的 水/PE 对照挤出可视区（要横向滚动才看得到）。
        ⇒ 一律**按物理量成对相邻**：P 一行水/PE 挨着、E内 一行水/PE 挨着。 */
-    html += kchip('外加场 @{E}₀ =', Eeff.toFixed(1)+' kV/m');
+    /* ⚠️ 标签写"当前 @{E}"而不是"@{E}₀"：这里是 E = E₀·g（随进程 t 变），
+       写成 E₀ 会与面板上那根"外场终值"滑块混淆 —— 播放途中两者并不相等。 */
+    html += kchip('当前外场 @{E} =', Eeff.toFixed(1)+' kV/m');
+    /* ★ 进程 t 是 ③ 的"主控量"（进度条直接改它），排在最前面 —— 一眼就知道现在停在哪一刻 */
+    html += kchip('极化进程 t =', Math.round(state.t*100)+'%（'+
+      (state.t<PH_FIELD[0]?'① 还没加场':(state.t>=1?'③ 已加满':'② 加场中'))+'）','warn');
     html += kchip('水：P = σ_p =', sP.Pn.toFixed(1)+' nC/m²','acc');
     html += kchip('PE：P = σ_p =', sN.Pn.toFixed(1)+' nC/m²','acc');
     html += kchip('水：@{E}内 = @{E}₀/80.4 =', sP.Ein.toFixed(3)+' kV/m','acc');
@@ -1350,6 +1464,7 @@ function updateReadout(){
       '两者都是"内部抵消、表面留下"');
   }
   strip.innerHTML=html;
+  placeLegend();
 }
 function updateModeTag(){
   const t=document.getElementById('modeTag'); if(!t) return;
@@ -1363,8 +1478,9 @@ function updateModeTag(){
     if(sb) sb.textContent='宏观表现完全相同：P = 0、σ_p = 0';
   } else {
     const Eeff=state.E0*state.g;
-    t.innerHTML=richHTML('③ 极化的建立 · @{E}₀ = '+Eeff.toFixed(1)+' kV/m　'+
-      '（滑块上限 '+E_MAX+'，当前 '+Math.round(state.g*100)+'%）');
+    const stg = state.t<PH_FIELD[0] ? '还没加场' : (state.t>=1 ? '已加满' : '加场中');
+    t.innerHTML=richHTML('③ 极化的建立 · 当前 @{E} = '+Eeff.toFixed(1)+' kV/m　'+
+      '（进程 t = '+Math.round(state.t*100)+'%　'+stg+'　@{E}₀ 终值 '+state.E0.toFixed(0)+' kV/m）');
     if(sb) sb.textContent='极性分子转动 · 非极性分子拉开 ⇒ 内部抵消、表面留下极化电荷';
   }
 }
@@ -1390,9 +1506,7 @@ function tick(){
     if(state.autoRotate){ cam.az+=0.0045; needsRender=true; }
     const ra=stepAnim(dt);
     if(ra){
-      needsRender=true; syncSliders(); updateReadout(); updateModeTag();
-      const pb=document.getElementById('btnPlay');
-      if(pb) pb.textContent=(state.anim&&state.anim.playing)?'⏸ 暂停':'▶ 播放全过程';
+      needsRender=true; syncSliders(); updateReadout(); updateModeTag(); updatePlayBtn();
       if(ra==='end') renderPanel();
     }
     if(needsRender) draw();
@@ -1436,6 +1550,48 @@ window.addEventListener('keydown',e=>{if(e.target.tagName==='INPUT')return;
   if(e.key==='['){document.body.classList.toggle('nav-off');setTimeout(resize,260);}
   if(e.key===']'){document.body.classList.toggle('panel-off');setTimeout(resize,260);}});
 
+/* ══════════ 右侧面板：拖动抓取条**自由调整宽度**（不再只有"收起 / 展开"两态） ══════════
+   · 宽度写在 CSS 变量 --panel-w 上 —— body.panel-off 的 width:0 优先级更高，两者不打架；
+   · ⚠️ 拖动期间给 body 加 .resizing 把 .panel 的 `transition:width` **关掉**：
+        否则宽度带 0.22s 缓动，鼠标跑得越快面板越"追不上"，手感会明显滞后；
+   · 下限 260px（再窄滑块/按钮就放不下），上限按"给画布至少留 ~330px"动态算；
+   · 双击抓取条复位 398px；宽度记进 localStorage，刷新后还在。 */
+const PANEL_W0=398, PANEL_WMIN=260;
+const panelEl=document.getElementById('panel'), panelRz=document.getElementById('panelResizer');
+function panelMaxW(){
+  const navW=document.body.classList.contains('nav-off')?0:236;
+  return Math.max(PANEL_WMIN+60, Math.min(760, window.innerWidth-navW-330));
+}
+function setPanelW(px,save){
+  const w=Math.max(PANEL_WMIN, Math.min(panelMaxW(), Math.round(px)));
+  document.documentElement.style.setProperty('--panel-w', w+'px');
+  if(save){ try{ localStorage.setItem('em23-panel-w', String(w)); }catch(e){} }
+  return w;
+}
+(()=>{ let v=0; try{ v=parseInt(localStorage.getItem('em23-panel-w')||'0',10)||0; }catch(e){}
+      if(v>=PANEL_WMIN) setPanelW(v,false); })();
+let _rz=null;
+function rzEnd(){
+  if(_rz) setPanelW(panelEl.getBoundingClientRect().width,true);
+  _rz=null; document.body.classList.remove('resizing'); panelRz.classList.remove('dragging');
+}
+panelRz.addEventListener('pointerdown',ev=>{
+  if(document.body.classList.contains('panel-off')) return;
+  /* ⚠️ setPointerCapture 对"并不存在的 pointerId"会抛 NotFoundError
+     （合成 PointerEvent 做自检时必然遇到）⇒ 必须兜住，否则拖动逻辑整个不执行。 */
+  try{ panelRz.setPointerCapture(ev.pointerId); }catch(e){}
+  _rz={x:ev.clientX, w:panelEl.getBoundingClientRect().width};
+  document.body.classList.add('resizing'); panelRz.classList.add('dragging');
+  ev.preventDefault();
+});
+panelRz.addEventListener('pointermove',ev=>{ if(!_rz) return; setPanelW(_rz.w-(ev.clientX-_rz.x), false); });
+panelRz.addEventListener('pointerup',rzEnd);
+panelRz.addEventListener('pointercancel',rzEnd);
+panelRz.addEventListener('dblclick',()=>setPanelW(PANEL_W0,true));
+/* 窗口缩小到装不下时把面板收回上限内，否则画布会被挤成 0 宽 */
+window.addEventListener('resize',()=>{ const cur=panelEl.getBoundingClientRect().width;
+  if(cur>panelMaxW()) setPanelW(cur,true); });
+
 /* ══════════════════════════════ 页签 ══════════════════════════════ */
 const MT=[{k:'dipole', t:'① 电偶极子的场'},
           {k:'nofield',t:'② 无外场：两种介质'},
@@ -1455,6 +1611,7 @@ function resize(){
   if(nw===W&&nh===H&&canvas.width===Math.round(nw*DPR))return;
   W=nw;H=nh;canvas.width=Math.round(W*DPR);canvas.height=Math.round(H*DPR);
   ctx.setTransform(DPR,0,0,DPR,0,0); needsRender=true;
+  placeLegend();
 }
 new ResizeObserver(()=>resize()).observe(canvas);
 
