@@ -1,0 +1,1473 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>2.3 静电场中的电介质 · 电磁场可视化平台</title>
+<style>
+
+:root{--teal:#156082;--teal-dark:#0E4A66;--teal-light:#E3EFF4;--orange:#E97132;--orange-light:#FDF0E7;--green:#3E9B4F;--green-light:#EAF5EC;--purple:#9B59B6;--crimson:#D04A3A;--blue:#0F9ED5;--ink:#1F3D4C;--muted:#5F7482;--line:#DCE6EB;--bg:#F2F6F8;}
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{height:100%;}
+body{font-family:"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--ink);overflow:hidden;}
+header{height:76px;background:#fff;border-bottom:1px solid var(--line);display:flex;align-items:center;padding:0 22px;gap:14px;}
+.logo{width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,var(--teal),#2E86AB);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:15px;text-decoration:none;}
+header h1{font-size:18px;font-weight:700;letter-spacing:.5px;}
+header .sub{font-size:12px;color:var(--muted);margin-top:2px;}
+header .badge{margin-left:auto;display:flex;flex-direction:column;align-items:flex-end;gap:4px;}
+header .badge .chip{font-size:12px;color:var(--teal);background:var(--teal-light);border:1px solid #C5DEE9;padding:4px 12px;border-radius:20px;white-space:nowrap;}
+header .badge .owner{font-size:11px;color:#5C6B73;background:#F4F7F9;border:1px solid #E2E8EC;padding:3px 10px;border-radius:20px;white-space:nowrap;display:inline-flex;align-items:center;gap:5px;}
+header .badge .owner b{color:var(--teal);font-weight:600;letter-spacing:.3px;}
+header .badge .owner::before{content:"";display:inline-block;width:5px;height:5px;background:var(--teal);border-radius:50%;}
+.layout{display:flex;height:calc(100vh - 76px);}
+aside{width:236px;background:#fff;border-right:1px solid var(--line);overflow-y:auto;padding:14px 0;flex-shrink:0;}
+aside::-webkit-scrollbar{width:6px;} aside::-webkit-scrollbar-thumb{background:#D5E0E6;border-radius:3px;}
+.nav-ch{font-size:12px;color:var(--muted);padding:12px 18px 6px;font-weight:600;letter-spacing:.5px;}
+.nav-item{display:flex;align-items:center;gap:8px;padding:9px 18px;font-size:13.5px;cursor:pointer;color:#3D5A68;border-left:3px solid transparent;transition:background .15s;text-decoration:none;}
+.nav-item:hover{background:#F5F9FB;}
+.nav-item.active{background:var(--teal-light);color:var(--teal-dark);font-weight:600;border-left-color:var(--teal);}
+.nav-item .dot{width:6px;height:6px;border-radius:50%;background:#C6D4DB;flex-shrink:0;}
+.nav-item.active .dot{background:var(--teal);}
+.nav-item.soon{color:#A5B6C0;cursor:not-allowed;}
+.nav-item.soon .dot{background:#E1E9ED;}
+.nav-item.soon::after{content:"建设中";font-size:10px;color:#B7C6CE;margin-left:auto;border:1px solid #DCE6EB;border-radius:8px;padding:1px 6px;}
+main{flex:1;display:flex;flex-direction:column;padding:14px 16px 12px;overflow:hidden;min-width:0;}
+.module-head{display:flex;align-items:center;gap:16px;margin-bottom:10px;flex-wrap:wrap;}
+.module-title{font-size:17px;font-weight:700;}
+.module-title small{font-weight:400;color:var(--muted);font-size:12px;margin-left:8px;}
+.seg{display:flex;background:#fff;border:1px solid var(--line);border-radius:10px;padding:3px;gap:2px;flex-wrap:wrap;}
+.seg button{border:none;background:transparent;padding:7px 15px;font-size:13px;border-radius:8px;cursor:pointer;color:var(--muted);font-family:inherit;transition:all .15s;white-space:nowrap;}
+.seg button:hover{color:var(--teal);}
+.seg button.on{background:var(--teal);color:#fff;font-weight:600;box-shadow:0 2px 6px rgba(21,96,130,.3);}
+.content-row{flex:1;display:flex;gap:14px;min-height:0;}
+.canvas-card{flex:1;background:#fff;border:1px solid var(--line);border-radius:14px;position:relative;overflow:hidden;min-width:0;display:flex;flex-direction:column;box-shadow:0 1px 4px rgba(30,60,80,.05);}
+#cv{width:100%;flex:1;min-height:0;min-width:0;display:block;cursor:grab;touch-action:none;}
+#cv:active{cursor:grabbing;}
+.cv-toolbar{position:absolute;top:12px;right:12px;display:flex;gap:8px;z-index:5;}
+.cv-toolbar button{border:1px solid var(--line);background:rgba(255,255,255,.92);border-radius:8px;padding:5px 12px;font-size:12px;color:var(--muted);cursor:pointer;font-family:inherit;backdrop-filter:blur(4px);transition:all .15s;}
+.cv-toolbar button:hover{color:var(--teal);border-color:var(--teal);}
+.cv-toolbar button.on{background:var(--teal);color:#fff;border-color:var(--teal);}
+.cv-mode-tag{position:absolute;top:12px;left:12px;font-size:12px;color:var(--teal-dark);background:rgba(227,239,244,.92);border:1px solid #C9E0EA;border-radius:8px;padding:5px 12px;z-index:4;pointer-events:none;font-weight:600;max-width:56%;}
+aside,.panel{transition:width .22s ease,padding .22s ease,border-width .22s ease;}
+body.nav-off aside{width:0;padding-top:0;padding-bottom:0;border-right-width:0;overflow:hidden;}
+body.panel-off .panel{width:0;border-left-width:0;border-right-width:0;overflow:hidden;}
+.fold-handle{position:absolute;top:50%;transform:translateY(-50%);z-index:6;width:15px;height:58px;padding:0;line-height:1;border:1px solid var(--line);background:rgba(255,255,255,.94);color:#A3B7C2;font-size:11px;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px);transition:all .15s;}
+.fold-handle:hover{color:var(--teal);border-color:var(--teal);background:#fff;}
+#foldNav{left:0;border-left:none;border-radius:0 9px 9px 0;}
+#foldPanel{right:0;border-right:none;border-radius:9px 0 0 9px;}
+.view-toggles{display:flex;gap:6px;margin-right:6px;}
+.view-toggles button{border:1px solid var(--line);background:#fff;border-radius:8px;padding:5px 11px;font-size:12px;color:var(--muted);cursor:pointer;font-family:inherit;transition:all .15s;}
+.view-toggles button:hover{border-color:var(--teal);color:var(--teal);}
+.view-toggles button.on{background:var(--teal);color:#fff;border-color:var(--teal);}
+.cv-pan-tag{position:absolute;top:12px;left:50%;transform:translateX(-50%);z-index:6;font-size:11.5px;color:#8A5A20;background:rgba(255,248,236,.95);border:1px solid #E7C48F;border-radius:8px;padding:5px 12px;display:none;align-items:center;gap:8px;}
+.cv-pan-tag.show{display:flex;}
+.cv-pan-tag button{border:1px solid #E0BE8C;background:#fff;border-radius:6px;padding:2px 9px;font-size:11.5px;color:#8A5A20;cursor:pointer;font-family:inherit;}
+.cv-pan-tag button:hover{background:#8A5A20;color:#fff;border-color:#8A5A20;}
+.cv-legend{position:absolute;bottom:14px;right:14px;z-index:5;background:rgba(255,255,255,.94);border:1px solid var(--line);border-radius:9px;padding:7px 11px 8px;font-size:11px;color:var(--muted);backdrop-filter:blur(4px);pointer-events:none;min-width:130px;}
+.cv-legend .lg-t{font-size:11px;color:var(--ink);font-weight:600;margin-bottom:5px;}
+.cv-legend .lg-note{font-size:10.5px;color:var(--muted);line-height:1.55;margin-top:4px;}
+.coord-strip{display:flex;gap:8px;padding:10px 12px;border-top:1px solid var(--line);background:#FBFDFE;flex-wrap:nowrap;overflow-x:auto;overflow-y:hidden;}
+.coord-strip::-webkit-scrollbar{height:5px;}
+.coord-strip::-webkit-scrollbar-thumb{background:#D5E0E6;border-radius:3px;}
+.coord-strip:empty{padding:0;border-top:none;}
+.coord-chip{font-size:12px;color:var(--muted);background:#F3F8FA;border:1px solid #E2ECF1;border-radius:8px;padding:5px 12px;white-space:nowrap;}
+.coord-chip b{color:var(--teal-dark);font-weight:600;margin-left:5px;font-family:Menlo,monospace;}
+.coord-chip i{font-style:italic;font-family:Georgia,serif;color:var(--ink);}
+.coord-chip.acc{background:#F5F0FA;border-color:#E2D4F0;}
+.coord-chip.acc b{color:#6B4E8A;}
+.coord-chip.warn{background:#FFF6EC;border-color:#F3DCC0;}
+.coord-chip.warn b{color:#B26A1E;}
+.panel{width:398px;flex-shrink:0;background:#fff;border:1px solid var(--line);border-radius:14px;display:flex;flex-direction:column;overflow-y:auto;box-shadow:0 1px 4px rgba(30,60,80,.05);}
+.panel::-webkit-scrollbar{width:6px;} .panel::-webkit-scrollbar-thumb{background:#D5E0E6;border-radius:3px;}
+.panel-sec{padding:14px 16px;border-bottom:1px solid #EEF3F6;}
+.panel-sec:last-child{border-bottom:none;}
+.readout-toggle{display:flex;align-items:center;gap:8px;padding:8px 10px;margin-bottom:12px;background:#F3F8FA;border:1px solid #E2ECF1;border-radius:8px;cursor:pointer;font-size:12.5px;line-height:1.5;color:var(--muted);}
+.readout-toggle:hover{border-color:#C6DAE3;background:#EDF4F7;}
+.readout-toggle input{accent-color:var(--teal);cursor:pointer;margin:0;}
+.readout-toggle b{color:var(--ink);}
+.sec-title{font-size:12px;color:var(--muted);font-weight:600;letter-spacing:1px;margin-bottom:10px;display:flex;align-items:center;gap:6px;}
+.sec-title::before{content:"";width:3px;height:12px;background:var(--teal);border-radius:2px;}
+.sub-chips{display:flex;gap:6px;flex-wrap:wrap;}
+.chip{border:1px solid var(--line);background:#fff;border-radius:16px;padding:4px 13px;font-size:12.5px;line-height:1.5;cursor:pointer;font-family:inherit;color:var(--muted);transition:all .15s;}
+.chip:hover{border-color:var(--teal);color:var(--teal);}
+.chip.on{background:var(--teal);border-color:var(--teal);color:#fff;font-weight:600;}
+.chip.pre{border-style:dashed;border-color:#C9D6DD;color:#7A8F9B;}
+.chip.pre:hover{border-color:var(--orange);color:var(--orange);background:#FFF8F2;}
+.chip.g.on{background:var(--green);border-color:var(--green);}
+.chip.o.on{background:var(--orange);border-color:var(--orange);}
+.chip.p.on{background:var(--purple);border-color:var(--purple);}
+.slider-row{display:flex;align-items:center;gap:10px;margin-bottom:9px;}
+.slider-row label{width:46px;font-size:13px;font-style:italic;font-family:Georgia,serif;color:var(--ink);text-align:right;flex-shrink:0;}
+.slider-row.w label{width:62px;font-style:normal;font-family:inherit;}
+.slider-row input[type=range]{flex:1;accent-color:var(--teal);height:4px;cursor:pointer;}
+.slider-row .val{width:62px;font-size:12px;color:var(--muted);font-family:Menlo,monospace;flex-shrink:0;}
+.ex-title{font-size:14.5px;font-weight:700;color:var(--teal-dark);margin-bottom:8px;line-height:1.45;}
+.ex-body{font-size:14px;line-height:1.7;color:#3A5462;}
+.ex-body b{color:var(--ink);}
+.ex-body ul{padding-left:18px;margin:6px 0;}
+.ex-body li{margin-bottom:3px;}
+.ex-note{font-size:12.5px;line-height:1.65;color:#6B8290;background:#F7FAFB;border:1px solid #E7EFF3;border-radius:8px;padding:8px 11px;margin-top:9px;}
+.frm{display:block;background:#F4F9FB;border:1px solid #DDE9EF;border-left:3px solid var(--teal);border-radius:8px;padding:10px 14px 10px 18px;margin:10px 0;font-size:14px;line-height:1.7;font-family:Georgia,"Times New Roman",serif;color:var(--ink);overflow-x:auto;white-space:nowrap;}
+.vec{position:relative;font-style:italic;font-weight:700;white-space:nowrap;}
+.vec::before,.vec::after{content:'';position:absolute;pointer-events:none;}
+.vec::before{left:0;right:.24em;top:-.28em;height:1px;background:currentColor;opacity:.9;}
+.vec::after{right:0;top:-.42em;width:0;height:0;border-left:.26em solid currentColor;border-top:.14em solid transparent;border-bottom:.14em solid transparent;}
+sub{font-size:.72em;vertical-align:-.24em;}
+.vec sub{font-style:normal;font-weight:600;}
+.sqrt{display:inline-block;position:relative;padding-left:.62em;margin-left:.05em;font-style:normal;}
+.sqrt::before{content:"√";position:absolute;left:.02em;top:-.12em;font-size:1.1em;font-family:"Cambria Math","STIX Two Math","Latin Modern Math","Times New Roman",Georgia,serif;}
+.sqrt .in{display:inline-block;border-top:1.15px solid currentColor;padding:.10em .06em .02em .06em;border-radius:4px 4px 0 0;line-height:1.1;}
+.card-tabs{display:flex;gap:6px;flex-wrap:wrap;margin:4px 0 10px;}
+.card-tab{cursor:pointer;font-family:inherit;font-size:12.5px;padding:5px 9px;border-radius:9px;border:1px solid var(--line);background:#fff;color:var(--muted);transition:all .15s;line-height:1.4;white-space:nowrap;flex:1;text-align:center;min-width:0;}
+.card-tab:hover{border-color:var(--teal);color:var(--teal);}
+.card-tab.c1.on{background:#156082;border-color:#156082;color:#fff;font-weight:600;}
+.card-tab.c2.on{background:#0F9ED5;border-color:#0F9ED5;color:#fff;font-weight:600;}
+.card-tab.c3.on{background:#E97132;border-color:#E97132;color:#fff;font-weight:600;}
+.card-tab.c4.on{background:#9B59B6;border-color:#9B59B6;color:#fff;font-weight:600;}
+.card-body{background:#FCFEFE;border:1px solid #E2ECF1;border-radius:8px;padding:12px 16px 8px;border-left:4px solid var(--teal);}
+.card-body.c1{border-left-color:#156082;} .card-body.c2{border-left-color:#0F9ED5;}
+.card-body.c3{border-left-color:#E97132;} .card-body.c4{border-left-color:#9B59B6;}
+#toast{position:fixed;bottom:26px;left:50%;transform:translateX(-50%);background:rgba(31,61,76,.94);color:#fff;font-size:13px;padding:9px 20px;border-radius:22px;opacity:0;pointer-events:none;transition:opacity .25s;z-index:99;}
+#toast.show{opacity:1;}
+
+/* 2.1 追加：滑块分组标签（1.3 有定义、1.5 漏了，这里补齐） */
+.slider-group-label{font-size:12px;font-weight:600;color:var(--crimson);margin:4px 0 8px;}
+.slider-group-label.q{color:var(--blue);}
+.slider-group-label.g{color:var(--green);}
+.slider-group-label.o{color:var(--orange);}
+</style>
+</head>
+<body>
+<header>
+  <a class="logo" href="index.html" title="返回平台首页">E&M</a>
+  <div><h1>2.3 静电场中的电介质</h1><div class="sub">极性 / 非极性分子 · 极化 · 等效极化电荷</div></div>
+  <div class="view-toggles" id="viewToggles"><button id="tglNav" title="折叠 / 展开左侧目录（快捷键 [ ）">☰ 目录</button><button id="tglPanel" title="折叠 / 展开右侧控制面板（快捷键 ] ）">☰ 面板</button></div>
+  <div class="badge"><div class="chip">《工程电磁场》 ×《电磁场与电磁波》</div><div class="owner"><b>© 2026 Li Chenlu</b> All Rights Reserved</div></div>
+</header>
+<div class="layout">
+  <aside id="nav"></aside>
+  <main>
+    <div class="module-head">
+      <div class="module-title" id="moduleTitle">静电场中的电介质<small id="moduleSub">电偶极子</small></div>
+      <div class="seg" id="modeTabs"></div>
+    </div>
+    <div class="content-row">
+      <div class="canvas-card">
+        <canvas id="cv"></canvas>
+        <div class="cv-mode-tag" id="modeTag"></div>
+        <div class="cv-pan-tag" id="panTag"><span>画面已平移</span><button id="btnPanReset">回到原点</button></div>
+        <div class="cv-toolbar"><button id="btnViewReset">复位视角</button><button id="btnRotate">自动旋转</button></div>
+        <div class="cv-legend" id="legend"><div class="lg-t" id="lgTitle">电偶极子的场</div><div class="lg-note" id="lgNote"></div></div>
+        <button class="fold-handle" id="foldNav" title="折叠 / 展开左侧目录">‹</button>
+        <button class="fold-handle" id="foldPanel" title="折叠 / 展开右侧面板">›</button>
+        <div class="coord-strip" id="coordStrip"></div>
+      </div>
+      <div class="panel" id="panel"></div>
+    </div>
+  </main>
+</div>
+<div id="toast"></div>
+
+<script>
+'use strict';
+
+/* ============================== 向量工具（与 2.1 / 2.2 同源） ============================== */
+const pt=(x,y,z)=>({x,y,z});
+const vadd=(a,b)=>({x:a.x+b.x,y:a.y+b.y,z:a.z+b.z});
+const vsub=(a,b)=>({x:a.x-b.x,y:a.y-b.y,z:a.z-b.z});
+const vmul=(a,s)=>({x:a.x*s,y:a.y*s,z:a.z*s});
+const vdot=(a,b)=>a.x*b.x+a.y*b.y+a.z*b.z;
+const vlen=a=>Math.hypot(a.x,a.y,a.z);
+const vnorm=a=>{const l=vlen(a)||1;return vmul(a,1/l);};
+const vcross=(a,b)=>({x:a.y*b.z-a.z*b.y, y:a.z*b.x-a.x*b.z, z:a.x*b.y-a.y*b.x});
+const D2R=Math.PI/180, R2D=180/Math.PI;
+const clamp1=v=>Math.max(-1,Math.min(1,v));
+const sstep=x=>{x=Math.max(0,Math.min(1,x));return x*x*(3-2*x);};
+
+/* ============================== 富文本引擎（同源，勿改语义） ============================== */
+function parseRich(s){
+  const items=[], groups=[]; const st={g:-1};
+  (function walk(str){
+    let buf='';
+    const flush=()=>{ if(buf){ items.push({t:'n',s:buf,g:st.g}); buf=''; } };
+    for(let i=0;i<str.length;){
+      const c=str[i];
+      if(c==='@' && str[i+1]==='{'){
+        const j=str.indexOf('}', i+2);
+        if(j<0){ buf+=c; i++; continue; }
+        flush();
+        const save=st.g; st.g=groups.length; groups.push(1);
+        walk(str.slice(i+2,j)); st.g=save; i=j+1; continue;
+      }
+      if(c==='_'){
+        flush();
+        if(str[i+1]==='{'){ const j=str.indexOf('}',i+2);
+          if(j>=0){ items.push({t:'s',s:str.slice(i+2,j),g:st.g}); i=j+1; continue; } }
+        items.push({t:'s',s:str[i+1]||'',g:st.g}); i+=2; continue;
+      }
+      if(c==='<'){ const j=str.indexOf('>',i);
+        if(j>=0){ buf+=str.slice(i,j+1); i=j+1; continue; } }
+      buf+=c; i++;
+    }
+    flush();
+  })(String(s));
+  return {items, groups};
+}
+const RICHFONT='"PingFang SC","Microsoft YaHei",sans-serif';
+const RICHFONT_M='Georgia,"Times New Roman",serif';
+function richLayout(ctx,rich,size,bold){const subSize=size*0.74;const wM=bold?'700 ':'';const fN=wM+size+'px '+RICHFONT;const fNs=wM+subSize+'px '+RICHFONT;const fV='italic '+wM+size+'px '+RICHFONT_M;const fVs=wM+subSize+'px '+RICHFONT_M;const groups=rich.groups.map(()=>({x0:1e9,x1:-1e9,locked:false,top:1e9}));const out=[];let x=0;const oldBL=ctx.textBaseline;ctx.textBaseline='middle';rich.items.forEach(it=>{const sub=it.t==='s',vec=it.g>=0;const font=sub?(vec?fVs:fNs):(vec?fV:fN);ctx.font=font;const m=ctx.measureText(it.s),w=m.width;const dy=sub?size*0.20:0;const asc=(m.actualBoundingBoxAscent!=null)?m.actualBoundingBoxAscent:size*0.38;if(vec){const g=groups[it.g];if(!g.locked){if(sub)g.locked=true;else{if(x<g.x0)g.x0=x;g.x1=x+w;}}const top=dy-asc;if(top<g.top)g.top=top;}out.push({s:it.s,sub,x,w,font,dy});x+=w;});ctx.textBaseline=oldBL;return{items:out,groups,w:x,size,subSize};}
+function richDraw(ctx,lo,cx,cy,align,color,fat){let ox=align==='center'?cx-lo.w/2:align==='right'?cx-lo.w:cx;const dy=it=>cy+it.dy;const ay=g=>cy+g.top-Math.max(2.2,lo.size*0.13);const span=g=>[ox+g.x0-0.6,ox+g.x1+0.6];ctx.save();ctx.textAlign='left';ctx.textBaseline='middle';ctx.lineJoin='round';ctx.lineCap='butt';ctx.lineWidth=3.4;ctx.strokeStyle='rgba(255,255,255,.92)';lo.items.forEach(it=>{ctx.font=it.font;ctx.strokeText(it.s,ox+it.x,dy(it));});lo.groups.forEach(g=>{if(g.x1<=g.x0)return;const y=ay(g),s=span(g);ctx.beginPath();ctx.moveTo(s[0],y);ctx.lineTo(s[1],y);ctx.stroke();});lo.groups.forEach(g=>{if(g.x1<=g.x0)return;const y=ay(g),s=span(g),ax=s[0],bx=s[1];ctx.strokeStyle=color;ctx.lineWidth=1.15;ctx.beginPath();ctx.moveTo(ax,y);ctx.lineTo(bx-1.2,y);ctx.stroke();const h=Math.min(3.6,Math.max(2.6,(bx-ax)*0.40));ctx.beginPath();ctx.moveTo(bx,y);ctx.lineTo(bx-h,y-h*0.52);ctx.lineTo(bx-h,y+h*0.52);ctx.closePath();ctx.fillStyle=color;ctx.fill();});lo.items.forEach(it=>{ctx.font=it.font;if(fat>0){ctx.strokeStyle=color;ctx.lineWidth=fat;ctx.strokeText(it.s,ox+it.x,dy(it));}ctx.fillStyle=color;ctx.fillText(it.s,ox+it.x,dy(it));});ctx.restore();}
+function richHTML(s){const r=parseRich(s);let h='',gi=-1;r.items.forEach(it=>{const body=it.t==='s'?'<sub>'+it.s+'</sub>':it.s;if(it.g!==gi){if(gi>=0)h+='</span>';if(it.g>=0)h+='<span class="vec">';gi=it.g;}h+=body;});if(gi>=0)h+='</span>';return wrapSqrt(h);}
+function wrapSqrt(html){const out=[];let i=0;while(i<html.length){const k=html.indexOf('√(',i);if(k<0){out.push(html.slice(i));break;}out.push(html.slice(i,k));out.push('<span class="sqrt"><span class="in">');let j=k+2,depth=1;while(j<html.length&&depth>0){const c=html[j];if(c==='(')depth++;else if(c===')'){depth--;if(depth===0)break;}j++;}if(depth!==0){out.push(html.slice(k));return out.join('');}out.push(html.slice(k+2,j));out.push('</span></span>');i=j+1;}return out.join('');}
+
+/* ============================== 颜色 / 相机 / 图元 ============================== */
+const C = {teal:'#156082',orange:'#E97132',green:'#3E9B4F',purple:'#9B59B6',crimson:'#D04A3A',blue:'#0F9ED5',gray:'#8CA0AC',light:'#C9D6DD',ink:'#22414F',grid:'#EAF0F4',muted:'#7A8F9B'};
+
+let canvas,ctx,W=800,H=600,DPR=1;
+const cam={az:0.62,el:0.40,zoom:1,px:0,py:0};
+let camU,camV,camD,camScale,CX2,CY;
+function setupCamera(){const ca=Math.cos(cam.az),sa=Math.sin(cam.az);const ce=Math.cos(cam.el),se=Math.sin(cam.el);camD={x:ce*ca,y:ce*sa,z:se};camU={x:-sa,y:ca,z:0};camV={x:-ca*se,y:-sa*se,z:ce};camScale=Math.min(W,H)/3.2*cam.zoom;CX2=W/2;CY=H*0.55;}
+function pr(p){return{x:CX2+cam.px+camScale*vdot(p,camU),y:CY+cam.py-camScale*vdot(p,camV),d:vdot(p,camD)};}
+
+let prims=[];
+function P_(z,fn){prims.push({z,draw:fn});}
+/* ⚠️ 各图元的 o.z：可选覆盖画家算法的深度。半透明的介质盒 / 球壳会横跨一大段深度，
+   凡是"必须始终看得清"的标注都要显式抬到它们之上，否则会被洗掉。
+   ⚠️ 凡是 pr() 返回的点都带真实 .d；裸 pt(x,y,z) 的 .d 是 undefined ⇒ 会让排序静默失效。 */
+function line(a,b,o={}){const A=pr(a),B=pr(b);P_(o.z!=null?o.z:(A.d+B.d)/2,()=>{ctx.save();ctx.globalAlpha=o.alpha!=null?o.alpha:1;ctx.strokeStyle=o.color||C.gray;ctx.lineWidth=o.w||1.4;if(o.dash)ctx.setLineDash(o.dash);ctx.beginPath();ctx.moveTo(A.x,A.y);ctx.lineTo(B.x,B.y);ctx.stroke();ctx.restore();});}
+function arrowSeg(A,B,color,w,headScale){const dx=B.x-A.x,dy=B.y-A.y,L=Math.hypot(dx,dy);if(L<0.5)return;const ux=dx/L,uy=dy/L,hs=(headScale||1)*9;ctx.strokeStyle=color;ctx.lineWidth=w;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(A.x,A.y);ctx.lineTo(B.x-ux*hs*.55,B.y-uy*hs*.55);ctx.stroke();const ang=Math.atan2(dy,dx);ctx.beginPath();ctx.moveTo(B.x,B.y);ctx.lineTo(B.x-hs*Math.cos(ang-.42),B.y-hs*Math.sin(ang-.42));ctx.lineTo(B.x-hs*Math.cos(ang+.42),B.y-hs*Math.sin(ang+.42));ctx.closePath();ctx.fillStyle=color;ctx.fill();}
+function arrow(a,b,o={}){const A=pr(a),B=pr(b);P_(o.z!=null?o.z:(A.d+B.d)/2,()=>{ctx.save();ctx.globalAlpha=o.alpha!=null?o.alpha:1;if(o.dash)ctx.setLineDash(o.dash);arrowSeg(A,B,o.color||C.teal,o.w||2,o.headScale);ctx.restore();});if(o.label)text(vmul(vadd(a,b),.5),o.label,{color:o.color||C.teal,dx:o.ldx||0,dy:o.ldy!==undefined?o.ldy:-10,size:o.lsize||12.5,bold:true,align:o.lalign,alpha:o.alpha});}
+function curve(ptsArr,o={}){if(ptsArr.length<2)return;const S=ptsArr.map(pr);P_(o.z!=null?o.z:S.reduce((s,p)=>s+p.d,0)/S.length,()=>{ctx.save();ctx.globalAlpha=o.alpha!=null?o.alpha:1;ctx.strokeStyle=o.color||C.gray;ctx.lineWidth=o.w||1.8;ctx.lineCap='round';ctx.lineJoin='round';if(o.dash)ctx.setLineDash(o.dash);ctx.beginPath();ctx.moveTo(S[0].x,S[0].y);for(let i=1;i<S.length;i++)ctx.lineTo(S[i].x,S[i].y);ctx.stroke();if(o.arrowEnd){const a=S[S.length-2],b=S[S.length-1];ctx.setLineDash([]);arrowSeg(a,b,o.color||C.gray,o.w||1.8,.75);}ctx.restore();});}
+function poly(ptsArr,o={}){if(ptsArr.length<3)return;const S=ptsArr.map(pr);P_(o.z!=null?o.z:S.reduce((s,p)=>s+p.d,0)/S.length,()=>{ctx.save();ctx.beginPath();ctx.moveTo(S[0].x,S[0].y);for(let i=1;i<S.length;i++)ctx.lineTo(S[i].x,S[i].y);ctx.closePath();if(o.fill){ctx.globalAlpha=o.fillAlpha!=null?o.fillAlpha:.15;ctx.fillStyle=o.fill;ctx.fill();}if(o.stroke!==false){ctx.globalAlpha=o.strokeAlpha!=null?o.strokeAlpha:(o.fillAlpha!=null?o.fillAlpha:1);ctx.strokeStyle=o.stroke||o.fill||C.gray;ctx.lineWidth=o.w||1;if(o.dash)ctx.setLineDash(o.dash);ctx.stroke();}ctx.restore();});}
+function marker(p,o={}){
+  const S=pr(p);
+  P_(o.z!=null?o.z:S.d+0.02, ()=>{ ctx.save();
+    ctx.globalAlpha=o.alpha!=null?o.alpha:1;
+    ctx.beginPath(); ctx.arc(S.x,S.y,o.r||5,0,7);
+    ctx.fillStyle=o.color||C.orange; ctx.fill();
+    ctx.lineWidth=2; ctx.strokeStyle='#fff'; ctx.stroke();
+    if(o.ring){ ctx.beginPath(); ctx.arc(S.x,S.y,(o.r||5)+4,0,7);
+      ctx.strokeStyle=o.ring; ctx.lineWidth=2.2; ctx.stroke(); }
+    ctx.restore(); });
+  if(o.label) text(p, o.label, {color:o.color||C.orange,
+    dx:o.ldx!=null?o.ldx:10, dy:o.ldy!=null?o.ldy:-10, size:o.lsize||13, bold:true, align:o.lalign, alpha:o.alpha});
+}
+function text(p,str,o={}){const S=pr(p);P_(1e6,()=>{ctx.save();if(o.alpha!=null)ctx.globalAlpha*=o.alpha;const size=o.size||12.5,bold=!!o.bold;const lo=richLayout(ctx,parseRich(str),size,bold);richDraw(ctx,lo,S.x+(o.dx||0),S.y+(o.dy||0),o.align||'left',o.color||C.ink,o.fat||0);ctx.restore();});}
+function textScreen(x,y,str,o={}){P_(1e6+1,()=>{ctx.save();if(o.alpha!=null)ctx.globalAlpha*=o.alpha;const lo=richLayout(ctx,parseRich(str),o.size||12,!!o.bold);richDraw(ctx,lo,x,y,o.align||'left',o.color||C.ink);ctx.restore();});}
+function dimLine(a,b,o={}){
+  line(a,b,o);
+  const A=pr(a),B=pr(b);
+  const dx=B.x-A.x,dy=B.y-A.y,L=Math.hypot(dx,dy);
+  if(L<1)return;
+  const px=-dy/L,py=dx/L,t=o.tick||6;
+  const tk=P=>{P_(o.z!=null?o.z:(A.d+B.d)/2,()=>{ctx.save();if(o.alpha!=null)ctx.globalAlpha*=o.alpha;ctx.strokeStyle=o.color||C.gray;ctx.lineWidth=o.w||1.4;ctx.setLineDash([]);ctx.beginPath();ctx.moveTo(P.x+px*t,P.y+py*t);ctx.lineTo(P.x-px*t,P.y-py*t);ctx.stroke();ctx.restore();});};
+  tk(A);tk(B);
+  if(o.label)text(vmul(vadd(a,b),.5),o.label,{color:o.color||C.gray,dx:o.ldx||0,dy:o.ldy!==undefined?o.ldy:-10,size:o.lsize||12.5,bold:true,align:o.lalign,alpha:o.alpha});
+}
+function screenDot(p,rad,fill,alpha,z){const S=pr(p);P_(z!=null?z:S.d+0.02,()=>{ctx.save();ctx.globalAlpha=alpha!=null?alpha:1;ctx.beginPath();ctx.arc(S.x,S.y,rad,0,7);ctx.fillStyle=fill;ctx.fill();ctx.restore();});}
+function hexA(hex,a){const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);return 'rgba('+r+','+g+','+b+','+a+')';}
+
+/* ══════════════════════════ 坐标轴（同源） ══════════════════════════ */
+function drawAxes(ext){
+  if(!state.show.box) return;
+  const g=ext*0.86;
+  for(let v=-g;v<=g+1e-9;v+=ext*0.30){line(pt(v,-g,-ext*0.86),pt(v,g,-ext*0.86),{color:C.grid,w:1});line(pt(-g,v,-ext*0.86),pt(g,v,-ext*0.86),{color:C.grid,w:1});}
+  line(pt(0,0,0),pt(-ext,0,0),{color:'#B9C9D2',dash:[5,4],w:1.2});
+  line(pt(0,0,0),pt(0,-ext,0),{color:'#B9C9D2',dash:[5,4],w:1.2});
+  line(pt(0,0,0),pt(0,0,-ext),{color:'#B9C9D2',dash:[5,4],w:1.2});
+  arrow(pt(0,0,0),pt(ext,0,0),{color:C.teal,w:2});
+  arrow(pt(0,0,0),pt(0,ext,0),{color:C.orange,w:2});
+  arrow(pt(0,0,0),pt(0,0,ext),{color:C.green,w:2.2});
+  text(pt(ext*1.05,0,0),'x',{color:C.teal,bold:true,size:13,dy:-4});
+  text(pt(0,ext*1.05,0),'y',{color:C.orange,bold:true,size:13,dy:-4});
+  text(pt(0,0,ext*1.05),'z',{color:C.green,bold:true,size:13,dx:-4});
+}
+
+/* ══════════════════════════ 确定性伪随机 ══════════════════════════
+   ★ 为什么不用 Math.random()：本项目的截图与自检都要求"同一份代码画出同一个画面"。
+     随机取向一旦每次刷新都变，① 幂等探针（两次 buildScene 的图元数/哈希）会假失败、
+     ② 截图无法与上一次对比、③ "平均取向 ≡ 0"这类断言会随机飘。
+     用固定种子的 LCG ⇒ 取向"看起来杂乱"但**逐位可复现**。 */
+function mkRng(seed){
+  let s=(seed>>>0)||1;
+  return ()=>{ s=(s*1664525+1013904223)>>>0; return s/4294967296; };
+}
+/* 在球面上取一个"看起来随机"的单位矢量（球面均匀采样，不是立方体内采样） */
+function randDir(rng){
+  const u=2*rng()-1, ph=2*Math.PI*rng(), st=Math.sqrt(Math.max(0,1-u*u));
+  return pt(st*Math.cos(ph), st*Math.sin(ph), u);
+}
+
+/* ══════════════════════════ 半透明介质盒 ══════════════════════════
+   ★ 与「球面画成一个面」同一条规矩：介质体不能画成线框（学生读不出是"一块材料"），
+     要画成一个有明暗、有厚度的**面**。盒子的做法比球简单得多 ——
+     6 个面各自是平面四边形，逐面填半透明色 + 细边即可，画家算法天然把它们前后分开。
+   ★ 光方向沿用屏幕空间左上方（与 1.3 玻璃壳、2.1/2.2 球面同一套伪光照）。
+   ⚠️ fill 与 stroke 必须**同色**（只差 alpha），否则相邻面之间会露出发丝缝。 */
+const GX_LX=-0.55, GX_LY=-0.83;
+function boxVerts(c,h){
+  const v=[];
+  for(const sx of [-1,1]) for(const sy of [-1,1]) for(const sz of [-1,1])
+    v.push(pt(c.x+sx*h.x, c.y+sy*h.y, c.z+sz*h.z));
+  return v;
+}
+/* 顶点索引 = (sx>0?4:0)+(sy>0?2:0)+(sz>0?1:0) ⇒ 6 个面各自列出四个角的索引（按周长顺序） */
+const BOX_FACES=[
+  {n:'+x', i:[4,6,7,5], nv:pt( 1,0,0)},
+  {n:'-x', i:[0,1,3,2], nv:pt(-1,0,0)},
+  {n:'+y', i:[2,6,7,3], nv:pt(0, 1,0)},
+  {n:'-y', i:[0,4,5,1], nv:pt(0,-1,0)},
+  {n:'+z', i:[1,3,7,5], nv:pt(0,0, 1)},
+  {n:'-z', i:[0,2,6,4], nv:pt(0,0,-1)},
+];
+function glassBox(c,h,hexBase,o){
+  o=o||{};
+  const V=boxVerts(c,h);
+  const baseA=o.bodyA!=null?o.bodyA:0.075;
+  const edgeA=o.edgeA!=null?o.edgeA:0.55;
+  boxVerts(c,h);
+  BOX_FACES.forEach(f=>{
+    /* 伪光照：面法向在**屏幕空间**与光方向的对齐度 —— 用世界法向投到相机轴即可 */
+    const nv=f.nv;
+    const su=vdot(nv,camU), sv=vdot(nv,camV);
+    const lam=Math.abs(su*GX_LX+sv*GX_LY);
+    const a=baseA*(0.55+0.75*lam);
+    poly(f.i.map(k=>V[k]),{fill:hexBase,fillAlpha:a,stroke:hexBase,strokeAlpha:a*1.9,w:1.0});
+  });
+  /* 12 条棱：只补最外轮廓感 —— 用略深一档的细线重描一遍所有面边（alpha 低，不显线框） */
+  BOX_FACES.forEach(f=>{
+    const pts2=f.i.map(k=>V[k]);
+    for(let k=0;k<4;k++) line(pts2[k],pts2[(k+1)%4],{color:hexA(hexBase,edgeA*0.42),w:1.05});
+  });
+}
+/* 一块"介质"的定位：中心 + 半尺寸；面电荷写在 ±z 两个面上 ⇒ 需要面法向 */
+const slabTop=(ctr,h)=>pt(ctr.x,ctr.y,ctr.z+h.z);
+const slabBot=(ctr,h)=>pt(ctr.x,ctr.y,ctr.z-h.z);
+
+/* ══════════ 外加匀强场 E₀ 的"背景刻度"（沿 +z，与 2.2 同一套观感） ══════════
+   zBase 由各场景给：① 的坐标轴长而空旷，刻度放得更低；②③ 下面还要放两块介质的名牌，刻度要抬高。 */
+function drawE0Hint(E0,ext,zBase){
+  const z0 = zBase!=null ? zBase : -ext*0.94;
+  if(E0<0.05){
+    text(pt(0,0,z0),'尚未加外加电场',{color:'#9DB3BF',size:11.5,dy:16,align:'center',z:ZL});
+    return;
+  }
+  const s=0.16+0.030*E0;
+  const G=ext*0.80;
+  for(let i=-2;i<=2;i++) for(let j=-2;j<=2;j++){
+    if(Math.abs(i)===2 && Math.abs(j)===2) continue;
+    const x=i*G*0.52, y=j*G*0.52;
+    line(pt(x,y,z0),pt(x,y,z0+s*0.55),{color:'#B7C9D3',w:1.1,alpha:.55});
+    arrow(pt(x,y,z0+s*0.55), pt(x,y,z0+s), {color:'#9DB3BF',w:1.5,headScale:.62,alpha:.75});
+  }
+  text(pt(0,0,z0), '@{E}₀ = '+E0.toFixed(1)+' kV/m　（沿 +z）', {color:'#7A8F9B',size:11.5,dy:16,align:'center',z:ZL});
+}
+
+/* ============================== 目录 ============================== */
+const NAV = [
+  { ch:'第 1 章 · 矢量分析', items:[
+    { id:'coord',  t:'1.1 三种常见坐标系', ready:true, href:'index.html?v=20260929r18' },
+    { id:'ch1-2',  t:'1.2 矢量的代数运算', ready:true, href:'1.2-vector-algebra.html?v=20260929r18' },
+    { id:'ch1-3',  t:'1.3 方向导数与梯度', ready:true, href:'1.3-directional-derivative.html?v=20260929r18' },
+    { id:'ch1-4',  t:'1.4 通量与散度',     ready:true, href:'1.4-divergence-flux.html?v=20260929r18' },
+    { id:'ch1-5',  t:'1.5 环量与旋度',     ready:true, href:'1.5-curl-circulation.html?v=20260929r18' },
+  ]},
+  { ch:'第 2 章 · 静电场', items:[
+    { id:'ch2-1', t:'2.1 电场强度与电荷密度', ready:true, href:'2.1-field-charge-density.html?v=20260929r18' },
+    { id:'ch2-2', t:'2.2 静电场中的导体',     ready:true, href:'2.2-conductor-electrostatic.html?v=20260929r18' },
+    { id:'ch2-3', t:'2.3 静电场中的电介质',   ready:true, active:true },
+    { t:'2.4 高斯定理及其应用' },
+    { id:'ch2-5', t:'2.5 多导体系统的电容与串扰', ready:true, href:'2.5-multi-conductor-crosstalk.html?v=20260929r18' },
+  ]},
+  { ch:'第 3 章 · 恒定磁场', items:[ {t:'3.1 比奥-萨伐尔定律'}, {t:'3.2 安培环路定理'} ]},
+  { ch:'第 4 章 · 时变电磁场', items:[ {t:'4.1 麦克斯韦方程组'}, {t:'4.2 均匀平面波'} ]},
+];
+
+/* ============================================================================
+   2.3 静电场中的电介质 —— 页面主体（渲染引擎与 2.1 / 2.2 同源）
+
+   ★ 单位约定（本页特有，全页统一）：
+       长度 m　场强 kV/m　偶极矩 µC·m　面电荷密度 nC/m²
+     与 2.2 完全同源：
+       E[kV/m] = Q_KV · q[µC] / r[m]²,   Q_KV = 1e-6/(4πε₀)/1e3 = 8.9875517873…
+       σ[nC/m²] = SIGK · χ_e · E[kV/m],  SIGK = ε₀·1e12 = 8.8541878128
+     ⚠️ 为什么 σ 的换算因子是 ε₀·1e12 而不是 2.2 的 3ε₀·1e3·1e9：
+        2.2 那条是"匀强场中导体球"的专属系数（σ = 3ε₀E₀cosθ），不能挪用。
+        本页是通用式 σ = P·n̂ = ε₀χ_e E，先写 SI（ε₀·χ_e·E_kV·1e3 C/m²）
+        再换成 nC/m²（÷1e-9）⇒ ε₀·1e12。两者独立可查，别互相引用。
+
+   ★★ 本页的三条教学主线（对应三个页签）：
+       ① 电偶极子的场：一对 ±q 的精确场 + 场线；远区 r ≫ d 时退化为"点偶极子"，
+          场线恰好是 r = C·sin²θ、场强 ∝ 1/r³。**极化的"砖块"就是它。**
+       ② 无外场时：极性分子（有固有偶极矩）与非极性分子（正负中心重合）
+          **宏观上一模一样** —— 都没有极化、表面都没有电荷。差别只在分子形态。
+       ③ 加外场时：极性分子**转动**（取向极化）、非极性分子**拉开**（电子位移极化）；
+          两种机制不同，但宏观结果同构：**内部电荷成对抵消、只剩表面留下极化电荷**。
+          这正是"所有偶极子场的叠加 = 等效的面极化电荷产生的场"这句话。
+   ============================================================================ */
+
+/* ============================== 物理常数 ============================== */
+const EPS0 = 8.8541878128e-12;              /* 真空介电常数 F/m */
+const Q_KV = 1e-6/(4*Math.PI*EPS0)/1e3;     /* 8.9875517873：q[µC]、r[m] ⇒ E[kV/m] */
+const SIGK = EPS0*1e12;                     /* 8.8541878128：χ_e 与 E[kV/m] ⇒ σ[nC/m²] */
+
+/* ══════════════ 页签①：电偶极子 ══════════════
+   ±q 放在 z = ±d/2 上（偶极矩 @{p} = q@{d} 沿 +z）。
+   q 取 µC、d 取 m ⇒ p 的单位是 µC·m；1 µC·m 在 1 m 处产生 2·8.99 = 18.0 kV/m 量级的场，
+   与 2.2 的"10 kV/m 外场"同量级 ⇒ 读数不会满屏的零。 */
+const DIP_Q = 1.0;                          /* 每个点电荷 |q|，µC */
+const DIP_D_RANGE = [0.05, 0.34];           /* 间距 d 的可调范围 m */
+const DIP_D0 = 0.22;
+/* ★ 每条场线的**远端极值 r_max 固定在世界坐标里**（不随 d 缩放）—— 这是刻意的：
+   ① 若让 r_max ∝ d，则拖动 d 时整幅图等比缩放，"d 越小越像点偶极子"这件事**看不见**；
+   ② r_max 固定 ⇒ 大 d 时内圈那几条自然跑出画面（教科书插图本来就是这样），
+      小 d 时所有线都落在 r ≫ d 的远区 ⇒ 全体贴合 r = C·sin²θ。
+      "内圈撤销"的判据：r_max 必须 ≥ d/2，否则那条线根本不存在（最小可能极值就是赤道线 d/2）。 */
+const DIP_RMAX = [0.90, 0.62, 0.43, 0.29, 0.195, 0.13];
+const EXT_D = 1.06;                         /* ① 的坐标轴长度 */
+
+/* ══════════════ 页签②③：两块介质 ══════════════
+   世界 −x 侧：极性分子介质（水，ε_r = 80.4 —— 取向极化主导，χ_e 很大）
+   世界 +x 侧：非极性分子介质（聚乙烯 PE，ε_r = 2.25 —— 只有电子位移极化，χ_e 很小）
+   ⚠️ 别在文案里用"左边/右边"指认它们：默认相机（az=0.62）下投影到屏幕是**左右对调**的
+      （实测 水→屏幕 x=560、PE→屏幕 x=438）。一律用材料名（水 / PE）。
+   ★ 这两个 ε_r 是**真实材料数据**，因此下面所有宏观读数（σ_p、E_内）都不用编：
+       无限大平板（面 ⊥ @{E}₀）的退极化因子恰为 1 ⇒ E_内 = E₀/(1+χ_e) = E₀/ε_r
+                                          σ_p = P = ε₀(ε_r−1)E_内 = ε₀(ε_r−1)E₀/ε_r
+   ⚠️ 退极化因子取 1 是因为"平板的厚度方向正好沿场"。换成球就不是 1/3，不能混用。 */
+const MAT = {
+  polar:    { key:'polar',    epsr:80.4, name:'极性分子介质', ex:'水 H₂O',
+              col:'#C0714F', mol:'dumbbell' },
+  nonpolar: { key:'nonpolar', epsr:2.25, name:'非极性分子介质', ex:'聚乙烯 PE',
+              col:'#4E94AE', mol:'blob' },
+};
+const E_MAX = 30;                           /* ③ 外场滑块上限 kV/m */
+const E0_D0 = 10;                           /* 默认外场，与 2.2 的固定外场同值 */
+/* ★★ 取向参数的"示意放大"——本页唯一一处不是真实物理的地方，必须写清楚：
+   真实极性分子的  a = p₀E/(k_B T)：以水分子 p₀ = 1.85 D = 6.17e-30 C·m、T = 300 K 计，
+   a = 6.17e-30·E/4.14e-21 = 1.49e-9·E。即使 E 取到 30 kV/m = 3e4 V/m，a 也只有 4.5e-5，
+   朗之万函数 L(a) ≈ a/3 ⇒ 取向度 ~1.5e-5 —— **分子几乎完全没转，画面上什么都看不出来**。
+   （这不是本页的缺陷，而是真实的物理：**通常场强下取向极化永远落在线性区**，
+     正是"P ∝ E"、正是线性介质的来源。饱和只在 ~1e9 V/m 量级才出现。）
+   ⇒ 为了让"取向过程"在屏幕上可见，把 a 线性放大到 E = E_MAX 时 a = 3：
+        a_vis = A_VIS · E₀/E_MAX，  A_VIS = 3。
+      页面读数条同时给出**真实的 a 与 L(a)**，并标注"示意放大"，两者都能看到。 */
+const A_VIS = 3.0;
+const P0_WATER = 1.85*3.33564e-30;          /* 水分子的固有偶极矩 C·m（1 D = 3.33564e-30） */
+const KT_300   = 1.380649e-23*300;          /* k_B·T（T = 300 K）J */
+
+/* 两块介质的几何 —— 并排放在 x 轴上，外场沿 +z（与 2.2 同一个方向） */
+const SLAB_HX = 0.40, SLAB_HY = 0.34, SLAB_HZ = 0.34;
+const SLAB_CX = 0.52;                        /* 板心 x = ±SLAB_CX */
+const MOL_NX = 3, MOL_NY = 3, MOL_NZ = 2;    /* 分子点阵 3×3×2 = 18 个/板 */
+const MOL_SP = {x:0.26, y:0.22, z:0.20};     /* 点阵间距 m */
+const MOL_ARM = 0.062;                       /* 极性分子：正/负中心的半间距（固有偶极矩的长度示意） */
+const MOL_SEP_MAX = MOL_ARM*0.92;            /* 非极性分子：加满场时正负中心被拉开的半间距 */
+const EXT_M = 1.30;                          /* ②③ 的坐标轴长度 */
+
+/* ============================== 状态 ============================== */
+const state = {
+  mode:'dipole',           /* dipole | nofield | poling */
+  d: DIP_D0,               /* ① 偶极子间距 m */
+  E0: E0_D0,               /* ③ 外场 kV/m */
+  g: 1,                    /* ③ 外场建立度 0→1（▶ 播放全过程时被驱动） */
+  anim:null,               /* ③ 播放：null | {u:0→1, playing:bool} */
+  show:{box:true, lines:true, far:false, chg:true, mol:true, field:true},
+  showReadout:true,
+  autoRotate:false,
+  cardTab:'1',
+};
+
+/* ══════════ ③ 的「全过程播放」时间轴（与 2.2 的 ▶ 播放全过程 同一套观感） ══════════
+     u ∈ [0, 0.18]  阶段①  无外加电场（g = 0）
+     u ∈ [0.18, 1]  阶段②  外场建立 g 0→1：分子转动 / 拉开，表面电荷随之长出来
+   ⚠️ 用 smoothstep：两头速度为 0 ⇒ 分子不至于"哏"地弹到终态。 */
+const ANIM_DUR = 4.6;
+const PH_FIELD = [0.18, 1.00];
+const animG = u => sstep((u-PH_FIELD[0])/(PH_FIELD[1]-PH_FIELD[0]));
+function stepAnim(dt){
+  const A=state.anim;
+  if(!A || !A.playing) return false;
+  A.u=Math.min(1, A.u+dt/ANIM_DUR);
+  state.g=animG(A.u);
+  if(A.u>=1){ state.g=1; state.anim=null; return 'end'; }
+  return true;
+}
+function stopAnim(){ state.anim=null; state.g=1; }
+
+const ZL = 1e4+40;      /* 高深度档：标注必须压在介质盒/球壳之上，否则被半透明面洗掉 */
+const O  = pt(0,0,0);
+
+/* ══════════════════════════ ① 电偶极子的精确场 ══════════════════════════ */
+/* 一对 ±q（+q 在 z = +d/2、−q 在 z = −d/2）的**精确叠加场**，单位 kV/m。
+   ⚠️ 这里刻意**不做"点偶极子近似"** —— 因为本页要讲的恰恰是
+      "有限距离的偶极子 → 远区退化为点偶极子"这个过程，近似式一上来就把结论当成了前提。 */
+function dipAt(P,d,q){
+  d = d==null ? state.d : d;
+  q = q==null ? DIP_Q : q;
+  const ra=vsub(P, pt(0,0, d/2)), rb=vsub(P, pt(0,0,-d/2));
+  const la=Math.max(vlen(ra),1e-7), lb=Math.max(vlen(rb),1e-7);
+  return vadd(vmul(ra, Q_KV*q/(la*la*la)), vmul(rb, -Q_KV*q/(lb*lb*lb)));
+}
+/* 轴线上（θ=0，r > d/2）的精确场 kV/m：两个点电荷的 z 分量直接相减 */
+const dipEaxis =(r,d)=>Q_KV*DIP_Q*(1/((r-d/2)*(r-d/2)) - 1/((r+d/2)*(r+d/2)));
+/* 点偶极子（p = qd 沿 +z）的轴线上场强 kV/m —— 就是"远区近似" */
+const dipEpoint=(r,d)=>2*Q_KV*(DIP_Q*d)/(r*r*r);
+
+/* ══════════ 轴对称场的流函数 ψ ══════════
+   取 ψ 使 E_r = (1/(r²sinθ))·∂ψ/∂θ、E_θ = −(1/(r sinθ))·∂ψ/∂r。
+   单个点电荷 Q 在轴上 z₀ 处时 ψ = −Q(z−z₀)/(4πε₀·r₁)，于是 ±q 叠加得
+       4πε₀ψ/q = W(ρ,z) = −(z−d/2)/r₊ + (z+d/2)/r₋      （r₊/r₋ = 到 ±q 的距离）
+   ★★ W 是**严格**的流函数（不是近似）：数值逐点可验 ∂W 与 dipAt 一致。
+   ★★ 远区展开（在 ① 的注释里做过）：W → d·sin²θ/r
+      ⇒ 点偶极子的场线就是 **r = C·sin²θ**，而且"最大半径 r_max 的那条线"恰好 C = r_max。
+      这就是页面上那条虚线对照曲线的来源，一条公式，没有任何拟合。 */
+function dipW(P,d){
+  const z=P.z, rp=Math.max(Math.hypot(P.x,P.y,z-d/2),1e-9), rm=Math.max(Math.hypot(P.x,P.y,z+d/2),1e-9);
+  return -(z-d/2)/rp + (z+d/2)/rm;
+}
+/* 点偶极子的远区场线 r = rMax·sin²θ，转成 xz 剖面上的折线（θ 避开 0/π 两个退化点） */
+function pointLine(rMax,N){
+  const out=[];
+  for(let i=0;i<=N;i++){
+    const th=(i+0.5)/N*Math.PI, s=Math.sin(th);
+    const r=rMax*s*s;
+    out.push(pt(r*s, 0, r*Math.cos(th)));
+  }
+  return out;
+}
+/* ── 场线追踪：RK4，而不是"解 ψ 的等值线" ──────────────────────────────────
+   ⚠️ 为什么本页**不能**用 2.2 那套"流函数等值线"的做法（那是 2.2 的硬教训，这里必须让位）：
+      2.2 的场景是"匀强场 + 球"，ψ 等值线是**逐 z 单值**的 r(z)，二分法直接解出来。
+      偶极子的场线是**闭合回路**：同一条线在同一个 z 上有两个 ρ（出去那一段 + 回来那一段）
+      ⇒ ρ(z) 双值 ⇒ 任何"给定 z 解 ρ"的根查找都会漏掉回归支（画出来只剩半个圈）。
+   ⇒ 改用 RK4 沿 @{E} 方向前进；**正确性由"ψ 沿轨迹守恒"来兜底**（见下方 dipTrace 返回的 dw），
+      这是不依赖步长的严格判据：解析解给出的 ψ 是常量，积分误差会让它漂 —— 漂多少一目了然。 */
+function dipDir(P,d){ return vnorm(dipAt(P,d)); }
+function dipTrace(alpha,d){
+  const A=pt(0,0,d/2), B=pt(0,0,-d/2), eps=d*0.16;
+  let p=pt(eps*Math.sin(alpha), 0, d/2+eps*Math.cos(alpha));
+  const W0=dipW(p,d);
+  const pts=[p];
+  let hit=false, wdrift=0;
+  for(let i=0;i<3000;i++){
+    const rp=vlen(vsub(p,A)), rq=vlen(vsub(p,B));
+    const h=Math.max(d*0.008, Math.min(0.045, 0.26*Math.min(rp,rq)));
+    const k1=dipDir(p,d);
+    const k2=dipDir(vadd(p,vmul(k1,h*0.5)),d);
+    const k3=dipDir(vadd(p,vmul(k2,h*0.5)),d);
+    const k4=dipDir(vadd(p,vmul(k3,h)),d);
+    p=vadd(p, vmul(vadd(vadd(k1,vmul(k2,2)),vadd(vmul(k3,2),k4)), h/6));
+    pts.push(p);
+    const w=dipW(p,d);
+    if(isFinite(w) && Math.abs(w)>1e-9) wdrift=Math.max(wdrift, Math.abs(w-W0)/Math.abs(W0));
+    if(vlen(vsub(p,B)) < eps*1.35){ pts[pts.length-1]=B; hit=true; break; }
+    if(vlen(p) > EXT_D*1.6) break;
+  }
+  return {pts, hit, W0, wdrift};
+}
+/* ══════════ 由"想要的远端极值"反解发射角 ══════════
+   ★★ 这是本页最容易做错的一步，写清楚：
+     我第一版用点偶极子的等值线关系 r_max = d/(2·sin²α) 反解发射角 —— **完全不对**。
+     那条式子只在点偶极子的场线 r = C·sin²θ 上成立，而我们的发射点在 +q 附近（离原点只有 d/2），
+     根本不在那条曲线上。实测（d = 0.22 m）：公式给出的 α = 0.36 对应的**真实** r_max 是 1.72 m，
+     而目标是 0.90 m ⇒ 最外两条场线直接冲出画布、后半段一笔都没画出来
+     （自检里"每条场线都落在 −q 上"只有 10/12 条，根因就是它）。
+   ⇒ 改用**二分法实测反解**：r_max(α) 随 α **单调递减**（α 从 0.6 的 1.28 m 一路降到 2.30 的 d/2），
+     端点判据天然可查。代价是每条线多跑 24 次试探追踪 —— 但 dipLines() 有缓存，只在 d 变化时算一次。
+   ⚠️ 上界 2.30 是实测的"饱和点"：α ≥ 2.30 时场线退化成轴上那段（W ≡ 2 的退化线），r_max 恒为 d/2。
+      所以目标 r_max 必须 > d/2 —— 小于它的那几条线**根本不存在**（不是画不出来，是物理上没有）。 */
+function dipRmax(alpha,d){
+  const t=dipTrace(alpha,d);
+  let m=0; for(const p of t.pts){ const r=vlen(p); if(r>m) m=r; }
+  return m;
+}
+function alphaForRmax(target,d){
+  let lo=0.05, hi=2.30;
+  if(dipRmax(lo,d) < target) return NaN;      /* 贴轴那条都够不到 ⇒ 目标太远 */
+  if(dipRmax(hi,d) > target) return NaN;      /* α 已经饱和、最短的一条仍比目标长 ⇒ 目标太近 */
+  for(let i=0;i<24;i++){
+    const mid=(lo+hi)/2;
+    if(dipRmax(mid,d) > target) lo=mid; else hi=mid;
+  }
+  return (lo+hi)/2;
+}
+/* ① 的全部场线（带缓存：d 不变就不重算 —— autoRotate 每帧都会重进 buildScene） */
+let _dipCache={key:null, out:null};
+function dipLines(){
+  const d=state.d, key=d.toFixed(5);
+  if(_dipCache.key===key) return _dipCache.out;
+  const lines=[];
+  DIP_RMAX.forEach(rm=>{
+    const al=alphaForRmax(rm,d);
+    if(!isFinite(al)) return;
+    const tr=dipTrace(al,d);
+    if(tr.pts.length>3) lines.push(tr);
+  });
+  /* 轴线：W ≡ 0 的退化线。轴上 z=0 是**零点**（±q 的场在那里正好抵消），
+     场线从该点向 ±z 各射出一条射线，各自穿过一个电荷跑到无穷远。 */
+  lines.push({pts:[pt(0,0,0),pt(0,0,EXT_D)], hit:false, axis:1});
+  lines.push({pts:[pt(0,0,0),pt(0,0,-EXT_D)], hit:false, axis:1});
+  _dipCache={key, out:lines};
+  return lines;
+}
+
+/* ══════════════════════════ ②③ 极化模型 ══════════════════════════ */
+/* 朗之万函数 L(a) = coth(a) − 1/a：取向极化的严格结果 ⟨cosθ⟩ = L(a)。
+   ⚠️ a→0 必须走级数：coth(a) − 1/a 是 ∞ − ∞，直接算会掉到 1e-16 的浮点噪声里（本页第一版就栽了）。 */
+function langevin(a){
+  const x=Math.abs(a);
+  if(x<1e-4) return a/3 - a*a*a/45;
+  if(x>20)   return (a>0?1:-1) - 1/a;
+  return Math.cosh(a)/Math.sinh(a) - 1/a;
+}
+/* 真实分子参数下的取向参数（水的 p₀ = 1.85 D、T = 300 K）——用于"真实值"读数 */
+const aReal = E_v => P0_WATER*(E_v*1e3)/KT_300;      /* E_v 单位 kV/m */
+/* 一块介质的宏观极化状态。E0 单位 kV/m，返回的 Pn 单位 nC/m²、其余 kV/m。 */
+function matState(m,E0){
+  const er=m.epsr, chi=er-1;
+  const Ein=E0/er;                    /* 板内合成场：E₀ 被退极化场抵消掉一部分 ⇒ E₀/ε_r */
+  const Edep=chi*Ein;                 /* 退极化场（= P/ε₀，恰好就是 χ_e·E_内）*/
+  const Pn=SIGK*chi*Ein;              /* 极化强度，数值等于表面极化电荷密度 */
+  return {er, chi, Ein, Edep, Pn};
+}
+/* ③ 的可视取向度：示意放大（见 A_VIS 处的长注释），并与真实值一并返回 */
+function visAlign(E0){
+  const aVis=A_VIS*E0/E_MAX;
+  return {aVis, s:langevin(aVis), aReal:aReal(E0), sReal:langevin(aReal(E0))};
+}
+
+/* ══════════════ 场线只画「正对镜头的那一个剖面」（2.2 的硬教训，原样沿用） ══════════════
+   ⚠️ 方位角必须是 cam.az + π/2 —— 子午面法向 n 与视线水平分量的夹角 ∝ sin(az − φ)：
+        φ = az      ⇒ n ⊥ camD ⇒ 平面**侧对**镜头 ⇒ 一族线压成一条，最乱；
+        φ = az+π/2  ⇒ n ∥ camD ⇒ 平面**正对**镜头 ⇒ 完整张开、左右对称。写反就得到最坏的那个结果。
+   ⚠️ 平面是**无向**的：φ 与 φ+π 是同一个平面；而追踪出来的折线只有 x ≥ 0 那一半
+      ⇒ 必须两个都转，才拼得出完整的一圈。轴上那条（x ≡ 0）转两次会叠画、颜色变深，只转一次。 */
+function facePH(){ const ph=cam.az+Math.PI/2; return [ph, ph+Math.PI]; }
+const faceCurves = sg => (sg && sg.length && sg.every(p=>Math.abs(p.x)<1e-9)) ? [cam.az+Math.PI/2] : facePH();
+const rotZ=(p,ph)=>pt(p.x*Math.cos(ph), p.x*Math.sin(ph), p.z);
+const FLD_COL='#2E7FA6';
+
+/* 电荷小球：实心圆 + 白圈 + 内嵌正负号（比裸字符清楚得多，且不受 PingFang 字形大小的影响） */
+function chargeBall(p,sign,rad,o){
+  o=o||{};
+  const S=pr(p);
+  P_(o.z!=null?o.z:ZL,()=>{ ctx.save();
+    ctx.beginPath(); ctx.arc(S.x,S.y,rad,0,7);
+    ctx.fillStyle = sign>0 ? C.crimson : '#2E7FA6'; ctx.fill();
+    ctx.lineWidth=2; ctx.strokeStyle='#fff'; ctx.stroke();
+    ctx.restore(); });
+  textScreen(S.x, S.y, sign>0?'+':'−', {color:'#fff', size:rad*1.75, bold:true, align:'center'});
+}
+/* 在折线上挑一个"最长的可见小段"放方向箭头 —— 追踪步长在电荷附近极小、远端极大，
+   固定取第 k 个点会挑到 0.4 px 的段（箭头比箭杆还大）或 60 px 的巨段。 */
+function lineArrow(P,color,alpha,hs){
+  const n=P.length; if(n<4) return;
+  let best=2, bl=-1;
+  for(let k=1;k<n-1;k++){
+    const A=pr(P[k-1]), B=pr(P[k+1]);
+    const L=Math.hypot(B.x-A.x,B.y-A.y);
+    if(L>bl && L<70){ bl=L; best=k; }
+  }
+  if(bl<6) return;
+  arrow(P[best-1], P[best+1], {color, w:1.35, headScale:hs||1.15, alpha, z:1e4+6});
+}
+
+/* 小卡/画布助手（与 2.1 / 2.2 同源） */
+function txt(x,y,str,o={}){
+  ctx.save();
+  const lo=richLayout(ctx,parseRich(str),o.size||12,!!o.bold);
+  richDraw(ctx,lo,x,y,o.align||'left',o.color||C.ink);
+  ctx.restore();
+}
+function rrPath(x,y,w,h,r){
+  ctx.beginPath();
+  ctx.moveTo(x+r,y); ctx.lineTo(x+w-r,y); ctx.quadraticCurveTo(x+w,y,x+w,y+r);
+  ctx.lineTo(x+w,y+h-r); ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
+  ctx.lineTo(x+r,y+h); ctx.quadraticCurveTo(x,y+h,x,y+h-r);
+  ctx.lineTo(x,y+r); ctx.quadraticCurveTo(x,y,x+r,y); ctx.closePath();
+}
+function crd(x,y,w,h){
+  ctx.save();
+  ctx.shadowColor='rgba(30,60,80,.10)'; ctx.shadowBlur=8; ctx.shadowOffsetY=2;
+  rrPath(x,y,w,h,10); ctx.fillStyle='rgba(255,255,255,.95)'; ctx.fill();
+  ctx.restore(); ctx.save();
+  rrPath(x,y,w,h,10); ctx.strokeStyle='#DCE6EB'; ctx.lineWidth=1; ctx.stroke();
+  ctx.restore();
+}
+const CARD_W=252, CARD_X=()=>W-CARD_W-16, CARD_Y=62;
+
+/* ══════════════════════════ ① 电偶极子的场 ══════════════════════════ */
+function sceneDipole(){
+  const d=state.d;
+  if(state.show.box) drawAxes(EXT_D);
+  const lines=dipLines();
+  if(state.show.lines){
+    lines.forEach(L=>{
+      faceCurves(L.pts).forEach(ph=>{
+        const P=L.pts.map(p=>rotZ(p,ph));
+        curve(P,{color:FLD_COL, w:L.axis?1.25:1.35, alpha:L.axis?0.40:0.70});
+      });
+      if(!L.axis) faceCurves(L.pts).forEach(ph=>lineArrow(L.pts.map(p=>rotZ(p,ph)), FLD_COL, 0.85, 1.2));
+    });
+  }
+  /* 远区对照：点偶极子的精确场线 r = rMax·sin²θ（虚线）。d 越小，实线与虚线越重合。 */
+  if(state.show.far){
+    DIP_RMAX.forEach(rm=>{
+      if(!isFinite(alphaForRmax(rm,d))) return;     /* 与实线用**同一个**存在性判据，免得虚线多画一条 */
+      const P=pointLine(rm,120);
+      faceCurves(P).forEach(ph=>curve(P.map(p=>rotZ(p,ph)),{color:'#8A76B8',w:1.15,dash:[6,4.5],alpha:0.90,z:1e4+4}));
+    });
+    text(pt(0,0,-EXT_D*0.80),'虚线 = 点偶极子的远区场线  r = C·sin²θ',{color:'#7B67A8',size:11.5,align:'center',dy:14,z:ZL});
+  }
+  if(state.show.chg){
+    chargeBall(pt(0,0, d/2), +1, 9.5, {z:ZL+2});
+    chargeBall(pt(0,0,-d/2), -1, 9.5, {z:ZL+2});
+    text(pt(0,0, d/2), '+q', {color:C.crimson,size:12.5,bold:true,dx:15,dy:-14,z:ZL});
+    text(pt(0,0,-d/2), '−q', {color:'#2E7FA6',size:12.5,bold:true,dx:15,dy:14,z:ZL});
+    /* 两个电偶极子的几何：@d 用**距离标注**（dimLine），@{p} 用**矢量箭头** —— 两者绝不能混用 */
+    dimLine(pt(0,0.155, d/2), pt(0,0.155,-d/2), {color:'#7A8F9B',w:1.3,dash:[5,4],
+      label:'d = '+d.toFixed(3)+' m', z:1e4+8});
+    arrow(pt(0,-0.155,-d/2), pt(0,-0.155, d/2), {color:C.purple,w:2.4,headScale:1.15,z:1e4+8,
+      label:'@{p} = q@{d}', ldy:16});
+  }
+}
+
+/* ══════════════════════════ ②③ 两块介质 ══════════════════════════ */
+function dotAt(p,rad,fill,alpha,z,noRing){
+  const S=pr(p);
+  P_(z!=null?z:S.d+0.02,()=>{ctx.save();
+    ctx.globalAlpha=alpha!=null?alpha:1;
+    ctx.beginPath(); ctx.arc(S.x,S.y,rad,0,7);
+    ctx.fillStyle=fill; ctx.fill();
+    if(!noRing){ ctx.lineWidth=1.5; ctx.strokeStyle='#fff'; ctx.stroke(); }
+    ctx.restore();});
+}
+/* 分子点阵位置（确定性） */
+function molPositions(cx){
+  const out=[];
+  for(let i=0;i<MOL_NX;i++) for(let j=0;j<MOL_NY;j++) for(let k=0;k<MOL_NZ;k++)
+    out.push(pt(cx+(i-(MOL_NX-1)/2)*MOL_SP.x, (j-(MOL_NY-1)/2)*MOL_SP.y, (k-(MOL_NZ-1)/2)*MOL_SP.z));
+  return out;
+}
+/* ★★ 杂乱取向的"均值恰为 0"由**构造**保证：按对生成 (u, 关于赤道面镜像)，每对的 z 分量相加为 0。
+   于是"平均偶极矩 ≡ 0"是一条恒等式，而不是"随机出来差不多是 0"（后者做不了断言）。
+   ⚠️ 镜像只翻 z、不动 x/y ⇒ 两两互为镜像 ⇒ 每个分子仍看得出是"随便指的"。 */
+let _molDir=null;
+function molDirs(){
+  if(_molDir) return _molDir;
+  const rng=mkRng(20260929), n=MOL_NX*MOL_NY*MOL_NZ, half=Math.ceil(n/2), all=[];
+  for(let i=0;i<half;i++){ const u=randDir(rng); all.push(u); if(all.length<n) all.push(pt(u.x,u.y,-u.z)); }
+  _molDir=all.slice(0,n);
+  return _molDir;
+}
+/* 极性分子在取向度 s 下的**显示方向**：cosθ′ = s + (1−s)·cosθ
+   ⇒ ① s=0 时原样（杂乱）② s→1 时全体对齐 +z ③ 平均 ⟨cosθ′⟩ = s + (1−s)·⟨cosθ⟩ = s ≡ L(a)。
+   第三条是本页"取向度"读数与画面**严格一致**的依据（自检直接钉这条恒等式）。 */
+function polarDir(u,s){
+  const c=u.z, c2=s+(1-s)*c, h=Math.hypot(u.x,u.y);
+  if(h<1e-9) return pt(0,0,c2>=0?1:-1);
+  const k=Math.sqrt(Math.max(0,1-c2*c2))/h;
+  return pt(u.x*k, u.y*k, c2);
+}
+/* 单个分子：极性 = 两个实心小球（固有偶极矩，方向随分子转）；
+             非极性 = 两个**半透明**瓣，正负中心可重合（无固有偶极矩，靠外场拉开） */
+function drawMolecule(c,u,kind,o){
+  const a=o.arm, rp=o.rpx;
+  if(kind==='dumbbell'){
+    line(vsub(c,vmul(u,a)), vadd(c,vmul(u,a)), {color:'#B9C6CE',w:2.2,alpha:0.55*o.alpha,z:SZ_MOL});
+    dotAt(vadd(c,vmul(u,a)), rp*0.62, C.crimson, o.alpha, ZL);
+    dotAt(vsub(c,vmul(u,a)), rp*0.62, '#2E7FA6', o.alpha, ZL);
+  } else {
+    /* 两瓣都用低 alpha：δ=0 时完全重合 ⇒ 一个对称圆片 = "正负电荷中心重合" */
+    dotAt(vadd(c,pt(0,0,o.sep)), rp, '#D98C7E', 0.40*o.alpha, ZL, true);
+    dotAt(vsub(c,pt(0,0,o.sep)), rp, '#7FB3CC', 0.40*o.alpha, ZL, true);
+    if(o.sep>1e-4){                                    /* 拉开了才描边，免得零场时多出一圈 */
+      dotAt(vadd(c,pt(0,0,o.sep)), rp, 'rgba(0,0,0,0)', 0, ZL);
+    }
+  }
+}
+const SZ_MOL = 1e4+10;      /* 分子杆的深度档：压在盒面之上、标注之下 */
+
+/* 一块介质的完整画法。kind = 'polar'|'nonpolar'，E0 = 当前外场（kV/m） */
+function drawMedium(cx,mat,E0){
+  const c=pt(cx,0,0), h=pt(SLAB_HX,SLAB_HY,SLAB_HZ);
+  const st=matState(mat,E0);
+  const vis=visAlign(E0);
+  glassBox(c,h,mat.col,{bodyA:0.075, edgeA:0.55});
+  if(!state.show.mol) return st;
+  const dirs=molDirs(), pos=molPositions(cx);
+  const rpx=0.030*camScale;
+  pos.forEach((p,idx)=>{
+    const u=dirs[idx%dirs.length];
+    if(mat.mol==='dumbbell')
+      drawMolecule(p, polarDir(u,vis.s), 'dumbbell', {arm:MOL_ARM, rpx, alpha:1});
+    else
+      drawMolecule(p, ZAX, 'blob', {arm:0, rpx, alpha:1, sep:MOL_SEP_MAX*E0/E_MAX});
+  });
+  return st;
+}
+const ZAX=pt(0,0,1);
+
+/* 表面极化电荷：+z 面 σ_p = +P、−z 面 σ_p = −P（n̂ 取外向法矢） */
+function drawFaceCharge(cx,sign,Pn){
+  const mag=Math.min(1, Math.abs(Pn)/300);
+  if(mag<0.02) return;
+  const sz=11+13*mag, al=0.30+0.70*mag;
+  for(let i=-1;i<=1;i++) for(let j=-1;j<=1;j++){
+    const p=pt(cx+i*SLAB_HX*0.56, j*SLAB_HY*0.56, sign*(SLAB_HZ+0.055));
+    text(p, sign>0?'+':'−', {color: sign>0?C.crimson:'#2E7FA6', size:sz, fat:0.9+0.5*mag,
+      bold:true, align:'center', alpha:al, z:ZL+6});
+  }
+}
+/* 板内的场分解：外场 E₀（淡蓝，+z）／退极化场 E_dep（橙，−z，**反向**）／合场 E_in（绿，+z）
+   ★ 三者共用同一比例（0.30 世界单位 / E_MAX），否则"几乎抵消"这件事就被比例偷走了。
+     水的 ε_r = 80 时 E_in 只有 E₀ 的 1/80 ⇒ 箭头长不足 2 px，用 EARR_MIN 托住下限并如实标注。 */
+const EARR_MIN = 0.013;
+const eLenOf = E => Math.max(EARR_MIN, Math.min(0.30, 0.30*E/E_MAX));
+function drawBoxField(cx,st,E0){
+  if(!state.show.field || E0<0.05) return;
+  const L0=eLenOf(E0), Ld=eLenOf(st.Edep), Li=eLenOf(st.Ein);
+  const X=[cx-SLAB_HX*0.52, cx, cx+SLAB_HX*0.52];
+  [[X[0],L0,0,'#5E93AE'],[X[1],Ld,1,C.orange],[X[2],Li,0,C.green]].forEach(([x,L,rev,col])=>{
+    const a=pt(x,0,-L*0.5), b=pt(x,0,L*0.5);
+    if(rev) arrow(b,a,{color:col,w:2.0,headScale:1.15,alpha:.85,z:ZL+4});
+    else    arrow(a,b,{color:col,w:2.0,headScale:1.15,alpha:.85,z:ZL+4});
+  });
+  /* 标签放在各自**箭头尖端**那一侧、再外推一点，别压在杆上 */
+  text(pt(X[0],0, L0*0.5+0.055),'@{E}₀ = '+E0.toFixed(1),{color:'#4E86A3',size:10.5,bold:true,align:'center',z:ZL+5});
+  text(pt(X[1],0,-Ld*0.5-0.055),'@{E}退 = '+st.Edep.toFixed(1),{color:'#C4671F',size:10.5,bold:true,align:'center',z:ZL+5});
+  text(pt(X[2],0, Li*0.5+0.055),'@{E}内 = '+st.Ein.toFixed(2),{color:'#2F7D3E',size:10.5,bold:true,align:'center',z:ZL+5});
+}
+
+/* ══════════════════════════ ②③ 场景装配 ══════════════════════════ */
+/* ★ ①②③ 共用同一块布局：两块介质并排在 x = ±SLAB_CX，外场沿 +z。
+   ⚠️ ② 与 ③ 用的是**同一个函数**，只差 E0 —— 这样从"无外场"切到"加外场"时
+      分子点阵、盒子、相机一个像素都不动，变化只发生在"分子怎么动"上（用户能一眼看出因果）。 */
+function sceneMedium(E0){
+  if(state.show.box) drawAxes(EXT_M);
+  if(state.show.lines) drawE0Hint(E0, EXT_M, -EXT_M*0.70);
+  const stP=drawMedium(-SLAB_CX, MAT.polar,    E0);
+  const stN=drawMedium( SLAB_CX, MAT.nonpolar, E0);
+  if(state.show.chg){
+    drawFaceCharge(-SLAB_CX, +1, stP.Pn); drawFaceCharge(-SLAB_CX, -1, stP.Pn);
+    drawFaceCharge( SLAB_CX, +1, stN.Pn); drawFaceCharge( SLAB_CX, -1, stN.Pn);
+  }
+  drawBoxField(-SLAB_CX, stP, E0);
+  drawBoxField( SLAB_CX, stN, E0);
+  /* 两块介质的名牌（写在盒子的正下方）
+     ⚠️ 画布文字走的是 parseRich ⇒ **它不认 Markdown 的 `**加粗**`**，会把星号原样画出来。
+        要强调只能用字号/颜色（见 2.1 的同类坑）。 */
+  text(pt(-SLAB_CX,0,-SLAB_HZ-0.30), MAT.polar.name+'：'+MAT.polar.ex+'　ε_r = '+MAT.polar.epsr,
+       {color:'#9A5334',size:11.5,bold:true,align:'center',z:ZL+7});
+  text(pt(-SLAB_CX,0,-SLAB_HZ-0.44),'分子本来就有偶极矩 @{p}₀ ⇒ 加场后「转动」',
+       {color:'#A8776A',size:10.5,align:'center',z:ZL+7});
+  text(pt( SLAB_CX,0,-SLAB_HZ-0.30), MAT.nonpolar.name+'：'+MAT.nonpolar.ex+'　ε_r = '+MAT.nonpolar.epsr,
+       {color:'#33697F',size:11.5,bold:true,align:'center',z:ZL+7});
+  text(pt( SLAB_CX,0,-SLAB_HZ-0.44),'正负电荷中心原本重合 ⇒ 加场后「拉开」',
+       {color:'#5C8DA1',size:10.5,align:'center',z:ZL+7});
+  return {stP, stN};
+}
+
+/* ══════════════ 画布右上角的信息卡 ══════════════ */
+function infoCard(title,rows,h){
+  const x0=CARD_X(), y0=CARD_Y, w=CARD_W;
+  crd(x0,y0,w,h);
+  txt(x0+12,y0+15,title,{size:11.5,bold:true,color:'#1F3D4C'});
+  rows.forEach((r,i)=>{
+    const y=y0+38+i*19;
+    /* ⚠️ 章节行的判定看**写法**，别只认 r[0]==='§'：
+       本页 dipCard / mediaCard 的章节行**全都**写成单元素 ['§ 文本']，而旧判据 r[0]==='§'
+       只认 ['§','文本'] ⇒ 单元素那种会被当成"普通行" ⇒ 右列去取 r[1] 得 undefined。
+       实测画面上出现 **4 处字面 "undefined"**（① 卡片两行 '轴线上 r = …'、
+       ②③ 卡片两行 '平均/固有偶极矩'），位置就在卡片第 4/8 行。
+       ⚠️⚠️ 而且 **parseRich(undefined) 根本不抛异常** —— 它把非字符串静默 String() 成
+       "undefined" 再照常排版 ⇒ 这类 bug **看控制台、看报错永远发现不了**。
+       只有"给 txt/text 插桩、扫传入的 str"才抓得到（本页自检 canvas.js 里做了）。
+       顺带：单元素写法里的 '§' 只是标记，渲染前必须剥掉，否则字面画出 '§'。 */
+    const markerOnly = (r[0]==='§');
+    if(markerOnly || (r.length===1 && String(r[0]||'')[0]==='§')){
+      const lab = markerOnly ? String(r[1]==null?'':r[1]) : String(r[0]).slice(1);
+      txt(x0+11,y,lab.trim(),{size:11,bold:true,color:r[2]||'#1F3D4C'}); return;
+    }
+    let lab=String(r[0]==null?'':r[0]);
+    if(lab[0]==='§') lab=lab.slice(1).trim();        /* 带值的行也可能被误加 § 前缀，统一剥掉 */
+    txt(x0+13,y,lab,{size:11,color:'#5F7482'});
+    txt(x0+w-13,y,r[1]==null?'':String(r[1]),{size:11,bold:true,color:r[2]||'#0E4A66',align:'right'});
+  });
+}
+function dipCard(){
+  const d=state.d, p=DIP_Q*d;
+  const r1=0.50, r2=0.90;
+  const e1=dipEaxis(r1,d), e2=dipEaxis(r2,d);
+  const p1=dipEpoint(r1,d), p2=dipEpoint(r2,d);
+  const dev=(e,a)=>Math.abs(e-a)/Math.abs(e)*100;
+  infoCard('电偶极子 · 定量',[
+    ['两个点电荷', '±'+DIP_Q.toFixed(2)+' µC'],
+    ['间距  d', d.toFixed(3)+' m'],
+    ['偶极矩  p = qd', p.toFixed(3)+' µC·m'],
+    ['§ 轴线上 r = '+r1.toFixed(2)+' m'],
+    ['　精确 |@{E}|', e1.toFixed(2)+' kV/m'],
+    ['　点偶极子  2kp/r³', p1.toFixed(2)+' kV/m', '#8A76B8'],
+    ['　相对偏差', dev(e1,p1).toFixed(2)+' %', dev(e1,p1)<5?'#0E6E4A':'#B26A1E'],
+    ['§ 轴线上 r = '+r2.toFixed(2)+' m'],
+    ['　精确 |@{E}|', e2.toFixed(2)+' kV/m'],
+    ['　点偶极子  2kp/r³', p2.toFixed(2)+' kV/m', '#8A76B8'],
+    ['　相对偏差', dev(e2,p2).toFixed(2)+' %', dev(e2,p2)<5?'#0E6E4A':'#B26A1E'],
+  ],238);
+}
+function mediaCard(E0){
+  if(E0<0.05){
+    infoCard('无外加电场',[
+      ['外加场  @{E}₀', '0 kV/m'],
+      ['§ 极性分子介质（水）'],
+      ['　平均偶极矩  ⟨@{p}⟩', '0'],
+      ['　表面极化电荷', '0 nC/m²', '#0E6E4A'],
+      ['§ 非极性分子介质（PE）'],
+      ['　固有偶极矩  @{p}₀', '0'],
+      ['　表面极化电荷', '0 nC/m²', '#0E6E4A'],
+      ['§ 宏观结论'],
+      ['　两者表现', '完全相同', '#0E6E4A'],
+    ],220);
+    return;
+  }
+  const sP=matState(MAT.polar,E0), sN=matState(MAT.nonpolar,E0);
+  const vs=visAlign(E0);
+  infoCard('极化 · 宏观量',[
+    ['§ 水 H₂O（极性，ε_r = 80.4）'],
+    ['　取向度 ⟨cosθ⟩', vs.s.toFixed(2)+'（示意放大）', '#C4671F'],
+    ['　真实 L(a)', vs.sReal.toExponential(1)+'（线性区）', '#8A9AA5'],
+    ['　P = σ_p', sP.Pn.toFixed(1)+' nC/m²'],
+    ['　@{E}内 = @{E}₀/ε_r', sP.Ein.toFixed(2)+' kV/m（削弱 80×）', '#0E6E4A'],
+    ['§ 聚乙烯 PE（非极性，ε_r = 2.25）'],
+    ['　诱导偶极矩', '∝ @{E}₀（线性）', '#8A9AA5'],
+    ['　P = σ_p', sN.Pn.toFixed(1)+' nC/m²'],
+    ['　@{E}内 = @{E}₀/ε_r', sN.Ein.toFixed(2)+' kV/m（削弱 2.25×）', '#0E6E4A'],
+    ['§ 两块板的净极化电荷', '0（内部完全抵消）', '#0E6E4A'],
+  ],244);
+}
+
+/* ══════════ 场景装配 ══════════ */
+function buildScene(){
+  prims=[];                                  /* ★ 第一句必须是 prims=[] （否则每次重绘再叠一层整场景） */
+  if(state.mode==='dipole'){ sceneDipole(); return; }
+  /* ② 无外场 ⇒ E0 恒为 0；③ 用滑块/播放给出的 E0·g */
+  sceneMedium(state.mode==='nofield' ? 0 : state.E0*state.g);
+}
+function drawOverlays(){
+  if(state.mode==='dipole')  dipCard();
+  else if(state.mode==='nofield') mediaCard(0);
+  else mediaCard(state.E0*state.g);
+}
+
+/* ══════════════════════════ 面板底部的实时结论条 ══════════════════════════
+   ⚠️ 凡进 DOM 的串必须过 richHTML()（它只认 @{...} 与 _x 下标，不认 Markdown 的星号）。 */
+const sgnTxt=(v,d)=>(v>0?'+':'')+v.toFixed(d);
+
+function dipNote(){
+  const d=state.d, p=DIP_Q*d;
+  /* ⚠️ 这里进的是 DOM（richHTML），它**不认 Markdown 的 `**加粗**`**，会原样画出星号；
+     要强调只能用 <b>。画布文字（text()）同样不认星号。本页第一版两处都踩过。 */
+  return '<b>一对 ±q 的精确场</b>（本页不做近似）：@{p} = q@{d} = '+p.toFixed(3)+' µC·m，沿 +z。<br>'+
+    '画面上的绿色场线是沿 @{E} 方向逐点追出来的<b>真实轨迹</b> —— 每一条都<b>从 +q 出发、落回 −q</b>：'+
+    '正负电荷总量为零 ⇒ 通量必须闭合，这正是"偶极子远处看不见净电荷"的由来。<br>'+
+    '打开上方的 <b>远区对照</b>，会叠上一组紫色虚线 r = C·sin²θ。它<b>不是拟合</b>，'+
+    '而是点偶极子的解析场线；<b>把 d 拖小</b>，实线与虚线会逐渐重合成一条 —— '+
+    '这就是"离得远时，有限距离的偶极子看起来就是一个点偶极子"。';
+}
+/* ⚠️ mediaNote 需要知道自己在哪个页签，理由有两条，都是"文案讲错"级别的：
+   ① ② 里**没有** ▶ 播放全过程 按钮（那三个按钮只长在 ③ 上）⇒ 在 ② 里让人"按 ▶"是**死文案**，
+      点了找不到东西。③ 播放途中 g=0 时也会走到这一支，那里才真的有 ▶。
+   ② 千万别用"左边/右边"指认两块介质：它们在**世界坐标**里是 x = ∓SLAB_CX（极性在 −x），
+      但默认相机 az=0.62 下投影到屏幕是**左右对调**的（实测：PE 在屏幕左 437.8、水在屏幕右 560.2）。
+      写成"左边哑铃、右边圆瓣"就把话说反了。⇒ 一律用**材料名**（水 / PE），与相机无关。 */
+function mediaNote(E0, mode){
+  if(E0<0.05)
+    return '<b>还没有外加电场</b>：两块介质的<b>宏观表现完全一样</b> —— '+
+      '极性分子虽然各自有偶极矩 @{p}₀，但取向杂乱、方向互相抵消，平均偶极矩 = 0；'+
+      '非极性分子的正负电荷中心本来就重合，@{p}₀ 恒为 0。'+
+      '两者表面都<b>没有</b>极化电荷，对外都不显电。<br>'+
+      '差别只在分子的<b>形态</b>：<b>极性分子（水）</b>是一根根<b>有向的哑铃</b>，'+
+      '<b>非极性分子（PE）</b>是一个个<b>对称的圆瓣</b>。<br>'+
+      (mode==='poling'
+        ? '现在 g = 0（还没加场）⇒ 按 <b>▶ 播放全过程</b>，看外场是怎么一步步建立起来的。'
+        : '⇒ 切到 <b>③ 加外场</b>，看外场怎么把这两块板一步步变样。');
+  const sP=matState(MAT.polar,E0), sN=matState(MAT.nonpolar,E0);
+  const vs=visAlign(E0);
+  return '<b>加上外场 @{E}₀ = '+E0.toFixed(1)+' kV/m</b> 后，两种介质的<b>机制完全不同</b>，'+
+    '但宏观结果<b>同构</b>：<br>'+
+    '① <b>极性分子（水）转动</b>：固有偶极矩被力矩扳向 @{E} 方向。'+
+    '真实的取向度只有 L(a) = '+vs.sReal.toExponential(1)+'（几乎没转 —— 通常场强下永远落在线性区），'+
+    '画面上为了看清过程把它放大到了 '+vs.s.toFixed(2)+'。<br>'+
+    '② <b>非极性分子（PE）拉开</b>：正负电荷中心被外场撕开，<b>诱导</b>出偶极矩 ∝ @{E}₀'+
+    '（撤场就缩回去，这是非极性的重要特征）。<br>'+
+    '③ 两种机制里面，<b>内部</b>相邻分子的 + 与 − 首尾相接、成对抵消 ⇒ 净体电荷 = 0；'+
+    '只有上下两个<b>表面</b>露出没配对的电荷 ⇒ 表面极化电荷 σ_p = @{P}·n̂。'+
+    '水 '+sP.Pn.toFixed(1)+' nC/m²、PE '+sN.Pn.toFixed(1)+' nC/m²。<br>'+
+    '④ 这些表面电荷产生的场（橙色 @{E}退）与外场<b>反向</b>，把介质内部的场削弱成 '+
+    '@{E}内 = @{E}₀/ε_r：水削弱 <b>80 倍</b>、PE 只削弱 <b>2.25 倍</b>。'+
+    '<b>这就是 ε_r 的物理含义</b>，也是极性与非极性介质最本质的差别。';
+}
+
+/* ══════════════════════════════ 右侧面板 ══════════════════════════════ */
+const panel=document.getElementById('panel');
+function h(html){const d=document.createElement('div');d.innerHTML=html;return d;}
+/* ⚠️ 页面里从骨架带过来一个 <div id="toast"> 和 #toast.show 的样式，但**一直没接线** ——
+   是个死元素（写"至少保留一层显示"的守卫时才需要它）。这里补上 helper，别再让它空着。 */
+let _toastTimer=0;
+function toastMsg(msg){
+  const el=document.getElementById('toast'); if(!el) return;
+  el.textContent=msg; el.classList.add('show');
+  clearTimeout(_toastTimer); _toastTimer=setTimeout(()=>el.classList.remove('show'),1700);
+}
+/* ⚠️ k 与 v **两个都要过 richHTML()**：2.2 那边只处理 k，是因为它的 v 全是纯数字；
+   本页 ③ 的读数里有 '|@{E}| ∝ 1/r³' 这种**带标记的字符串**，
+   只处理 k ⇒ 画面上会原样出现字面的 `@{E}`（本页第一版就这样泄了一处，被 DOM 扫查抓到）。 */
+function kchip(k,v,cls){return '<span class="coord-chip '+(cls||'')+'">'+richHTML(k)+'<b>'+richHTML(v)+'</b></span>';}
+/* ⚠️ 标签字段必须容错地取（t ?? sub ?? label）—— 只读死 it.t 会让某一页变成字面 "undefined" */
+function chipRow(parent,items,isOn,onPick){
+  const box=h('<div class="sub-chips"></div>').firstChild;
+  items.forEach(it=>{
+    const lab=richHTML(String(it.t??it.sub??it.label??''));
+    const b=h('<button class="chip '+(it.col||'')+(isOn(it.k)?' on':'')+'" data-k="'+it.k+'">'+lab+'</button>').firstChild;
+    b.onclick=()=>onPick(it.k);
+    box.appendChild(b);
+  });
+  parent.appendChild(box);
+  return box;
+}
+const SHOW_ITEMS={
+  dipole: [{k:'lines',t:'场线'},{k:'far',t:'远区对照 @{r}=C·sin²θ'},{k:'chg',t:'±q 与偶极矩'},{k:'box',t:'坐标轴'}],
+  nofield:[{k:'mol',t:'分子点阵'},{k:'chg',t:'表面极化电荷'},{k:'lines',t:'外场刻度'},{k:'box',t:'坐标轴'}],
+  poling: [{k:'mol',t:'分子点阵'},{k:'chg',t:'表面极化电荷'},{k:'field',t:'板内的场分解'},
+           {k:'lines',t:'外场刻度'},{k:'box',t:'坐标轴'}],
+};
+function mkRange(sec,d){
+  const r=h('<div class="slider-row'+(d.wide?' w':'')+'"><label>'+richHTML(d.label)+'</label>'+
+    '<input type="range" id="s_'+d.k+'" min="'+d.min+'" max="'+d.max+'" step="'+d.step+'" value="'+d.get()+'">'+
+    '<span class="val" id="v_'+d.k+'">'+d.fmt(d.get())+'</span></div>');
+  const inp=r.querySelector('input');
+  inp.oninput=()=>{
+    d.set(parseFloat(inp.value));
+    document.getElementById('v_'+d.k).textContent=d.fmt(parseFloat(inp.value));
+    needsRender=true; updateReadout(); updateModeTag();
+    if(d.after) d.after();
+  };
+  sec.appendChild(r);
+}
+function btnRow(sec,specs){
+  const bx=h('<div class="sub-chips"></div>').firstChild;
+  specs.forEach(s=>{ const b=h('<button class="chip '+(s.col||'')+(s.on?' on':'')+'">'+richHTML(s.t)+'</button>').firstChild;
+    b.onclick=s.act; bx.appendChild(b); });
+  sec.appendChild(bx);
+}
+function renderSubSec(sec){
+  sec.innerHTML='';
+  sec.appendChild(h('<div class="sec-title">显示</div>'));
+  chipRow(sec,SHOW_ITEMS[state.mode],k=>state.show[k],k=>{
+    const next=!state.show[k];
+    /* ⚠️ 不许把**所有**层都关掉：① 的四层（场线/远区/电荷/坐标轴）**全部**由开关控制
+       ⇒ 全关就是 prims=0，整块画布变成纯白 —— 看着像页面坏了。
+       ②③ 因为有"常画"的介质盒/文字，怎么关都关不空 ⇒ 三页签行为不一致。
+       ⇒ 统一在这里守一道：要关的这层若已是最后一层开着的，就拒绝并给一句提示。 */
+    const othersOn=SHOW_ITEMS[state.mode].some(it=>it.k!==k && state.show[it.k]);
+    if(!next && !othersOn){ toastMsg('至少保留一层显示'); return; }
+    state.show[k]=next; needsRender=true; renderPanel();
+  });
+  /* ⚠️ 这段说明分页签写，绝不能一段通吃：② 里 @{E}₀ ≡ 0，讲"上表面是 +σ_p"是**错的**
+     ——两块介质这时候根本没极化，σ_p 恒为 0（读数条上逐个是 0）。
+     ⚠️ ② 干脆**不加**这段：下面 noNote（= mediaNote(0)）已经把"还没极化 / 差别只在微观"讲全了，
+        两段并排等于把同一件事说两遍（第一版面板里连着两段同义文字，读起来很啰嗦）。 */
+  let note=null;
+  if(state.mode==='dipole'){
+    note = '场线只画 <b>正对镜头的那一个剖面</b>：转动画面时它会跟着转到你面前，一族线落在同一个平面里才看得清。';
+  } else if(state.mode==='poling'){
+    note = '外场沿 <b>+z</b>（绿轴）。<b>上表面</b>是 +σ_p、<b>下表面</b>是 −σ_p —— 因为极化强度 @{P} 沿 +z，'+
+      '上下两个面的外向法矢 n̂ 正好反向，σ_p = @{P}·n̂ 于是反号。<br>'+
+      '⚠️ 注意这是<b>两块介质各自的</b>极化电荷，两块板合起来的<b>净</b>极化电荷恒为 0。';
+  }
+  if(note) sec.appendChild(h('<div class="ex-note" style="margin-top:7px">'+richHTML(note)+'</div>'));
+  if(state.mode==='poling'){
+    sec.appendChild(h('<div class="sec-title" style="margin-top:14px">全过程播放</div>'));
+    const pb=h('<button class="chip o" id="btnPlay">'+((state.anim&&state.anim.playing)?'⏸ 暂停':'▶ 播放全过程')+'</button>').firstChild;
+    pb.onclick=()=>{
+      if(state.anim) state.anim.playing=!state.anim.playing;
+      else { state.anim={u:0,playing:true}; state.g=0; }
+      renderPanel(); needsRender=true; syncSliders(); updateReadout(); updateModeTag();
+    };
+    const bx=h('<div class="sub-chips"></div>').firstChild; bx.appendChild(pb);
+    /* ⚠️ id 不要再叫 btnReset —— 页面上 canvas 工具条已经有一个"复位视角"按钮占着 id="btnReset"
+       （见 2.2 的同类坑：重名时 getElementById 返回文档里靠前的那个，点击"看起来"发生了却由别人处理，且不报错）。 */
+    const rb=h('<button class="chip" id="btnNoField">⏮ 回到无外场</button>').firstChild;
+    rb.onclick=()=>{ stopAnim(); state.g=0; renderPanel(); syncSliders(); updateAll(); };
+    const fb=h('<button class="chip" id="btnFull">⏭ 直接到最强场</button>').firstChild;
+    fb.onclick=()=>{ stopAnim(); state.g=1; renderPanel(); updateAll(); };
+    bx.appendChild(rb); bx.appendChild(fb);
+    sec.appendChild(bx);
+    sec.appendChild(h('<div class="ex-note" id="polNote">'+richHTML(mediaNote(state.E0*state.g, state.mode))+'</div>'));
+  } else if(state.mode==='nofield'){
+    sec.appendChild(h('<div class="ex-note" id="noNote" style="margin-top:12px">'+richHTML(mediaNote(0, state.mode))+'</div>'));
+  } else {
+    sec.appendChild(h('<div class="ex-note" id="dipNote" style="margin-top:12px">'+richHTML(dipNote())+'</div>'));
+  }
+}
+const SLIDER_FMT={
+  d: v=>v.toFixed(3)+' m',
+  E0:v=>v.toFixed(1)+' kV/m',
+};
+function syncSliders(){
+  const set=(k,v)=>{ const s=document.getElementById('s_'+k); if(s) s.value=v;
+    const e=document.getElementById('v_'+k); if(e) e.textContent=SLIDER_FMT[k]?SLIDER_FMT[k](v):String(v); };
+  set('d',state.d); set('E0',state.E0);
+  const dn=document.getElementById('dipNote'); if(dn) dn.innerHTML=richHTML(dipNote());
+  const nn=document.getElementById('noNote');  if(nn) nn.innerHTML=richHTML(mediaNote(0, state.mode));
+  const pn=document.getElementById('polNote'); if(pn) pn.innerHTML=richHTML(mediaNote(state.E0*state.g, state.mode));
+}
+function renderSliders(sec){
+  sec.innerHTML='';
+  if(state.mode==='dipole'){
+    sec.appendChild(h('<div class="sec-title">两个点电荷的间距</div>'));
+    mkRange(sec,{k:'d',label:'间距 d',wide:true,min:DIP_D_RANGE[0],max:DIP_D_RANGE[1],step:0.01,
+      get:()=>state.d, set:v=>{ state.d=Math.round(v*100)/100; }, fmt:v=>v.toFixed(2)+' m'});
+    sec.appendChild(h('<div class="ex-note" style="margin-top:9px">'+richHTML(
+      '本页的 @{p} = q@{d} 用 µC·m。d 越小，两个电荷越"看起来像同一个点"，'+
+      '画面上的实线（真实场线）就越贴住紫色虚线（点偶极子的 r = C·sin²θ）。<br>'+
+      '⚠️ 真实分子的 d ~ 0.1 nm，这里画的是 <b>示意尺度</b>；'+
+      '要紧的是那条<b>比值</b> d/@{r} —— 它决定"能不能当点偶极子看"。')+'</div>'));
+    btnRow(sec,[
+      {t:'d 小（像点偶极子）', on:state.d<=0.10, act:()=>{ state.d=0.06; renderPanel(); updateAll(); }},
+      {t:'d 大（看得出两个电荷）', on:state.d>=0.30, act:()=>{ state.d=0.34; renderPanel(); updateAll(); }},
+    ]);
+  } else if(state.mode==='nofield'){
+    sec.appendChild(h('<div class="sec-title">本页签没有可调参数</div>'));
+    sec.appendChild(h('<div class="ex-note">'+richHTML(
+      '② 要讲的就是"<b>关键参数恰好等于 0</b>"这件事：@{E}₀ = 0 ⇒ 两块介质都还没极化。'+
+      '外场滑块在 ③ 里（切过去就能从 0 一路拉到 '+E_MAX+' kV/m）。')+'</div>'));
+  } else {
+    sec.appendChild(h('<div class="sec-title">外加匀强场</div>'));
+    mkRange(sec,{k:'E0',label:'@{E}₀',wide:true,min:0,max:E_MAX,step:1,
+      get:()=>state.E0, set:v=>{ state.E0=v; stopAnim(); state.g=1; }, fmt:v=>v.toFixed(0)+' kV/m'});
+    sec.appendChild(h('<div class="ex-note" style="margin-top:9px">'+richHTML(
+      '拖动滑块 = 手动设定外场；按 <b>▶ 播放全过程</b> 则从"完全没有场"一路长到 '+
+      state.E0.toFixed(0)+' kV/m，可以看清分子是<b>怎么一步步动起来</b>的。<br>'+
+      '⚠️ 画面上"分子转了多少"是<b>示意放大</b>过的（见下方讲解卡）：'+
+      '真实取向度 L(a) 在工程场强下只有 10⁻⁵ 量级 —— 正因为如此，取向极化才总是线性的。')+'</div>'));
+  }
+}
+
+const CARDS={
+  dipole:[
+    {k:'1',tab:'1. 场线为什么闭合',cls:'c1',body:
+      '<b>一对 ±q 的总电荷为零</b>，这是全页的出发点：'+
+      '<div class="frm">∮<sub>S</sub> @{E}·d@{S} = (q + (−q))/ε₀ = 0</div>'+
+      '<ul><li>把高斯面取成"包住整个偶极子的大球"，净通量恒为 0 ⇒ '+
+      '从 +q 出去的场线必须<b>全部回来</b></li>'+
+      '<li>画面上每条绿色场线都从 +q 出发、落到 −q —— 这不是画出来的效果，'+
+      '而是追踪算法的终止条件（自检里逐条验证）</li>'+
+      '<li>于是<b>远处只看得到一个"偶极子"</b>，看不出里面是两个电荷、也看不出它整体带多少电'+
+      '（本来就不带电）</li></ul>'+
+      '<div class="ex-note">对照 2.2 的导体：那里的场线可以"跑出去不回来"（导体带净电荷）；'+
+      '这里一条都跑不掉。结构上的差别全在"净电荷是不是零"。</div>'},
+    {k:'2',tab:'2. 远区为什么是 1/r³',cls:'c2',body:
+      '<b>两个 1/r² 的场互相抵消了大头，剩下的就是 1/r³：</b>'+
+      '<div class="frm">@{E}(@{r}) = (1/4πε₀)·[ 3(@{p}·@{r}̂)@{r}̂ − @{p} ] / r³　（r ≫ d）</div>'+
+      '<ul><li>轴线上（θ=0）：|@{E}| = 2p/(4πε₀r³)；赤道线上（θ=90°）：|@{E}| = p/(4πε₀r³) —— '+
+      '两者都 ∝ 1/r³，只差一个 2 倍</li>'+
+      '<li>衰减比点电荷<b>快一阶</b>：点电荷 1/r²、偶极子 1/r³、四极子 1/r⁴ …… '+
+      '阶数 = 多极展开的第几项</li>'+
+      '<li>这就是"离得远时偶极子不显电"的定量版本：单个偶极子几乎不产生远场</li>'+
+      '<li>但<b>一堆</b>偶极子整齐排列时，远场的叠加并不会互相抵消掉——那正是下一页要讲的极化电场</li></ul>'+
+      '<div class="ex-note">打开「远区对照」看那条紫色虚线：它是点偶极子的解析场线 r = C·sin²θ。'+
+      '把 d 拖小两条线就重合 ⇒ 远区真的"看不见 d"。</div>'},
+    {k:'3',tab:'3. 从这里走到电介质',cls:'c3',body:
+      '<b>为什么电介质这一章要从偶极子讲起？</b>'+
+      '<div class="frm">一块极化了的介质 = 无数个偶极子的叠加</div>'+
+      '<ul><li>介质里的每个分子都可以看成一个偶极子（非极性的靠外场诱导出来）</li>'+
+      '<li>把这些偶极子的场<b>逐个叠加</b>，就是介质产生的<b>极化电场</b></li>'+
+      '<li>关键的一步在后面：这个叠加场可以被<b>等价替换</b>成"只在表面有一层面电荷"产生的场 —— '+
+      '因为内部分子的 + 与 − 两两头尾相接、互相抵消</li>'+
+      '<li>⇒ 于是完全不用管介质内部成千上万个分子，<b>只算表面那层电荷就够了</b>。'+
+      '这条"等效"在第 ③ 个页签里会直接看到</li></ul>'+
+      '<div class="ex-note">⚠️ 这里的叠加是<b>矢量</b>叠加（@{E} 是矢量场）。'+
+      '单看一个偶极子远场 ∝ 1/r³ 很小，但介质里分子的数密度 N ~ 10²⁸ /m³，'+
+      '乘起来就是宏观上可观的 @{P} = N⟨@{p}⟩。</div>'},
+  ],
+  nofield:[
+    {k:'1',tab:'1. 两种分子',cls:'c1',body:
+      '<b>区别只有一个：正负电荷中心重不重合。</b>'+
+      '<ul><li><b>极性分子</b>（水 H₂O、HCl、NH₃）：正负电荷中心<b>不重合</b>，'+
+      '天生就有一个固有偶极矩 @{p}₀（水 ~1.85 D）。分子形状不对称是根源</li>'+
+      '<li><b>非极性分子</b>（CO₂、CH₄、聚乙烯 PE）：结构对称 ⇒ '+
+      '正负电荷中心<b>重合</b>，@{p}₀ ≡ 0</li>'+
+      '<li>画面上：<b>水</b>画成一根根<b>有向的哑铃</b>（红正蓝负，看得见方向）；'+
+      '<b>PE</b> 画成两块<b>半透明瓣</b>（场为零时完全重合，只剩一个对称圆片）'+
+      '　⚠️ 别按"左/右"记它们 —— 转动画面时两块介质在屏幕上会互换位置，认<b>名字</b>（水 / PE）才靠得住</li></ul>'+
+      '<div class="ex-note">⚠️ "极性/非极性"说的是<b>分子</b>；一块材料由哪种分子构成，就说它是'+
+      '极性介质/非极性介质。水是极性分子，聚乙烯是非极性分子。</div>'},
+    {k:'2',tab:'2. 杂乱 = 没有',cls:'c2',body:
+      '<b>每个分子都有偶极矩，但宏观上却是零 —— 因为方向互相抵消：</b>'+
+      '<div class="frm">⟨@{p}⟩ = (1/N)·Σ @{p}₀,ᵢ = 0　（取向完全随机时）</div>'+
+      '<ul><li>热运动让每个分子的指向是随机的，正着指的有多少个，反着指的就有多少个</li>'+
+      '<li>叠加起来 ⇒ 宏观极化强度 @{P} = N⟨@{p}⟩ = 0 ⇒ <b>表面没有极化电荷</b></li>'+
+      '<li>此时介质与真空在静电场里<b>看不出区别</b>（这正是"没有外加场"的含义）</li>'+
+      '<li>注意：是<b>方向</b>抵消，不是电荷消失 —— 分子里的偶极矩一个都没少</li></ul>'+
+      '<div class="ex-note">这一点很容易被忽略：学生常以为"极性介质天生就带电"。'+
+      '其实不带。要有表面电荷，必须<b>先把方向统一起来</b>（外加场），那就到 ③ 了。</div>'},
+    {k:'3',tab:'3. 宏观上完全一样',cls:'c3',body:
+      '<b>这就是本页签最反直觉的结论：</b>'+
+      '<div class="frm">极性介质与 非极性介质，在 E₀ = 0 时<b>宏观表现完全相同</b></div>'+
+      '<ul><li>都是 @{P} = 0、σ_p = 0、对外不显电、<b>ε_r 都取 1</b>（与真空无异）</li>'+
+      '<li>差别<b>只有</b>在微观形态：一个自带方向，一个不带</li>'+
+      '<li>⇒ 所以"怎么区分它们"这件事，只有<b>加上外场</b>才看得出来 —— '+
+      '这正是下一个页签要做的事</li></ul>'+
+      '<div class="ex-note">这也是一个通用的物理思维：<b>静止时看不出区别的两个系统，'+
+      '要用"扰动"去区分它</b>。加外场 = 给系统一个扰动，看它的<b>响应</b>'+
+      '（响应快慢、响应大小、撤场后能不能恢复）。</div>'},
+  ],
+  poling:[
+    {k:'1',tab:'1. 两种极化机制',cls:'c1',body:
+      '<b>同一个外场，两种分子用完全不同的方式响应：</b>'+
+      '<ul><li><b>极性 —— 取向极化（转动）</b>：固有偶极矩被力矩 @{M} = @{p}₀ × @{E} 扳向场方向。'+
+      '分子<b>大小不变</b>，只是方向被统一。热运动不断打乱，所以是"部分对齐"：'+
+      '<div class="frm">⟨cosθ⟩ = L(a) = coth(a) − 1/a,　a = p₀E/(k_BT)</div></li>'+
+      '<li><b>非极性 —— 电子位移极化（拉开）</b>：电场把电子云与原子核往相反方向拉，'+
+      '正负中心被<b>撕开</b>微小距离，形成<b>诱导</b>偶极矩 @{p} = α@{E}<sub>局</sub>。'+
+      '撤场就缩回去，是<b>弹性</b>的</li>'+
+      '<li>两者宏观上都给出 @{P} ∝ @{E}（线性介质），但机理完全不同 —— '+
+      '取向极化对<b>温度</b>敏感、在高频下会跟不上（弛豫）；电子位移极化则快得多、几乎不随温度变</li></ul>'+
+      '<div class="ex-note">⚠️ 画面上的转动是<b>示意放大</b>过的。用真实数据算：'+
+      '水的 p₀ = 1.85 D、T = 300 K 时 a = p₀E/(k_BT) ≈ 1.5×10⁻⁹·E，'+
+      '即使 E = 30 kV/m，a 也只有 4.5×10⁻⁵，L(a) ≈ a/3 ~ 1.5×10⁻⁵ —— <b>分子几乎完全没转</b>。'+
+      '这不是瑕疵：正因为取向度永远落在线性区，才会有 @{P} ∝ @{E}、'+
+      '才会有一个与场强无关的常数 ε_r。</div>'},
+    {k:'2',tab:'2. 内部抵消，表面留下',cls:'c2',body:
+      '<b>这是整页的核心机制，也是"等效面电荷"那句话的来源：</b>'+
+      '<ul><li>分子排成链以后，每个分子的 <b>+ 端紧挨着下一个分子的 − 端</b></li>'+
+      '<li>介质<b>内部</b>任意一个小体积里，+ 与 − 数量相等 ⇒ <b>净体电荷 = 0</b></li>'+
+      '<li>只有<b>上下两个表面</b>：最上面一层露出 +、最下面一层露出 −，没有邻居来配 ⇒ '+
+      '留下<b>表面极化电荷</b></li>'+
+      '<li>定量：<div class="frm">σ_p = @{P}·n̂</div>'+
+      '上表面 n̂ = +ẑ ⇒ σ_p = +P；下表面 n̂ = −ẑ ⇒ σ_p = −P。两块板的<b>净</b>极化电荷仍为 0</li>'+
+      '<li>⇒ 整个介质"从头到尾没多出一个电荷"，却在外表上等效于<b>两层等量异号的面电荷</b></li></ul>'+
+      '<div class="ex-note">★ 这就是可以"用表面电荷代替全体分子"的严格理由：'+
+      '内部抵消是<b>逐点</b>成立的（不是近似），所以内部的场与"一堆杂乱电荷"无关，'+
+      '只由表面那层决定。极化强度 @{P} 的数值恰好等于表面电荷密度 —— '+
+      '这也是检验"单位对不对"的最快办法：P 的单位 C/m² 与面电荷密度完全一致。</div>'},
+    {k:'3',tab:'3. 退极化场与 ε_r',cls:'c3',body:
+      '<b>表面电荷不是白留的 —— 它自己会产生一份与外场反向的场：</b>'+
+      '<div class="frm">@{E}内 = @{E}₀ + @{E}退 = @{E}₀ − @{P}/ε₀</div>'+
+      '<ul><li>对"厚度方向正好沿场"的平板，退极化因子恰为 1 ⇒ '+
+      '<div class="frm">@{E}内 = @{E}₀ / (1 + χ_e) = @{E}₀ / ε_r,　χ_e = ε_r − 1</div></li>'+
+      '<li>σ_p = P = ε₀(ε_r − 1)@{E}内 = ε₀(ε_r − 1)@{E}₀/ε_r</li>'+
+      '<li><b>水</b>（ε_r = 80.4）：@{E} 被削弱 <b>80 倍</b> —— 极化电荷的场几乎把外场抵消干净；'+
+      '<b>PE</b>（ε_r = 2.25）：只削弱 <b>2.25 倍</b></li>'+
+      '<li>ε_r 越大 ⇒ 内部场被压得越狠 ⇒ 同样外场下能"存"下更多的极化 ⇒ '+
+      '电容器里插这种介质电容就能大很多（第 2.5 节就用到这条）</li></ul>'+
+      '<div class="ex-note">⚠️ 退极化因子取 1 是<b>平板</b>专有（厚度方向沿场）。'+
+      '换成球就是 1/3、换成细长棒近乎 0 —— 千万不能套用。<br>'+
+      '⚠️ 导体（2.2）里 @{E}内 ≡ 0，是靠<b>自由电荷</b>跑到表面把场彻底抵消；'+
+      '这里 @{E}内 ≠ 0，是因为介质里的电荷<b>被原子核拴住</b>，只能挪动极小一段距离 —— '+
+      '<b>能不能"全部取消"就是导体与介质的根本分界线</b>。</div>'},
+  ],
+};
+function renderExplain(sec){
+  sec.innerHTML='';
+  const list=CARDS[state.mode];
+  sec.appendChild(h('<div class="sec-title">讲解</div>'));
+  const tabs=h('<div class="card-tabs"></div>').firstChild;
+  list.forEach(c=>{
+    const b=h('<button class="card-tab '+c.cls+(c.k===state.cardTab?' on':'')+'">'+c.tab+'</button>').firstChild;
+    b.onclick=()=>{ state.cardTab=c.k; renderPanel(); };
+    tabs.appendChild(b);
+  });
+  sec.appendChild(tabs);
+  const cur=list.find(c=>c.k===state.cardTab)||list[0];
+  const body=h('<div class="card-body '+cur.cls+'"><div class="ex-title">'+cur.tab+'</div></div>').firstChild;
+  body.appendChild(h('<div class="ex-body">'+richHTML(cur.body)+'</div>').firstChild);
+  sec.appendChild(body);
+}
+function renderPanel(){
+  ['subSec','sliderSec','explainSec'].forEach(id=>{const el=document.getElementById(id);if(el)el.remove();});
+  const mk=id=>{const d=document.createElement('div');d.className='panel-sec';d.id=id;return d;};
+  let tog=document.getElementById('toggleSec');
+  if(!tog){
+    tog=mk('toggleSec');
+    tog.appendChild(h('<label class="readout-toggle"><input type="checkbox" id="showReadoutCb"'+(state.showReadout?' checked':'')+'><span>在<b>画布下方</b>显示<b>实时数据</b>条</span></label>'));
+    tog.querySelector('#showReadoutCb').onchange=e=>{state.showReadout=e.target.checked;updateReadout();};
+    panel.appendChild(tog);
+  }else tog.querySelector('#showReadoutCb').checked=state.showReadout;
+  const s=mk('subSec'), sl=mk('sliderSec'), ex=mk('explainSec');
+  panel.appendChild(s); panel.appendChild(sl); panel.appendChild(ex);
+  renderSubSec(s); renderSliders(sl); renderExplain(ex);
+  updateReadout(); updateModeTag();
+}
+
+/* ══════════════════════════ 画布下方实时数据条 ══════════════════════════ */
+function updateReadout(){
+  const strip=document.getElementById('coordStrip'); if(!strip) return;
+  if(!state.showReadout){ strip.innerHTML=''; return; }
+  let html='';
+  const lgT=document.getElementById('lgTitle'), lgN=document.getElementById('lgNote');
+  if(state.mode==='dipole'){
+    const d=state.d, p=DIP_Q*d;
+    const e1=dipEaxis(0.50,d), e2=dipEaxis(0.90,d);
+    const p1=dipEpoint(0.50,d), p2=dipEpoint(0.90,d);
+    const dev12=Math.abs(e1-p1)/Math.abs(e1)*100, dev2=Math.abs(e2-p2)/Math.abs(e2)*100;
+    html += kchip('偶极矩 @{p} = q@{d} =', p.toFixed(3)+' µC·m','acc');
+    html += kchip('轴上 r=0.50 精确 =', e1.toFixed(3)+' kV/m');
+    html += kchip('　点偶极子 2kp/r³ =', p1.toFixed(3)+' kV/m','warn');
+    html += kchip('　偏差 =', dev12.toFixed(2)+' %', dev12<dev2?'acc':'warn');
+    html += kchip('轴上 r=0.90 偏差 =', dev2.toFixed(2)+' %', dev2<dev12?'acc':'warn');
+    html += kchip('远区规律 =', '|@{E}| ∝ 1/r³（点电荷是 1/r²）','acc');
+    html += kchip('d / r（r=0.90 m）=', (d/0.90).toFixed(3));
+    lgT.textContent='电偶极子的场';
+    lgN.innerHTML=richHTML('@{p} = q@{d} 沿 +z　·　场线从 +q 出发、全部落回 −q　·　远区 |@{E}| ∝ 1/r³');
+  } else if(state.mode==='nofield'){
+    html += kchip('外加场 @{E}₀ =','0 kV/m');
+    html += kchip('极性：平均 ⟨@{p}⟩ =','0','acc');
+    html += kchip('非极性：固有 @{p}₀ =','0','acc');
+    html += kchip('两块板表面 σ_p =','0 nC/m²','acc');
+    html += kchip('两块板 @{P} =','0 nC/m²','acc');
+    html += kchip('结论 =','宏观表现完全相同','acc');
+    lgT.textContent='无外加电场 · 两块介质';
+    lgN.innerHTML=richHTML('分子形态不同　·　但宏观极化 @{P}、表面电荷 σ_p 全都是 0');
+  } else {
+    const Eeff=state.E0*state.g;
+    const sP=matState(MAT.polar,Eeff), sN=matState(MAT.nonpolar,Eeff), vs=visAlign(Eeff);
+    /* ⚠️ chip 的顺序 = 对照表能不能一眼看全。数据条是 flex-wrap:nowrap + overflow-x:auto，
+       排成"水×4 再 PE×3"会把最要紧的 水/PE 对照挤出可视区（要横向滚动才看得到）。
+       ⇒ 一律**按物理量成对相邻**：P 一行水/PE 挨着、E内 一行水/PE 挨着。 */
+    html += kchip('外加场 @{E}₀ =', Eeff.toFixed(1)+' kV/m');
+    html += kchip('水：P = σ_p =', sP.Pn.toFixed(1)+' nC/m²','acc');
+    html += kchip('PE：P = σ_p =', sN.Pn.toFixed(1)+' nC/m²','acc');
+    html += kchip('水：@{E}内 = @{E}₀/80.4 =', sP.Ein.toFixed(3)+' kV/m','acc');
+    html += kchip('PE：@{E}内 = @{E}₀/2.25 =', sN.Ein.toFixed(3)+' kV/m','acc');
+    html += kchip('水：取向度 示意 ⟨cosθ⟩ / 真实 L(a) =',
+      vs.s.toFixed(3)+' / '+vs.sReal.toExponential(1),'warn');
+    html += kchip('两块板净极化电荷 =','0（内部完全抵消）','acc');
+    lgT.textContent='加外场 · 极化过程';
+    lgN.innerHTML=richHTML('极性：转动（取向极化）　·　非极性：拉开（电子位移极化）　·　'+
+      '两者都是"内部抵消、表面留下"');
+  }
+  strip.innerHTML=html;
+}
+function updateModeTag(){
+  const t=document.getElementById('modeTag'); if(!t) return;
+  const sb=document.getElementById('moduleSub');
+  if(state.mode==='dipole'){
+    t.innerHTML=richHTML('① 电偶极子的场 · @{p} = q@{d} = '+(DIP_Q*state.d).toFixed(3)+
+      ' µC·m　d = '+state.d.toFixed(3)+' m');
+    if(sb) sb.textContent='精确的双点电荷场 · 场线闭合 · 远区退化为点偶极子';
+  } else if(state.mode==='nofield'){
+    t.innerHTML=richHTML('② 无外加电场 · 极性 vs 非极性　@{E}₀ = 0');
+    if(sb) sb.textContent='宏观表现完全相同：P = 0、σ_p = 0';
+  } else {
+    const Eeff=state.E0*state.g;
+    t.innerHTML=richHTML('③ 极化的建立 · @{E}₀ = '+Eeff.toFixed(1)+' kV/m　'+
+      '（滑块上限 '+E_MAX+'，当前 '+Math.round(state.g*100)+'%）');
+    if(sb) sb.textContent='极性分子转动 · 非极性分子拉开 ⇒ 内部抵消、表面留下极化电荷';
+  }
+}
+
+/* ══════════════════════════════ 主循环 ══════════════════════════════ */
+let needsRender=true;
+function draw(){
+  setupCamera(); ctx.clearRect(0,0,W,H);
+  buildScene();
+  prims.sort((a,b)=>a.z-b.z);
+  for(const p of prims) p.draw(ctx);
+  drawOverlays();
+  const pt2=document.getElementById('panTag');
+  if(pt2) pt2.classList.toggle('show',Math.abs(cam.px)>2||Math.abs(cam.py)>2);
+  needsRender=false;
+}
+/* ⚠️ tick 里的 draw 必须包 try/catch：下一帧是在函数末尾排的，
+   任何一帧抛异常 ⇒ 整个渲染循环永久停摆（症状是"画面卡住、点什么都没反应"）。 */
+let _lastT=performance.now();
+function tick(){
+  const now=performance.now(); const dt=Math.min(0.05,(now-_lastT)/1000); _lastT=now;
+  try{
+    if(state.autoRotate){ cam.az+=0.0045; needsRender=true; }
+    const ra=stepAnim(dt);
+    if(ra){
+      needsRender=true; syncSliders(); updateReadout(); updateModeTag();
+      const pb=document.getElementById('btnPlay');
+      if(pb) pb.textContent=(state.anim&&state.anim.playing)?'⏸ 暂停':'▶ 播放全过程';
+      if(ra==='end') renderPanel();
+    }
+    if(needsRender) draw();
+  }catch(err){ needsRender=false; console.error('draw/tick error:',err); }
+  requestAnimationFrame(tick);
+}
+function updateAll(){ needsRender=true; syncSliders(); updateReadout(); updateModeTag(); }
+
+/* ══════════════════════════════ 交互 ══════════════════════════════ */
+let drag=null;
+function localPos(ev){const r=canvas.getBoundingClientRect();return{x:ev.clientX-r.left,y:ev.clientY-r.top};}
+canvas=document.getElementById('cv');
+ctx=canvas.getContext('2d');
+canvas.addEventListener('pointerdown',ev=>{
+  canvas.setPointerCapture(ev.pointerId);
+  const m=localPos(ev);
+  drag={x:m.x,y:m.y,btn:ev.button,mode:(ev.button===2||ev.ctrlKey)?'pan':'rot'};
+  ev.preventDefault();
+});
+canvas.addEventListener('pointermove',ev=>{
+  const m=localPos(ev);
+  if(!drag) return;
+  const dx=m.x-drag.x, dy=m.y-drag.y; drag.x=m.x; drag.y=m.y;
+  if(drag.mode==='pan'){ cam.px+=dx; cam.py+=dy; needsRender=true; }
+  else { cam.az-=dx*0.0075; cam.el=Math.max(-1.45,Math.min(1.45,cam.el+dy*0.0062)); needsRender=true; }
+});
+canvas.addEventListener('pointerup',()=>{ drag=null; });
+canvas.addEventListener('pointercancel',()=>{ drag=null; });
+canvas.addEventListener('contextmenu',e=>e.preventDefault());
+canvas.addEventListener('wheel',e=>{e.preventDefault();cam.zoom=Math.max(.45,Math.min(3.2,cam.zoom*(e.deltaY<0?1.09:1/1.09)));needsRender=true;},{passive:false});
+/* ⚠️ 这个按钮的 id 是 btnViewReset 而**不是** btnReset —— 面板里"播放/复位"那组按钮容易顺手写成
+   btnReset，一旦重名，getElementById 只会返回文档里靠前的那一个（2.2 踩过：点了没反应且不报错）。 */
+document.getElementById('btnViewReset').onclick=()=>{ cam.az=.62; cam.el=.40; cam.zoom=1; cam.px=0; cam.py=0; needsRender=true; };
+document.getElementById('btnRotate').onclick=e=>{state.autoRotate=!state.autoRotate;e.target.classList.toggle('on',state.autoRotate);};
+document.getElementById('btnPanReset').onclick=()=>{cam.px=0;cam.py=0;needsRender=true;};
+function bindFold(bid,cls){document.getElementById(bid).onclick=()=>{document.body.classList.toggle(cls);setTimeout(resize,60);setTimeout(resize,260);};}
+bindFold('foldNav','nav-off'); bindFold('foldPanel','panel-off');
+document.getElementById('tglNav').onclick=()=>{document.body.classList.toggle('nav-off');setTimeout(resize,260);};
+document.getElementById('tglPanel').onclick=()=>{document.body.classList.toggle('panel-off');setTimeout(resize,260);};
+window.addEventListener('keydown',e=>{if(e.target.tagName==='INPUT')return;
+  if(e.key==='['){document.body.classList.toggle('nav-off');setTimeout(resize,260);}
+  if(e.key===']'){document.body.classList.toggle('panel-off');setTimeout(resize,260);}});
+
+/* ══════════════════════════════ 页签 ══════════════════════════════ */
+const MT=[{k:'dipole', t:'① 电偶极子的场'},
+          {k:'nofield',t:'② 无外场：两种介质'},
+          {k:'poling', t:'③ 加外场：极化过程'}];
+const modeTabs=document.getElementById('modeTabs');
+MT.forEach(m=>{const b=document.createElement('button');b.textContent=m.t;b.dataset.k=m.k;
+  b.onclick=()=>{ state.mode=m.k; state.cardTab='1'; stopAnim();
+    syncModeTabs(); cam.az=.62; cam.el=.40; cam.px=0; cam.py=0;
+    renderPanel(); updateAll(); };
+  modeTabs.appendChild(b);});
+function syncModeTabs(){Array.from(modeTabs.children).forEach(b=>b.classList.toggle('on',b.dataset.k===state.mode));}
+
+function resize(){
+  const r=canvas.getBoundingClientRect();
+  const nw=Math.max(60,Math.round(r.width)),nh=Math.max(60,Math.round(r.height));
+  DPR=Math.min(2,window.devicePixelRatio||1);
+  if(nw===W&&nh===H&&canvas.width===Math.round(nw*DPR))return;
+  W=nw;H=nh;canvas.width=Math.round(W*DPR);canvas.height=Math.round(H*DPR);
+  ctx.setTransform(DPR,0,0,DPR,0,0); needsRender=true;
+}
+new ResizeObserver(()=>resize()).observe(canvas);
+
+const nav=document.getElementById('nav');
+NAV.forEach(g=>{nav.appendChild(h('<div class="nav-ch">'+g.ch+'</div>'));
+  g.items.forEach(it=>{const cls='nav-item'+(it.active?' active':'')+(it.ready?'':' soon');
+    nav.appendChild(h('<a class="'+cls+'" '+(it.href?'href="'+it.href+'"':'')+'><span class="dot"></span>'+it.t+'</a>'));});});
+
+syncModeTabs();
+resize();
+renderPanel();
+updateAll();
+tick();
+</script>
+</body>
+</html>
