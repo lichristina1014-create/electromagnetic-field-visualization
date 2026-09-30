@@ -10,16 +10,29 @@ MAOZI="https://lichenluemf-3xxc2nj.maozi.io"
 PAGES="https://lichristina1014-create.github.io/electromagnetic-field-visualization"
 
 lsha() { shasum -a 256 "$1" | cut -c1-10; }
-rsha() {                       # $1 = base url, $2 = file
-  rm -f "$TMP"
-  curl -sS -o "$TMP" -w '%{http_code}' --max-time 25 "$1/$2" 2>/dev/null
+# ⚠️⚠️ 两个站点走的网**不同**，绝不能一刀切（2026-09-30 修）：
+#   · 帽子云 maozi.io（大陆直连）⇒ 必须 `--noproxy '*'` + 清掉 env 里的代理变量。
+#     一旦走代理，得到的是 `curl: (35) SSL_ERROR_SYSCALL` / `502 CONNECT tunnel failed`
+#     ⇒ 看起来像"站点没重建"，其实只是代理不给过。
+#   · GitHub Pages ⇒ 反而要**带**代理（直连不通）。
+#   旧版对两者用同一个 curl，maozi 那一轮必然空转 12 次重试（每次 sleep 10 s）后才报失败。
+rsha() {                       # $1 = base url, $2 = file, $3 = direct|proxy
+  rm -f "$TMP"                 # 每次先删：curl 失败会留下上一次的内容 ⇒ 假匹配
+  local u="$1/$2?cb=$(date +%s%N)"   # 破缓存（否则可能读到 CDN 老副本）
+  if [ "$3" = "direct" ]; then
+    env -u HTTP_PROXY -u HTTPS_PROXY -u http_proxy -u https_proxy -u ALL_PROXY -u all_proxy \
+      curl -sS --noproxy '*' -o "$TMP" -w '%{http_code}' --max-time 15 "$u" 2>/dev/null
+  else
+    curl -sS -o "$TMP" -w '%{http_code}' --max-time 15 "$u" 2>/dev/null
+  fi
 }
 
-for base in "$MAOZI" "$PAGES"; do
-  echo "=================== $base"
+for pair in "direct $MAOZI" "proxy $PAGES"; do
+  set -- $pair; MODE=$1; base=$2
+  echo "=================== $base  (走 $MODE)"
   for f in $FILES; do L=$(lsha "$f"); R=""; C=""
     for try in 1 2 3 4 5 6 7 8 9 10 11 12; do
-      C=$(rsha "$base" "$f"); [ "$C" = "200" ] && { R=$(lsha "$TMP"); [ "$R" = "$L" ] && break; }
+      C=$(rsha "$base" "$f" "$MODE"); [ "$C" = "200" ] && { R=$(lsha "$TMP"); [ "$R" = "$L" ] && break; }
       sleep 10
     done
     if [ "$C" != "200" ]; then printf "  %-34s HTTP %-4s ✗ 未上线\n" "$f" "$C"

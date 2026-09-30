@@ -1,0 +1,10 @@
+const pt=(x,y,z)=>({x,y,z});
+const vadd=(a,b)=>({x:a.x+b.x,y:a.y+b.y,z:a.z+b.z});
+const vsub=(a,b)=>({x:a.x-b.x,y:a.y-b.y,z:a.z-b.z});
+const vmul=(a,s)=>({x:a.x*s,y:a.y*s,z:a.z*s});
+const vdot=(a,b)=>a.x*b.x+a.y*b.y+a.z*b.z;
+const vlen=a=>Math.hypot(a.x,a.y,a.z);
+const vnorm=a=>{const l=vlen(a)||1;return vmul(a,1/l);};
+const vcross=(a,b)=>({x:a.y*b.z-a.z*b.y, y:a.z*b.x-a.x*b.z, z:a.x*b.y-a.y*b.x});
+const D2R=Math.PI/180, R2D=180/Math.PI;
+const C={crimson:'#D04A3A',purple:'#9B59B6'};

@@ -3,3 +3,5 @@ deploy-to-github.sh
 tests/2.5-pcb/bundle.js
 tests/2.2-anim/out/
 tests/2.3-dielec/out/
+tests/2.4-gauss/_inline.js
+tests/2.4-gauss/out/
