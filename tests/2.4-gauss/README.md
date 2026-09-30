@@ -28,6 +28,7 @@
 | `nav-hook.js` | 把 2.4 挂进全站 9 页导航 + 统一 bump `?v=`（源与生成物同改） |
 | `extract-inline.js` | 从产物抽内联脚本（供 `node --check`）；顺带查陈旧串 |
 | `prepA/B/C.js` | 三个页签的截图前置（配 `cdpshot.js`） |
+| `verifyP.js` / `verifyP2.js` | ③ 的**场矢量验算**：打印 P 点三支矢量的模、夹角、叠加关系（"反向相减"还是"同向相加"），并与解析式 `kq/r²` 对账。被问"这个读数对不对"时直接跑它 |
 | `_prelude.txt` | 各探针共用的向量工具（避免 prelude 不同步） |
 
 ## 怎么跑
