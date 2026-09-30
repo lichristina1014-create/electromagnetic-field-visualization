@@ -99,7 +99,11 @@ function clickTab(k){ const b=Array.from(document.getElementById('modeTabs').chi
 }
 
 /* ============ ⑤ DOM 扫查：模板记号泄漏 / undefined 按钮 ============ */
-const CONT=['.frm','.ex-body','.ex-note','.card-body','#legend','.coord-strip','.cv-mode-tag','.sec-title','.slider-row','.readout-toggle'];
+/* ⚠️ `.module-title` 是 2026-09-30 补进来的：`#moduleSub`（标题右侧那行小字）当时**不在**这个清单里，
+   而它恰恰是漏了 richHTML() 的那一处（modeTag 有 .cv-mode-tag 罩着，moduleSub 没有）
+   ⇒ 自检全绿、用户却一眼看见字面 "|@{E}|"。**扫查清单漏项 = 空转通过。** */
+const CONT=['.frm','.ex-body','.ex-note','.card-body','#legend','.coord-strip','.cv-mode-tag',
+            '.module-title','.sec-title','.slider-row','.readout-toggle'];
 function scanDom(tag,fails){
   let seen=0;
   CONT.forEach(sel=>{

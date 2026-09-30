@@ -969,15 +969,20 @@ function gaussCard(){
     const Lall=vlen(Efield(P)), Lin=vlen(EfieldOf(IDX_IN,P)), Lout=vlen(EfieldOf(IDX_OUT,P));
     infoCard('高斯面 · 定量',[
       ['球面半径 R', R.toFixed(3)+' m'],
+      /* ★ ③ 也必须把 Q内 / Q外 摆出来（用户 2026-09-30 问"球内电荷是多少，我没看到"）：
+         这两行是"Φ 只认 Q内"与"P 的场却由全体电荷决定"这两句话的共同主语，
+         ①② 页签的卡片本来就有，③ 漏了 ⇒ 页签之间不一致。 */
+      ['球内电荷 Q内', sgnTxt(Qi,2)+' µC'],
+      ['球外电荷 Q外', sgnTxt(Qo,2)+' µC'],
       ['探针 P（θ, φ）', state.Pth.toFixed(0)+'°, '+state.Pph.toFixed(0)+'°'],
       ['§ 球面上这一点 P 的电场'],
       ['总 @{E}（全部电荷）', Lall.toFixed(1)+' kV/m'],
-      ['　只有球内电荷', Lin.toFixed(1)+' kV/m'],
-      ['　只有球外电荷', Lout.toFixed(1)+' kV/m'],
+      ['　只算球内电荷', Lin.toFixed(1)+' kV/m'],
+      ['　只算球外电荷', Lout.toFixed(1)+' kV/m'],
       ['§ 整个球面的通量（与球外无关）'],
       ['净穿出根数  Q内/q₀', c.net+' / '+want+' 根'],
       ['Φ = Q内/ε₀', fmtSci(PHI_V(Qi))+' V·m'],
-    ],224);
+    ],262);
     return;
   }
   infoCard('高斯面 · 定量',[
@@ -1365,7 +1370,9 @@ function updateModeTag(){
   } else {
     t.innerHTML=richHTML('③ 任意一点的场由全体电荷决定 · P（'+state.Pth.toFixed(0)+'°, '+
       state.Pph.toFixed(0)+'°）　而 Φ 仍 = Q内/ε₀');
-    if(sb) sb.textContent='球面上每一点的 |@{E}| 都被球外电荷改写，通量却纹丝不动';
+    /* ⚠️⚠️ 这一行原本写的是 textContent ⇒ 字面显示 "|@{E}|"（用户 2026-09-30 报的 bug）。
+       凡进 DOM 的串一律走 richHTML()，哪怕它只是一个"小字副标题"。 */
+    if(sb) sb.innerHTML=richHTML('球面上每一点的 |@{E}| 都被球外电荷改写，通量却纹丝不动');
   }
 }
 

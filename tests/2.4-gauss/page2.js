@@ -178,7 +178,9 @@ function updateModeTag(){
   } else {
     t.innerHTML=richHTML('③ 任意一点的场由全体电荷决定 · P（'+state.Pth.toFixed(0)+'°, '+
       state.Pph.toFixed(0)+'°）　而 Φ 仍 = Q内/ε₀');
-    if(sb) sb.textContent='球面上每一点的 |@{E}| 都被球外电荷改写，通量却纹丝不动';
+    /* ⚠️⚠️ 这一行原本写的是 textContent ⇒ 字面显示 "|@{E}|"（用户 2026-09-30 报的 bug）。
+       凡进 DOM 的串一律走 richHTML()，哪怕它只是一个"小字副标题"。 */
+    if(sb) sb.innerHTML=richHTML('球面上每一点的 |@{E}| 都被球外电荷改写，通量却纹丝不动');
   }
 }
 
