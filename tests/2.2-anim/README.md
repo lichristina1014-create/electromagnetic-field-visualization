@@ -22,10 +22,15 @@
 ```bash
 NODE=/Users/lichenlu/.workbuddy/binaries/node/versions/22.22.2-3/bin/node
 SK=~/.workbuddy/skills/headless-cdp-test/scripts
-URL="file://$(cd .. && pwd)/2.2-conductor-electrostatic.html"
+cd tests/2.2-anim                      # 本目录
+URL="file://$(cd ../.. && pwd)/2.2-conductor-electrostatic.html"
 
 "$NODE" "$SK/cdpeval.js" "$URL" t1a.js
 ```
+
+> ⚠️ 是 `cd ../..`（本目录 → tests → 平台目录），**不是** `cd ..`。
+> 写错时 cdpeval 只会报"就绪探针超时"，页面上则是 `chrome-error://chromewebdata/`
+> —— 脚本全 0 却不报错，属于典型的"空转通过"陷阱（2026-09-30 再次踩到）。
 
 ⚠️ 必须 `/Users/lichenlu/.workbuddy/binaries/node/versions/22.22.2-3/bin/node`（不要用系统 node）。
 

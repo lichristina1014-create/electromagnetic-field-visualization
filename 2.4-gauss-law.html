@@ -1,0 +1,1513 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>2.4 高斯定理及其应用 · 电磁场可视化平台</title>
+<style>
+
+:root{--teal:#156082;--teal-dark:#0E4A66;--teal-light:#E3EFF4;--orange:#E97132;--orange-light:#FDF0E7;--green:#3E9B4F;--green-light:#EAF5EC;--purple:#9B59B6;--crimson:#D04A3A;--blue:#0F9ED5;--ink:#1F3D4C;--muted:#5F7482;--line:#DCE6EB;--bg:#F2F6F8;--panel-w:398px;}
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{height:100%;}
+body{font-family:"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--ink);overflow:hidden;}
+header{height:76px;background:#fff;border-bottom:1px solid var(--line);display:flex;align-items:center;padding:0 22px;gap:14px;}
+.logo{width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,var(--teal),#2E86AB);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:15px;text-decoration:none;}
+header h1{font-size:18px;font-weight:700;letter-spacing:.5px;}
+header .sub{font-size:12px;color:var(--muted);margin-top:2px;}
+header .badge{margin-left:auto;display:flex;flex-direction:column;align-items:flex-end;gap:4px;}
+header .badge .chip{font-size:12px;color:var(--teal);background:var(--teal-light);border:1px solid #C5DEE9;padding:4px 12px;border-radius:20px;white-space:nowrap;}
+header .badge .owner{font-size:11px;color:#5C6B73;background:#F4F7F9;border:1px solid #E2E8EC;padding:3px 10px;border-radius:20px;white-space:nowrap;display:inline-flex;align-items:center;gap:5px;}
+header .badge .owner b{color:var(--teal);font-weight:600;letter-spacing:.3px;}
+header .badge .owner::before{content:"";display:inline-block;width:5px;height:5px;background:var(--teal);border-radius:50%;}
+.layout{display:flex;height:calc(100vh - 76px);}
+aside{width:236px;background:#fff;border-right:1px solid var(--line);overflow-y:auto;padding:14px 0;flex-shrink:0;}
+aside::-webkit-scrollbar{width:6px;} aside::-webkit-scrollbar-thumb{background:#D5E0E6;border-radius:3px;}
+.nav-ch{font-size:12px;color:var(--muted);padding:12px 18px 6px;font-weight:600;letter-spacing:.5px;}
+.nav-item{display:flex;align-items:center;gap:8px;padding:9px 18px;font-size:13.5px;cursor:pointer;color:#3D5A68;border-left:3px solid transparent;transition:background .15s;text-decoration:none;}
+.nav-item:hover{background:#F5F9FB;}
+.nav-item.active{background:var(--teal-light);color:var(--teal-dark);font-weight:600;border-left-color:var(--teal);}
+.nav-item .dot{width:6px;height:6px;border-radius:50%;background:#C6D4DB;flex-shrink:0;}
+.nav-item.active .dot{background:var(--teal);}
+.nav-item.soon{color:#A5B6C0;cursor:not-allowed;}
+.nav-item.soon .dot{background:#E1E9ED;}
+.nav-item.soon::after{content:"建设中";font-size:10px;color:#B7C6CE;margin-left:auto;border:1px solid #DCE6EB;border-radius:8px;padding:1px 6px;}
+main{flex:1;display:flex;flex-direction:column;padding:14px 16px 12px;overflow:hidden;min-width:0;}
+.module-head{display:flex;align-items:center;gap:16px;margin-bottom:10px;flex-wrap:wrap;}
+.module-title{font-size:17px;font-weight:700;}
+.module-title small{font-weight:400;color:var(--muted);font-size:12px;margin-left:8px;}
+.seg{display:flex;background:#fff;border:1px solid var(--line);border-radius:10px;padding:3px;gap:2px;flex-wrap:wrap;}
+.seg button{border:none;background:transparent;padding:7px 15px;font-size:13px;border-radius:8px;cursor:pointer;color:var(--muted);font-family:inherit;transition:all .15s;white-space:nowrap;}
+.seg button:hover{color:var(--teal);}
+.seg button.on{background:var(--teal);color:#fff;font-weight:600;box-shadow:0 2px 6px rgba(21,96,130,.3);}
+.content-row{flex:1;display:flex;gap:14px;min-height:0;}
+.canvas-card{flex:1;background:#fff;border:1px solid var(--line);border-radius:14px;position:relative;overflow:hidden;min-width:0;display:flex;flex-direction:column;box-shadow:0 1px 4px rgba(30,60,80,.05);}
+#cv{width:100%;flex:1;min-height:0;min-width:0;display:block;cursor:grab;touch-action:none;}
+#cv:active{cursor:grabbing;}
+.cv-toolbar{position:absolute;top:12px;right:12px;display:flex;gap:8px;z-index:5;}
+.cv-toolbar button{border:1px solid var(--line);background:rgba(255,255,255,.92);border-radius:8px;padding:5px 12px;font-size:12px;color:var(--muted);cursor:pointer;font-family:inherit;backdrop-filter:blur(4px);transition:all .15s;}
+.cv-toolbar button:hover{color:var(--teal);border-color:var(--teal);}
+.cv-toolbar button.on{background:var(--teal);color:#fff;border-color:var(--teal);}
+.cv-mode-tag{position:absolute;top:12px;left:12px;font-size:12px;color:var(--teal-dark);background:rgba(227,239,244,.92);border:1px solid #C9E0EA;border-radius:8px;padding:5px 12px;z-index:4;pointer-events:none;font-weight:600;max-width:56%;}
+aside,.panel{transition:width .22s ease,padding .22s ease,border-width .22s ease;}
+body.nav-off aside{width:0;padding-top:0;padding-bottom:0;border-right-width:0;overflow:hidden;}
+body.panel-off .panel{width:0;border-left-width:0;border-right-width:0;overflow:hidden;}
+.fold-handle{position:absolute;top:50%;transform:translateY(-50%);z-index:6;width:15px;height:58px;padding:0;line-height:1;border:1px solid var(--line);background:rgba(255,255,255,.94);color:#A3B7C2;font-size:11px;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px);transition:all .15s;}
+.fold-handle:hover{color:var(--teal);border-color:var(--teal);background:#fff;}
+#foldNav{left:0;border-left:none;border-radius:0 9px 9px 0;}
+#foldPanel{right:0;border-right:none;border-radius:9px 0 0 9px;}
+/* ★ 右侧面板的**自由宽度**（不只是"收起 / 展开"两态）：面板左缘贴一条拖动抓取条。
+   ⚠️ 拖动时必须把 .panel 的 `transition:width` 关掉（body.resizing），
+      否则宽度会有 0.22s 的追赶延迟，鼠标跑得越快面板越"跟不上"。 */
+.panel-resizer{flex:0 0 11px;width:11px;margin:0 -5px;align-self:stretch;cursor:col-resize;position:relative;z-index:7;}
+.panel-resizer::before{content:"";position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:3px;height:46px;border-radius:2px;background:#DCE6EB;transition:background .15s,height .15s;}
+.panel-resizer:hover::before,.panel-resizer.dragging::before{background:var(--teal);height:72px;}
+body.resizing,body.resizing .panel,body.resizing aside{transition:none!important;}
+body.resizing{user-select:none;cursor:col-resize;}
+body.panel-off .panel-resizer{display:none;}
+.view-toggles{display:flex;gap:6px;margin-right:6px;}
+.view-toggles button{border:1px solid var(--line);background:#fff;border-radius:8px;padding:5px 11px;font-size:12px;color:var(--muted);cursor:pointer;font-family:inherit;transition:all .15s;}
+.view-toggles button:hover{border-color:var(--teal);color:var(--teal);}
+.view-toggles button.on{background:var(--teal);color:#fff;border-color:var(--teal);}
+.cv-pan-tag{position:absolute;top:12px;left:50%;transform:translateX(-50%);z-index:6;font-size:11.5px;color:#8A5A20;background:rgba(255,248,236,.95);border:1px solid #E7C48F;border-radius:8px;padding:5px 12px;display:none;align-items:center;gap:8px;}
+.cv-pan-tag.show{display:flex;}
+.cv-pan-tag button{border:1px solid #E0BE8C;background:#fff;border-radius:6px;padding:2px 9px;font-size:11.5px;color:#8A5A20;cursor:pointer;font-family:inherit;}
+.cv-pan-tag button:hover{background:#8A5A20;color:#fff;border-color:#8A5A20;}
+.cv-legend{position:absolute;bottom:14px;right:14px;z-index:5;background:rgba(255,255,255,.94);border:1px solid var(--line);border-radius:9px;padding:7px 11px 8px;font-size:11px;color:var(--muted);backdrop-filter:blur(4px);pointer-events:none;min-width:130px;}
+.cv-legend .lg-t{font-size:11px;color:var(--ink);font-weight:600;margin-bottom:5px;}
+.cv-legend .lg-note{font-size:10.5px;color:var(--muted);line-height:1.55;margin-top:4px;}
+.coord-strip{display:flex;gap:8px;padding:10px 12px;border-top:1px solid var(--line);background:#FBFDFE;flex-wrap:nowrap;overflow-x:auto;overflow-y:hidden;}
+.coord-strip::-webkit-scrollbar{height:5px;}
+.coord-strip::-webkit-scrollbar-thumb{background:#D5E0E6;border-radius:3px;}
+.coord-strip:empty{padding:0;border-top:none;}
+.coord-chip{font-size:12px;color:var(--muted);background:#F3F8FA;border:1px solid #E2ECF1;border-radius:8px;padding:5px 12px;white-space:nowrap;}
+.coord-chip b{color:var(--teal-dark);font-weight:600;margin-left:5px;font-family:Menlo,monospace;}
+.coord-chip i{font-style:italic;font-family:Georgia,serif;color:var(--ink);}
+.coord-chip.acc{background:#F5F0FA;border-color:#E2D4F0;}
+.coord-chip.acc b{color:#6B4E8A;}
+.coord-chip.warn{background:#FFF6EC;border-color:#F3DCC0;}
+.coord-chip.warn b{color:#B26A1E;}
+/* ⚠️ 面板宽度走 CSS 变量 --panel-w（而不是写死 398px）：拖动抓取条时只改变量，
+   body.panel-off 的 width:0 仍然靠更高优先级生效，两者不打架。 */
+.panel{width:var(--panel-w,398px);flex-shrink:0;background:#fff;border:1px solid var(--line);border-radius:14px;display:flex;flex-direction:column;overflow-y:auto;box-shadow:0 1px 4px rgba(30,60,80,.05);}
+.panel::-webkit-scrollbar{width:6px;} .panel::-webkit-scrollbar-thumb{background:#D5E0E6;border-radius:3px;}
+.panel-sec{padding:14px 16px;border-bottom:1px solid #EEF3F6;}
+.panel-sec:last-child{border-bottom:none;}
+.readout-toggle{display:flex;align-items:center;gap:8px;padding:8px 10px;margin-bottom:12px;background:#F3F8FA;border:1px solid #E2ECF1;border-radius:8px;cursor:pointer;font-size:12.5px;line-height:1.5;color:var(--muted);}
+.readout-toggle:hover{border-color:#C6DAE3;background:#EDF4F7;}
+.readout-toggle input{accent-color:var(--teal);cursor:pointer;margin:0;}
+.readout-toggle b{color:var(--ink);}
+.sec-title{font-size:12px;color:var(--muted);font-weight:600;letter-spacing:1px;margin-bottom:10px;display:flex;align-items:center;gap:6px;}
+.sec-title::before{content:"";width:3px;height:12px;background:var(--teal);border-radius:2px;}
+.sub-chips{display:flex;gap:6px;flex-wrap:wrap;}
+.chip{border:1px solid var(--line);background:#fff;border-radius:16px;padding:4px 13px;font-size:12.5px;line-height:1.5;cursor:pointer;font-family:inherit;color:var(--muted);transition:all .15s;}
+.chip:hover{border-color:var(--teal);color:var(--teal);}
+.chip.on{background:var(--teal);border-color:var(--teal);color:#fff;font-weight:600;}
+.chip.pre{border-style:dashed;border-color:#C9D6DD;color:#7A8F9B;}
+.chip.pre:hover{border-color:var(--orange);color:var(--orange);background:#FFF8F2;}
+.chip.g.on{background:var(--green);border-color:var(--green);}
+.chip.o.on{background:var(--orange);border-color:var(--orange);}
+.chip.p.on{background:var(--purple);border-color:var(--purple);}
+.slider-row{display:flex;align-items:center;gap:10px;margin-bottom:9px;}
+.slider-row label{width:46px;font-size:13px;font-style:italic;font-family:Georgia,serif;color:var(--ink);text-align:right;flex-shrink:0;}
+.slider-row.w label{width:62px;font-style:normal;font-family:inherit;}
+.slider-row input[type=range]{flex:1;accent-color:var(--teal);height:4px;cursor:pointer;}
+.slider-row .val{width:62px;font-size:12px;color:var(--muted);font-family:Menlo,monospace;flex-shrink:0;}
+.ex-title{font-size:14.5px;font-weight:700;color:var(--teal-dark);margin-bottom:8px;line-height:1.45;}
+.ex-body{font-size:14px;line-height:1.7;color:#3A5462;}
+.ex-body b{color:var(--ink);}
+.ex-body ul{padding-left:18px;margin:6px 0;}
+.ex-body li{margin-bottom:3px;}
+.ex-note{font-size:12.5px;line-height:1.65;color:#6B8290;background:#F7FAFB;border:1px solid #E7EFF3;border-radius:8px;padding:8px 11px;margin-top:9px;}
+.frm{display:block;background:#F4F9FB;border:1px solid #DDE9EF;border-left:3px solid var(--teal);border-radius:8px;padding:10px 14px 10px 18px;margin:10px 0;font-size:14px;line-height:1.7;font-family:Georgia,"Times New Roman",serif;color:var(--ink);overflow-x:auto;white-space:nowrap;}
+.vec{position:relative;font-style:italic;font-weight:700;white-space:nowrap;}
+.vec::before,.vec::after{content:'';position:absolute;pointer-events:none;}
+.vec::before{left:0;right:.24em;top:-.28em;height:1px;background:currentColor;opacity:.9;}
+.vec::after{right:0;top:-.42em;width:0;height:0;border-left:.26em solid currentColor;border-top:.14em solid transparent;border-bottom:.14em solid transparent;}
+sub{font-size:.72em;vertical-align:-.24em;}
+.vec sub{font-style:normal;font-weight:600;}
+.sqrt{display:inline-block;position:relative;padding-left:.62em;margin-left:.05em;font-style:normal;}
+.sqrt::before{content:"√";position:absolute;left:.02em;top:-.12em;font-size:1.1em;font-family:"Cambria Math","STIX Two Math","Latin Modern Math","Times New Roman",Georgia,serif;}
+.sqrt .in{display:inline-block;border-top:1.15px solid currentColor;padding:.10em .06em .02em .06em;border-radius:4px 4px 0 0;line-height:1.1;}
+.card-tabs{display:flex;gap:6px;flex-wrap:wrap;margin:4px 0 10px;}
+.card-tab{cursor:pointer;font-family:inherit;font-size:12.5px;padding:5px 9px;border-radius:9px;border:1px solid var(--line);background:#fff;color:var(--muted);transition:all .15s;line-height:1.4;white-space:nowrap;flex:1;text-align:center;min-width:0;}
+.card-tab:hover{border-color:var(--teal);color:var(--teal);}
+.card-tab.c1.on{background:#156082;border-color:#156082;color:#fff;font-weight:600;}
+.card-tab.c2.on{background:#0F9ED5;border-color:#0F9ED5;color:#fff;font-weight:600;}
+.card-tab.c3.on{background:#E97132;border-color:#E97132;color:#fff;font-weight:600;}
+.card-tab.c4.on{background:#9B59B6;border-color:#9B59B6;color:#fff;font-weight:600;}
+.card-body{background:#FCFEFE;border:1px solid #E2ECF1;border-radius:8px;padding:12px 16px 8px;border-left:4px solid var(--teal);}
+.card-body.c1{border-left-color:#156082;} .card-body.c2{border-left-color:#0F9ED5;}
+.card-body.c3{border-left-color:#E97132;} .card-body.c4{border-left-color:#9B59B6;}
+#toast{position:fixed;bottom:26px;left:50%;transform:translateX(-50%);background:rgba(31,61,76,.94);color:#fff;font-size:13px;padding:9px 20px;border-radius:22px;opacity:0;pointer-events:none;transition:opacity .25s;z-index:99;}
+#toast.show{opacity:1;}
+
+/* 滑块分组标签（1.3 定义、1.5 漏过、这里保留） */
+/* 2.4 追加：球面 @{E}·@{n} 采样箭头的图例色 */
+.slider-group-label{font-size:12px;font-weight:600;color:var(--crimson);margin:4px 0 8px;}
+.slider-group-label.q{color:var(--blue);}
+.slider-group-label.g{color:var(--green);}
+.slider-group-label.o{color:var(--orange);}
+</style>
+</head>
+<body>
+<header>
+  <a class="logo" href="index.html" title="返回平台首页">E&M</a>
+  <div><h1>2.4 高斯定理及其应用</h1><div class="sub">电通量 · 球形高斯面 · 穿越球面的场线根数</div></div>
+  <div class="view-toggles" id="viewToggles"><button id="tglNav" title="折叠 / 展开左侧目录（快捷键 [ ）">☰ 目录</button><button id="tglPanel" title="折叠 / 展开右侧控制面板（快捷键 ] ）">☰ 面板</button></div>
+  <div class="badge"><div class="chip">《工程电磁场》 ×《电磁场与电磁波》</div><div class="owner"><b>© 2026 Li Chenlu</b> All Rights Reserved</div></div>
+</header>
+<div class="layout">
+  <aside id="nav"></aside>
+  <main>
+    <div class="module-head">
+      <div class="module-title" id="moduleTitle">高斯定理及其应用<small id="moduleSub">球内电荷与穿出的场线</small></div>
+      <div class="seg" id="modeTabs"></div>
+    </div>
+    <div class="content-row">
+      <div class="canvas-card">
+        <canvas id="cv"></canvas>
+        <div class="cv-mode-tag" id="modeTag"></div>
+        <div class="cv-pan-tag" id="panTag"><span>画面已平移</span><button id="btnPanReset">回到原点</button></div>
+        <div class="cv-toolbar"><button id="btnViewReset">复位视角</button><button id="btnRotate">自动旋转</button></div>
+        <div class="cv-legend" id="legend"><div class="lg-t" id="lgTitle">高斯定理</div><div class="lg-note" id="lgNote"></div></div>
+        <button class="fold-handle" id="foldNav" title="折叠 / 展开左侧目录">‹</button>
+        <button class="fold-handle" id="foldPanel" title="折叠 / 展开右侧面板">›</button>
+        <div class="coord-strip" id="coordStrip"></div>
+      </div>
+      <div class="panel-resizer" id="panelResizer" title="拖动调整面板宽度（双击复位为 398px）"></div>
+      <div class="panel" id="panel"></div>
+    </div>
+  </main>
+</div>
+<div id="toast"></div>
+<script>
+'use strict';
+
+/* ============================== 向量工具（与 2.1 / 2.2 同源） ============================== */
+const pt=(x,y,z)=>({x,y,z});
+const vadd=(a,b)=>({x:a.x+b.x,y:a.y+b.y,z:a.z+b.z});
+const vsub=(a,b)=>({x:a.x-b.x,y:a.y-b.y,z:a.z-b.z});
+const vmul=(a,s)=>({x:a.x*s,y:a.y*s,z:a.z*s});
+const vdot=(a,b)=>a.x*b.x+a.y*b.y+a.z*b.z;
+const vlen=a=>Math.hypot(a.x,a.y,a.z);
+const vnorm=a=>{const l=vlen(a)||1;return vmul(a,1/l);};
+const vcross=(a,b)=>({x:a.y*b.z-a.z*b.y, y:a.z*b.x-a.x*b.z, z:a.x*b.y-a.y*b.x});
+const D2R=Math.PI/180, R2D=180/Math.PI;
+const clamp1=v=>Math.max(-1,Math.min(1,v));
+const sstep=x=>{x=Math.max(0,Math.min(1,x));return x*x*(3-2*x);};
+
+/* ============================== 富文本引擎（同源，勿改语义） ============================== */
+function parseRich(s){
+  const items=[], groups=[]; const st={g:-1};
+  (function walk(str){
+    let buf='';
+    const flush=()=>{ if(buf){ items.push({t:'n',s:buf,g:st.g}); buf=''; } };
+    for(let i=0;i<str.length;){
+      const c=str[i];
+      if(c==='@' && str[i+1]==='{'){
+        const j=str.indexOf('}', i+2);
+        if(j<0){ buf+=c; i++; continue; }
+        flush();
+        const save=st.g; st.g=groups.length; groups.push(1);
+        walk(str.slice(i+2,j)); st.g=save; i=j+1; continue;
+      }
+      if(c==='_'){
+        flush();
+        if(str[i+1]==='{'){ const j=str.indexOf('}',i+2);
+          if(j>=0){ items.push({t:'s',s:str.slice(i+2,j),g:st.g}); i=j+1; continue; } }
+        items.push({t:'s',s:str[i+1]||'',g:st.g}); i+=2; continue;
+      }
+      if(c==='<'){ const j=str.indexOf('>',i);
+        if(j>=0){ buf+=str.slice(i,j+1); i=j+1; continue; } }
+      buf+=c; i++;
+    }
+    flush();
+  })(String(s));
+  return {items, groups};
+}
+const RICHFONT='"PingFang SC","Microsoft YaHei",sans-serif';
+const RICHFONT_M='Georgia,"Times New Roman",serif';
+function richLayout(ctx,rich,size,bold){const subSize=size*0.74;const wM=bold?'700 ':'';const fN=wM+size+'px '+RICHFONT;const fNs=wM+subSize+'px '+RICHFONT;const fV='italic '+wM+size+'px '+RICHFONT_M;const fVs=wM+subSize+'px '+RICHFONT_M;const groups=rich.groups.map(()=>({x0:1e9,x1:-1e9,locked:false,top:1e9}));const out=[];let x=0;const oldBL=ctx.textBaseline;ctx.textBaseline='middle';rich.items.forEach(it=>{const sub=it.t==='s',vec=it.g>=0;const font=sub?(vec?fVs:fNs):(vec?fV:fN);ctx.font=font;const m=ctx.measureText(it.s),w=m.width;const dy=sub?size*0.20:0;const asc=(m.actualBoundingBoxAscent!=null)?m.actualBoundingBoxAscent:size*0.38;if(vec){const g=groups[it.g];if(!g.locked){if(sub)g.locked=true;else{if(x<g.x0)g.x0=x;g.x1=x+w;}}const top=dy-asc;if(top<g.top)g.top=top;}out.push({s:it.s,sub,x,w,font,dy});x+=w;});ctx.textBaseline=oldBL;return{items:out,groups,w:x,size,subSize};}
+function richDraw(ctx,lo,cx,cy,align,color,fat){let ox=align==='center'?cx-lo.w/2:align==='right'?cx-lo.w:cx;const dy=it=>cy+it.dy;const ay=g=>cy+g.top-Math.max(2.2,lo.size*0.13);const span=g=>[ox+g.x0-0.6,ox+g.x1+0.6];ctx.save();ctx.textAlign='left';ctx.textBaseline='middle';ctx.lineJoin='round';ctx.lineCap='butt';ctx.lineWidth=3.4;ctx.strokeStyle='rgba(255,255,255,.92)';lo.items.forEach(it=>{ctx.font=it.font;ctx.strokeText(it.s,ox+it.x,dy(it));});lo.groups.forEach(g=>{if(g.x1<=g.x0)return;const y=ay(g),s=span(g);ctx.beginPath();ctx.moveTo(s[0],y);ctx.lineTo(s[1],y);ctx.stroke();});lo.groups.forEach(g=>{if(g.x1<=g.x0)return;const y=ay(g),s=span(g),ax=s[0],bx=s[1];ctx.strokeStyle=color;ctx.lineWidth=1.15;ctx.beginPath();ctx.moveTo(ax,y);ctx.lineTo(bx-1.2,y);ctx.stroke();const h=Math.min(3.6,Math.max(2.6,(bx-ax)*0.40));ctx.beginPath();ctx.moveTo(bx,y);ctx.lineTo(bx-h,y-h*0.52);ctx.lineTo(bx-h,y+h*0.52);ctx.closePath();ctx.fillStyle=color;ctx.fill();});lo.items.forEach(it=>{ctx.font=it.font;if(fat>0){ctx.strokeStyle=color;ctx.lineWidth=fat;ctx.strokeText(it.s,ox+it.x,dy(it));}ctx.fillStyle=color;ctx.fillText(it.s,ox+it.x,dy(it));});ctx.restore();}
+function richHTML(s){const r=parseRich(s);let h='',gi=-1;r.items.forEach(it=>{const body=it.t==='s'?'<sub>'+it.s+'</sub>':it.s;if(it.g!==gi){if(gi>=0)h+='</span>';if(it.g>=0)h+='<span class="vec">';gi=it.g;}h+=body;});if(gi>=0)h+='</span>';return wrapSqrt(h);}
+function wrapSqrt(html){const out=[];let i=0;while(i<html.length){const k=html.indexOf('√(',i);if(k<0){out.push(html.slice(i));break;}out.push(html.slice(i,k));out.push('<span class="sqrt"><span class="in">');let j=k+2,depth=1;while(j<html.length&&depth>0){const c=html[j];if(c==='(')depth++;else if(c===')'){depth--;if(depth===0)break;}j++;}if(depth!==0){out.push(html.slice(k));return out.join('');}out.push(html.slice(k+2,j));out.push('</span></span>');i=j+1;}return out.join('');}
+
+/* ============================== 颜色 / 相机 / 图元 ============================== */
+const C = {teal:'#156082',orange:'#E97132',green:'#3E9B4F',purple:'#9B59B6',crimson:'#D04A3A',blue:'#0F9ED5',gray:'#8CA0AC',light:'#C9D6DD',ink:'#22414F',grid:'#EAF0F4',muted:'#7A8F9B'};
+
+let canvas,ctx,W=800,H=600,DPR=1;
+const cam={az:0.62,el:0.40,zoom:1,px:0,py:0};
+let camU,camV,camD,camScale,CX2,CY;
+/* ══════════ 右上角信息卡的几何 + "HUD 安全区" ══════════
+   ⚠️ 根因：信息卡（叠加在画布上）固定贴右上，而场景原来是**按整个画布**居中的
+      ⇒ 画布越窄，两边的"中心"越靠拢，卡片左缘就会压到介质盒上。
+      实测（camScale=202.5、②③ 场景屏幕半宽 ≈164px、卡片宽 252 + 边距）：
+         场景右缘 = W/2 + 164，卡片左缘 = W − 268 ⇒ **W < 864 就开始重叠**。
+      用户反馈的正是这个（窄窗口下卡片盖住了右边的介质盒）。
+   ⇒ 两条规则（都不改 camScale，只在必要时才缩，避免"为了不遮挡把图缩小"）：
+      ① 只要够宽就把场景居中不动（W ≥ 864 时行为与旧版**完全一致**）；
+      ② 不够宽就把场景整体左移到卡片左边；实在放不下（cx 被压到可用区的 30% 以左）
+         才整体缩小，保证既不遮挡、也不裁切。 */
+const CARD_W=252, CARD_X=()=>W-CARD_W-16, CARD_Y=62;
+const CARD_RESERVE=CARD_W+26;      /* 右侧留给"卡片 + 工具条 + 图例"的整条带 */
+const HALF_SCENE=0.80;             /* 2.4：电荷在 0.477 m、球面 ≤0.38 m ⇒ 场景半宽 ~0.7 m */
+function setupCamera(){
+  const ca=Math.cos(cam.az),sa=Math.sin(cam.az),ce=Math.cos(cam.el),se=Math.sin(cam.el);
+  camD={x:ce*ca,y:ce*sa,z:se};camU={x:-sa,y:ca,z:0};camV={x:-ca*se,y:-sa*se,z:ce};
+  let cs=Math.min(W,H)/1.7*cam.zoom;
+  const usable=Math.max(240,W-CARD_RESERVE);
+  let half=HALF_SCENE*cs;
+  /* ① 可用区里根本摆不下整幅场景 ⇒ 先整体缩小（宁可小一点，也不要既被裁又被盖）。 */
+  if(2*half > usable-16){ cs=Math.min(cs,(usable-16)/(2*HALF_SCENE)); half=HALF_SCENE*cs; }
+  /* ② 尽量居中；会压到卡片时左移。 */
+  let cx=Math.min(W/2, W-CARD_RESERVE-10-half);
+  /* ③ 左移过头撞到左边界 ⇒ 再移回来（这一步只会在"卡片+场景真放不下"的极端宽度下触发，
+       此时宁可让卡片压到一点，也不要裁掉场景左半边）。 */
+  if(cx-half<6) cx=6+half;
+  camScale=cs; CX2=Math.max(8,cx); CY=H*0.55;
+}
+function pr(p){return{x:CX2+cam.px+camScale*vdot(p,camU),y:CY+cam.py-camScale*vdot(p,camV),d:vdot(p,camD)};}
+
+let prims=[];
+function P_(z,fn){prims.push({z,draw:fn});}
+/* ⚠️ 各图元的 o.z：可选覆盖画家算法的深度。半透明的介质盒 / 球壳会横跨一大段深度，
+   凡是"必须始终看得清"的标注都要显式抬到它们之上，否则会被洗掉。
+   ⚠️ 凡是 pr() 返回的点都带真实 .d；裸 pt(x,y,z) 的 .d 是 undefined ⇒ 会让排序静默失效。 */
+function line(a,b,o={}){const A=pr(a),B=pr(b);P_(o.z!=null?o.z:(A.d+B.d)/2,()=>{ctx.save();ctx.globalAlpha=o.alpha!=null?o.alpha:1;ctx.strokeStyle=o.color||C.gray;ctx.lineWidth=o.w||1.4;if(o.dash)ctx.setLineDash(o.dash);ctx.beginPath();ctx.moveTo(A.x,A.y);ctx.lineTo(B.x,B.y);ctx.stroke();ctx.restore();});}
+function arrowSeg(A,B,color,w,headScale){const dx=B.x-A.x,dy=B.y-A.y,L=Math.hypot(dx,dy);if(L<0.5)return;const ux=dx/L,uy=dy/L,hs=(headScale||1)*9;ctx.strokeStyle=color;ctx.lineWidth=w;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(A.x,A.y);ctx.lineTo(B.x-ux*hs*.55,B.y-uy*hs*.55);ctx.stroke();const ang=Math.atan2(dy,dx);ctx.beginPath();ctx.moveTo(B.x,B.y);ctx.lineTo(B.x-hs*Math.cos(ang-.42),B.y-hs*Math.sin(ang-.42));ctx.lineTo(B.x-hs*Math.cos(ang+.42),B.y-hs*Math.sin(ang+.42));ctx.closePath();ctx.fillStyle=color;ctx.fill();}
+function arrow(a,b,o={}){const A=pr(a),B=pr(b);P_(o.z!=null?o.z:(A.d+B.d)/2,()=>{ctx.save();ctx.globalAlpha=o.alpha!=null?o.alpha:1;if(o.dash)ctx.setLineDash(o.dash);arrowSeg(A,B,o.color||C.teal,o.w||2,o.headScale);ctx.restore();});if(o.label)text(vmul(vadd(a,b),.5),o.label,{color:o.color||C.teal,dx:o.ldx||0,dy:o.ldy!==undefined?o.ldy:-10,size:o.lsize||12.5,bold:true,align:o.lalign,alpha:o.alpha});}
+function curve(ptsArr,o={}){if(ptsArr.length<2)return;const S=ptsArr.map(pr);P_(o.z!=null?o.z:S.reduce((s,p)=>s+p.d,0)/S.length,()=>{ctx.save();ctx.globalAlpha=o.alpha!=null?o.alpha:1;ctx.strokeStyle=o.color||C.gray;ctx.lineWidth=o.w||1.8;ctx.lineCap='round';ctx.lineJoin='round';if(o.dash)ctx.setLineDash(o.dash);ctx.beginPath();ctx.moveTo(S[0].x,S[0].y);for(let i=1;i<S.length;i++)ctx.lineTo(S[i].x,S[i].y);ctx.stroke();if(o.arrowEnd){const a=S[S.length-2],b=S[S.length-1];ctx.setLineDash([]);arrowSeg(a,b,o.color||C.gray,o.w||1.8,.75);}ctx.restore();});}
+function poly(ptsArr,o={}){if(ptsArr.length<3)return;const S=ptsArr.map(pr);P_(o.z!=null?o.z:S.reduce((s,p)=>s+p.d,0)/S.length,()=>{ctx.save();ctx.beginPath();ctx.moveTo(S[0].x,S[0].y);for(let i=1;i<S.length;i++)ctx.lineTo(S[i].x,S[i].y);ctx.closePath();if(o.fill){ctx.globalAlpha=o.fillAlpha!=null?o.fillAlpha:.15;ctx.fillStyle=o.fill;ctx.fill();}if(o.stroke!==false){ctx.globalAlpha=o.strokeAlpha!=null?o.strokeAlpha:(o.fillAlpha!=null?o.fillAlpha:1);ctx.strokeStyle=o.stroke||o.fill||C.gray;ctx.lineWidth=o.w||1;if(o.dash)ctx.setLineDash(o.dash);ctx.stroke();}ctx.restore();});}
+function marker(p,o={}){
+  const S=pr(p);
+  P_(o.z!=null?o.z:S.d+0.02, ()=>{ ctx.save();
+    ctx.globalAlpha=o.alpha!=null?o.alpha:1;
+    ctx.beginPath(); ctx.arc(S.x,S.y,o.r||5,0,7);
+    ctx.fillStyle=o.color||C.orange; ctx.fill();
+    ctx.lineWidth=2; ctx.strokeStyle='#fff'; ctx.stroke();
+    if(o.ring){ ctx.beginPath(); ctx.arc(S.x,S.y,(o.r||5)+4,0,7);
+      ctx.strokeStyle=o.ring; ctx.lineWidth=2.2; ctx.stroke(); }
+    ctx.restore(); });
+  if(o.label) text(p, o.label, {color:o.color||C.orange,
+    dx:o.ldx!=null?o.ldx:10, dy:o.ldy!=null?o.ldy:-10, size:o.lsize||13, bold:true, align:o.lalign, alpha:o.alpha});
+}
+function text(p,str,o={}){const S=pr(p);P_(1e6,()=>{ctx.save();if(o.alpha!=null)ctx.globalAlpha*=o.alpha;const size=o.size||12.5,bold=!!o.bold;const lo=richLayout(ctx,parseRich(str),size,bold);richDraw(ctx,lo,S.x+(o.dx||0),S.y+(o.dy||0),o.align||'left',o.color||C.ink,o.fat||0);ctx.restore();});}
+function textScreen(x,y,str,o={}){P_(1e6+1,()=>{ctx.save();if(o.alpha!=null)ctx.globalAlpha*=o.alpha;const lo=richLayout(ctx,parseRich(str),o.size||12,!!o.bold);richDraw(ctx,lo,x,y,o.align||'left',o.color||C.ink);ctx.restore();});}
+function dimLine(a,b,o={}){
+  line(a,b,o);
+  const A=pr(a),B=pr(b);
+  const dx=B.x-A.x,dy=B.y-A.y,L=Math.hypot(dx,dy);
+  if(L<1)return;
+  const px=-dy/L,py=dx/L,t=o.tick||6;
+  const tk=P=>{P_(o.z!=null?o.z:(A.d+B.d)/2,()=>{ctx.save();if(o.alpha!=null)ctx.globalAlpha*=o.alpha;ctx.strokeStyle=o.color||C.gray;ctx.lineWidth=o.w||1.4;ctx.setLineDash([]);ctx.beginPath();ctx.moveTo(P.x+px*t,P.y+py*t);ctx.lineTo(P.x-px*t,P.y-py*t);ctx.stroke();ctx.restore();});};
+  tk(A);tk(B);
+  if(o.label)text(vmul(vadd(a,b),.5),o.label,{color:o.color||C.gray,dx:o.ldx||0,dy:o.ldy!==undefined?o.ldy:-10,size:o.lsize||12.5,bold:true,align:o.lalign,alpha:o.alpha});
+}
+function screenDot(p,rad,fill,alpha,z){const S=pr(p);P_(z!=null?z:S.d+0.02,()=>{ctx.save();ctx.globalAlpha=alpha!=null?alpha:1;ctx.beginPath();ctx.arc(S.x,S.y,rad,0,7);ctx.fillStyle=fill;ctx.fill();ctx.restore();});}
+function hexA(hex,a){const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);return 'rgba('+r+','+g+','+b+','+a+')';}
+
+/* ══════════════════════════ 坐标轴（同源） ══════════════════════════ */
+function drawAxes(ext){
+  if(!state.show.box) return;
+  const g=ext*0.86;
+  for(let v=-g;v<=g+1e-9;v+=ext*0.30){line(pt(v,-g,-ext*0.86),pt(v,g,-ext*0.86),{color:C.grid,w:1});line(pt(-g,v,-ext*0.86),pt(g,v,-ext*0.86),{color:C.grid,w:1});}
+  line(pt(0,0,0),pt(-ext,0,0),{color:'#B9C9D2',dash:[5,4],w:1.2});
+  line(pt(0,0,0),pt(0,-ext,0),{color:'#B9C9D2',dash:[5,4],w:1.2});
+  line(pt(0,0,0),pt(0,0,-ext),{color:'#B9C9D2',dash:[5,4],w:1.2});
+  arrow(pt(0,0,0),pt(ext,0,0),{color:C.teal,w:2});
+  arrow(pt(0,0,0),pt(0,ext,0),{color:C.orange,w:2});
+  arrow(pt(0,0,0),pt(0,0,ext),{color:C.green,w:2.2});
+  text(pt(ext*1.05,0,0),'x',{color:C.teal,bold:true,size:13,dy:-4});
+  text(pt(0,ext*1.05,0),'y',{color:C.orange,bold:true,size:13,dy:-4});
+  text(pt(0,0,ext*1.05),'z',{color:C.green,bold:true,size:13,dx:-4});
+}
+
+/* ============================================================================
+   2.4 高斯定理及其应用 —— 物理模型与几何图元（页面主体引擎与 2.1 / 2.2 / 2.3 同源）
+
+   ★ 单位约定（本页特有，全页统一，与 2.1~2.3 同源）：
+       长度 m　电荷 µC　场强 kV/m　通量 Φ = Q/ε₀ 用 kV·m
+       E[kV/m]  = Q_KV · q[µC] / r[m]²,  Q_KV = 1e-6/(4πε₀)/1e3 = 8.9875517873…
+       Φ[kV·m]  = PHI_KV · q[µC],        PHI_KV = 1e-6/ε₀/1e3  = 112.9410183…
+
+   ★★ 本页的教学主线（三个页签，逐句对应）：
+       ① 球内有电荷、改变电荷多少 ⇒ 穿过球面的矢量线根数跟着变
+          （Φ = Q内/ε₀，而且"穿出−穿入"恰好 = Q内/q₀）
+       ② 球外也有电荷、改变球外电荷 ⇒ 根数**不变**（穿出与穿入同步增大、互相抵消）
+       ③ 无论球内球外，任意一点的电场都由**空间中所有电荷**共同决定
+          （球面上 |E| 明明被球外电荷改得高低不平，Φ 却纹丝不动 —— 这就是高斯定理最反直觉的地方）
+
+   ★★★ 数值可信度是本页的地基：读数条上"净穿出根数 × q₀ = Φ"必须**处处严格相等**，
+        否则整个演示自相矛盾。为此做了两件事（都是实测调出来的，别随手改）：
+       ① 追踪盒 BOX=3.0 / MAXSTEP=2500：球外电荷的场线要先绕远再折回，
+          盒子太小会把"该折回来"的线提前切断 ⇒ 根数偏少（实测 BOX=1.52 时 5/14 例出错）。
+       ② **格点旋转自校正**：把每条场线看成"一根通量管"（每根代表固定的 q₀ = 0.125 µC），
+          但 Fibonacci 格点的离散方向只能**近似**均匀分球面 ⇒ 净根数会差 ±1 根。
+          解法：预生成 64 组三轴随机旋转后的格点，按顺序试，取第一组"数出来的净根数 === Q内/q₀"
+          的那一组；若一组都没有则取最接近的。实测 20/20 例精确命中，平均试 4 轮、最慢 6 ms。
+          ⚠️ 只绕单轴旋转是不够的（20 例里有 2 例永远命不中）——必须是三轴合成旋转。
+   ============================================================================ */
+
+/* ============================== 物理常数 ============================== */
+const EPS0   = 8.8541878128e-12;
+const Q_KV   = 1e-6/(4*Math.PI*EPS0)/1e3;   /* 8.9875517873：q[µC]、r[m] ⇒ E[kV/m] */
+const PHI_KV = 1e-6/EPS0/1e3;               /* 112.9410183：q[µC] ⇒ Φ=Q/ε₀ 的 kV·m 数值 */
+/* ★★ 通量量子 q₀ 的选取是"教学可见性"逼出来的（0.25 试过，不合格）：
+    球面上一点看球外电荷，那个电荷的场线要**穿进球面**才算数 —— 球面对 q₃ 张的立体角
+      Ω/4π = (1−cos α)/2，  sin α = R/d。
+    q₀=0.25 时 q₃=+2 只发 8 条线，8 × 0.10 ≈ 0.8 条 ⇒ 实测「穿入恒为 0」，
+    「球外的线穿进去又穿出来」这句话在画面上**根本看不见**（自检 ② 就是这么抓出来的）。
+    ⇒ 把 q₀ 减半到 0.125（每条线代表的电荷量少一半、线数翻倍），并把电荷挪近球面，
+      才让"穿进又穿出"真的有 2~4 条线可看。⚠️ q₀ 必须能整除滑块步长 0.25，
+      否则"净根数 × q₀ = Q内"就不再严格相等（0.125 整除 0.25，安全）。 */
+const Q0     = 0.125;                       /* ★ 每条场线代表的电荷量 µC（通量量子） */
+const V_LINE = Q0*PHI_KV;                   /* 每条场线代表的通量 kV·m = 14.1176273 */
+
+/* ============================== 电荷库 ============================== */
+/* ★ 位置**固定**，只有电荷量可调 —— 这样"球内 / 球外"这个定性事实在整段半径范围内都成立：
+     q₁、q₂ 的最大模长 0.146 < R 下限 0.24；q₃、q₄ 的最小模长 0.477 > R 上限 0.38。
+   ★★ 球外电荷**贴着**球面放（0.477 对 R 上限 0.38，只差 0.10）：球面对它张的立体角
+      ≈ (1−cos 52.9°)/2 = 0.198 ⇒ q₃=+2 的 16 条线里有 3 条左右会穿进球面。
+      放远一点"更清爽"但教学上就废了 —— 见上面 q₀ 那一段的实测。 */
+const CHARGES = [
+  {id:'q₁', sub:'1', pos:pt( 0.000, 0.000, 0.000), out:false},   /* 球心 */
+  {id:'q₂', sub:'2', pos:pt( 0.112, 0.078,-0.052), out:false},
+  {id:'q₃', sub:'3', pos:pt( 0.418, 0.216, 0.096), out:true },
+  {id:'q₄', sub:'4', pos:pt(-0.372,-0.272, 0.121), out:true },
+];
+const NCH = CHARGES.length;
+const CH_IN  = C.crimson;      /* 球内电荷：橙红 */
+const CH_OUT = C.purple;       /* 球外电荷：紫   */
+const CH_LINE_IN  = '#B8663C';   /* 由球内电荷发出的场线 */
+const CH_LINE_OUT = '#8E76B8';   /* 由球外电荷发出的场线 */
+
+const GS_R_RANGE = [0.24, 0.38], GS_R0 = 0.36;
+/* ★ 电荷量程是"精度 × 速度"实测出来的（见 /tmp/p24/bench*.js）：
+     q₁∈[0,2]、q₂∈[±1]、q₃/q₄∈[±2] ⇒ 场线最多 (2+2+2)/0.125 = 48 条。
+     q₀ 减半之后线数翻倍，所以量程必须跟着收窄，否则 fieldLines() 的搜索耗时会起来。 */
+const Q_IN_RANGE  = [0.00, 2.00], Q_IN0 = 2.00;    /* q₁ 范围（球心） */
+const Q_IN2_RANGE = [-1.00, 1.00];                 /* q₂ 范围（球内偏置） */
+const Q_OUT_RANGE = [-2.00, 2.00];                 /* q₃ / q₄ 范围（球外） */
+const Q3_0 = 2.00, Q4_0 = -1.00;                   /* ②③ 的球外电荷默认值 */
+
+/* ============================== 状态 ============================== */
+const state = {
+  mode:'inside',                 /* inside | outside | allfield */
+  showReadout:true,
+  autoRotate:false,
+  cardTab:'1',
+  q:[Q_IN0, 0, 0, 0],            /* 4 个点电荷的电荷量 µC */
+  R:GS_R0,                       /* 高斯面半径 m */
+  /* ★ 默认 P 落在靠近球顶处（θ=24°）：那里离 q₃、q₄（都在 θ≈76° 的赤道附近）最远
+     ⇒ |E_内| 明显大于 |E_外|，三支箭头**长度差异分明、方向也不共线**，
+     "红 = 青 + 紫"的平行四边形关系一眼能读出来。
+     ⚠️ 别把默认值取成 P 正对 q₃（θ=78.5°, φ=27°）：那时 E_外 与 E_内 近反向，
+        红、紫两根长箭头几乎平行且反向 ⇒ 画面上像"一根穿过 P 的长线"，平行四边形读不出来。
+        （那个"总场竟比球外分量还小"的反相抵消是很好的对照，已做成面板按钮。） */
+  Pth:24, Pph:27,                /* 观察点 P 的球坐标（度）：极角 θ_P、方位角 φ_P */
+  show:{ lines:true, cross:true, ball:true, chg:true, box:true, flux:false, dec:true },
+};
+/* ★ 固定地把电荷分成"球内 / 球外"两组（位置是常量，与 R 无关）：
+   |q₁|=0、|q₂|=0.146 < 0.24 = min R；|q₃|=0.480、|q₄|=0.476 > 0.38 = max R。
+   所以整段半径范围里"谁在内、谁在外"都不会变，③ 的 E = ΣEᵢ 分解才立得住。
+   ⚠️ 球外电荷故意"贴着"球面放（只比 R 上限远 0.10）—— 放远画面更清爽，但球面对它们
+      张的立体角会小到"一条线都穿不进球面"，② 的核心现象就看不见了。 */
+const IDX_IN  = [0,1];
+const IDX_OUT = [2,3];
+function qInside(){ let s=0; for(let i=0;i<NCH;i++) if(!CHARGES[i].out && vlen(CHARGES[i].pos)<state.R) s+=state.q[i]; return s; }
+function qOutside(){ let s=0; for(let i=0;i<NCH;i++) if(CHARGES[i].out || vlen(CHARGES[i].pos)>=state.R) s+=state.q[i]; return s; }
+function isIn(i){ return vlen(CHARGES[i].pos) < state.R; }
+/* 数值意义上的"零"：q₀ 的百分之一 */
+function nearZero(v){ return Math.abs(v) < 1e-9; }
+function sgnTxt(v,d){ return (v>0?'+':(v<0?'−':''))+Math.abs(v).toFixed(d==null?2:d); }
+
+/* ============================== 场 ============================== */
+/* 所有电荷在 P 点的叠加场，kV/m。用裸数字数组避免热循环里分配对象。 */
+function fieldN(x,y,z,out){
+  let ex=0,ey=0,ez=0;
+  for(let i=0;i<NCH;i++){
+    const q=state.q[i]; if(q===0) continue;
+    const c=CHARGES[i].pos;
+    const dx=x-c.x, dy=y-c.y, dz=z-c.z;
+    const r2=dx*dx+dy*dy+dz*dz;
+    if(r2<1e-9) continue;                       /* 落在电荷本体上：贡献记 0，避免除零 */
+    const f=Q_KV*q/(r2*Math.sqrt(r2));
+    ex+=f*dx; ey+=f*dy; ez+=f*dz;
+  }
+  out[0]=ex; out[1]=ey; out[2]=ez;
+}
+function Efield(P){ const o=[0,0,0]; fieldN(P.x,P.y,P.z,o); return pt(o[0],o[1],o[2]); }
+function Emag(P){ const o=[0,0,0]; fieldN(P.x,P.y,P.z,o); return Math.hypot(o[0],o[1],o[2]); }
+/* 只算"某一组电荷"贡献的场 —— ③ 页用来拆 E = Σ E_i */
+function EfieldOf(idxs,P){
+  let ex=0,ey=0,ez=0;
+  for(const i of idxs){
+    const q=state.q[i]; if(q===0) continue;
+    const c=CHARGES[i].pos;
+    const dx=P.x-c.x, dy=P.y-c.y, dz=P.z-c.z;
+    const r2=dx*dx+dy*dy+dz*dz; if(r2<1e-9) continue;
+    const f=Q_KV*q/(r2*Math.sqrt(r2));
+    ex+=f*dx; ey+=f*dy; ez+=f*dz;
+  }
+  return pt(ex,ey,ez);
+}
+function Ppoint(){
+  const th=state.Pth*D2R, ph=state.Pph*D2R;
+  return pt(state.R*Math.sin(th)*Math.cos(ph), state.R*Math.sin(th)*Math.sin(ph), state.R*Math.cos(th));
+}
+
+/* ============================== 场线追踪 ============================== */
+const LINE_STOP = 0.045;      /* 出发 / 终止判据：离电荷这么近就算"落在它身上" */
+const LINE_HMIN = 0.0035, LINE_HMAX = 0.055;
+const LINE_STEPMAX = 2500;    /* ⚠️ 别调小：球外电荷的线要先绕远再折回 */
+const LINE_BOX = 3.00;        /* ⚠️ 别调小：1.52 时 5/14 例净根数算少（实测） */
+const DISP_R = 0.70;          /* 只画到这个半径：更远的地方让线"淡出画面"。
+                                 ⚠️ 这个值跟着本页的尺度走（电荷在 0.477、球面 ≤0.38），
+                                    不是 2.1/2.3 那个 1.45 —— 别照抄。 */
+
+const NLAT = 64;              /* 方向序列的长度上限（每条电荷最多发这么多条线，用完即止） */
+/* ★★ 方向序列必须"**前缀嵌套**"：第 n 条线的方向只由 n 决定，与"一共发几条"无关。
+   旧的 Fibonacci 均匀分球写法 z = 1−(2i+1)/N 做不到这件事 —— 总数一变，**整套方向全换掉**：
+     ① "把 q₃ 往上拖"看到的不是"多出来一条线"，而是线段整体乱跳；
+     ② 更致命的是"球外电荷有几条线穿进球面"会随 n 随机跳 0/3 ——
+        实测 q₃ 从 0.25 拖到 1.75 画面上**一个变化都没有**，到 2.00 突然冒出 3 条线。
+   ⇒ 改用低差异序列（加性黄金比递推）：任意长度的前缀都均匀铺满球面，而且**嵌套**。
+   ⚠️ 两个无理数取不同的，是为了让 z 与方位角不相关（用同一个会出现螺旋条纹）。 */
+const PHI2 = 0.6180339887498949, PSI2 = 0.7548776662466927;
+function dirK(k){
+  const z=1-2*((k*PHI2)%1), a=2*Math.PI*((k*PSI2)%1), r=Math.sqrt(Math.max(0,1-z*z));
+  return pt(r*Math.cos(a), r*Math.sin(a), z);
+}
+const BASE_LAT = (()=>{ const o=[]; for(let k=0;k<NLAT;k++) o.push(dirK(k)); return o; })();
+function mkRng(seed){ let s=(seed>>>0)||1; return ()=>{ s=(s*1664525+1013904223)>>>0; return s/4294967296; }; }
+function rotMatrix(ux,uy,uz,ang){
+  const c=Math.cos(ang), s=Math.sin(ang), t=1-c;
+  return [ t*ux*ux+c,     t*ux*uy-s*uz, t*ux*uz+s*uy,
+           t*ux*uy+s*uz,  t*uy*uy+c,    t*uy*uz-s*ux,
+           t*ux*uz-s*uy,  t*uy*uz+s*ux, t*uz*uz+c ];
+}
+/* ★ 必须用三轴合成旋转：只绕单轴扫不出足够的相对姿态（实测 20 例里 2 例永远命不中） */
+const ROT_N = 64;
+const LATTICES = (()=>{
+  const rng=mkRng(20240924), arr=[];
+  for(let k=0;k<ROT_N;k++){
+    const u=2*rng()-1, ph=2*Math.PI*rng(), st=Math.sqrt(Math.max(0,1-u*u));
+    const M=rotMatrix(st*Math.cos(ph), st*Math.sin(ph), u, 2*Math.PI*rng());
+    /* ⚠️ BASE_LAT 的元素是 pt 对象（.x/.y/.z）**不是数组** —— 写成 v[0] 会得到 undefined ⇒
+       整个 LATTICES 变成 NaN 方向 ⇒ 追踪起点 NaN ⇒ 一条线都画不出来（却完全不报错）。 */
+    arr.push(BASE_LAT.map(v=>pt(M[0]*v.x+M[1]*v.y+M[2]*v.z,
+                               M[3]*v.x+M[4]*v.y+M[5]*v.z,
+                               M[6]*v.x+M[7]*v.y+M[8]*v.z)));
+  }
+  return arr;
+})();
+/* ★ 取"前缀"而不是"重抽样"：L 的前 n 项本身就是一组均匀方向（低差异序列的性质），
+   而且 n 变大时**前面的方向不变** ⇒ 画面上是"一条一条多出来"，不是整族乱跳。 */
+function latticePick(L,n){ return L.slice(0, Math.min(n, L.length)); }
+/* ★★ 球外电荷的 **第 0 条线固定指向球心**（只替换这一个方向，其余照旧均匀）。
+   只做前缀嵌套还不够：低差异序列里"哪几条方向恰好指向球面"是定死的运气 ——
+   实测 q₃ 从 0 拖到 1.25 时穿入恒为 0，到 1.50 才突然变 1、2.00 变 3，中间半程毫无反应。
+   钉住第一条之后，球外电荷只要不是 0 就**必定**有一条线穿进球面 ⇒ 读数从第一格起就响应。 */
+const AIM_U = CHARGES.map(c => c.out ? vnorm(vmul(c.pos,-1)) : null);
+
+const _fo=[0,0,0],_k1=[0,0,0],_k2=[0,0,0],_k3=[0,0,0],_k4=[0,0,0];
+function unitDir(px,py,pz,sgn,out){
+  fieldN(px,py,pz,_fo);
+  const L=Math.hypot(_fo[0],_fo[1],_fo[2]);
+  if(L<1e-12){ out[0]=out[1]=out[2]=0; return; }
+  const g=sgn/L; out[0]=_fo[0]*g; out[1]=_fo[1]*g; out[2]=_fo[2]*g;
+}
+function traceLine(start,sgn){
+  const pts=[start];
+  let x=start.x, y=start.y, z=start.z;
+  for(let s=0;s<LINE_STEPMAX;s++){
+    let dmin=1e9;
+    for(let i=0;i<NCH;i++){ const q=state.q[i]; if(!q) continue;
+      const c=CHARGES[i].pos, d=Math.hypot(x-c.x,y-c.y,z-c.z); if(d<dmin) dmin=d; }
+    if(!isFinite(dmin)||dmin<=0) break;
+    /* ★ 自适应步长：离电荷越近步长越小（否则 1/r² 的奇点会让 RK4 失稳） */
+    const h=Math.max(LINE_HMIN, Math.min(LINE_HMAX, 0.13*dmin));
+    unitDir(x,y,z,sgn,_k1);
+    unitDir(x+_k1[0]*h/2, y+_k1[1]*h/2, z+_k1[2]*h/2, sgn,_k2);
+    unitDir(x+_k2[0]*h/2, y+_k2[1]*h/2, z+_k2[2]*h/2, sgn,_k3);
+    unitDir(x+_k3[0]*h,   y+_k3[1]*h,   z+_k3[2]*h,   sgn,_k4);
+    x+=(_k1[0]+2*_k2[0]+2*_k3[0]+_k4[0])*h/6;
+    y+=(_k1[1]+2*_k2[1]+2*_k3[1]+_k4[1])*h/6;
+    z+=(_k1[2]+2*_k2[2]+2*_k3[2]+_k4[2])*h/6;
+    pts.push(pt(x,y,z));
+    if(Math.hypot(x,y,z)>LINE_BOX) break;
+    let hit=false;
+    for(let i=0;i<NCH;i++){ const q=state.q[i]; if(!q) continue;
+      const c=CHARGES[i].pos;
+      if(Math.hypot(x-c.x,y-c.y,z-c.z)<LINE_STOP){ hit=true; break; } }
+    if(hit) break;
+  }
+  return pts;
+}
+/* 发射哪一族：正电荷总量 ≥ 负电荷总量 ⇒ 每条场线都能从正电荷出发；
+   反之（负的多）⇒ 改从负电荷**逆着 E**追，同样能覆盖到全部场线，且不会重复计数。 */
+function emitSign(){
+  let a=0,b=0;
+  for(let i=0;i<NCH;i++){ const q=state.q[i]; if(q>0) a+=q; else if(q<0) b-=q; }
+  return a>=b ? 1 : -1;
+}
+function traceAll(lat){
+  const sgn=emitSign(), list=[];
+  for(let i=0;i<NCH;i++){
+    const q=state.q[i];
+    if(sgn*q<=0) continue;                       /* 只从"与发射符号一致"的电荷出发 */
+    const n=Math.min(Math.round(Math.abs(q)/Q0), lat.length);
+    if(!n) continue;
+    const aim=AIM_U[i], dirs=latticePick(lat,n);
+    for(let k=0;k<n;k++){
+      /* k=0 且是球外电荷 ⇒ 用"指向球心"那个方向（见 AIM_U 的说明） */
+      const u=(k===0 && aim) ? aim : dirs[k];
+      const st=pt(CHARGES[i].pos.x+u.x*LINE_STOP, CHARGES[i].pos.y+u.y*LINE_STOP, CHARGES[i].pos.z+u.z*LINE_STOP);
+      list.push({src:i, sgn, pts:traceLine(st,sgn)});
+    }
+  }
+  return list;
+}
+/* 带符号穿越计数：+1 = 沿 E 穿出球面，−1 = 沿 E 穿入。
+   ★ sgn 是"这条折线的走向相对 E 的关系"：sgn=+1 沿 E 追、sgn=−1 逆 E 追。 */
+function countCross(lines,R){
+  let out=0, inn=0; const marks=[], R2=R*R;
+  for(const L of lines){
+    const P=L.pts, sg=L.sgn;
+    for(let i=1;i<P.length;i++){
+      const a=P[i-1], b=P[i];
+      const fa=vdot(a,a)-R2, fb=vdot(b,b)-R2;
+      if(fa===0||fb===0) continue;
+      if((fa>0)===(fb>0)) continue;              /* 同侧：没穿越 */
+      const outward = (fb>0) ? (sg>0) : (sg<0);
+      if(outward) out++; else inn++;
+      const t=fa/(fa-fb);
+      marks.push({p:pt(a.x+(b.x-a.x)*t, a.y+(b.y-a.y)*t, a.z+(b.z-a.z)*t), outward, src:L.src});
+    }
+  }
+  return {out, inn, net:out-inn, marks};
+}
+/* ★ 带自校正的场线缓存。缓存键必须**含 R**：旋转择优是"针对当前 R 让净根数命中"的，
+   R 一变最优旋转可能就变了。代价是改 R 会重跑一次搜索（实测 ≈1~15 ms，滑块手感仍然顺）。
+   ★★ 搜索顺序**从"上次命中的那个旋转"开始**（而不是永远从 0 号开始），有两个好处：
+      ① 速度：小步调整时第一次就命中，省掉整轮扫描；
+      ② **画面稳定**：旋转一换，整套方向就整体转一下 —— 而保持同一个旋转时，
+         低差异序列的"前缀嵌套"才真正生效（已画出的线原地不动，新线一条条加进来）。 */
+let _FL=null, _FLkey='', _lastRot=0;
+function fieldLines(){
+  const key=state.q.join(',')+'|'+state.R.toFixed(3);
+  if(_FL && _FLkey===key) return _FL;
+  const want=Math.round(qInside()/Q0);
+  let best=null, bestList=null, bestRot=_lastRot, bestD=Infinity;
+  for(let t=0;t<ROT_N;t++){
+    const k=(_lastRot+t)%ROT_N;
+    const list=traceAll(LATTICES[k]);
+    const c=countCross(list,state.R);
+    const d=Math.abs(c.net-want);
+    if(d<bestD){ bestD=d; best=c; bestList=list; bestRot=k; }
+    if(d===0) break;                              /* 精确命中就不必再试 */
+  }
+  _lastRot=bestRot;
+  _FL={list:bestList, cross:best, rot:bestRot, exact:(bestD===0), want:want};
+  _FLkey=key;
+  return _FL;
+}
+function crossNow(){ return fieldLines().cross; }
+
+/* ============================== 半透明球壳（同 2.1 / 1.3 的成熟配方） ==============================
+   ★ 球面在正交投影下**恒是屏幕上的一个圆**（半径 R·camScale，与 az/el 完全无关）⇒
+     不需要逐四边形铺色。★ 分前后两片取球面真实的前后极值（S.d ∓ R）⇒
+     壳里的电荷与场线**自动落在两层之间**、被"罩在玻璃球里"；要始终看得清的标注用 o.z 抬到壳之上。
+   ⚠️ 别改成"逐半透明小面片"：正交投影下前后两半球各盖满圆盘一次 ⇒ 复合透明度处处相等，
+     屏幕上只剩一块均匀的色斑，正是用户投诉过的"看不出是球"。 */
+function shellBall(c,R,hexBase,emph){
+  if(R<=1e-6) return;
+  const S=pr(c), rr=R*camScale;
+  const aBody=emph?0.075:0.040, aRim=emph?0.42:0.26;
+  /* ① 背面：极淡体色，越靠剪影越厚 */
+  P_(S.d-R*1.02, ()=>{ ctx.save();
+    const g=ctx.createRadialGradient(S.x,S.y,rr*0.05,S.x,S.y,rr);
+    g.addColorStop(0,hexA(hexBase,aBody*0.50));
+    g.addColorStop(1,hexA(hexBase,aBody*1.40));
+    ctx.beginPath(); ctx.arc(S.x,S.y,rr,0,7); ctx.fillStyle=g; ctx.fill(); ctx.restore(); });
+  /* ② 正面 */
+  P_(S.d+R*1.02, ()=>{ ctx.save();
+    const g=ctx.createRadialGradient(S.x-rr*0.32,S.y-rr*0.36,rr*0.06,S.x,S.y,rr*1.02);
+    g.addColorStop(0,   'rgba(255,255,255,'+(emph?0.20:0.13)+')');
+    g.addColorStop(0.44,hexA(hexBase,aBody*0.30));
+    g.addColorStop(0.82,hexA(hexBase,aRim*0.30));
+    g.addColorStop(1,   hexA(hexBase,aRim*0.82));
+    ctx.beginPath(); ctx.arc(S.x,S.y,rr,0,7); ctx.fillStyle=g; ctx.fill();
+    /* 斜向明暗：左上传光、右下背光 —— "圆"变"球"的关键一层 */
+    const dl=ctx.createLinearGradient(S.x+SPH_LX*rr*0.95, S.y+SPH_LY*rr*0.95,
+                                      S.x-SPH_LX*rr*0.95, S.y-SPH_LY*rr*0.95);
+    dl.addColorStop(0,   'rgba(255,255,255,'+(emph?0.26:0.17)+')');
+    dl.addColorStop(0.46,hexA(hexBase,aBody*0.14));
+    dl.addColorStop(1,   hexA(hexBase,aBody*(emph?1.60:1.30)));
+    ctx.beginPath(); ctx.arc(S.x,S.y,rr,0,7); ctx.fillStyle=dl; ctx.fill();
+    /* 双瓣镜面高光 */
+    const hx=S.x+SPH_LX*rr*0.40, hy=S.y+SPH_LY*rr*0.44, hr=rr*0.30;
+    const gh=ctx.createRadialGradient(hx,hy,0,hx,hy,hr);
+    gh.addColorStop(0,'rgba(255,255,255,'+(emph?0.50:0.32)+')');
+    gh.addColorStop(1,'rgba(255,255,255,0)');
+    ctx.beginPath(); ctx.arc(hx,hy,hr,0,7); ctx.fillStyle=gh; ctx.fill();
+    const hx2=S.x+SPH_LX*rr*0.52, hy2=S.y+SPH_LY*rr*0.56, hr2=rr*0.085;
+    const gh2=ctx.createRadialGradient(hx2,hy2,0,hx2,hy2,hr2);
+    gh2.addColorStop(0,'rgba(255,255,255,'+(emph?0.85:0.55)+')');
+    gh2.addColorStop(1,'rgba(255,255,255,0)');
+    ctx.beginPath(); ctx.arc(hx2,hy2,hr2,0,7); ctx.fillStyle=gh2; ctx.fill();
+    /* 两段式轮廓：受光侧细而淡、背光侧粗而实 */
+    const aL=Math.atan2(SPH_LY,SPH_LX);
+    ctx.lineCap='round';
+    ctx.beginPath(); ctx.arc(S.x,S.y,rr,aL-Math.PI/2,aL+Math.PI/2);
+    ctx.strokeStyle=hexA(hexBase,aRim*(emph?0.40:0.30)); ctx.lineWidth=emph?1.4:1.1; ctx.stroke();
+    ctx.beginPath(); ctx.arc(S.x,S.y,rr,aL+Math.PI/2,aL+Math.PI*1.5);
+    ctx.strokeStyle=hexA(hexBase,aRim*(emph?0.92:0.68)); ctx.lineWidth=emph?2.5:1.8; ctx.stroke();
+    ctx.restore(); });
+}
+
+
+/* ============================== 画图小工具 ============================== */
+function shade(hex,amt){       /* amt>0 提亮、<0 压暗 */
+  const r=parseInt(hex.slice(1,3),16), g=parseInt(hex.slice(3,5),16), b=parseInt(hex.slice(5,7),16);
+  const f=t=>Math.max(0,Math.min(255, Math.round(amt>=0 ? t+(255-t)*amt : t*(1+amt))));
+  return 'rgb('+f(r)+','+f(g)+','+f(b)+')';
+}
+const SPH_LX=-0.55, SPH_LY=-0.83;   /* 屏幕空间光方向（与 2.1 同一套） */
+
+/* 实心小球（点电荷本体）：偏心径向渐变 + 镜面高光 + 白色描边（与场线分离） */
+function chgBall(c,rad,hex,positive,alpha){
+  const S=pr(c);
+  P_(S.d+0.07, ()=>{ ctx.save();
+    if(alpha!=null) ctx.globalAlpha=alpha;
+    ctx.beginPath(); ctx.arc(S.x,S.y,rad+1.7,0,7);
+    ctx.fillStyle='rgba(255,255,255,.93)'; ctx.fill();
+    const g=ctx.createRadialGradient(S.x-rad*0.36, S.y-rad*0.42, rad*0.05, S.x, S.y, rad*1.06);
+    g.addColorStop(0,   shade(hex,0.52));
+    g.addColorStop(0.55,hex);
+    g.addColorStop(1,   shade(hex,-0.38));
+    ctx.beginPath(); ctx.arc(S.x,S.y,rad,0,7); ctx.fillStyle=g; ctx.fill();
+    const hx=S.x-rad*0.40, hy=S.y-rad*0.44, hr=rad*0.34;
+    const gh=ctx.createRadialGradient(hx,hy,0,hx,hy,hr);
+    gh.addColorStop(0,'rgba(255,255,255,.78)'); gh.addColorStop(1,'rgba(255,255,255,0)');
+    ctx.beginPath(); ctx.arc(hx,hy,hr,0,7); ctx.fillStyle=gh; ctx.fill();
+    if(rad>=8){                                  /* 太小就不画符号，免得糊成一团 */
+      const lw=Math.max(1.5, rad*0.17), arm=rad*0.46;
+      ctx.strokeStyle='#fff'; ctx.lineWidth=lw; ctx.lineCap='round';
+      ctx.beginPath(); ctx.moveTo(S.x-arm,S.y); ctx.lineTo(S.x+arm,S.y); ctx.stroke();
+      if(positive){ ctx.beginPath(); ctx.moveTo(S.x,S.y-arm); ctx.lineTo(S.x,S.y+arm); ctx.stroke(); }
+    }
+    ctx.restore(); });
+}
+function chgRadius(q){ return Math.max(6.2, 7 + 3.1*Math.sqrt(Math.abs(q))); }
+
+/* 场线：屏幕空间等距的箭头 + 折线本体；sgn<0 时箭头反向（= 真实 E 方向） */
+function flowLine(pts,sgn,o){
+  if(pts.length<2) return;
+  const S=pts.map(pr);
+  let tot=0; const acc=[0];
+  for(let i=1;i<S.length;i++){ tot+=Math.hypot(S[i].x-S[i-1].x, S[i].y-S[i-1].y); acc.push(tot); }
+  if(tot<3) return;
+  P_(o.z, ()=>{ ctx.save();
+    ctx.globalAlpha=o.alpha!=null?o.alpha:0.72;
+    ctx.strokeStyle=o.color; ctx.lineWidth=o.w||1.35;
+    ctx.lineCap='round'; ctx.lineJoin='round';
+    ctx.beginPath(); ctx.moveTo(S[0].x,S[0].y);
+    for(let i=1;i<S.length;i++) ctx.lineTo(S[i].x,S[i].y);
+    ctx.stroke();
+    const gap=o.gap||62;
+    let next=gap*0.55;
+    ctx.fillStyle=o.color;
+    for(let i=1;i<S.length;i++){
+      while(next<=acc[i]){
+        const t=(next-acc[i-1])/Math.max(1e-6, acc[i]-acc[i-1]);
+        const x=S[i-1].x+(S[i].x-S[i-1].x)*t, y=S[i-1].y+(S[i].y-S[i-1].y)*t;
+        let dx=S[i].x-S[i-1].x, dy=S[i].y-S[i-1].y;
+        if(sgn<0){ dx=-dx; dy=-dy; }
+        const L=Math.hypot(dx,dy)||1; dx/=L; dy/=L;
+        const hs=o.hs||5.2;
+        ctx.beginPath();
+        ctx.moveTo(x+dx*hs, y+dy*hs);
+        ctx.lineTo(x-dx*hs*0.40-dy*hs*0.62, y-dy*hs*0.40+dx*hs*0.62);
+        ctx.lineTo(x-dx*hs*0.40+dy*hs*0.62, y-dy*hs*0.40-dx*hs*0.62);
+        ctx.closePath(); ctx.fill();
+        next+=gap;
+      }
+    }
+    ctx.restore(); });
+}
+/* 把一条折线切成"落在 DISP_R 内"的若干段（跑出画面再绕回来的线不会连成一条假直线） */
+function flowRuns(pts){
+  const runs=[]; let cur=null;
+  for(const p of pts){
+    if(Math.hypot(p.x,p.y,p.z)<=DISP_R){
+      if(!cur){ cur={pts:[], zs:0}; }
+      cur.pts.push(p); cur.zs+=vdot(p,camD);
+    } else if(cur){ if(cur.pts.length>1) runs.push({pts:cur.pts, z:cur.zs/cur.pts.length}); cur=null; }
+  }
+  if(cur && cur.pts.length>1) runs.push({pts:cur.pts, z:cur.zs/cur.pts.length});
+  return runs;
+}
+
+/* ============================== 通量 Φ ==============================
+   Φ = Q内/ε₀。q 用 µC ⇒ Φ[V·m] = q·1e-6/ε₀（与页面其它量同源换算）。 */
+const PHI_V = q => q*1e-6/EPS0;
+const SUP = {'-':'⁻','0':'⁰','1':'¹','2':'²','3':'³','4':'⁴','5':'⁵','6':'⁶','7':'⁷','8':'⁸','9':'⁹'};
+const supStr = n => String(n).split('').map(c=>SUP[c]||c).join('');
+function fmtSci(v,d){ d=(d==null)?3:d; if(!isFinite(v)) return '—'; if(v===0) return '0';
+  const s=v<0?'−':''; const e=Math.floor(Math.log10(Math.abs(v)));
+  const m=Math.abs(v)/Math.pow(10,e); return s+m.toFixed(d)+'×10'+supStr(e); }
+
+/* ══════════ 球面上的 @{E}·@{n} 采样（"通量云"） ══════════
+   ★ 画 64 根（BASE_LAT）给人看；**求和的采样点数另取**，给人信。
+     实测（收敛表）：R=0.38、q₃=+2 时球面上 |@{E}| 的 max/min 达 6.7 倍（近奇点），
+     收敛很慢 —— N=1500 差 0.77%、N=4000 差 0.13%、N=8000 差 0.07%。
+     ⇒ 取 8000（≈0.15 ms，可忽略）并把结果标成"≈"，别拿 64 个点的和去当读数。 */
+const FLUX_N_SUM = 8000;
+const FLUX_LMAX  = 0.22;          /* 每根采样箭头的最大世界长度（≈ 40 px） */
+let _fluxC={key:'', v:0};
+function fluxSumExact(){
+  const key=state.q.join(',')+'|'+state.R.toFixed(3);
+  if(_fluxC.key===key) return _fluxC.v;
+  const N=FLUX_N_SUM, R=state.R, dS=4*Math.PI*R*R/N, o=[0,0,0];
+  let s=0;
+  for(let i=0;i<N;i++){
+    const u=dirK(i);                       /* 低差异序列：任意 N 都均匀 */
+    fieldN(R*u.x,R*u.y,R*u.z,o);
+    s += (o[0]*u.x+o[1]*u.y+o[2]*u.z)*dS;
+  }
+  _fluxC={key, v:s*1e3};
+  /* ⚠️ fieldN 给的是 **kV/m** ⇒ Σ(@{E}·@{n})ΔS 的自然单位是 **kV·m**，
+     而页面统一用 V·m 报 Φ（PHI_V）⇒ 这里必须 ×1e3 才能对得上。
+     （漏掉这一步就是整整 1000 倍的差：自检里表现成"离散通量误差 99.900%"。） */
+  return _fluxC.v;
+}
+/* 64 个采样点上的 @{E}·@{n}（供作图；顺带回传最大模长用作定标） */
+function fluxSamples(){
+  const R=state.R, o=[0,0,0], out=[];
+  let mx=0.5;
+  for(const u of BASE_LAT){
+    fieldN(R*u.x,R*u.y,R*u.z,o);
+    const v=o[0]*u.x+o[1]*u.y+o[2]*u.z;
+    out.push({u, v});
+    if(Math.abs(v)>mx) mx=Math.abs(v);
+  }
+  return {list:out, mx};
+}
+
+
+/* ============================== 目录 ============================== */
+const NAV = [
+  { ch:'第 1 章 · 矢量分析', items:[
+    { id:'coord',  t:'1.1 三种常见坐标系', ready:true, href:'index.html?v=20260930r1' },
+    { id:'ch1-2',  t:'1.2 矢量的代数运算', ready:true, href:'1.2-vector-algebra.html?v=20260930r1' },
+    { id:'ch1-3',  t:'1.3 方向导数与梯度', ready:true, href:'1.3-directional-derivative.html?v=20260930r1' },
+    { id:'ch1-4',  t:'1.4 通量与散度',     ready:true, href:'1.4-divergence-flux.html?v=20260930r1' },
+    { id:'ch1-5',  t:'1.5 环量与旋度',     ready:true, href:'1.5-curl-circulation.html?v=20260930r1' },
+  ]},
+  { ch:'第 2 章 · 静电场', items:[
+    { id:'ch2-1', t:'2.1 电场强度与电荷密度', ready:true, href:'2.1-field-charge-density.html?v=20260930r1' },
+    { id:'ch2-2', t:'2.2 静电场中的导体',     ready:true, href:'2.2-conductor-electrostatic.html?v=20260930r1' },
+    { id:'ch2-3', t:'2.3 静电场中的电介质',   ready:true, href:'2.3-dielectric-polarization.html?v=20260930r1' },
+    { id:'ch2-4', t:'2.4 高斯定理及其应用',   ready:true, active:true },
+    { id:'ch2-5', t:'2.5 多导体系统的电容与串扰', ready:true, href:'2.5-multi-conductor-crosstalk.html?v=20260930r1' },
+  ]},
+  { ch:'第 3 章 · 恒定磁场', items:[ {t:'3.1 比奥-萨伐尔定律'}, {t:'3.2 安培环路定理'} ]},
+  { ch:'第 4 章 · 时变电磁场', items:[ {t:'4.1 麦克斯韦方程组'}, {t:'4.2 均匀平面波'} ]},
+];
+
+
+/* ============================================================================
+   2.4 高斯定理及其应用 —— 页面专属（一）：图元助手 / 场景装配 / 信息卡 / 面板上半
+   ============================================================================ */
+
+/* ---------- 画布小卡助手（与 2.1 / 2.2 / 2.3 同源） ---------- */
+function txt(x,y,str,o={}){
+  ctx.save();
+  const lo=richLayout(ctx,parseRich(str),o.size||12,!!o.bold);
+  richDraw(ctx,lo,x,y,o.align||'left',o.color||C.ink);
+  ctx.restore();
+}
+function rrPath(x,y,w,h,r){
+  ctx.beginPath();
+  ctx.moveTo(x+r,y); ctx.lineTo(x+w-r,y); ctx.quadraticCurveTo(x+w,y,x+w,y+r);
+  ctx.lineTo(x+w,y+h-r); ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
+  ctx.lineTo(x+r,y+h); ctx.quadraticCurveTo(x,y+h,x,y+h-r);
+  ctx.lineTo(x,y+r); ctx.quadraticCurveTo(x,y,x+r,y); ctx.closePath();
+}
+function crd(x,y,w,h){
+  ctx.save();
+  ctx.shadowColor='rgba(30,60,80,.10)'; ctx.shadowBlur=8; ctx.shadowOffsetY=2;
+  rrPath(x,y,w,h,10); ctx.fillStyle='rgba(255,255,255,.95)'; ctx.fill();
+  ctx.restore(); ctx.save();
+  rrPath(x,y,w,h,10); ctx.strokeStyle='#DCE6EB'; ctx.lineWidth=1; ctx.stroke();
+  ctx.restore();
+}
+const ZL = 1e4+40;            /* 标注深度档：压在球壳之上 */
+const O  = pt(0,0,0);
+const SPH_HEX = '#2E86AB';    /* 高斯面的玻璃壳配色（淡蓝，与 2.1 同族） */
+const EXT_AX  = 0.84;         /* 坐标轴长度。⚠️ 本页场景半宽只有 ~0.70 m（球面 ≤0.38、电荷 ≤0.48），
+                                 按 2.3 的"轴略大于场景"惯例取 0.84；写 1.00 会让轴比球长出两三倍、抢戏 */
+
+/* ══════════════════════════ 画布右上角信息卡 ══════════════════════════ */
+function infoCard(title,rows,h){
+  const x0=CARD_X(), y0=CARD_Y, w=CARD_W;
+  crd(x0,y0,w,h);
+  txt(x0+12,y0+15,title,{size:11.5,bold:true,color:'#1F3D4C'});
+  rows.forEach((r,i)=>{
+    const y=y0+38+i*19;
+    /* ⚠️ 章节行的判定看**写法**，别只认 r[0]==='§'：本页的章节行全都写成单元素 ['§ 文本']，
+       而旧判据 r[0]==='§' 只认 ['§','文本'] ⇒ 单元素那种会被当成"普通行"、右列去取 r[1]
+       得 undefined。⚠️⚠️ 而 **parseRich(undefined) 根本不抛异常**（静默 String 成 "undefined"
+       再照常排版）⇒ 看控制台、看报错永远发现不了，只能靠"给 txt 插桩扫传入的 str"抓（2.3 踩过）。 */
+    const markerOnly = (r[0]==='§');
+    if(markerOnly || (r.length===1 && String(r[0]||'')[0]==='§')){
+      const lab = markerOnly ? String(r[1]==null?'':r[1]) : String(r[0]).slice(1);
+      txt(x0+11,y,lab.trim(),{size:11,bold:true,color:r[2]||'#1F3D4C'}); return;
+    }
+    let lab=String(r[0]==null?'':r[0]);
+    if(lab[0]==='§') lab=lab.slice(1).trim();
+    txt(x0+13,y,lab,{size:11,color:'#5F7482'});
+    txt(x0+w-13,y,r[1]==null?'':String(r[1]),{size:11,bold:true,color:r[2]||'#0E4A66',align:'right'});
+  });
+}
+
+/* ══════════════════════════ 场景装配 ══════════════════════════ */
+function drawFieldLines(){
+  if(!state.show.lines) return;
+  const FL=fieldLines();
+  for(const L of FL.list){
+    const outside = CHARGES[L.src].out;
+    const col = outside ? CH_LINE_OUT : CH_LINE_IN;
+    const alpha = outside ? 0.50 : 0.80;
+    const w = outside ? 1.15 : 1.35;
+    const gap = outside ? 76 : 62;
+    for(const run of flowRuns(L.pts)) flowLine(run.pts, L.sgn, {color:col, z:run.z, alpha, w, gap});
+  }
+}
+/* 穿越点：红 = 场线沿 @{E} 穿出球面；蓝 = 穿入 */
+function crossMark(p,outward){
+  const S=pr(p);
+  P_(S.d+0.03, ()=>{ ctx.save();
+    ctx.beginPath(); ctx.arc(S.x,S.y,4.2,0,7); ctx.fillStyle='rgba(255,255,255,.94)'; ctx.fill();
+    ctx.lineWidth=1.2; ctx.strokeStyle=outward?'#B83A2B':'#136A9B'; ctx.stroke();
+    ctx.beginPath(); ctx.arc(S.x,S.y,2.5,0,7);
+    ctx.fillStyle = outward ? '#D94F3D' : '#1D7FB8'; ctx.fill();
+    ctx.restore(); });
+}
+function drawCrossMarks(){
+  if(!state.show.cross) return;
+  const c=crossNow();
+  for(const m of c.marks) crossMark(m.p, m.outward);
+}
+/* 球面上的 @{E}·@{n} 采样箭头（"通量云"） */
+function drawFluxCloud(){
+  if(!state.show.flux) return;
+  const R=state.R, S=fluxSamples();
+  for(const it of S.list){
+    const v=it.v; if(Math.abs(v) < S.mx*0.05) continue;
+    const u=it.u, len=Math.min(1, Math.abs(v)/S.mx)*FLUX_LMAX, sg=v>0?1:-1;
+    const A=pt(R*u.x, R*u.y, R*u.z);
+    const B=pt(A.x+u.x*len*sg, A.y+u.y*len*sg, A.z+u.z*len*sg);
+    arrow(A,B,{color: v>0?'#D94F3D':'#1D7FB8', w:1.5, headScale:0.80, alpha:0.70});
+  }
+}
+function drawCharges(){
+  if(!state.show.chg) return;
+  CHARGES.forEach((ch,i)=>{
+    const q=state.q[i]; if(q===0) return;
+    chgBall(ch.pos, chgRadius(q), ch.out?CH_OUT:CH_IN, q>0);
+    /* 标签按**屏幕**左右避让，免得压在小球上 */
+    const S=pr(ch.pos), right = S.x>=CX2;
+    text(ch.pos, 'q_'+ch.sub, {color: ch.out?CH_OUT:CH_IN, size:12.5, bold:true,
+      dx: right?13:-13, dy:-13, align: right?'left':'right'});
+  });
+}
+/* 半径标注：沿**屏幕水平方向**（camU）拉一条 —— 投影恰好是水平半径，
+   不会像随机方向那样在某些视角下缩成一点。 */
+function drawRadiusDim(){
+  dimLine(O, vmul(camU, -state.R), {color:'#9FB4C0', dash:[5,4], w:1.2,
+    label:'R = '+state.R.toFixed(3)+' m', lsize:11.5, ldy:-9});
+}
+/* ══════════ ③ 的探针 P：总 @{E} 与"只算球内 / 只算球外"当场对照 ══════════
+   ★ 定标规则：**总场恒画到满长**，另两支乘同一个比例 —— 三支共用一个比例，
+     平行四边形才闭合（各画各的长度会读出错误的相对大小，是 2.1 的硬教训）。 */
+const PARR_MAX = 0.40;
+function drawProbe(){
+  if(state.mode!=='allfield' || !state.show.dec) return;
+  const P=Ppoint();
+  const Eall=Efield(P), Ein=EfieldOf(IDX_IN,P), Eout=EfieldOf(IDX_OUT,P);
+  const sc = PARR_MAX/Math.max(0.60, vlen(Eall));
+  const tip = E => vadd(P, vmul(E, sc));
+  const Aall=tip(Eall), Ain=tip(Ein), Aout=tip(Eout);
+  arrow(P, Ain,  {color:C.teal,    w:1.9, headScale:0.95, dash:[6,4], z:ZL});
+  arrow(P, Aout, {color:C.purple,  w:1.9, headScale:0.95, dash:[6,4], z:ZL});
+  arrow(P, Aall, {color:C.crimson, w:2.7, headScale:1.12, z:ZL});
+  marker(P, {r:4.6, color:'#1F3D4C', z:ZL});
+  text(P, 'P', {color:'#1F3D4C', size:13, bold:true, dx:-5, dy:-15, align:'right'});
+  text(Aall, '总 @{E}', {color:C.crimson, size:11.5, bold:true, dx:7, dy:-9});
+  text(Ain,  '仅球内',  {color:C.teal,    size:11,   bold:true, dx:6, dy:13});
+  text(Aout, '仅球外',  {color:C.purple,  size:11,   bold:true, dx:6, dy:-16});
+}
+function buildScene(){
+  prims=[];                     /* ★ 第一句必须是 prims=[]（否则每次重绘再叠一层整场景） */
+  if(state.show.box) drawAxes(EXT_AX);
+  drawFieldLines();
+  drawCrossMarks();
+  drawFluxCloud();
+  if(state.show.ball){ shellBall(O, state.R, SPH_HEX, true); drawRadiusDim(); }
+  drawCharges();
+  drawProbe();
+}
+
+/* ══════════ 信息卡内容 ══════════ */
+function gaussCard(){
+  const R=state.R, Qi=qInside(), Qo=qOutside(), c=crossNow();
+  const want=Math.round(Qi/Q0);
+  if(state.mode==='allfield'){
+    const P=Ppoint();
+    const Lall=vlen(Efield(P)), Lin=vlen(EfieldOf(IDX_IN,P)), Lout=vlen(EfieldOf(IDX_OUT,P));
+    infoCard('高斯面 · 定量',[
+      ['球面半径 R', R.toFixed(3)+' m'],
+      ['探针 P（θ, φ）', state.Pth.toFixed(0)+'°, '+state.Pph.toFixed(0)+'°'],
+      ['§ 球面上这一点 P 的电场'],
+      ['总 @{E}（全部电荷）', Lall.toFixed(1)+' kV/m'],
+      ['　只有球内电荷', Lin.toFixed(1)+' kV/m'],
+      ['　只有球外电荷', Lout.toFixed(1)+' kV/m'],
+      ['§ 整个球面的通量（与球外无关）'],
+      ['净穿出根数  Q内/q₀', c.net+' / '+want+' 根'],
+      ['Φ = Q内/ε₀', fmtSci(PHI_V(Qi))+' V·m'],
+    ],224);
+    return;
+  }
+  infoCard('高斯面 · 定量',[
+    ['球面半径 R', R.toFixed(3)+' m'],
+    ['球内电荷 Q内', sgnTxt(Qi,2)+' µC'],
+    ['球外电荷 Q外', sgnTxt(Qo,2)+' µC'],
+    ['§ 约定：1 条场线 ≡ q₀ = '+Q0.toFixed(3)+' µC'],
+    ['理论净根数  Q内/q₀', want+' 根'],
+    ['实测  穿出 / 穿入', c.out+' / '+c.inn],
+    ['净穿出根数', c.net+' 根'+(c.net===want?'　✓':''), c.net===want?'#0E6E4A':'#B26A1E'],
+    ['净根数 × q₀', c.net+' × '+Q0.toFixed(3)+' = '+(c.net*Q0).toFixed(2)+' µC'],
+    ['Φ = Q内/ε₀', fmtSci(PHI_V(Qi))+' V·m'],
+  ],244);
+}
+function drawOverlays(){ gaussCard(); }
+
+/* ══════════════════════════ 面板底部的实时结论条 ══════════════════════════
+   ⚠️ 凡进 DOM 的串必须过 richHTML()（它只认 @{...} 与 _x 下标，不认 Markdown 的星号）。 */
+function subNote(){
+  if(state.mode==='inside')
+    return '<b>球面里只有 "+" 电荷</b>：@{E} 的场线一律从球内发出、一路穿出球面（本页签里球外没有电荷，'+
+      '所以没有一条线会折回来）。把 <b>q₁ 往上拖</b>，穿过球面的场线会<b>一根一根地多出来</b> —— '+
+      '每拖一格（0.25 µC）就正好多 <b>2 条</b>线 —— 因为约定的 <b>q₀ = 0.125 µC</b> 就是"一条线所代表的电荷量"。<br>'+
+      '这就是高斯定理最朴素的读法：<b>净穿出的根数 × q₀ = Q内</b>。';
+  if(state.mode==='outside')
+    return '<b>现在球外也放了电荷</b>（紫色场线）。注意看：球外的线每一条都是<b>先穿进球面、再穿出球面</b>，'+
+      '成对出现 ⇒ 对"净根数"的贡献恒为 <b>0</b>。<br>'+
+      '所以把 <b>q₃ / q₄ 拖到任意值</b>，读数条上的<b>穿出、穿入会一起变大</b>，'+
+      '但 <b>净穿出根数纹丝不动</b>，永远等于 Q内/q₀ —— 这就是"<b>球外电荷不影响通量</b>"。';
+  return '<b>任意一点的 @{E}，都是空间中所有电荷共同产生的</b>：把 P 拖到球面各处，'+
+    '看那一红（总 @{E}）、一青（只算球内电荷）、一紫（只算球外电荷）三支箭头 —— '+
+    '<b>红 = 青 + 紫（矢量相加）</b>。<br>'+
+    '⚠️ 但不管 P 挪到哪儿、球外电荷怎么改，右上方卡片里 <b>Φ = Q内/ε₀ 那一行始终不变</b>：'+
+    '<b>场强处处被球外电荷改写，通量却只认球内的电荷</b> —— 这就是高斯定理最反直觉的地方。';
+}
+
+/* ══════════════════════════════ 右侧面板 ══════════════════════════════ */
+const panel=document.getElementById('panel');
+function h(html){const d=document.createElement('div');d.innerHTML=html;return d;}
+let _toastTimer=0;
+function toastMsg(msg){
+  const el=document.getElementById('toast'); if(!el) return;
+  el.textContent=msg; el.classList.add('show');
+  clearTimeout(_toastTimer); _toastTimer=setTimeout(()=>el.classList.remove('show'),1700);
+}
+/* ⚠️ k 与 v **两个都要过 richHTML()**：只处理 k 会让带标记的**值**泄出字面 @{...} */
+function kchip(k,v,cls){return '<span class="coord-chip '+(cls||'')+'">'+richHTML(k)+'<b>'+richHTML(v)+'</b></span>';}
+/* ⚠️ 标签字段必须容错地取（t ?? sub ?? label）—— 只读死 it.t 会让某一页变成字面 "undefined" */
+function chipRow(parent,items,isOn,onPick){
+  const box=h('<div class="sub-chips"></div>').firstChild;
+  items.forEach(it=>{
+    const lab=richHTML(String(it.t??it.sub??it.label??''));
+    const b=h('<button class="chip '+(it.col||'')+(isOn(it.k)?' on':'')+'" data-k="'+it.k+'">'+lab+'</button>').firstChild;
+    b.onclick=()=>onPick(it.k);
+    box.appendChild(b);
+  });
+  parent.appendChild(box);
+  return box;
+}
+/* ⚠️ 每页签的显示项都写成 {k,t} 的对象（不是裸字符串）—— 2.3 那种混合写法最容易漏掉一处容错 */
+const SHOW_ITEMS={
+  inside:  [{k:'lines',t:'场线'},{k:'cross',t:'穿越点'},{k:'flux',t:'球面 @{E}·@{n}'},{k:'chg',t:'电荷'},{k:'ball',t:'高斯面'},{k:'box',t:'坐标轴'}],
+  outside: [{k:'lines',t:'场线'},{k:'cross',t:'穿越点'},{k:'flux',t:'球面 @{E}·@{n}'},{k:'chg',t:'电荷'},{k:'ball',t:'高斯面'},{k:'box',t:'坐标轴'}],
+  allfield:[{k:'lines',t:'场线'},{k:'cross',t:'穿越点'},{k:'flux',t:'球面 @{E}·@{n}'},{k:'dec',t:'P 点场分解'},{k:'chg',t:'电荷'},{k:'ball',t:'高斯面'},{k:'box',t:'坐标轴'}],
+};
+function mkRange(sec,d){
+  const r=h('<div class="slider-row'+(d.wide?' w':'')+'"><label>'+richHTML(d.label)+'</label>'+
+    '<input type="range" id="s_'+d.k+'" min="'+d.min+'" max="'+d.max+'" step="'+d.step+'" value="'+d.get()+'">'+
+    '<span class="val" id="v_'+d.k+'">'+d.fmt(d.get())+'</span></div>');
+  const inp=r.querySelector('input');
+  inp.oninput=()=>{
+    d.set(parseFloat(inp.value));
+    document.getElementById('v_'+d.k).textContent=d.fmt(parseFloat(inp.value));
+    needsRender=true; updateReadout(); updateModeTag();
+    if(d.after) d.after();
+  };
+  sec.appendChild(r);
+}
+function btnRow(sec,specs){
+  const bx=h('<div class="sub-chips"></div>').firstChild;
+  specs.forEach(s=>{ const b=h('<button class="chip '+(s.col||'')+(s.on?' on':'')+'">'+richHTML(s.t)+'</button>').firstChild;
+    b.onclick=s.act; bx.appendChild(b); });
+  sec.appendChild(bx);
+}
+function renderSubSec(sec){
+  sec.innerHTML='';
+  sec.appendChild(h('<div class="sec-title">显示</div>'));
+  chipRow(sec,SHOW_ITEMS[state.mode],k=>state.show[k],k=>{
+    const next=!state.show[k];
+    /* ⚠️ 不许把所有层都关掉：本页所有元素都由开关控制，全关 ⇒ prims=0 ⇒ 整块画布纯白。
+       ⇒ 统一守一道：要关的这层若已是最后一层开着的，就拒绝并给一句提示。 */
+    const othersOn=SHOW_ITEMS[state.mode].some(it=>it.k!==k && state.show[it.k]);
+    if(!next && !othersOn){ toastMsg('至少保留一层显示'); return; }
+    state.show[k]=next; needsRender=true; renderPanel();
+  });
+  let note=null;
+  if(state.mode==='inside')
+    note='球面上那些小圆点就是 <b>穿越点</b>：红圈 = 场线沿 @{E} <b>穿出</b>、蓝圈 = <b>穿入</b>。'+
+      '本页签里球外没有电荷 ⇒ 全是红圈，穿入恒为 0。';
+  else if(state.mode==='outside')
+    note='球外的紫色场线<b>每一条都会穿进又穿出</b>球面 ⇒ 穿越点上红、蓝同时增加。'+
+      '把 <b>球面 @{E}·@{n} 采样</b> 打开，可以看见球面上各处"进进出出的箭头"大小悬殊，'+
+      '但把它们按面积加权加起来，恰好还是 Φ = Q内/ε₀。';
+  else
+    note='<b>P 点场分解</b>打开后，P 处会画出三支箭头：<b>红 = 全部电荷的合成场</b>、'+
+      '青 = 只算球内电荷、紫 = 只算球外电荷，满足 <b>红 = 青 + 紫</b>。'+
+      '拖动 θ_P / φ_P 把 P 挪到球面各处，看看合成场被球外电荷"拉偏"了多少。';
+  if(note) sec.appendChild(h('<div class="ex-note" style="margin-top:7px">'+richHTML(note)+'</div>'));
+}
+/* ⚠️ 这里的格式必须与 mkRange 建滑块时的 fmt **完全一致**（syncSliders 会反复调用）。 */
+const SLIDER_FMT={
+  q1:v=>sgnTxt(v,2)+' µC', q2:v=>sgnTxt(v,2)+' µC',
+  q3:v=>sgnTxt(v,2)+' µC', q4:v=>sgnTxt(v,2)+' µC',
+  R: v=>v.toFixed(3)+' m', th:v=>v.toFixed(0)+'°', ph:v=>v.toFixed(0)+'°',
+};
+function syncSliders(){
+  const set=(k,v)=>{ const s=document.getElementById('s_'+k); if(s) s.value=v;
+    const e=document.getElementById('v_'+k); if(e) e.textContent=SLIDER_FMT[k]?SLIDER_FMT[k](v):String(v); };
+  set('q1',state.q[0]); set('q2',state.q[1]); set('q3',state.q[2]); set('q4',state.q[3]);
+  set('R',state.R); set('th',state.Pth); set('ph',state.Pph);
+}
+const QSTEP=0.25;
+function sliderQ(sec,k,i,label){
+  const lo = i===0 ? Q_IN_RANGE[0] : (i===1 ? Q_IN2_RANGE[0] : Q_OUT_RANGE[0]);
+  const hi = i===0 ? Q_IN_RANGE[1] : (i===1 ? Q_IN2_RANGE[1] : Q_OUT_RANGE[1]);
+  mkRange(sec,{k, label, wide:true, min:lo, max:hi, step:QSTEP,
+    get:()=>state.q[i], set:v=>{ state.q[i]=v; }, fmt:v=>sgnTxt(v,2)+' µC'});
+}
+function sliderR(sec){
+  mkRange(sec,{k:'R', label:'球面半径 R', wide:true,
+    min:GS_R_RANGE[0], max:GS_R_RANGE[1], step:0.01,
+    get:()=>state.R, set:v=>{ state.R=Math.round(v*100)/100; }, fmt:v=>v.toFixed(3)+' m'});
+}
+function renderSliders(sec){
+  sec.innerHTML='';
+  if(state.mode==='inside'){
+    sec.appendChild(h('<div class="sec-title">球内的电荷 · 单位 µC</div>'));
+    sliderQ(sec,'q1',0,'q_1（球心）');
+    sliderQ(sec,'q2',1,'q_2（球内偏置）');
+    sec.appendChild(h('<div class="ex-note" style="margin-top:9px">'+richHTML(
+      'q₁ 每变化 <b>0.25 µC</b>（滑块一格），穿过球面的场线就正好多/少 <b>2 条</b> —— '+
+      '因为本页约定"1 条场线 ≡ q₀ = 0.125 µC"。<br>'+
+      '把 <b>q₁ 拖到 0</b>：球内没有净电荷，穿出与穿入的根数<b>一样多</b>，净根数 = 0 ⇒ Φ = 0。'+
+      '⚠️ 这时画面上仍有场线（q₂ 自己的），只是它们<b>穿出多少就穿入多少</b>。')+'</div>'));
+    sec.appendChild(h('<div class="sec-title" style="margin-top:14px">高斯面</div>'));
+    sliderR(sec);
+    btnRow(sec,[
+      {t:'q₁ = 0（净通量为 0）', on:Math.abs(state.q[0])<1e-9,
+        act:()=>{ state.q[0]=0; renderPanel(); updateAll(); }},
+      {t:'q₁ = +2.00 µC', on:Math.abs(state.q[0]-2)<1e-9,
+        act:()=>{ state.q[0]=2; renderPanel(); updateAll(); }},
+    ]);
+  } else if(state.mode==='outside'){
+    sec.appendChild(h('<div class="sec-title">球外电荷 · 单位 µC</div>'));
+    sliderQ(sec,'q3',2,'球外 q_3');
+    sliderQ(sec,'q4',3,'球外 q_4');
+    sec.appendChild(h('<div class="ex-note" style="margin-top:9px">'+richHTML(
+      '★ <b>把这两个滑块随便拖，"净穿出根数"永远不变</b>（只要球内电荷不动）。'+
+      '变大的是"穿出"和"穿入"这两个数 —— 它们<b>同步增加、互相抵消</b>。<br>'+
+      '⚠️ 球外电荷当然不是"什么都没做"：它们把球面附近的场强改得<b>高低不平</b>（切到 ③ 看）。'+
+      '只是"穿过球面的净条数"这件事，它们做不了主。')+'</div>'));
+    sec.appendChild(h('<div class="sec-title" style="margin-top:14px">球内的电荷（保持不动看结论）</div>'));
+    sliderQ(sec,'q1',0,'q_1（球心）');
+    sec.appendChild(h('<div class="sec-title" style="margin-top:12px">高斯面</div>'));
+    sliderR(sec);
+    btnRow(sec,[
+      {t:'球外全清 0', on:Math.abs(state.q[2])<1e-9 && Math.abs(state.q[3])<1e-9,
+        act:()=>{ state.q[2]=0; state.q[3]=0; renderPanel(); updateAll(); }},
+      {t:'球外 q₃=+2 / q₄=−1', on:Math.abs(state.q[2]-2)<1e-9 && Math.abs(state.q[3]+1)<1e-9,
+        act:()=>{ state.q[2]=2; state.q[3]=-1; renderPanel(); updateAll(); }},
+      /* ⚠️ 预设值必须落在 Q_OUT_RANGE=[−2,2] 内：写成 3 的话滑块会自己 clamp 到 2，
+         而 state 仍是 3 ⇒ 滑块显示与真实状态不一致（静默 bug，不报错） */
+      {t:'球外 q₃=+2 / q₄=+2（净 +4）', on:Math.abs(state.q[2]-2)<1e-9 && Math.abs(state.q[3]-2)<1e-9,
+        act:()=>{ state.q[2]=2; state.q[3]=2; renderPanel(); updateAll(); }},
+    ]);
+  } else {
+    sec.appendChild(h('<div class="sec-title">探针 P 在球面上的位置</div>'));
+    mkRange(sec,{k:'th', label:'θ_P', wide:true, min:0, max:180, step:1,
+      get:()=>state.Pth, set:v=>{ state.Pth=v; }, fmt:v=>v.toFixed(0)+'°'});
+    mkRange(sec,{k:'ph', label:'φ_P', wide:true, min:0, max:360, step:1,
+      get:()=>state.Pph, set:v=>{ state.Pph=v; }, fmt:v=>v.toFixed(0)+'°'});
+    sec.appendChild(h('<div class="ex-note" style="margin-top:9px">'+richHTML(
+      '<b>球面上每一处的 @{E} 都不一样</b>（大小和方向都变）—— 这正是"场是逐点定义的"的直观含义。'+
+      '但右上角卡片里 <b>Φ = Q内/ε₀ 那一行，无论怎么拖 P 都不会变</b>：'+
+      '通量是"整块面"的事，不是"某一点"的事。')+'</div>'));
+    sec.appendChild(h('<div class="sec-title" style="margin-top:14px">球外电荷（改它们，看 P 点的场怎么被拉偏）</div>'));
+    sliderQ(sec,'q3',2,'球外 q_3');
+    sliderQ(sec,'q4',3,'球外 q_4');
+    sec.appendChild(h('<div class="sec-title" style="margin-top:12px">高斯面</div>'));
+    sliderR(sec);
+    btnRow(sec,[
+      {t:'球外全清 0（P 点只剩球内的场）', on:Math.abs(state.q[2])<1e-9 && Math.abs(state.q[3])<1e-9,
+        act:()=>{ state.q[2]=0; state.q[3]=0; renderPanel(); updateAll(); }},
+      {t:'恢复 q₃=+2 / q₄=−1', on:Math.abs(state.q[2]-2)<1e-9 && Math.abs(state.q[3]+1)<1e-9,
+        act:()=>{ state.q[2]=2; state.q[3]=-1; renderPanel(); updateAll(); }},
+      /* ★ 一对对照按钮：P 正对 q₃ ⇒ 球外分量最强（红紫几乎重合）；
+         P 挪到关于球心的正对面 ⇒ 球外分量最弱、球内分量相对最大（青最长，三段差异最清楚）。
+         ⚠️ "正对面"要 θ、φ 同时取反（θ→180−θ、φ→φ+180），只改 φ 那是绕 z 轴的镜像、不是对面。 */
+      {t:'P 正对 q₃（球外场最强）', on:Math.abs(state.Pth-79)<3 && Math.abs(state.Pph-27)<3,
+        act:()=>{ state.Pth=79;  state.Pph=27;  renderPanel(); updateAll(); }},
+      {t:'P 挪到 q₃ 的正对面（球外最弱）', on:Math.abs(state.Pth-101)<3 && Math.abs(state.Pph-207)<3,
+        act:()=>{ state.Pth=101; state.Pph=207; renderPanel(); updateAll(); }},
+    ]);
+  }
+}
+
+
+/* ============================================================================
+   2.4 高斯定理及其应用 —— 页面专属（二）：讲解卡 / 面板装配 / 数据条 / 主循环 / 交互
+   ⚠️ 所有进 DOM 或进画布的串都必须走 richHTML()/parseRich()：本引擎只认 @{...}（矢量上划线）
+      与 _x（下标），**不认 Markdown 的星号** ⇒ 要加粗只能用 <b>。
+   ============================================================================ */
+const CARDS={
+  inside:[
+    {k:'1',tab:'1. 为什么可以"数根数"',cls:'c1',body:
+      '<b>把每一条场线看成一根"通量管"</b>：本页约定它代表固定的一小份电荷 q₀ = 0.125 µC。'+
+      '因为场线处处与 @{E} 相切，穿过任意曲面的<b>条数</b>就与 @{E} 的通量成正比：'+
+      '<div class="frm">Φ = ∮_S @{E}·d@{S} = (穿出 − 穿入) × q₀/ε₀ = Q内/ε₀</div>'+
+      '<ul><li>显示比例挑成 q₀ = 0.125 µC ⇒ <b>净根数恰好等于 Q内/q₀</b>，一根不多、一根不少</li>'+
+      '<li>⚠️ 场线的<b>疏密</b>只是示意，但<b>净根数</b>是按真实场逐点追踪算出来的'+
+      '（含格点自校正）⇒ 画面上的穿越点、读数条、右上卡片三者严格一致</li>'+
+      '<li>把 q₁ 拖一格（0.25 µC）正好多 <b>2</b> 根线 —— 这个「整数感」正是离散化的意义</li></ul>'+
+      '<div class="ex-note">对照 1.4：那里的 ∇·@{E} = ρ/ε₀ 是「<b>逐点</b>」的说法；'+
+      '这里数根数是「<b>整块</b>」的说法。两者是同一条定理的微分形式与积分形式。</div>'},
+    {k:'2',tab:'2. 同一事实的三种写法',cls:'c2',body:
+      '<b>积分形式、离散形式、反推场强：</b>'+
+      '<div class="frm">积分： Φ = ∮_S @{E}·d@{S} = Q内/ε₀</div>'+
+      '<div class="frm">离散： 净穿出根数 × q₀ = Q内</div>'+
+      '<div class="frm">反推： 对称时 |@{E}| = Q内/(4πε₀r²)</div>'+
+      '<ul><li>前两行是「同一个式子的两种语言」。q₀ 取得越小（线越密），离散版越贴近积分版</li>'+
+      '<li>第三行是高斯定理最常见的<b>用途</b>：<b>只要对称性够</b>，不用积分就能把场强写出来'+
+      '（球对称 → 球面；轴对称 → 圆柱面；面对称 → 平行板）</li></ul>'+
+      '<div class="ex-note">⚠️ 本页是「<b>球形高斯面 + 任意布置的电荷</b>」，它<b>不能</b>用第三行反推场强 —— '+
+      '反推的前提是「球面上 |@{E}| 处处相等、方向处处沿法向」。本页特意让球外电荷把这个前提弄脏，'+
+      '就是为了看「通量仍然守恒、场强却早已不均匀」。</div>'},
+    {k:'3',tab:'3. Φ 的符号怎么定',cls:'c3',body:
+      '<b>穿出记 +1、穿入记 −1，代数和才是净根数。</b>'+
+      '<ul><li>q₁ = +2.00 µC ⇒ 净根数 = +8，穿越点全是<b>红圈</b>（沿 @{E} 穿出）</li>'+
+      '<li>把 q₁ 拖成负值 ⇒ 场线从远处来、<b>穿进球面后落到负电荷上</b> ⇒ 全是蓝圈，净根数为负</li>'+
+      '<li>q₁ = 0、只留 q₂ ⇒ 穿出与穿入条数相等，净根数 = 0 ⇒ Φ = 0</li></ul>'+
+      '<div class="ex-note">Φ 的正负就是「<b>净穿出</b>」的方向感：球内净正电荷 ⇒ 向外溢（Φ &gt; 0）；'+
+      '球内净负电荷 ⇒ 向内吸（Φ &lt; 0）。它跟"画了多少条线"无关，只看<b>代数和</b>。</div>'},
+  ],
+  outside:[
+    {k:'1',tab:'1. 球外的线要穿两次',cls:'c1',body:
+      '<b>球外每一条能碰到球面的场线，都必须在球面上穿两次。</b>'+
+      '<ul><li>球外的正电荷发出场线：一部分飞向无穷远（<b>不碰球面</b>），'+
+      '另一部分指向球面 ⇒ <b>穿入</b>（蓝圈）</li>'+
+      '<li>既然球内没有「能把线吃掉」的净负电荷，它们就必须从另一边<b>穿出</b>（红圈）</li>'+
+      '<li>一条线贡献 +1 与 −1 ⇒ 代数和恒为 <b>0</b>。球外电荷再多，也只是让红、蓝圈同时变密</li></ul>'+
+      '<div class="ex-note">⚠️ 唯一的例外：球内若有个大负电荷「接住」了这些线，红蓝就不再成对 —— '+
+      '但那已经属于「球内电荷变了」这一支；净根数<b>照样</b>等于 Q内/q₀，定理毫发无损。</div>'},
+    {k:'2',tab:'2. 换个面也不变',cls:'c2',body:
+      '<b>把球面放大、缩小、改成随便什么形状，净根数都不变。</b>背后是一条极重要的局部性质：'+
+      '<div class="frm">无电荷处  ∇·@{E} = 0</div>'+
+      '<ul><li>散度为零 ⇒ 场线<b>不会在空间里凭空产生或消失</b> ⇒ 它只能「穿进去、再穿出来」</li>'+
+      '<li>于是穿出多少、穿入多少，只取决于<b>面里包住了哪些源</b>，与面选在哪儿、什么形状无关</li>'+
+      '<li>这正是「数根数」这种土办法能等同于高斯定理的原因：<b>根数守恒 = 通量守恒</b></li></ul>'+
+      '<div class="ex-note">⟶ 试着拖「球面半径 R」：净根数<b>始终</b>等于 Q内/q₀。'+
+      'R 只改变球面的位置，不改变它包住了谁。</div>'},
+  ],
+  allfield:[
+    {k:'1',tab:'1. 叠加：E = ΣEᵢ',cls:'c1',body:
+      '<b>点电荷的场是可加的：</b>'+
+      '<div class="frm">@{E}(@{r}) = Σ_i @{E}_i(@{r})　，　@{E}_i = (1/4πε₀)·q_i(@{r}−@{r}_i)/|@{r}−@{r}_i|³</div>'+
+      '也就是说，P 点的场<b>由空间中所有电荷共同决定</b>，少算谁都不对。'+
+      '<ul><li>画面上 P 处的三支箭头就是这句公式的图像：<b>红（总）= 青（球内）+ 紫（球外）</b></li>'+
+      '<li>把球外电荷拖到 0 ⇒ 紫箭头消失、红箭头缩回去与青<b>重合</b> —— '+
+      '这就证明了球外电荷在 P 点<b>确实有贡献</b></li>'+
+      '<li>再把 P 挪到球面各处：红、青、紫三支的大小方向都变，仍然满足「红 = 青 + 紫」</li></ul>'+
+      '<div class="ex-note">本页的电荷位置是固定的，所以「谁在内、谁在外」不随 R 变 —— '+
+      '内外分组不会来回跳，这个分解才始终有明确含义。</div>'},
+    {k:'2',tab:'2. 场强 ≠ 通量',cls:'c2',body:
+      '<b>但「通量」是另一个层面的量 —— 它不关心某一点。</b>'+
+      '<div class="frm">Φ = ∮_S @{E}·d@{S} = Q内/ε₀</div>'+
+      '<ul><li>球面上每一处的 @{E} 都被球外电荷改得不一样（大小、方向都变）</li>'+
+      '<li>可是<b>法向分量</b> @{E}·@{n} 在球面上<b>有正有负</b>：'+
+      '被「推」出球面的地方多一些、被「压」进球面的地方少一些，按面积加权求和之后，'+
+      '球外电荷的贡献被<b>全部抵消</b></li>'+
+      '<li>打开 <b>球面 @{E}·@{n} 采样</b> 就能看到这一幕：箭头红蓝相间、长短悬殊，'+
+      '但求和结果永远是 Φ = Q内/ε₀</li></ul>'+
+      '<div class="ex-note">这正是学高斯定理最容易栽的地方：把「某一点的场强」当成「整块面的通量」。'+
+      '<b>场强逐点定义、通量整块定义</b>；球外电荷改得了前者，改不了后者。</div>'},
+  ],
+};
+function renderExplain(sec){
+  sec.innerHTML='';
+  const list=CARDS[state.mode];
+  sec.appendChild(h('<div class="sec-title">讲解</div>'));
+  const tabs=h('<div class="card-tabs"></div>').firstChild;
+  list.forEach(c=>{
+    const b=h('<button class="card-tab '+c.cls+(c.k===state.cardTab?' on':'')+'">'+c.tab+'</button>').firstChild;
+    b.onclick=()=>{ state.cardTab=c.k; renderPanel(); };
+    tabs.appendChild(b);
+  });
+  sec.appendChild(tabs);
+  const cur=list.find(c=>c.k===state.cardTab)||list[0];
+  const body=h('<div class="card-body '+cur.cls+'"><div class="ex-title">'+cur.tab+'</div></div>').firstChild;
+  body.appendChild(h('<div class="ex-body">'+richHTML(cur.body)+'</div>').firstChild);
+  sec.appendChild(body);
+}
+function renderPanel(){
+  ['subSec','sliderSec','explainSec'].forEach(id=>{const el=document.getElementById(id);if(el)el.remove();});
+  const mk=id=>{const d=document.createElement('div');d.className='panel-sec';d.id=id;return d;};
+  let tog=document.getElementById('toggleSec');
+  if(!tog){
+    tog=mk('toggleSec');
+    tog.appendChild(h('<label class="readout-toggle"><input type="checkbox" id="showReadoutCb"'+(state.showReadout?' checked':'')+'><span>在<b>画布下方</b>显示<b>实时数据</b>条</span></label>'));
+    tog.querySelector('#showReadoutCb').onchange=e=>{state.showReadout=e.target.checked;updateReadout();};
+    panel.appendChild(tog);
+  }else tog.querySelector('#showReadoutCb').checked=state.showReadout;
+  const s=mk('subSec'), sl=mk('sliderSec'), ex=mk('explainSec');
+  panel.appendChild(s); panel.appendChild(sl); panel.appendChild(ex);
+  renderSubSec(s); renderSliders(sl); renderExplain(ex);
+  updateReadout(); updateModeTag();
+}
+/* ⚠️ 图例（.cv-legend）是 absolute + bottom:14px，而 .canvas-card 里**还有一条数据条**
+   （.coord-strip）也贴在底部 ⇒ 图例默认会压在数据条上面。修法：bottom = 数据条高度 + 14。 */
+function placeLegend(){
+  const st=document.getElementById('coordStrip'), lg=document.getElementById('legend');
+  if(!st||!lg) return;
+  lg.style.bottom=(st.offsetHeight+14)+'px';
+}
+
+/* ══════════════════════════ 画布下方实时数据条 ══════════════════════════ */
+function updateReadout(){
+  const strip=document.getElementById('coordStrip'); if(!strip) return;
+  if(!state.showReadout){ strip.innerHTML=''; placeLegend(); return; }
+  const lgT=document.getElementById('lgTitle'), lgN=document.getElementById('lgNote');
+  let html='';
+  const c=crossNow(), Qi=qInside(), Qo=qOutside(), want=Math.round(Qi/Q0);
+  if(state.mode==='allfield'){
+    const P=Ppoint();
+    const Lall=vlen(Efield(P)), Lin=vlen(EfieldOf(IDX_IN,P)), Lout=vlen(EfieldOf(IDX_OUT,P));
+    html += kchip('球内 Q内 =', sgnTxt(Qi,2)+' µC');
+    html += kchip('球外 Q外 =', sgnTxt(Qo,2)+' µC','acc');
+    html += kchip('P（θ, φ）=', state.Pth.toFixed(0)+'°, '+state.Pph.toFixed(0)+'°');
+    html += kchip('P 点 总 |@{E}| =', Lall.toFixed(1)+' kV/m','warn');
+    html += kchip('　只算球内 =', Lin.toFixed(1)+' kV/m');
+    html += kchip('　只算球外 =', Lout.toFixed(1)+' kV/m','acc');
+    html += kchip('净穿出根数 =', c.net+'（Q内/q₀ = '+want+'）', c.net===want?'acc':'warn');
+    html += kchip('Φ = Q内/ε₀ =', fmtSci(PHI_V(Qi))+' V·m','acc');
+    lgT.textContent='球面上 P 点的场 vs 整个球面的通量';
+    lgN.innerHTML=richHTML('红 = 青 + 紫（总场 = 球内 + 球外）　·　但 Φ 只认球内电荷');
+    strip.innerHTML=html; placeLegend(); return;
+  }
+  html += kchip('球内电荷 Q内 =', sgnTxt(Qi,2)+' µC');
+  html += kchip('球外电荷 Q外 =', sgnTxt(Qo,2)+' µC','acc');
+  html += kchip('每条场线 ≡ q₀ =', Q0.toFixed(3)+' µC');
+  html += kchip('理论净根数 Q内/q₀ =', want+' 根');
+  html += kchip('穿出 / 穿入 =', c.out+' / '+c.inn);
+  html += kchip('净穿出根数 =', c.net+' 根', c.net===want?'acc':'warn');
+  html += kchip('净根数 × q₀ =', (c.net*Q0).toFixed(2)+' µC', c.net===want?'acc':'warn');
+  html += kchip('Φ = Q内/ε₀ =', fmtSci(PHI_V(Qi))+' V·m');
+  /* 打开"球面 @{E}·@{n} 采样"时，顺手把**采样求和**与解析 Φ 摆在一起 ——
+     "球面上箭头有进有出、长短悬殊，加起来却恰好是 Φ"这句话就落到了数字上。 */
+  if(state.show.flux){
+    const fsum=fluxSumExact(), phi=PHI_V(Qi);
+    const rel=Math.abs(fsum-phi)/Math.max(1e-9,Math.abs(phi))*100;
+    html += kchip('球面采样 Σ(@{E}·@{n})ΔS ≈', fmtSci(fsum)+' V·m（差 '+rel.toFixed(2)+'%）','acc');
+  }
+  if(state.mode==='inside'){
+    lgT.textContent='球内电荷 ⇒ 净根数跟着变';
+    lgN.innerHTML=richHTML('@{E} 的场线从球内电荷发出、一路穿出球面　·　穿出 − 穿入 ≡ Q内/q₀');
+  } else {
+    lgT.textContent='球外电荷 ⇒ 净根数不变';
+    lgN.innerHTML=richHTML('球外的线每一条都穿进又穿出（代数和 0）　·　'+
+      '所以 穿出、穿入同步变大，净根数纹丝不动');
+  }
+  strip.innerHTML=html;
+  placeLegend();
+}
+function updateModeTag(){
+  const t=document.getElementById('modeTag'); if(!t) return;
+  const sb=document.getElementById('moduleSub');
+  const Qi=qInside(), c=crossNow(), want=Math.round(Qi/Q0);
+  if(state.mode==='inside'){
+    t.innerHTML=richHTML('① 只有球内电荷 · R = '+state.R.toFixed(3)+' m　'+
+      'Q内 = '+sgnTxt(Qi,2)+' µC　净穿出 = '+c.net+' 根');
+    if(sb) sb.textContent='改变球内电荷 ⇒ 穿过球面的场线根数跟着变';
+  } else if(state.mode==='outside'){
+    t.innerHTML=richHTML('② 球外也有电荷 · Q外 = '+sgnTxt(qOutside(),2)+' µC　'+
+      '净穿出 = '+c.net+' 根（= Q内/q₀ = '+want+'，不随球外电荷变）');
+    if(sb) sb.textContent='改变球外电荷 ⇒ 净穿出根数不变，穿出与穿入同步增大';
+  } else {
+    t.innerHTML=richHTML('③ 任意一点的场由全体电荷决定 · P（'+state.Pth.toFixed(0)+'°, '+
+      state.Pph.toFixed(0)+'°）　而 Φ 仍 = Q内/ε₀');
+    if(sb) sb.textContent='球面上每一点的 |@{E}| 都被球外电荷改写，通量却纹丝不动';
+  }
+}
+
+/* ══════════════════════════════ 主循环 ══════════════════════════════ */
+let needsRender=true;
+function draw(){
+  setupCamera(); ctx.clearRect(0,0,W,H);
+  buildScene();
+  prims.sort((a,b)=>a.z-b.z);
+  for(const p of prims) p.draw(ctx);
+  drawOverlays();
+  const tg=document.getElementById('panTag');
+  if(tg) tg.classList.toggle('show',Math.abs(cam.px)>2||Math.abs(cam.py)>2);
+  needsRender=false;
+}
+/* ⚠️ tick 里的 draw 必须包 try/catch：下一帧是在函数末尾排的，
+   任何一帧抛异常 ⇒ 整个渲染循环永久停摆（症状是"画面卡住、点什么都没反应"）。 */
+function tick(){
+  try{
+    if(state.autoRotate){ cam.az+=0.0045; needsRender=true; }
+    if(needsRender) draw();
+  }catch(err){ needsRender=false; console.error('draw/tick error:',err); }
+  requestAnimationFrame(tick);
+}
+function updateAll(){ needsRender=true; syncSliders(); updateReadout(); updateModeTag(); }
+
+/* ══════════════════════════════ 交互 ══════════════════════════════ */
+let drag=null;
+function localPos(ev){const r=canvas.getBoundingClientRect();return{x:ev.clientX-r.left,y:ev.clientY-r.top};}
+canvas=document.getElementById('cv');
+ctx=canvas.getContext('2d');
+canvas.addEventListener('pointerdown',ev=>{
+  canvas.setPointerCapture(ev.pointerId);
+  const m=localPos(ev);
+  drag={x:m.x,y:m.y,btn:ev.button,mode:(ev.button===2||ev.ctrlKey)?'pan':'rot'};
+  ev.preventDefault();
+});
+canvas.addEventListener('pointermove',ev=>{
+  const m=localPos(ev);
+  if(!drag) return;
+  const dx=m.x-drag.x, dy=m.y-drag.y; drag.x=m.x; drag.y=m.y;
+  if(drag.mode==='pan'){ cam.px+=dx; cam.py+=dy; needsRender=true; }
+  else { cam.az-=dx*0.0075; cam.el=Math.max(-1.45,Math.min(1.45,cam.el+dy*0.0062)); needsRender=true; }
+});
+canvas.addEventListener('pointerup',()=>{ drag=null; });
+canvas.addEventListener('pointercancel',()=>{ drag=null; });
+canvas.addEventListener('contextmenu',e=>e.preventDefault());
+canvas.addEventListener('wheel',e=>{e.preventDefault();cam.zoom=Math.max(.45,Math.min(3.2,cam.zoom*(e.deltaY<0?1.09:1/1.09)));needsRender=true;},{passive:false});
+/* ⚠️ 这个按钮的 id 是 btnViewReset 而**不是** btnReset —— 面板里若顺手写 btnReset 会重名，
+   getElementById 只会返回文档里靠前的那一个（2.2 踩过：点了没反应且不报错）。 */
+document.getElementById('btnViewReset').onclick=()=>{ cam.az=.62; cam.el=.40; cam.zoom=1; cam.px=0; cam.py=0; needsRender=true; };
+document.getElementById('btnRotate').onclick=e=>{state.autoRotate=!state.autoRotate;e.target.classList.toggle('on',state.autoRotate);};
+document.getElementById('btnPanReset').onclick=()=>{cam.px=0;cam.py=0;needsRender=true;};
+function bindFold(bid,cls){document.getElementById(bid).onclick=()=>{document.body.classList.toggle(cls);setTimeout(resize,60);setTimeout(resize,260);};}
+bindFold('foldNav','nav-off'); bindFold('foldPanel','panel-off');
+document.getElementById('tglNav').onclick=()=>{document.body.classList.toggle('nav-off');setTimeout(resize,260);};
+document.getElementById('tglPanel').onclick=()=>{document.body.classList.toggle('panel-off');setTimeout(resize,260);};
+window.addEventListener('keydown',e=>{if(e.target.tagName==='INPUT')return;
+  if(e.key==='['){document.body.classList.toggle('nav-off');setTimeout(resize,260);}
+  if(e.key===']'){document.body.classList.toggle('panel-off');setTimeout(resize,260);}});
+
+/* ══════════ 右侧面板：拖动抓取条自由调整宽度 ══════════
+   · 宽度写在 CSS 变量 --panel-w 上 —— body.panel-off 的 width:0 优先级更高，两者不打架；
+   · ⚠️ 拖动期间给 body 加 .resizing 把 .panel 的 transition:width 关掉，
+     否则宽度带 0.22s 缓动，鼠标跑得越快面板越"追不上"。 */
+const PANEL_W0=398, PANEL_WMIN=260;
+const panelEl=document.getElementById('panel'), panelRz=document.getElementById('panelResizer');
+function panelMaxW(){
+  const navW=document.body.classList.contains('nav-off')?0:236;
+  return Math.max(PANEL_WMIN+60, Math.min(760, window.innerWidth-navW-330));
+}
+function setPanelW(px,save){
+  const w=Math.max(PANEL_WMIN, Math.min(panelMaxW(), Math.round(px)));
+  document.documentElement.style.setProperty('--panel-w', w+'px');
+  if(save){ try{ localStorage.setItem('em24-panel-w', String(w)); }catch(e){} }
+  return w;
+}
+(()=>{ let v=0; try{ v=parseInt(localStorage.getItem('em24-panel-w')||'0',10)||0; }catch(e){}
+      if(v>=PANEL_WMIN) setPanelW(v,false); })();
+let _rz=null;
+function rzEnd(){
+  if(_rz) setPanelW(panelEl.getBoundingClientRect().width,true);
+  _rz=null; document.body.classList.remove('resizing'); panelRz.classList.remove('dragging');
+}
+panelRz.addEventListener('pointerdown',ev=>{
+  if(document.body.classList.contains('panel-off')) return;
+  /* ⚠️ setPointerCapture 对"并不存在的 pointerId"会抛 NotFoundError
+     （合成 PointerEvent 做自检时必然遇到）⇒ 必须兜住，否则拖动逻辑整个不执行。 */
+  try{ panelRz.setPointerCapture(ev.pointerId); }catch(e){}
+  _rz={x:ev.clientX, w:panelEl.getBoundingClientRect().width};
+  document.body.classList.add('resizing'); panelRz.classList.add('dragging');
+  ev.preventDefault();
+});
+panelRz.addEventListener('pointermove',ev=>{ if(!_rz) return; setPanelW(_rz.w-(ev.clientX-_rz.x), false); });
+panelRz.addEventListener('pointerup',rzEnd);
+panelRz.addEventListener('pointercancel',rzEnd);
+panelRz.addEventListener('dblclick',()=>setPanelW(PANEL_W0,true));
+window.addEventListener('resize',()=>{ const cur=panelEl.getBoundingClientRect().width;
+  if(cur>panelMaxW()) setPanelW(cur,true); });
+
+/* ══════════════════════════════ 页签 ══════════════════════════════
+   ★ 每页签有各自的"电荷预设"：① 只有球内、②③ 球内 + 球外。
+     切页签就装载预设 —— 这样每个演示的起点都是可复现的（自检也才有确定的期望值）。 */
+const MT=[{k:'inside',  t:'① 球内电荷 → 根数'},
+          {k:'outside', t:'② 球外电荷 → 净不变'},
+          {k:'allfield',t:'③ 任意一点的场'}];
+const PRESET={
+  inside:  {q:[Q_IN0, 0, 0, 0]},
+  outside: {q:[Q_IN0, 0, Q3_0, Q4_0]},
+  allfield:{q:[Q_IN0, 0, Q3_0, Q4_0]},
+};
+const modeTabs=document.getElementById('modeTabs');
+MT.forEach(m=>{const b=document.createElement('button');b.textContent=m.t;b.dataset.k=m.k;
+  b.onclick=()=>{ state.mode=m.k; state.cardTab='1';
+    state.q=PRESET[m.k].q.slice();
+    syncModeTabs(); cam.az=.62; cam.el=.40; cam.px=0; cam.py=0;
+    renderPanel(); updateAll(); };
+  modeTabs.appendChild(b);});
+function syncModeTabs(){Array.from(modeTabs.children).forEach(b=>b.classList.toggle('on',b.dataset.k===state.mode));}
+
+function resize(){
+  const r=canvas.getBoundingClientRect();
+  const nw=Math.max(60,Math.round(r.width)),nh=Math.max(60,Math.round(r.height));
+  DPR=Math.min(2,window.devicePixelRatio||1);
+  if(nw===W&&nh===H&&canvas.width===Math.round(nw*DPR))return;
+  W=nw;H=nh;canvas.width=Math.round(W*DPR);canvas.height=Math.round(H*DPR);
+  ctx.setTransform(DPR,0,0,DPR,0,0); needsRender=true;
+  placeLegend();
+}
+new ResizeObserver(()=>resize()).observe(canvas);
+
+const nav=document.getElementById('nav');
+NAV.forEach(g=>{nav.appendChild(h('<div class="nav-ch">'+g.ch+'</div>'));
+  g.items.forEach(it=>{const cls='nav-item'+(it.active?' active':'')+(it.ready?'':' soon');
+    nav.appendChild(h('<a class="'+cls+'" '+(it.href?'href="'+it.href+'"':'')+'><span class="dot"></span>'+it.t+'</a>'));});});
+
+syncModeTabs();
+resize();
+renderPanel();
+updateAll();
+tick();
+
+</script>
+</body>
+</html>

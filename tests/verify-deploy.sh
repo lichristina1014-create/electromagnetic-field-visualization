@@ -4,7 +4,8 @@
 cd "$(dirname "$0")/.." || exit 1       # 本脚本在 tests/ 下 ⇒ 上一级就是站点根
 TMP=/tmp/22shots/_v.html
 mkdir -p "$(dirname "$TMP")" || exit 1   # /tmp 可能已被清理 ⇒ 不存在时 curl -o 会静默失败
-FILES="index.html 1.2-vector-algebra.html 1.3-directional-derivative.html 1.4-divergence-flux.html 1.5-curl-circulation.html 2.1-field-charge-density.html 2.2-conductor-electrostatic.html 2.3-dielectric-polarization.html 2.5-multi-conductor-crosstalk.html"
+# ⚠️ 新增页面必须同步加进 FILES —— 否则它根本没被检查，脚本却照样报"全部 ✓"。
+FILES="index.html 1.2-vector-algebra.html 1.3-directional-derivative.html 1.4-divergence-flux.html 1.5-curl-circulation.html 2.1-field-charge-density.html 2.2-conductor-electrostatic.html 2.3-dielectric-polarization.html 2.4-gauss-law.html 2.5-multi-conductor-crosstalk.html"
 MAOZI="https://lichenluemf-3xxc2nj.maozi.io"
 PAGES="https://lichristina1014-create.github.io/electromagnetic-field-visualization"
 
