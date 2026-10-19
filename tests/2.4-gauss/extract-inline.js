@@ -3,9 +3,9 @@
 const fs = require('fs');
 const B = '/Users/lichenlu/Documents/教学/电磁场与电磁波可视化探索/知识点ppt/电磁场可视化平台';
 const files = [
-  ['2.2', B + '/2.2-conductor-electrostatic.html'],
-  ['2.4', B + '/2.4-gauss-law.html'],
-  ['2.5', B + '/2.5-multi-conductor-crosstalk.html'],
+  ['2.2', B + '/2.2-conductor-electrostatic.htm'],
+  ['2.4', B + '/2.4-gauss-law.htm'],
+  ['2.5', B + '/2.5-multi-conductor-crosstalk.htm'],
 ];
 let bad = 0;
 for (const [n, f] of files) {

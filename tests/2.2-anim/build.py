@@ -13,8 +13,8 @@ import os, sys
 
 BASE = '/Users/lichenlu/Documents/教学/电磁场与电磁波可视化探索/知识点ppt/电磁场可视化平台'
 HERE = os.path.dirname(os.path.abspath(__file__))   # tests/2.2-anim（源文件与脚本同目录）
-SRC  = os.path.join(BASE, '2.1-field-charge-density.html')
-OUT  = os.path.join(BASE, '2.2-conductor-electrostatic.html')
+SRC  = os.path.join(BASE, '2.1-field-charge-density.htm')
+OUT  = os.path.join(BASE, '2.2-conductor-electrostatic.htm')
 
 L = open(SRC, encoding='utf-8').read().split('\n')
 

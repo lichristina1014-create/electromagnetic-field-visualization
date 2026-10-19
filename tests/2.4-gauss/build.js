@@ -4,8 +4,8 @@
       （原版写过 /tmp，那是开发时的临时目录，/tmp 一清理就没法重建了）。 */
 const fs=require('fs'), path=require('path');
 const P24=__dirname;
-const SRC='/Users/lichenlu/Documents/教学/电磁场与电磁波可视化探索/知识点ppt/电磁场可视化平台/2.3-dielectric-polarization.html';
-const OUT=path.join('/Users/lichenlu/Documents/教学/电磁场与电磁波可视化探索/知识点ppt/电磁场可视化平台','2.4-gauss-law.html');
+const SRC='/Users/lichenlu/Documents/教学/电磁场与电磁波可视化探索/知识点ppt/电磁场可视化平台/2.3-dielectric-polarization.htm';
+const OUT=path.join('/Users/lichenlu/Documents/教学/电磁场与电磁波可视化探索/知识点ppt/电磁场可视化平台','2.4-gauss-law.htm');
 
 const L=fs.readFileSync(SRC,'utf8').split('\n');
 const slice=(a,b)=>L.slice(a-1,b).join('\n');     // 1-indexed 闭区间

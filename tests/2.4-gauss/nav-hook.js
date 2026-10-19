@@ -6,22 +6,22 @@ const fs = require('fs');
 const B = '/Users/lichenlu/Documents/教学/电磁场与电磁波可视化探索/知识点ppt/电磁场可视化平台';
 const OLD_V = '20260929r20', NEW_V = '20260930r1';
 const PLACE = "{ t:'2.4 高斯定理及其应用' },";
-const LIVE  = "{ id:'ch2-4', t:'2.4 高斯定理及其应用', ready:true, href:'2.4-gauss-law.html?v=" + NEW_V + "' },";
+const LIVE  = "{ id:'ch2-4', t:'2.4 高斯定理及其应用', ready:true, href:'2.4-gauss-law.htm?v=" + NEW_V + "' },";
 
 /* 直接编辑的页面 + 生成物的源文件 */
 const FILES = [
   ['index.html',                       B + '/index.html'],
-  ['1.2-vector-algebra.html',          B + '/1.2-vector-algebra.html'],
-  ['1.3-directional-derivative.html',  B + '/1.3-directional-derivative.html'],
-  ['1.4-divergence-flux.html',         B + '/1.4-divergence-flux.html'],
-  ['1.5-curl-circulation.html',        B + '/1.5-curl-circulation.html'],
-  ['2.1-field-charge-density.html',    B + '/2.1-field-charge-density.html'],
-  ['2.3-dielectric-polarization.html', B + '/2.3-dielectric-polarization.html'],
+  ['1.2-vector-algebra.htm',          B + '/1.2-vector-algebra.htm'],
+  ['1.3-directional-derivative.htm',  B + '/1.3-directional-derivative.htm'],
+  ['1.4-divergence-flux.htm',         B + '/1.4-divergence-flux.htm'],
+  ['1.5-curl-circulation.htm',        B + '/1.5-curl-circulation.htm'],
+  ['2.1-field-charge-density.htm',    B + '/2.1-field-charge-density.htm'],
+  ['2.3-dielectric-polarization.htm', B + '/2.3-dielectric-polarization.htm'],
   ['2.2源 new_a.js',                    B + '/tests/2.2-anim/new_a.js'],
   ['2.5源 app1.js',                     B + '/tests/2.5-pcb/app1.js'],
 ];
 /* 2.4 自己已经是活链接（active），只参与版本号检查 */
-const SELF = B + '/2.4-gauss-law.html';
+const SELF = B + '/2.4-gauss-law.htm';
 
 let bad = 0;
 for (const [name, f] of FILES) {

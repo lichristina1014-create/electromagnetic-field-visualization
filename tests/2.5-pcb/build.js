@@ -1,9 +1,9 @@
 'use strict';
 /* ═══════════════════════════════════════════════════════════════════════════
-   2.5 页面装配（非直接编辑 2.5-multi-conductor-crosstalk.html）
+   2.5 页面装配（非直接编辑 2.5-multi-conductor-crosstalk.htm）
      - 从 2.2 提取 <style> 与引擎段（向量 / 富文本 / 颜色 / 相机 / 图元）
      - 注入 FD 查找表（tab.js）与三段页面源（app1/2/3.js）
-     - 产出 ../2.5-multi-conductor-crosstalk.html
+     - 产出 ../2.5-multi-conductor-crosstalk.htm
    ⚠️ 改完 app*.js / tab.js 必须重跑本脚本，否则页面不会变。
    ⚠️ 提取用的是**行号切片**：2.2 的 <style> 与引擎段一旦被编辑，行号会漂移 ⇒
       下面两个断言（必须含"向量工具"、必须含"function hexA"）就是防线。
@@ -11,9 +11,9 @@
 const fs = require('fs');
 const SRC = __dirname;                                   /* tests/2.5-pcb */
 const P = require('path').resolve(SRC, '..', '..') + '/';  /* 电磁场可视化平台/ */
-const OUT = P + '2.5-multi-conductor-crosstalk.html';
+const OUT = P + '2.5-multi-conductor-crosstalk.htm';
 
-const src = fs.readFileSync(P + '2.2-conductor-electrostatic.html', 'utf8').split('\n');
+const src = fs.readFileSync(P + '2.2-conductor-electrostatic.htm', 'utf8').split('\n');
 const style = src.slice(6, 138).join('\n');       /* 行 7..138（<style> 起，不含 </style>） */
 const engine = src.slice(174, 269).join('\n');    /* 行 175..269（向量/富文本/颜色/相机/图元） */
 if (!/向量工具/.test(engine) || !/function hexA/.test(engine)) throw new Error('引擎段提取越界');
