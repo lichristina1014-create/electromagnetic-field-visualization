@@ -19,11 +19,14 @@ lsha() { shasum -a 256 "$1" | cut -c1-10; }
 rsha() {                       # $1 = base url, $2 = file, $3 = direct|proxy
   rm -f "$TMP"                 # 每次先删：curl 失败会留下上一次的内容 ⇒ 假匹配
   local u="$1/$2?cb=$(date +%s%N)"   # 破缓存（否则可能读到 CDN 老副本）
+  # ⚠️ 必须带 -L：maozi 对 index.html 的响应是 **308 → /**（其余 .htm 直接 200）。
+  #    不跟随重定向就只会读到 308，被误判成"未上线"——本轮真踩到过（19/20 假阴性）。
+  #    加了 -L 之后 -w %{http_code} 报的是最终状态码，判据才等价于浏览器实际拿到的内容。
   if [ "$3" = "direct" ]; then
     env -u HTTP_PROXY -u HTTPS_PROXY -u http_proxy -u https_proxy -u ALL_PROXY -u all_proxy \
-      curl -sS --noproxy '*' -o "$TMP" -w '%{http_code}' --max-time 15 "$u" 2>/dev/null
+      curl -sSL --noproxy '*' -o "$TMP" -w '%{http_code}' --max-time 15 "$u" 2>/dev/null
   else
-    curl -sS -o "$TMP" -w '%{http_code}' --max-time 15 "$u" 2>/dev/null
+    curl -sSL -o "$TMP" -w '%{http_code}' --max-time 15 "$u" 2>/dev/null
   fi
 }
 

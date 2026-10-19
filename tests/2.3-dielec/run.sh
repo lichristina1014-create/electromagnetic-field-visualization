@@ -3,7 +3,9 @@
 # 用法：bash run.sh            （在 tests/2.3-dielec/ 下）
 # 退出码：全部 PASS ⇒ 0；任一脚本有 FAIL 或没产出断言 ⇒ 1
 set -u
-NODE=/Users/lichenlu/.workbuddy/binaries/node/versions/22.22.2-3/bin/node
+# ⚠️ 别再钉死 versions/22.22.2-3 —— 受管 node 换过一次版本号，这里静默失效，
+#    现象是"脚本跑完 PASS=0 但退出码 0"（cdpeval 压根没启动）。优先用 PATH 上的 node。
+NODE=$(command -v node || echo /Users/lichenlu/.workbuddy/binaries/node/versions/22.22.2-6/bin/node)
 SK="$HOME/.workbuddy/skills/headless-cdp-test/scripts"
 cd "$(dirname "$0")" || exit 1
 # ⚠️ 是 ../.. —— 页面在仓库根，本脚本在 tests/2.3-dielec/ 下（写成 .. 会指到 tests/ ⇒
