@@ -9,3 +9,7 @@ tests/2.4-gauss/out/
 # 3.1 装配中间产物 / 截图（与 2.4 同规则：_inline.js 只供 node --check）
 tests/3.1-current-density/_inline.js
 tests/3.1-current-density/shots/
+
+# 4.2 装配中间产物 / 截图（同 2.4/3.1 规则）
+tests/4.2-magnetization/_inline.js
+tests/4.2-magnetization/shots/

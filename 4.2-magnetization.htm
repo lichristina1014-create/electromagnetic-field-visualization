@@ -1,0 +1,1664 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>4.2 磁介质的磁化 · 电磁场可视化平台</title>
+<style>
+
+:root{--teal:#156082;--teal-dark:#0E4A66;--teal-light:#E3EFF4;--orange:#E97132;--orange-light:#FDF0E7;--green:#3E9B4F;--green-light:#EAF5EC;--purple:#9B59B6;--crimson:#D04A3A;--blue:#0F9ED5;--ink:#1F3D4C;--muted:#5F7482;--line:#DCE6EB;--bg:#F2F6F8;--panel-w:398px;}
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{height:100%;}
+body{font-family:"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--ink);overflow:hidden;}
+header{height:76px;background:#fff;border-bottom:1px solid var(--line);display:flex;align-items:center;padding:0 22px;gap:14px;}
+.logo{width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,var(--teal),#2E86AB);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:15px;text-decoration:none;}
+header h1{font-size:18px;font-weight:700;letter-spacing:.5px;}
+header .sub{font-size:12px;color:var(--muted);margin-top:2px;}
+header .badge{margin-left:auto;display:flex;flex-direction:column;align-items:flex-end;gap:4px;}
+header .badge .chip{font-size:12px;color:var(--teal);background:var(--teal-light);border:1px solid #C5DEE9;padding:4px 12px;border-radius:20px;white-space:nowrap;}
+header .badge .owner{font-size:11px;color:#5C6B73;background:#F4F7F9;border:1px solid #E2E8EC;padding:3px 10px;border-radius:20px;white-space:nowrap;display:inline-flex;align-items:center;gap:5px;}
+header .badge .owner b{color:var(--teal);font-weight:600;letter-spacing:.3px;}
+header .badge .owner::before{content:"";display:inline-block;width:5px;height:5px;background:var(--teal);border-radius:50%;}
+.layout{display:flex;height:calc(100vh - 76px);}
+aside{width:236px;background:#fff;border-right:1px solid var(--line);overflow-y:auto;padding:14px 0;flex-shrink:0;}
+aside::-webkit-scrollbar{width:6px;} aside::-webkit-scrollbar-thumb{background:#D5E0E6;border-radius:3px;}
+.nav-ch{font-size:12px;color:var(--muted);padding:12px 18px 6px;font-weight:600;letter-spacing:.5px;}
+.nav-item{display:flex;align-items:center;gap:8px;padding:9px 18px;font-size:13.5px;cursor:pointer;color:#3D5A68;border-left:3px solid transparent;transition:background .15s;text-decoration:none;}
+.nav-item:hover{background:#F5F9FB;}
+.nav-item.active{background:var(--teal-light);color:var(--teal-dark);font-weight:600;border-left-color:var(--teal);}
+.nav-item .dot{width:6px;height:6px;border-radius:50%;background:#C6D4DB;flex-shrink:0;}
+.nav-item.active .dot{background:var(--teal);}
+.nav-item.soon{color:#A5B6C0;cursor:not-allowed;}
+.nav-item.soon .dot{background:#E1E9ED;}
+.nav-item.soon::after{content:"建设中";font-size:10px;color:#B7C6CE;margin-left:auto;border:1px solid #DCE6EB;border-radius:8px;padding:1px 6px;}
+main{flex:1;display:flex;flex-direction:column;padding:14px 16px 12px;overflow:hidden;min-width:0;}
+.module-head{display:flex;align-items:center;gap:16px;margin-bottom:10px;flex-wrap:wrap;}
+.module-title{font-size:17px;font-weight:700;}
+.module-title small{font-weight:400;color:var(--muted);font-size:12px;margin-left:8px;}
+.seg{display:flex;background:#fff;border:1px solid var(--line);border-radius:10px;padding:3px;gap:2px;flex-wrap:wrap;}
+.seg button{border:none;background:transparent;padding:7px 15px;font-size:13px;border-radius:8px;cursor:pointer;color:var(--muted);font-family:inherit;transition:all .15s;white-space:nowrap;}
+.seg button:hover{color:var(--teal);}
+.seg button.on{background:var(--teal);color:#fff;font-weight:600;box-shadow:0 2px 6px rgba(21,96,130,.3);}
+.content-row{flex:1;display:flex;gap:14px;min-height:0;}
+.canvas-card{flex:1;background:#fff;border:1px solid var(--line);border-radius:14px;position:relative;overflow:hidden;min-width:0;display:flex;flex-direction:column;box-shadow:0 1px 4px rgba(30,60,80,.05);}
+#cv{width:100%;flex:1;min-height:0;min-width:0;display:block;cursor:grab;touch-action:none;}
+#cv:active{cursor:grabbing;}
+.cv-toolbar{position:absolute;top:12px;right:12px;display:flex;gap:8px;z-index:5;}
+.cv-toolbar button{border:1px solid var(--line);background:rgba(255,255,255,.92);border-radius:8px;padding:5px 12px;font-size:12px;color:var(--muted);cursor:pointer;font-family:inherit;backdrop-filter:blur(4px);transition:all .15s;}
+.cv-toolbar button:hover{color:var(--teal);border-color:var(--teal);}
+.cv-toolbar button.on{background:var(--teal);color:#fff;border-color:var(--teal);}
+.cv-mode-tag{position:absolute;top:12px;left:12px;font-size:12px;color:var(--teal-dark);background:rgba(227,239,244,.92);border:1px solid #C9E0EA;border-radius:8px;padding:5px 12px;z-index:4;pointer-events:none;font-weight:600;max-width:56%;}
+aside,.panel{transition:width .22s ease,padding .22s ease,border-width .22s ease;}
+body.nav-off aside{width:0;padding-top:0;padding-bottom:0;border-right-width:0;overflow:hidden;}
+body.panel-off .panel{width:0;border-left-width:0;border-right-width:0;overflow:hidden;}
+.fold-handle{position:absolute;top:50%;transform:translateY(-50%);z-index:6;width:15px;height:58px;padding:0;line-height:1;border:1px solid var(--line);background:rgba(255,255,255,.94);color:#A3B7C2;font-size:11px;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px);transition:all .15s;}
+.fold-handle:hover{color:var(--teal);border-color:var(--teal);background:#fff;}
+#foldNav{left:0;border-left:none;border-radius:0 9px 9px 0;}
+#foldPanel{right:0;border-right:none;border-radius:9px 0 0 9px;}
+/* ★ 右侧面板的**自由宽度**（不只是"收起 / 展开"两态）：面板左缘贴一条拖动抓取条。
+   ⚠️ 拖动时必须把 .panel 的 `transition:width` 关掉（body.resizing），
+      否则宽度会有 0.22s 的追赶延迟，鼠标跑得越快面板越"跟不上"。 */
+.panel-resizer{flex:0 0 11px;width:11px;margin:0 -5px;align-self:stretch;cursor:col-resize;position:relative;z-index:7;}
+.panel-resizer::before{content:"";position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:3px;height:46px;border-radius:2px;background:#DCE6EB;transition:background .15s,height .15s;}
+.panel-resizer:hover::before,.panel-resizer.dragging::before{background:var(--teal);height:72px;}
+body.resizing,body.resizing .panel,body.resizing aside{transition:none!important;}
+body.resizing{user-select:none;cursor:col-resize;}
+body.panel-off .panel-resizer{display:none;}
+.view-toggles{display:flex;gap:6px;margin-right:6px;}
+.view-toggles button{border:1px solid var(--line);background:#fff;border-radius:8px;padding:5px 11px;font-size:12px;color:var(--muted);cursor:pointer;font-family:inherit;transition:all .15s;}
+.view-toggles button:hover{border-color:var(--teal);color:var(--teal);}
+.view-toggles button.on{background:var(--teal);color:#fff;border-color:var(--teal);}
+.cv-pan-tag{position:absolute;top:12px;left:50%;transform:translateX(-50%);z-index:6;font-size:11.5px;color:#8A5A20;background:rgba(255,248,236,.95);border:1px solid #E7C48F;border-radius:8px;padding:5px 12px;display:none;align-items:center;gap:8px;}
+.cv-pan-tag.show{display:flex;}
+.cv-pan-tag button{border:1px solid #E0BE8C;background:#fff;border-radius:6px;padding:2px 9px;font-size:11.5px;color:#8A5A20;cursor:pointer;font-family:inherit;}
+.cv-pan-tag button:hover{background:#8A5A20;color:#fff;border-color:#8A5A20;}
+.cv-legend{position:absolute;bottom:14px;right:14px;z-index:5;background:rgba(255,255,255,.94);border:1px solid var(--line);border-radius:9px;padding:7px 11px 8px;font-size:11px;color:var(--muted);backdrop-filter:blur(4px);pointer-events:none;min-width:130px;}
+.cv-legend .lg-t{font-size:11px;color:var(--ink);font-weight:600;margin-bottom:5px;}
+.cv-legend .lg-note{font-size:10.5px;color:var(--muted);line-height:1.55;margin-top:4px;}
+.coord-strip{display:flex;gap:8px;padding:10px 12px;border-top:1px solid var(--line);background:#FBFDFE;flex-wrap:nowrap;overflow-x:auto;overflow-y:hidden;}
+.coord-strip::-webkit-scrollbar{height:5px;}
+.coord-strip::-webkit-scrollbar-thumb{background:#D5E0E6;border-radius:3px;}
+.coord-strip:empty{padding:0;border-top:none;}
+.coord-chip{font-size:12px;color:var(--muted);background:#F3F8FA;border:1px solid #E2ECF1;border-radius:8px;padding:5px 12px;white-space:nowrap;}
+.coord-chip b{color:var(--teal-dark);font-weight:600;margin-left:5px;font-family:Menlo,monospace;}
+.coord-chip i{font-style:italic;font-family:Georgia,serif;color:var(--ink);}
+.coord-chip.acc{background:#F5F0FA;border-color:#E2D4F0;}
+.coord-chip.acc b{color:#6B4E8A;}
+.coord-chip.warn{background:#FFF6EC;border-color:#F3DCC0;}
+.coord-chip.warn b{color:#B26A1E;}
+/* ⚠️ 面板宽度走 CSS 变量 --panel-w（而不是写死 398px）：拖动抓取条时只改变量，
+   body.panel-off 的 width:0 仍然靠更高优先级生效，两者不打架。 */
+.panel{width:var(--panel-w,398px);flex-shrink:0;background:#fff;border:1px solid var(--line);border-radius:14px;display:flex;flex-direction:column;overflow-y:auto;box-shadow:0 1px 4px rgba(30,60,80,.05);}
+.panel::-webkit-scrollbar{width:6px;} .panel::-webkit-scrollbar-thumb{background:#D5E0E6;border-radius:3px;}
+.panel-sec{padding:14px 16px;border-bottom:1px solid #EEF3F6;}
+.panel-sec:last-child{border-bottom:none;}
+.readout-toggle{display:flex;align-items:center;gap:8px;padding:8px 10px;margin-bottom:12px;background:#F3F8FA;border:1px solid #E2ECF1;border-radius:8px;cursor:pointer;font-size:12.5px;line-height:1.5;color:var(--muted);}
+.readout-toggle:hover{border-color:#C6DAE3;background:#EDF4F7;}
+.readout-toggle input{accent-color:var(--teal);cursor:pointer;margin:0;}
+.readout-toggle b{color:var(--ink);}
+.sec-title{font-size:12px;color:var(--muted);font-weight:600;letter-spacing:1px;margin-bottom:10px;display:flex;align-items:center;gap:6px;}
+.sec-title::before{content:"";width:3px;height:12px;background:var(--teal);border-radius:2px;}
+.sub-chips{display:flex;gap:6px;flex-wrap:wrap;}
+.chip{border:1px solid var(--line);background:#fff;border-radius:16px;padding:4px 13px;font-size:12.5px;line-height:1.5;cursor:pointer;font-family:inherit;color:var(--muted);transition:all .15s;}
+.chip:hover{border-color:var(--teal);color:var(--teal);}
+.chip.on{background:var(--teal);border-color:var(--teal);color:#fff;font-weight:600;}
+.chip.pre{border-style:dashed;border-color:#C9D6DD;color:#7A8F9B;}
+.chip.pre:hover{border-color:var(--orange);color:var(--orange);background:#FFF8F2;}
+.chip.g.on{background:var(--green);border-color:var(--green);}
+.chip.o.on{background:var(--orange);border-color:var(--orange);}
+.chip.p.on{background:var(--purple);border-color:var(--purple);}
+.slider-row{display:flex;align-items:center;gap:10px;margin-bottom:9px;}
+.slider-row label{width:46px;font-size:13px;font-style:italic;font-family:Georgia,serif;color:var(--ink);text-align:right;flex-shrink:0;}
+.slider-row.w label{width:62px;font-style:normal;font-family:inherit;}
+.slider-row input[type=range]{flex:1;accent-color:var(--teal);height:4px;cursor:pointer;}
+.slider-row .val{width:62px;font-size:12px;color:var(--muted);font-family:Menlo,monospace;flex-shrink:0;}
+.ex-title{font-size:14.5px;font-weight:700;color:var(--teal-dark);margin-bottom:8px;line-height:1.45;}
+.ex-body{font-size:14px;line-height:1.7;color:#3A5462;}
+.ex-body b{color:var(--ink);}
+.ex-body ul{padding-left:18px;margin:6px 0;}
+.ex-body li{margin-bottom:3px;}
+.ex-note{font-size:12.5px;line-height:1.65;color:#6B8290;background:#F7FAFB;border:1px solid #E7EFF3;border-radius:8px;padding:8px 11px;margin-top:9px;}
+.frm{display:block;background:#F4F9FB;border:1px solid #DDE9EF;border-left:3px solid var(--teal);border-radius:8px;padding:10px 14px 10px 18px;margin:10px 0;font-size:14px;line-height:1.7;font-family:Georgia,"Times New Roman",serif;color:var(--ink);overflow-x:auto;white-space:nowrap;}
+.vec{position:relative;font-style:italic;font-weight:700;white-space:nowrap;}
+.vec::before,.vec::after{content:'';position:absolute;pointer-events:none;}
+.vec::before{left:0;right:.24em;top:-.28em;height:1px;background:currentColor;opacity:.9;}
+.vec::after{right:0;top:-.42em;width:0;height:0;border-left:.26em solid currentColor;border-top:.14em solid transparent;border-bottom:.14em solid transparent;}
+sub{font-size:.72em;vertical-align:-.24em;}
+.vec sub{font-style:normal;font-weight:600;}
+.sqrt{display:inline-block;position:relative;padding-left:.62em;margin-left:.05em;font-style:normal;}
+.sqrt::before{content:"√";position:absolute;left:.02em;top:-.12em;font-size:1.1em;font-family:"Cambria Math","STIX Two Math","Latin Modern Math","Times New Roman",Georgia,serif;}
+.sqrt .in{display:inline-block;border-top:1.15px solid currentColor;padding:.10em .06em .02em .06em;border-radius:4px 4px 0 0;line-height:1.1;}
+.card-tabs{display:flex;gap:6px;flex-wrap:wrap;margin:4px 0 10px;}
+.card-tab{cursor:pointer;font-family:inherit;font-size:12.5px;padding:5px 9px;border-radius:9px;border:1px solid var(--line);background:#fff;color:var(--muted);transition:all .15s;line-height:1.4;white-space:nowrap;flex:1;text-align:center;min-width:0;}
+.card-tab:hover{border-color:var(--teal);color:var(--teal);}
+.card-tab.c1.on{background:#156082;border-color:#156082;color:#fff;font-weight:600;}
+.card-tab.c2.on{background:#0F9ED5;border-color:#0F9ED5;color:#fff;font-weight:600;}
+.card-tab.c3.on{background:#E97132;border-color:#E97132;color:#fff;font-weight:600;}
+.card-tab.c4.on{background:#9B59B6;border-color:#9B59B6;color:#fff;font-weight:600;}
+.card-body{background:#FCFEFE;border:1px solid #E2ECF1;border-radius:8px;padding:12px 16px 8px;border-left:4px solid var(--teal);}
+.card-body.c1{border-left-color:#156082;} .card-body.c2{border-left-color:#0F9ED5;}
+.card-body.c3{border-left-color:#E97132;} .card-body.c4{border-left-color:#9B59B6;}
+#toast{position:fixed;bottom:26px;left:50%;transform:translateX(-50%);background:rgba(31,61,76,.94);color:#fff;font-size:13px;padding:9px 20px;border-radius:22px;opacity:0;pointer-events:none;transition:opacity .25s;z-index:99;}
+#toast.show{opacity:1;}
+
+/* 2.1 追加：滑块分组标签（1.3 有定义、1.5 漏了，这里补齐） */
+.slider-group-label{font-size:12px;font-weight:600;color:var(--crimson);margin:4px 0 8px;}
+.slider-group-label.q{color:var(--blue);}
+.slider-group-label.g{color:var(--green);}
+.slider-group-label.o{color:var(--orange);}
+</style>
+</head>
+<body>
+<header>
+  <a class="logo" href="index.html" title="返回平台首页">E&M</a>
+  <div><h1>4.2 磁介质的磁化</h1><div class="sub">分子电流 · 取向排列 · 束缚电流 · 磁化磁场与总场</div></div>
+  <div class="view-toggles" id="viewToggles"><button id="tglNav" title="折叠 / 展开左侧目录（快捷键 [ ）">☰ 目录</button><button id="tglPanel" title="折叠 / 展开右侧控制面板（快捷键 ] ）">☰ 面板</button></div>
+  <div class="badge"><div class="chip">《工程电磁场》 ×《电磁场与电磁波》</div><div class="owner"><b>© 2026 Li Chenlu</b> All Rights Reserved</div></div>
+</header>
+<div class="layout">
+  <aside id="nav"></aside>
+  <main>
+    <div class="module-head">
+      <div class="module-title" id="moduleTitle">磁介质的磁化<small id="moduleSub">无数分子电流的取向与叠加</small></div>
+      <div class="seg" id="modeTabs"></div>
+    </div>
+    <div class="content-row">
+      <div class="canvas-card">
+        <canvas id="cv"></canvas>
+        <div class="cv-mode-tag" id="modeTag"></div>
+        <div class="cv-pan-tag" id="panTag"><span>画面已平移</span><button id="btnPanReset">回到原点</button></div>
+        <div class="cv-toolbar"><button id="btnViewReset">复位视角</button><button id="btnRotate">自动旋转</button></div>
+        <div class="cv-legend" id="legend"><div class="lg-t" id="lgTitle">一个分子电流</div><div class="lg-note" id="lgNote"></div></div>
+        <button class="fold-handle" id="foldNav" title="折叠 / 展开左侧目录">‹</button>
+        <button class="fold-handle" id="foldPanel" title="折叠 / 展开右侧面板">›</button>
+        <div class="coord-strip" id="coordStrip"></div>
+      </div>
+      <div class="panel-resizer" id="panelResizer" title="拖动调整面板宽度（双击复位为 398px）"></div>
+      <div class="panel" id="panel"></div>
+    </div>
+  </main>
+</div>
+<div id="toast"></div>
+<script>
+'use strict';
+
+/* ============================== 向量工具（与 2.1 / 2.2 同源） ============================== */
+const pt=(x,y,z)=>({x,y,z});
+const vadd=(a,b)=>({x:a.x+b.x,y:a.y+b.y,z:a.z+b.z});
+const vsub=(a,b)=>({x:a.x-b.x,y:a.y-b.y,z:a.z-b.z});
+const vmul=(a,s)=>({x:a.x*s,y:a.y*s,z:a.z*s});
+const vdot=(a,b)=>a.x*b.x+a.y*b.y+a.z*b.z;
+const vlen=a=>Math.hypot(a.x,a.y,a.z);
+const vnorm=a=>{const l=vlen(a)||1;return vmul(a,1/l);};
+const vcross=(a,b)=>({x:a.y*b.z-a.z*b.y, y:a.z*b.x-a.x*b.z, z:a.x*b.y-a.y*b.x});
+const D2R=Math.PI/180, R2D=180/Math.PI;
+const clamp1=v=>Math.max(-1,Math.min(1,v));
+const sstep=x=>{x=Math.max(0,Math.min(1,x));return x*x*(3-2*x);};
+
+/* ============================== 富文本引擎（同源，勿改语义） ============================== */
+function parseRich(s){
+  const items=[], groups=[]; const st={g:-1};
+  (function walk(str){
+    let buf='';
+    const flush=()=>{ if(buf){ items.push({t:'n',s:buf,g:st.g}); buf=''; } };
+    for(let i=0;i<str.length;){
+      const c=str[i];
+      if(c==='@' && str[i+1]==='{'){
+        const j=str.indexOf('}', i+2);
+        if(j<0){ buf+=c; i++; continue; }
+        flush();
+        const save=st.g; st.g=groups.length; groups.push(1);
+        walk(str.slice(i+2,j)); st.g=save; i=j+1; continue;
+      }
+      if(c==='_'){
+        flush();
+        if(str[i+1]==='{'){ const j=str.indexOf('}',i+2);
+          if(j>=0){ items.push({t:'s',s:str.slice(i+2,j),g:st.g}); i=j+1; continue; } }
+        items.push({t:'s',s:str[i+1]||'',g:st.g}); i+=2; continue;
+      }
+      if(c==='<'){ const j=str.indexOf('>',i);
+        if(j>=0){ buf+=str.slice(i,j+1); i=j+1; continue; } }
+      buf+=c; i++;
+    }
+    flush();
+  })(String(s));
+  return {items, groups};
+}
+const RICHFONT='"PingFang SC","Microsoft YaHei",sans-serif';
+const RICHFONT_M='Georgia,"Times New Roman",serif';
+function richLayout(ctx,rich,size,bold){const subSize=size*0.74;const wM=bold?'700 ':'';const fN=wM+size+'px '+RICHFONT;const fNs=wM+subSize+'px '+RICHFONT;const fV='italic '+wM+size+'px '+RICHFONT_M;const fVs=wM+subSize+'px '+RICHFONT_M;const groups=rich.groups.map(()=>({x0:1e9,x1:-1e9,locked:false,top:1e9}));const out=[];let x=0;const oldBL=ctx.textBaseline;ctx.textBaseline='middle';rich.items.forEach(it=>{const sub=it.t==='s',vec=it.g>=0;const font=sub?(vec?fVs:fNs):(vec?fV:fN);ctx.font=font;const m=ctx.measureText(it.s),w=m.width;const dy=sub?size*0.20:0;const asc=(m.actualBoundingBoxAscent!=null)?m.actualBoundingBoxAscent:size*0.38;if(vec){const g=groups[it.g];if(!g.locked){if(sub)g.locked=true;else{if(x<g.x0)g.x0=x;g.x1=x+w;}}const top=dy-asc;if(top<g.top)g.top=top;}out.push({s:it.s,sub,x,w,font,dy});x+=w;});ctx.textBaseline=oldBL;return{items:out,groups,w:x,size,subSize};}
+function richDraw(ctx,lo,cx,cy,align,color,fat){let ox=align==='center'?cx-lo.w/2:align==='right'?cx-lo.w:cx;const dy=it=>cy+it.dy;const ay=g=>cy+g.top-Math.max(2.2,lo.size*0.13);const span=g=>[ox+g.x0-0.6,ox+g.x1+0.6];ctx.save();ctx.textAlign='left';ctx.textBaseline='middle';ctx.lineJoin='round';ctx.lineCap='butt';ctx.lineWidth=3.4;ctx.strokeStyle='rgba(255,255,255,.92)';lo.items.forEach(it=>{ctx.font=it.font;ctx.strokeText(it.s,ox+it.x,dy(it));});lo.groups.forEach(g=>{if(g.x1<=g.x0)return;const y=ay(g),s=span(g);ctx.beginPath();ctx.moveTo(s[0],y);ctx.lineTo(s[1],y);ctx.stroke();});lo.groups.forEach(g=>{if(g.x1<=g.x0)return;const y=ay(g),s=span(g),ax=s[0],bx=s[1];ctx.strokeStyle=color;ctx.lineWidth=1.15;ctx.beginPath();ctx.moveTo(ax,y);ctx.lineTo(bx-1.2,y);ctx.stroke();const h=Math.min(3.6,Math.max(2.6,(bx-ax)*0.40));ctx.beginPath();ctx.moveTo(bx,y);ctx.lineTo(bx-h,y-h*0.52);ctx.lineTo(bx-h,y+h*0.52);ctx.closePath();ctx.fillStyle=color;ctx.fill();});lo.items.forEach(it=>{ctx.font=it.font;if(fat>0){ctx.strokeStyle=color;ctx.lineWidth=fat;ctx.strokeText(it.s,ox+it.x,dy(it));}ctx.fillStyle=color;ctx.fillText(it.s,ox+it.x,dy(it));});ctx.restore();}
+function richHTML(s){const r=parseRich(s);let h='',gi=-1;r.items.forEach(it=>{const body=it.t==='s'?'<sub>'+it.s+'</sub>':it.s;if(it.g!==gi){if(gi>=0)h+='</span>';if(it.g>=0)h+='<span class="vec">';gi=it.g;}h+=body;});if(gi>=0)h+='</span>';return wrapSqrt(h);}
+function wrapSqrt(html){const out=[];let i=0;while(i<html.length){const k=html.indexOf('√(',i);if(k<0){out.push(html.slice(i));break;}out.push(html.slice(i,k));out.push('<span class="sqrt"><span class="in">');let j=k+2,depth=1;while(j<html.length&&depth>0){const c=html[j];if(c==='(')depth++;else if(c===')'){depth--;if(depth===0)break;}j++;}if(depth!==0){out.push(html.slice(k));return out.join('');}out.push(html.slice(k+2,j));out.push('</span></span>');i=j+1;}return out.join('');}
+
+/* ============================== 颜色 / 相机 / 图元 ============================== */
+const C = {teal:'#156082',orange:'#E97132',green:'#3E9B4F',purple:'#9B59B6',crimson:'#D04A3A',blue:'#0F9ED5',gray:'#8CA0AC',light:'#C9D6DD',ink:'#22414F',grid:'#EAF0F4',muted:'#7A8F9B'};
+
+let canvas,ctx,W=800,H=600,DPR=1;
+const cam={az:0.62,el:0.40,zoom:1,px:0,py:0};
+let camU,camV,camD,camScale,CX2,CY;
+/* ══════════ 右上角信息卡的几何 + "HUD 安全区" ══════════
+   ⚠️ 根因：信息卡（叠加在画布上）固定贴右上，而场景原来是**按整个画布**居中的
+      ⇒ 画布越窄，两边的"中心"越靠拢，卡片左缘就会压到介质盒上。
+      实测（camScale=202.5、②③ 场景屏幕半宽 ≈164px、卡片宽 252 + 边距）：
+         场景右缘 = W/2 + 164，卡片左缘 = W − 268 ⇒ **W < 864 就开始重叠**。
+      用户反馈的正是这个（窄窗口下卡片盖住了右边的介质盒）。
+   ⇒ 两条规则（都不改 camScale，只在必要时才缩，避免"为了不遮挡把图缩小"）：
+      ① 只要够宽就把场景居中不动（W ≥ 864 时行为与旧版**完全一致**）；
+      ② 不够宽就把场景整体左移到卡片左边；实在放不下（cx 被压到可用区的 30% 以左）
+         才整体缩小，保证既不遮挡、也不裁切。 */
+const CARD_W=252, CARD_X=()=>W-CARD_W-16, CARD_Y=62;
+const CARD_RESERVE=CARD_W+26;      /* 右侧留给"卡片 + 工具条 + 图例"的整条带 */
+const HALF_SCENE=0.98;             /* 4.2：③ 场线区 |u|≤1.06 / |z|≤1.10、轴 ±1.0 ⇒ 水平半宽 ~0.97 */
+function setupCamera(){
+  const ca=Math.cos(cam.az),sa=Math.sin(cam.az),ce=Math.cos(cam.el),se=Math.sin(cam.el);
+  camD={x:ce*ca,y:ce*sa,z:se};camU={x:-sa,y:ca,z:0};camV={x:-ca*se,y:-sa*se,z:ce};
+  let cs=Math.min(W,H)/3.0*cam.zoom;
+  const usable=Math.max(240,W-CARD_RESERVE);
+  let half=HALF_SCENE*cs;
+  /* ① 可用区里根本摆不下整幅场景 ⇒ 先整体缩小（宁可小一点，也不要既被裁又被盖）。 */
+  if(2*half > usable-16){ cs=Math.min(cs,(usable-16)/(2*HALF_SCENE)); half=HALF_SCENE*cs; }
+  /* ② 尽量居中；会压到卡片时左移。 */
+  let cx=Math.min(W/2, W-CARD_RESERVE-10-half);
+  /* ③ 左移过头撞到左边界 ⇒ 再移回来（这一步只会在"卡片+场景真放不下"的极端宽度下触发，
+       此时宁可让卡片压到一点，也不要裁掉场景左半边）。 */
+  if(cx-half<6) cx=6+half;
+  camScale=cs; CX2=Math.max(8,cx); CY=H*0.55;
+}
+function pr(p){return{x:CX2+cam.px+camScale*vdot(p,camU),y:CY+cam.py-camScale*vdot(p,camV),d:vdot(p,camD)};}
+
+let prims=[];
+function P_(z,fn){prims.push({z,draw:fn});}
+/* ⚠️ 各图元的 o.z：可选覆盖画家算法的深度。半透明的介质盒 / 球壳会横跨一大段深度，
+   凡是"必须始终看得清"的标注都要显式抬到它们之上，否则会被洗掉。
+   ⚠️ 凡是 pr() 返回的点都带真实 .d；裸 pt(x,y,z) 的 .d 是 undefined ⇒ 会让排序静默失效。 */
+function line(a,b,o={}){const A=pr(a),B=pr(b);P_(o.z!=null?o.z:(A.d+B.d)/2,()=>{ctx.save();ctx.globalAlpha=o.alpha!=null?o.alpha:1;ctx.strokeStyle=o.color||C.gray;ctx.lineWidth=o.w||1.4;if(o.dash)ctx.setLineDash(o.dash);ctx.beginPath();ctx.moveTo(A.x,A.y);ctx.lineTo(B.x,B.y);ctx.stroke();ctx.restore();});}
+function arrowSeg(A,B,color,w,headScale){const dx=B.x-A.x,dy=B.y-A.y,L=Math.hypot(dx,dy);if(L<0.5)return;const ux=dx/L,uy=dy/L,hs=(headScale||1)*9;ctx.strokeStyle=color;ctx.lineWidth=w;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(A.x,A.y);ctx.lineTo(B.x-ux*hs*.55,B.y-uy*hs*.55);ctx.stroke();const ang=Math.atan2(dy,dx);ctx.beginPath();ctx.moveTo(B.x,B.y);ctx.lineTo(B.x-hs*Math.cos(ang-.42),B.y-hs*Math.sin(ang-.42));ctx.lineTo(B.x-hs*Math.cos(ang+.42),B.y-hs*Math.sin(ang+.42));ctx.closePath();ctx.fillStyle=color;ctx.fill();}
+function arrow(a,b,o={}){const A=pr(a),B=pr(b);P_(o.z!=null?o.z:(A.d+B.d)/2,()=>{ctx.save();ctx.globalAlpha=o.alpha!=null?o.alpha:1;if(o.dash)ctx.setLineDash(o.dash);arrowSeg(A,B,o.color||C.teal,o.w||2,o.headScale);ctx.restore();});if(o.label)text(vmul(vadd(a,b),.5),o.label,{color:o.color||C.teal,dx:o.ldx||0,dy:o.ldy!==undefined?o.ldy:-10,size:o.lsize||12.5,bold:true,align:o.lalign,alpha:o.alpha});}
+function curve(ptsArr,o={}){if(ptsArr.length<2)return;const S=ptsArr.map(pr);P_(o.z!=null?o.z:S.reduce((s,p)=>s+p.d,0)/S.length,()=>{ctx.save();ctx.globalAlpha=o.alpha!=null?o.alpha:1;ctx.strokeStyle=o.color||C.gray;ctx.lineWidth=o.w||1.8;ctx.lineCap='round';ctx.lineJoin='round';if(o.dash)ctx.setLineDash(o.dash);ctx.beginPath();ctx.moveTo(S[0].x,S[0].y);for(let i=1;i<S.length;i++)ctx.lineTo(S[i].x,S[i].y);ctx.stroke();if(o.arrowEnd){const a=S[S.length-2],b=S[S.length-1];ctx.setLineDash([]);arrowSeg(a,b,o.color||C.gray,o.w||1.8,.75);}ctx.restore();});}
+function poly(ptsArr,o={}){if(ptsArr.length<3)return;const S=ptsArr.map(pr);P_(o.z!=null?o.z:S.reduce((s,p)=>s+p.d,0)/S.length,()=>{ctx.save();ctx.beginPath();ctx.moveTo(S[0].x,S[0].y);for(let i=1;i<S.length;i++)ctx.lineTo(S[i].x,S[i].y);ctx.closePath();if(o.fill){ctx.globalAlpha=o.fillAlpha!=null?o.fillAlpha:.15;ctx.fillStyle=o.fill;ctx.fill();}if(o.stroke!==false){ctx.globalAlpha=o.strokeAlpha!=null?o.strokeAlpha:(o.fillAlpha!=null?o.fillAlpha:1);ctx.strokeStyle=o.stroke||o.fill||C.gray;ctx.lineWidth=o.w||1;if(o.dash)ctx.setLineDash(o.dash);ctx.stroke();}ctx.restore();});}
+function marker(p,o={}){
+  const S=pr(p);
+  P_(o.z!=null?o.z:S.d+0.02, ()=>{ ctx.save();
+    ctx.globalAlpha=o.alpha!=null?o.alpha:1;
+    ctx.beginPath(); ctx.arc(S.x,S.y,o.r||5,0,7);
+    ctx.fillStyle=o.color||C.orange; ctx.fill();
+    ctx.lineWidth=2; ctx.strokeStyle='#fff'; ctx.stroke();
+    if(o.ring){ ctx.beginPath(); ctx.arc(S.x,S.y,(o.r||5)+4,0,7);
+      ctx.strokeStyle=o.ring; ctx.lineWidth=2.2; ctx.stroke(); }
+    ctx.restore(); });
+  if(o.label) text(p, o.label, {color:o.color||C.orange,
+    dx:o.ldx!=null?o.ldx:10, dy:o.ldy!=null?o.ldy:-10, size:o.lsize||13, bold:true, align:o.lalign, alpha:o.alpha});
+}
+function text(p,str,o={}){const S=pr(p);P_(1e6,()=>{ctx.save();if(o.alpha!=null)ctx.globalAlpha*=o.alpha;const size=o.size||12.5,bold=!!o.bold;const lo=richLayout(ctx,parseRich(str),size,bold);richDraw(ctx,lo,S.x+(o.dx||0),S.y+(o.dy||0),o.align||'left',o.color||C.ink,o.fat||0);ctx.restore();});}
+function textScreen(x,y,str,o={}){P_(1e6+1,()=>{ctx.save();if(o.alpha!=null)ctx.globalAlpha*=o.alpha;const lo=richLayout(ctx,parseRich(str),o.size||12,!!o.bold);richDraw(ctx,lo,x,y,o.align||'left',o.color||C.ink);ctx.restore();});}
+function dimLine(a,b,o={}){
+  line(a,b,o);
+  const A=pr(a),B=pr(b);
+  const dx=B.x-A.x,dy=B.y-A.y,L=Math.hypot(dx,dy);
+  if(L<1)return;
+  const px=-dy/L,py=dx/L,t=o.tick||6;
+  const tk=P=>{P_(o.z!=null?o.z:(A.d+B.d)/2,()=>{ctx.save();if(o.alpha!=null)ctx.globalAlpha*=o.alpha;ctx.strokeStyle=o.color||C.gray;ctx.lineWidth=o.w||1.4;ctx.setLineDash([]);ctx.beginPath();ctx.moveTo(P.x+px*t,P.y+py*t);ctx.lineTo(P.x-px*t,P.y-py*t);ctx.stroke();ctx.restore();});};
+  tk(A);tk(B);
+  if(o.label)text(vmul(vadd(a,b),.5),o.label,{color:o.color||C.gray,dx:o.ldx||0,dy:o.ldy!==undefined?o.ldy:-10,size:o.lsize||12.5,bold:true,align:o.lalign,alpha:o.alpha});
+}
+function screenDot(p,rad,fill,alpha,z){const S=pr(p);P_(z!=null?z:S.d+0.02,()=>{ctx.save();ctx.globalAlpha=alpha!=null?alpha:1;ctx.beginPath();ctx.arc(S.x,S.y,rad,0,7);ctx.fillStyle=fill;ctx.fill();ctx.restore();});}
+function hexA(hex,a){const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);return 'rgba('+r+','+g+','+b+','+a+')';}
+
+/* ══════════════════════════ 坐标轴（同源） ══════════════════════════ */
+function drawAxes(ext){
+  if(!state.show.box) return;
+  const g=ext*0.86;
+  for(let v=-g;v<=g+1e-9;v+=ext*0.30){line(pt(v,-g,-ext*0.86),pt(v,g,-ext*0.86),{color:C.grid,w:1});line(pt(-g,v,-ext*0.86),pt(g,v,-ext*0.86),{color:C.grid,w:1});}
+  line(pt(0,0,0),pt(-ext,0,0),{color:'#B9C9D2',dash:[5,4],w:1.2});
+  line(pt(0,0,0),pt(0,-ext,0),{color:'#B9C9D2',dash:[5,4],w:1.2});
+  line(pt(0,0,0),pt(0,0,-ext),{color:'#B9C9D2',dash:[5,4],w:1.2});
+  arrow(pt(0,0,0),pt(ext,0,0),{color:C.teal,w:2});
+  arrow(pt(0,0,0),pt(0,ext,0),{color:C.orange,w:2});
+  arrow(pt(0,0,0),pt(0,0,ext),{color:C.green,w:2.2});
+  text(pt(ext*1.05,0,0),'x',{color:C.teal,bold:true,size:13,dy:-4});
+  text(pt(0,ext*1.05,0),'y',{color:C.orange,bold:true,size:13,dy:-4});
+  text(pt(0,0,ext*1.05),'z',{color:C.green,bold:true,size:13,dx:-4});
+}
+
+/* ============================================================================
+   4.2 磁介质的磁化 —— 物理模型与几何（引擎段与 2.1~2.4、3.1 同源）
+   ----------------------------------------------------------------------------
+   ★★ 本页的教学主线（三个页签，逐句对应用户给的定义）：
+       ① 分子电流：磁介质由无数多的分子电流（小环流）组成，
+          每个小环有磁矩 @{m} = i·S，方向按右手定则
+       ② 无外场  ：分子电流杂乱无章排列 ⇒ 宏观磁化强度 M = 0，
+          外表面没有宏观环流 ⇒ 不显磁性
+       ③ 加外场  ：分子电流取向排列 ⇒ 内部相邻环流互相抵消、
+          外表面合成一圈宏观环形电流（束缚电流 @{K}_b = M×n̂）⇒
+          产生磁化磁场 @{B}′；空间总场 @{B} = @{B}₀ + @{B}′
+
+   ★★ 定量链条（自检 chk42 对整条链做恒等式断言）：
+       m = i·πr²            （分子磁矩，A·m²）
+       M = n·m·s            （磁化强度，A/m；n = 10²⁸/m³，s = 取向度）
+       K_b = M              （圆柱侧面束缚电流面密度，A/m；K_b = M×n̂，n̂=ρ̂ ⇒ φ̂ 向）
+       B′ = µ₀·M            （磁化磁场；侧面电流即一个螺线管 ⇒ 内部沿 +z）
+       B  = B₀ + B′         （总场；µ_r = B/B₀）
+     画面读数全部由这条链算出，任意两个量都能互相验算。
+
+   ★ 单位制：m 用 10⁻²⁴ A·m²（≈ 玻尔磁子量级）、M 用 kA/m、B 用 mT ——
+     默认参数下 M ≈ 20 kA/m、B′ ≈ 25 mT，与 B₀ 同量级，叠加效果看得见。
+   ⚠️ 这是"强磁性材料"的示意参数：真实顺磁质的取向度只有 ~10⁻⁵（朗之万函数），
+     卡片里「真实取向度 L(a)」一行如实报告，画面取向度是示意放大（A_VIS）。
+     铁磁质的磁畴机制不在本页展开。
+   ============================================================================ */
+
+/* ============================== 几何尺度 ============================== */
+const A42  = 0.26;             /* 介质棒（圆柱）半径 m */
+const L42  = 0.62;             /* 棒长 m（轴沿 z，中心在原点） */
+const EXT_AX = 1.00;           /* 坐标轴长度（场线区到 ±1.1，轴略短不抢戏） */
+const RCD  = 0.05;             /* ②③ 分子电流环的**画成**半径（示意；真实是原子尺度） */
+const LOOP_Z = [-0.24,-0.12,0,0.12,0.24];   /* 5 层环（层距 0.12 > 2·RCD 的投影，不糊） */
+const BIG_R = 0.17;            /* ① 放大的那个分子环半径（示意） */
+/* ②③ 每层六方密排（环心距 = 2·RCD ⇒ 相邻环**相切**，接触点反向抵消才看得见） */
+const LOOP_SP = 0.10;
+
+/* ============================== 物理常数 ============================== */
+const MU0 = 4*Math.PI*1e-7;    /* H/m */
+const KB  = 1.380649e-23;      /* J/K */
+const N_DENS = 1e28;           /* 分子数密度 /m³（典型固体原子密度量级，示意） */
+const T_TEMP = 300;            /* K */
+const A_VIS = 1.8e4;            /* 取向度示意放大系数：s_vis = min(1, A_VIS·a_phys)。
+                                   ⚠️ 真实 a_phys = mB/kT 在默认参数下只有 ~3.8e-5（顺磁质）⇒
+                                  不放大 ~2e4 倍根本看不见；放大后默认 s_vis ≈ 0.68、
+                                  M ≈ 21 kA/m、B′ ≈ 27 mT，与 B₀ 同量级（"强磁性材料"示意）。
+                                  卡片里「真实取向度 L(a)」一行按**未放大的真实值**如实报告。 */
+const FIELD_N = 240;           /* 圆柱面电流的环堆叠数（实测 240 已收敛，见 field-check.js） */
+
+/* ============================== 确定性伪随机 ============================== */
+function mkRng(seed){
+  let s=(seed>>>0)||1;
+  return ()=>{ s=(s*1664525+1013904223)>>>0; return s/4294967296; };
+}
+
+/* ============================== 状态 ============================== */
+const state = {
+  mode:'molecular',            /* molecular | nofield | poling */
+  /* ①（③ 的 M 也由这两个量算出 ⇒ 跨页签联动，同 3.1 的 a/b） */
+  iC:1.0,                      /* 分子电流 µA */
+  rC:10,                       /* 分子环半径 Å */
+  flip:false,                  /* ① 翻转电流方向（看 @{m} 反向） */
+  /* ③ */
+  B0:50,                       /* 外场终值 mT */
+  t:1,                         /* ★ ③ 的"加场/取向进程" 0→1，可拖到任意时刻 */
+  g:1,                         /* 当前外场建立度 = animG(t) */
+  anim:null,                   /* 播放：null | {u:0→1, playing:bool} */
+  /* ② 的随机取向种子（「重新随机」按钮 +1；默认值固定 ⇒ 截图可复现） */
+  seed:20261022,
+  /* ⚠️⚠️ 这些键**必须与 page1.js 的 SHOW_ITEMS 逐字对齐**（三页签并集的每个键）：
+       loop/lat/fld = ① 的大环/陪衬小环/场线；mol/cur = ②③ 的分子点阵/表面束缚电流；
+       bp/bt/b0 = ③ 的磁化场线/总场线/外场线；inset = 表层放大插图；box = 坐标轴。 */
+  show:{ loop:true, lat:true, fld:true, mol:true, cur:true,
+         bp:true, bt:true, b0:true, inset:true, box:true },
+  showReadout:true,
+  autoRotate:false,
+  cardTab:'1',
+};
+const IC_RANGE=[0.2,3.0], RC_RANGE=[5,15], B0_RANGE=[5,100];
+const PRESET={
+  molecular:{iC:1.0, rC:10, flip:false},
+  nofield:  {},
+  poling:   {B0:50, t:1, g:1},
+};
+/* ★ 防御：把 state 里所有"滑块量"夹回各自量程（防"按钮把量设到量程外"的静默不一致） */
+function clampState(){
+  const cl=(v,lo,hi)=>Math.max(lo,Math.min(hi,v));
+  state.iC=cl(state.iC,IC_RANGE[0],IC_RANGE[1]);
+  state.rC=cl(state.rC,RC_RANGE[0],RC_RANGE[1]);
+  state.B0=cl(state.B0,B0_RANGE[0],B0_RANGE[1]);
+  state.t =cl(state.t ,0,1);
+  return state;
+}
+
+/* ============================== 分子层面 ============================== */
+function mMol(){ return state.iC*1e-6 * Math.PI*Math.pow(state.rC*1e-10,2); }   /* A·m² */
+function mMax(){ return N_DENS*mMol(); }                                       /* A/m */
+/* 朗之万函数 L(a) = coth(a) − 1/a（真实取向度 ⟨cosθ⟩）。
+   ⚠️ a→0 必须走级数：coth(a)−1/a 是 ∞−∞，直接算会掉进 1e-16 的浮点噪声（2.3 的教训）。 */
+function langevin(a){
+  const A=Math.abs(a);
+  if(A<1e-3) return a/3*(1-a*a/15);          /* L = a/3 − a³/45 + …（奇函数） */
+  return 1/Math.tanh(a)-1/a;
+}
+function aParam(BmT){ return mMol()*(BmT*1e-3)/(KB*T_TEMP); }   /* a = mB/kT（B 用 T） */
+function B0eff(){ return state.B0*state.g; }                     /* 当前外场 mT */
+function sVis(){ return Math.min(1, A_VIS*Math.max(0,aParam(B0eff()))); }  /* 示意取向度 */
+function sReal(){ return langevin(aParam(B0eff())); }            /* 真实取向度 */
+
+/* ============================== 宏观层面 ============================== */
+function Mval(){ return sVis()*mMax(); }        /* A/m */
+function KbVal(){ return Mval(); }              /* A/m（= M，圆柱侧面） */
+function BpMT(){ return MU0*Mval()*1e3; }       /* 磁化磁场 mT */
+function BtMT(){ return B0eff()+BpMT(); }       /* 总场 mT */
+function muR(){ return B0eff()>1e-6 ? BtMT()/B0eff() : NaN; }
+
+/* ============================== 分子点阵（②③ 共用同一套几何） ==============================
+   ★ ② 与 ③ 用的是**同一套圆心**，只有法矢不同 —— 这样从"无外场"切到"加外场"时
+     点阵、盒子、相机一个像素都不动，变化只发生在"分子怎么转"上（2.3 的同款设计）。 */
+function hexLayer(){
+  const out=[], R=A42-RCD, s=LOOP_SP;
+  out.push({x:0,y:0});
+  for(let k=0;k<6;k++){ const a=Math.PI/3*k;         /* 第一环 6 个 */
+    out.push({x:s*Math.cos(a), y:s*Math.sin(a)}); }
+  for(let k=0;k<6;k++){ const a=Math.PI/3*k;         /* 第二环：√3·s 的 6 个 */
+    const r=Math.sqrt(3)*s; out.push({x:r*Math.cos(a+Math.PI/6), y:r*Math.sin(a+Math.PI/6)}); }
+  for(let k=0;k<6;k++){ const a=Math.PI/3*k;         /* 第二环：2s 的 6 个 */
+    out.push({x:2*s*Math.cos(a), y:2*s*Math.sin(a)}); }
+  return out.filter(p=>Math.hypot(p.x,p.y)<=R+1e-9);  /* 19 个（2s=0.20 ≤ R=0.21） */
+}
+const LATTICE=(()=>{ const pts=[]; LOOP_Z.forEach(z=>hexLayer().forEach(p=>pts.push({x:p.x,y:p.y,z}))); return pts; })();
+/* 每个环的随机法矢（球面均匀分布；种子固定 ⇒ 截图可复现） */
+function randNorms(seed){
+  const rng=mkRng(seed);
+  return LATTICE.map(()=>{
+    const cz=rng()*2-1, ph=2*Math.PI*rng(), r=Math.sqrt(Math.max(0,1-cz*cz));
+    return pt(r*Math.cos(ph), r*Math.sin(ph), cz);
+  });
+}
+let _norms=null,_normsSeed=-1;
+function loopNorms(){
+  if(_normsSeed!==state.seed){ _norms=randNorms(state.seed); _normsSeed=state.seed; }
+  return _norms;
+}
+/* n → ẑ 的球面插值（③ 的"取向排列"） */
+function slerpZ(n,s){
+  if(s<=0) return n;
+  if(s>=1) return pt(0,0,1);
+  const c=Math.max(-1,Math.min(1,n.z)), th=Math.acos(c), st=Math.sin(th);
+  if(st<1e-9) return pt(0,0,1);
+  const k1=Math.sin((1-s)*th)/st, k2=Math.sin(s*th)/st;
+  return vnorm(pt(n.x*k1, n.y*k1, n.z*k1+k2));
+}
+function loopNormal(i,s){ return slerpZ(loopNorms()[i], s); }
+
+/* ============================================================================
+   磁场内核：有限长圆柱面电流（= 均匀磁化棒的束缚电流）的场
+   ----------------------------------------------------------------------------
+   ★★ 三个坑都在 tests/4.2-magnetization/field-check.js 里被数值实验钉死（25/25 通过）：
+     ① 单环场用椭圆积分闭式（K/E 走 AGM；断点门限必须高于机器 stall 水平 1e-16，
+        否则 E() 里 2^i 权重爆炸 —— 第一版 E(0.5) 算出 −4.6e27）。
+     ② 奇极项 B_ρ ~ δ/2π(Δ²+δ²)：中点采样非对称时留 O(1) 残差（实测错 294%）⇒ 镜像采样。
+     ③ 偶尖峰 B_z ~ −Δ/2π(Δ²+δ²)：洛伦兹型，镜像治不了 ⇒ **解析剥离**近场直线电流项
+        （cell 积分闭式），余下光滑残差再用镜像中点。
+     ④ 端线圈 (ρ=a, z=±L/2) 真场对数发散 ⇒ 建表网格必须绕开（见 buildTable）。
+   精度：vs 直接 2D Biot-Savart 0.037%；自收敛 0.93%；跳变条件 B_z(out)−B_z(in) = −µ₀K
+         （表单位 −1）验到 0.011；∇·B = 0 验到 0.47%；整表 build 47 ms。
+   ============================================================================ */
+function ellipK(m){
+  if(m<0) throw new Error('m<0');
+  if(m>=1) return Infinity;
+  let a=1, b=Math.sqrt(1-m), c=Math.sqrt(m);
+  for(let i=0;i<80;i++){
+    const an=(a+b)/2, bn=Math.sqrt(a*b), cn=(a-b)/2;
+    a=an; b=bn; c=cn;
+    if(c<1e-16) break;                 /* 门限高于 stall 水平（见文件头 ①） */
+  }
+  return Math.PI/(2*a);
+}
+function ellipE(m){
+  if(m<0) throw new Error('m<0');
+  if(m>=1) return 1;
+  let a=1, b=Math.sqrt(1-m), c=Math.sqrt(m);
+  let sum=0, p=0.5;
+  for(let i=0;i<80;i++){
+    sum+=p*c*c;
+    const an=(a+b)/2, bn=Math.sqrt(a*b), cn=(a-b)/2;
+    a=an; b=bn; c=cn; p*=2;
+    if(c<1e-16) break;
+  }
+  return ellipK(m)*(1-sum);
+}
+/* 圆电流环（半径 a、环面 xy 平面、单位电流）在柱坐标点 (ρ,0,z) 的场，除掉 µ₀I，单位 1/m */
+function loopB(rho,z,a){
+  if(rho<1e-12){
+    const d2=a*a+z*z;
+    return [0, a*a/(2*d2*Math.sqrt(d2))];
+  }
+  const D=Math.sqrt((a+rho)*(a+rho)+z*z);
+  const m=4*a*rho/(D*D);
+  const K=ellipK(m), E=ellipE(m);
+  const den=(a-rho)*(a-rho)+z*z;
+  const C1=(a*a+rho*rho+z*z)/den;
+  const C2=(a*a-rho*rho-z*z)/den;
+  return [(z/(rho*D))*(-K+C1*E)/(2*Math.PI), (K+C2*E)/(2*Math.PI*D)];
+}
+/* ① 用：环面 xy 平面、单位电流，任意 3D 点的场（除掉 µ₀I） */
+function loopB3(p,a){
+  const rho=Math.hypot(p.x,p.y);
+  const [br,bz]=loopB(rho,p.z,a);
+  if(rho<1e-12) return pt(0,0,bz);
+  return pt(br*p.x/rho, br*p.y/rho, bz);
+}
+/* 圆柱面电流（K φ̂，半径 a、长 L）的场，除掉 µ₀K，单位 1/m —— 环堆叠 + 解析近场 + 镜像采样 */
+function sheetBstack(rho,z,a,L,N){
+  const dz=L/N, out=[0,0], Delta=rho-a;
+  for(let i=0;i<N;i++){
+    const u0=-L/2+i*dz-z, u1=u0+dz;
+    /* ① 解析近场（直线电流项 B_sw=(δ,0,−Δ)/2π(Δ²+δ²)）的 cell 积分 */
+    if(Math.abs(Delta)>1e-7){
+      out[0]+= -(1/(4*Math.PI))*Math.log((Delta*Delta+u1*u1)/(Delta*Delta+u0*u0));
+      out[1]+= -(1/(2*Math.PI))*(Math.atan(u1/Delta)-Math.atan(u0/Delta));
+    }else{
+      const a0=Math.max(Math.abs(u0),1e-12), a1=Math.max(Math.abs(u1),1e-12);
+      out[0]+= -(1/(2*Math.PI))*Math.log(a1/a0);
+    }
+    /* ② 光滑残差：镜像采样 */
+    const zc=-L/2+(i+0.5)*dz, zm=2*z-zc;
+    const acc=(zz,w)=>{
+      const uu=zz-z, d2=Delta*Delta+uu*uu;
+      const [br,bz]=loopB(rho,z-zz,a);
+      let sr=br, sz=bz;
+      if(d2>1e-20){ sr+=uu/(2*Math.PI*d2); sz+=Delta/(2*Math.PI*d2); }
+      out[0]+=sr*w; out[1]+=sz*w;
+    };
+    if(zm>=-L/2 && zm<=L/2){ acc(zc,dz*0.5); acc(zm,dz*0.5); }
+    else acc(zc,dz);
+  }
+  return out;
+}
+
+/* ---------- 查表（几何固定 ⇒ 只建一次；懒加载，首进 ③ 时算） ---------- */
+const TBL={nr:44, nz:60, rmax:1.10, zmax:1.10, rho:null, zz:null, br:null, bz:null, ok:false};
+function buildTable(){
+  const rho=[], zz=[];
+  for(let i=0;i<TBL.nr;i++) rho.push(TBL.rmax*i/(TBL.nr-1));
+  for(let j=0;j<TBL.nz;j++){
+    let z=-TBL.zmax+2*TBL.zmax*j/(TBL.nz-1);
+    /* ⚠️ z 网格绕开 ±L42/2：端线圈处真场对数发散（解析近场也救不了边线极点） */
+    for(const e of [L42/2,-L42/2]) if(Math.abs(z-e)<0.014) z=e+(z<e?-0.014:0.014);
+    zz.push(z);
+  }
+  const br=new Float64Array(TBL.nr*TBL.nz), bz=new Float64Array(TBL.nr*TBL.nz);
+  for(let i=0;i<TBL.nr;i++) for(let j=0;j<TBL.nz;j++){
+    const t=sheetBstack(rho[i],zz[j],A42,L42,FIELD_N);
+    br[i*TBL.nz+j]=t[0]; bz[i*TBL.nz+j]=t[1];
+  }
+  TBL.rho=rho; TBL.zz=zz; TBL.br=br; TBL.bz=bz; TBL.ok=true;
+}
+/* 双线性插值；越界返回 null（调用方负责不收尾） */
+function fieldAt(rho,z){
+  if(!TBL.ok) buildTable();
+  const R=Math.abs(rho);
+  if(!isFinite(R)||!isFinite(z)||R>TBL.rmax||z<-TBL.zmax||z>TBL.zmax) return null;
+  const dr=TBL.rmax/(TBL.nr-1);
+  const i=Math.max(0,Math.min(TBL.nr-2,Math.floor(R/dr)));
+  let j=0; while(j<TBL.nz-2 && z>TBL.zz[j+1]) j++;
+  const s=(R-TBL.rho[i])/(TBL.rho[i+1]-TBL.rho[i]);
+  const t=(z-TBL.zz[j])/(TBL.zz[j+1]-TBL.zz[j]);
+  const q=(ii,jj,k)=>k[ii*TBL.nz+jj];
+  const br=(1-s)*(1-t)*q(i,j,TBL.br)+s*(1-t)*q(i+1,j,TBL.br)+(1-s)*t*q(i,j+1,TBL.br)+s*t*q(i+1,j+1,TBL.br);
+  const bz=(1-s)*(1-t)*q(i,j,TBL.bz)+s*(1-t)*q(i+1,j,TBL.bz)+(1-s)*t*q(i,j+1,TBL.bz)+s*t*q(i+1,j+1,TBL.bz);
+  return [br,bz];
+}
+
+/* ---------- 子午面 (u,z) 场线追踪（RK4） ----------
+   ★ 只画**正对镜头**的那个子午面（φ = cam.az + π/2 ⇒ u 轴 ≡ camU）：
+     平面无向、场线落在同一平面里才读得出一族线（2.3/2.2 的同款教训）。
+   ★ 总场线的形状只依赖 λ = µ₀M/B₀e 一个比值 ⇒ 按 λ 缓存；B′ 线与 M 无关 ⇒ 永久缓存。 */
+function traceMerid(u0,z0,lam,sgn,opt){
+  opt=opt||{};
+  const maxSteps=opt.maxSteps||1500, h=opt.h||0.012;
+  const B=(u,z)=>{
+    const T=fieldAt(Math.abs(u),z);
+    if(!T) return null;
+    const bp=lam;                                   /* 磁化场强（表单位 × λ） */
+    return [bp*T[0]*(u<0?-1:1), (opt.B0||0)+bp*T[1]];
+  };
+  const dir=(u,z)=>{ const b=B(u,z); if(!b) return null; const l=Math.hypot(b[0],b[1]); return l<1e-12?null:[b[0]/l*sgn,b[1]/l*sgn]; };
+  let u=u0,z=z0,len=0;
+  const pts=[[u,z]];
+  for(let k=0;k<maxSteps;k++){
+    const k1=dir(u,z); if(!k1) break;
+    const k2=dir(u+k1[0]*h*0.5, z+k1[1]*h*0.5); if(!k2) break;
+    const k3=dir(u+k2[0]*h*0.5, z+k2[1]*h*0.5); if(!k3) break;
+    const k4=dir(u+k3[0]*h,     z+k3[1]*h);     if(!k4) break;
+    u+=h*(k1[0]+2*k2[0]+2*k3[0]+k4[0])/6;
+    z+=h*(k1[1]+2*k2[1]+2*k3[1]+k4[1])/6;
+    len+=h; pts.push([u,z]);
+    if(opt.closeTo){ const du=u-opt.closeTo[0], dz=z-opt.closeTo[1];
+      if(len>(opt.minLen||0.8) && du*du+dz*dz<opt.closeR*opt.closeR){ pts.push(opt.closeTo); break; } }
+    if(Math.abs(z)>1.10||Math.abs(u)>1.06) break;
+  }
+  return pts;
+}
+/* ① 的单环场线（loopB3 直接算，不查表） */
+function traceLoop(u0,z0,a,iAmp){
+  const maxSteps=1600, h=0.010;
+  const B=(u,z)=>{ const p=pt(u,0,z); const b=loopB3(p,a); return [b.x*iAmp,b.z*iAmp]; };
+  const dir=(u,z)=>{ const b=B(u,z); const l=Math.hypot(b[0],b[1]); return l<1e-14?null:[b[0]/l,b[1]/l]; };
+  let u=u0,z=z0,len=0; const pts=[[u,z]];
+  for(let k=0;k<maxSteps;k++){
+    const k1=dir(u,z); if(!k1) break;
+    const k2=dir(u+k1[0]*h*0.5,z+k1[1]*h*0.5); if(!k2) break;
+    const k3=dir(u+k2[0]*h*0.5,z+k2[1]*h*0.5); if(!k3) break;
+    const k4=dir(u+k3[0]*h,z+k3[1]*h); if(!k4) break;
+    u+=h*(k1[0]+2*k2[0]+2*k3[0]+k4[0])/6; z+=h*(k1[1]+2*k2[1]+2*k3[1]+k4[1])/6;
+    len+=h; pts.push([u,z]);
+    const du=u-u0, dz=z-z0;
+    if(len>0.10 && du*du+dz*dz<0.0004){ pts.push([u0,z0]); break; }
+    if(Math.abs(z)>0.62||Math.abs(u)>0.62) break;
+  }
+  return pts;
+}
+
+/* ---------- ③ 的场线（带缓存） ---------- */
+let _bpLines=null;
+function bpLines(){
+  if(_bpLines) return _bpLines;
+  const lines=[];
+  /* ⚠️ 种子必须取**贴壁**的 ρ₀（0.19~0.25）：实测只有贴壁的磁通管能在画面范围内闭合
+     （r0=0.05/0.115 的管要从画面上方/右侧伸出表外，见表边界 ±1.10）。
+     探过的 r0 → max|u|：0.19→0.98、0.21→0.78、0.225→0.71、0.245→0.60、0.25→0.57。 */
+  [0.19,0.222,0.248].forEach(r0=>{
+    lines.push({pts:traceMerid(r0,-0.26,1,1,{B0:0,closeTo:[r0,-0.26],closeR:0.04,minLen:1.2,maxSteps:1800}), axis:false});
+  });
+  lines.push({pts:[[0,-0.88],[0,0.88]], axis:true});   /* 轴：Ψ≡0 的退化线，直线段 */
+  _bpLines=lines;
+  return lines;
+}
+let _btCache={key:null,lines:null};
+function totalLines(){
+  const B0e=B0eff(), M=Mval();
+  if(B0e<0.5||M<1) return null;                        /* 还没加场 ⇒ 没有总场线可画 */
+  const lam=MU0*M*1e3/B0e, key=lam.toFixed(3);
+  if(_btCache.key===key) return _btCache.lines;
+  const lines=[];
+  [-0.40,-0.24,-0.10,0.10,0.24,0.40].forEach(u0=>{
+    const tr=traceMerid(u0,-1.02,lam,1,{B0:1,maxSteps:1500});
+    /* ⚠️ 极端参数（M ≫ B₀e）下，靠外的种子处磁化场的回归磁通会朝下 ⇒ 这条线
+       一出种子就往下扎、立刻出框（画成一截断线，像 bug）。物理上那里确实没有
+       "从下面上来"的线 ⇒ 初始方向朝下的种子直接不画（靠近轴的种子不受影响）。 */
+    if(tr.length<2) return;
+    const dzAll=tr[1][1]-tr[0][1];
+    if(dzAll<=0) return;
+    lines.push({u0, pts:tr});
+  });
+  _btCache={key,lines};
+  return lines;
+}
+/* 外场参考线（浅灰）：与总场线**同种子** ⇒ 直的就是"只有外场"、弯的就是"叠加了磁化场" */
+const B0_SEEDS=[-0.40,-0.24,-0.10,0.10,0.24,0.40];
+function b0Alpha(){ return Math.max(0,Math.min(1,B0eff()/12)); }
+
+/* ============================== ③ 播放时间轴 ==============================
+   t ∈ [0, 0.18]  阶段①  还没有外加场（g = 0）
+   t ∈ [0.18, 1]  阶段②  外场建立 g 0→1：分子随之取向排列、表面电流与磁化场长出来
+   ★ t 就是面板进度条的值，可停在任意时刻；g = animG(t) 是 t 的纯函数。 */
+const ANIM_DUR = 4.6;
+const PH_FIELD = [0.18, 1.00];
+const animG = u => sstep((u-PH_FIELD[0])/(PH_FIELD[1]-PH_FIELD[0]));
+function stepAnim(dt){
+  const A=state.anim;
+  if(!A || !A.playing) return false;
+  A.u=Math.min(1, A.u+dt/ANIM_DUR);
+  state.t=A.u; state.g=animG(A.u);
+  if(A.u>=1){ state.t=1; state.g=1; state.anim=null; return 'end'; }
+  return true;
+}
+function stopAnim(){ state.anim=null; }
+
+/* ============================== 画图小工具 ============================== */
+const SUP={'-':'⁻','0':'⁰','1':'¹','2':'²','3':'³','4':'⁴','5':'⁵','6':'⁶','7':'⁷','8':'⁸','9':'⁹'};
+const supStr=n=>String(n).split('').map(c=>SUP[c]||c).join('');
+function fmtN(v,d){ d=(d==null)?2:d; if(!isFinite(v)) return '—';
+  return (v<0?'−':'')+Math.abs(v).toFixed(d); }
+/* 分子环的局部正交基 (u,v)，u×v = n */
+function loopFrame(n){
+  const a=Math.abs(n.z)<0.9 ? pt(0,0,1) : pt(1,0,0);
+  const u=vnorm(vcross(a,n));
+  return [u, vcross(n,u)];
+}
+function loopPts(c,n,r,N){
+  const [u,v]=loopFrame(n), out=[];
+  for(let i=0;i<=N;i++){ const t=2*Math.PI*i/N;
+    out.push(vadd(c, vadd(vmul(u,r*Math.cos(t)), vmul(v,r*Math.sin(t))))); }
+  return out;
+}
+
+
+/* ============================== 目录 ============================== */
+/* ⚠️ 2026-10-19：按用户给的新大纲改版 ——
+      第 3 章 = 恒定电场：3.1 电流的分类（已上线）+ 3.2 恒定电场的特点（占位）
+      第 4 章 = 恒定磁场：4.1 磁感应强度（占位）+ 4.2 磁介质的磁化（本页）
+   旧占位「3.2 比奥-萨伐尔 / 3.3 安培环路 / 第4章 时变电磁场（麦克斯韦方程组、均匀平面波）」
+   被新大纲取代，暂从导航移除（比奥-萨伐尔、安培环路可作将来 4.3 / 4.4 补回）。 */
+const NAV = [
+  { ch:'第 1 章 · 矢量分析', items:[
+    { id:'coord',  t:'1.1 三种常见坐标系', ready:true, href:'index.html?v=20261019r3' },
+    { id:'ch1-2',  t:'1.2 矢量的代数运算', ready:true, href:'1.2-vector-algebra.htm?v=20261019r3' },
+    { id:'ch1-3',  t:'1.3 方向导数与梯度', ready:true, href:'1.3-directional-derivative.htm?v=20261019r3' },
+    { id:'ch1-4',  t:'1.4 通量与散度',     ready:true, href:'1.4-divergence-flux.htm?v=20261019r3' },
+    { id:'ch1-5',  t:'1.5 环量与旋度',     ready:true, href:'1.5-curl-circulation.htm?v=20261019r3' },
+  ]},
+  { ch:'第 2 章 · 静电场', items:[
+    { id:'ch2-1', t:'2.1 电场强度与电荷密度', ready:true, href:'2.1-field-charge-density.htm?v=20261019r3' },
+    { id:'ch2-2', t:'2.2 静电场中的导体',     ready:true, href:'2.2-conductor-electrostatic.htm?v=20261019r3' },
+    { id:'ch2-3', t:'2.3 静电场中的电介质',   ready:true, href:'2.3-dielectric-polarization.htm?v=20261019r3' },
+    { id:'ch2-4', t:'2.4 高斯定理及其应用', ready:true, href:'2.4-gauss-law.htm?v=20261019r3' },
+    { id:'ch2-5', t:'2.5 多导体系统的电容与串扰', ready:true, href:'2.5-multi-conductor-crosstalk.htm?v=20261019r3' },
+  ]},
+  { ch:'第 3 章 · 恒定电场', items:[
+    { id:'ch3-1', t:'3.1 电流的分类', ready:true, href:'3.1-current-density.htm?v=20261019r3' },
+    { id:'ch3-2', t:'3.2 恒定电场的特点' },
+  ]},
+  { ch:'第 4 章 · 恒定磁场', items:[
+    { id:'ch4-1', t:'4.1 磁感应强度' },
+    { id:'ch4-2', t:'4.2 磁介质的磁化', ready:true, active:true },
+  ]},
+];
+
+
+/* ============================================================================
+   4.2 磁介质的磁化 —— 页面专属（一）：图元助手 / 场景装配 / 信息卡 / 面板上半
+   ⚠️ 所有进画布的串都必须走 parseRich()（@{...} 矢量 / _x 下标），
+      所有进 DOM 的串都必须走 richHTML()；本引擎**不认 Markdown 星号**，加粗只能用 <b>。
+   ============================================================================ */
+
+/* ---------- 画布小卡助手（与 2.1~2.4、3.1 同源） ---------- */
+function txt(x,y,str,o={}){
+  ctx.save();
+  const lo=richLayout(ctx,parseRich(str),o.size||12,!!o.bold);
+  richDraw(ctx,lo,x,y,o.align||'left',o.color||C.ink);
+  ctx.restore();
+}
+function rrPath(x,y,w,h,r){
+  ctx.beginPath(); ctx.moveTo(x+r,y); ctx.lineTo(x+w-r,y); ctx.quadraticCurveTo(x+w,y,x+w,y+r);
+  ctx.lineTo(x+w,y+h-r); ctx.quadraticCurveTo(x+w,y+h,x+w,y+h-r);
+  ctx.lineTo(x+r,y+h); ctx.quadraticCurveTo(x,y+h,x+r,y+h);
+  ctx.lineTo(x,y+h-r); ctx.quadraticCurveTo(x,y,x+r,y); ctx.closePath();
+}
+function crd(x,y,w,h){
+  ctx.save(); ctx.shadowColor='rgba(30,60,80,.10)'; ctx.shadowBlur=8; ctx.shadowOffsetY=2;
+  rrPath(x,y,w,h,10); ctx.fillStyle='rgba(255,255,255,.95)'; ctx.fill(); ctx.restore();
+  ctx.save(); rrPath(x,y,w,h,10); ctx.strokeStyle='#DCE6EB'; ctx.lineWidth=1; ctx.stroke(); ctx.restore();
+}
+const ZL = 1e4+40;                 /* 标注深度档：压在介质棒之上 */
+const O  = pt(0,0,0);
+const MED_HEX  = '#2E86AB';        /* 介质棒（淡蓝，与 3.1 导体同族） */
+const LOOP_HEX = '#8A6BB8';        /* 分子电流环（紫 = 微观） */
+const LOOP_HI  = '#6B4FA0';        /* 环上的流向箭头（深紫） */
+const CUR_HEX  = C.crimson;        /* 表面束缚电流（红） */
+const BP_HEX   = C.orange;         /* 磁化场 @{B}′ 线（橙） */
+const BT_HEX   = C.teal;           /* 总场 @{B} 线（主色） */
+const B0_HEX   = '#9FB4C0';        /* 外场参考线（灰蓝） */
+let loopPhase=0;                   /* 分子环上流向箭头的滑动相位（tick 里推进） */
+
+/* ══════════════════════════ 右上角信息卡 ══════════════════════════ */
+function infoCard(title,rows,h){
+  const x0=CARD_X(), y0=CARD_Y, w=CARD_W;
+  crd(x0,y0,w,h);
+  txt(x0+12,y0+15,title,{size:11.5,bold:true,color:'#1F3D4C'});
+  rows.forEach((r,i)=>{
+    const y=y0+38+i*19;
+    /* ⚠️ 章节行要同时认两种写法：['§','文本'] 与 ['§ 文本']（2.3 的教训：
+       只认前者 ⇒ 单元素那种右列取 r[1] 得 undefined，而 parseRich(undefined)
+       **不抛异常**、静默排版成 "undefined"）。 */
+    const markerOnly=(r[0]==='§');
+    if(markerOnly || (r.length===1 && String(r[0]||'')[0]==='§')){
+      const lab=markerOnly ? String(r[1]==null?'':r[1]) : String(r[0]).slice(1);
+      txt(x0+11,y,lab.trim(),{size:11,bold:true,color:r[2]||'#1F3D4C'}); return;
+    }
+    let lab=String(r[0]==null?'':r[0]);
+    if(lab[0]==='§') lab=lab.slice(1).trim();
+    txt(x0+13,y,lab,{size:11,color:'#5F7482'});
+    txt(x0+w-13,y,r[1]==null?'':String(r[1]),{size:11,bold:true,color:r[2]||'#0E4A66',align:'right'});
+  });
+}
+
+/* ══════════════════════════ 通用场景件 ══════════════════════════ */
+function ringPts(r,z){
+  const out=[]; for(let i=0;i<40;i++){ const a=2*Math.PI*i/40; out.push(pt(r*Math.cos(a),r*Math.sin(a),z)); }
+  return out;
+}
+/* 半透明介质棒（逐面片填充 + 伪光照；fill 与 stroke 同色，否则相邻面露发丝缝） */
+const GX_LX=-0.55, GX_LY=-0.83;
+function cylShell(radius,h,hex,alpha){
+  const hh=h/2, N=40;
+  for(let i=0;i<N;i++){
+    const a0=2*Math.PI*i/N, a1=2*Math.PI*(i+1)/N;
+    const p0=pt(radius*Math.cos(a0), radius*Math.sin(a0),-hh);
+    const p1=pt(radius*Math.cos(a1), radius*Math.sin(a1),-hh);
+    const p2=pt(radius*Math.cos(a1), radius*Math.sin(a1), hh);
+    const p3=pt(radius*Math.cos(a0), radius*Math.sin(a0), hh);
+    const nx=Math.cos((a0+a1)/2), ny=Math.sin((a0+a1)/2);
+    const lam=Math.max(0,Math.min(1, Math.abs(nx*GX_LX+ny*GX_LY)));
+    poly([p0,p1,p2,p3],{fill:hex, stroke:hex, w:1,
+      fillAlpha:alpha*(0.55+0.85*lam), strokeAlpha:alpha*(0.55+0.85*lam)});
+  }
+}
+/* 分子电流环 + 环上滑动的流向小箭头（右手定论：绕 n 环流）
+   ⚠️ 不给 o.z 覆盖：环在棒子深处就该被棒子罩住，标注才抬 ZL（同 3.1 的纪律）。 */
+function drawLoop(c,n,r,col,ahAlpha){
+  curve(loopPts(c,n,r,22), {color:col, w:1.5, alpha:0.92});
+  /* 箭头相位：按位置错开（无理数系数）⇒ 不会一齐指向同一处。
+     ⚠️ 取模必须归一到 [0,1)：hash 对负坐标为负，(−3.3)%1 = −0.3 ⇒ idx 为负
+        ⇒ pts[负下标] = undefined ⇒ vsub 抛异常（实测：切到 ②③ 页签必崩，
+        而 tick 的 try/catch 会把症状伪装成"画面卡住"）。 */
+  const ph=((loopPhase*0.4 + (c.x*7.13+c.y*3.71+c.z*5.17))%1+1)%1;
+  const t=2*Math.PI*ph;
+  const pts=loopPts(c,n,r,22);
+  const idx=Math.floor(ph*22);
+  const A=pts[Math.min(22,idx+1)], B=pts[Math.max(0,idx-1)];
+  const dir=vnorm(vsub(A,B));
+  const side=vmul(vnorm(vcross(n,dir)), r*0.17);
+  poly([A, vadd(B,side), vsub(B,side)], {fill:LOOP_HI, stroke:LOOP_HI, w:1,
+    fillAlpha:ahAlpha, strokeAlpha:ahAlpha});
+}
+/* ②③ 的整副分子点阵（s = 取向度：② 传 0，③ 传 sVis()） */
+function drawLattice(s){
+  if(!state.show.mol) return;
+  const norms=loopNorms();
+  for(let i=0;i<LATTICE.length;i++){
+    const p=LATTICE[i];
+    drawLoop(pt(p.x,p.y,p.z), loopNormal(i,s), RCD, LOOP_HEX, 0.85);
+  }
+}
+/* ③ 的表面束缚电流：圆柱侧面的一圈圈 φ̂ 向环流（随取向度长出来） */
+function drawSurfaceCurrent(){
+  if(!state.show.cur) return;
+  const s=sVis();
+  if(s<0.02) return;
+  const al=0.20+0.75*s;
+  LOOP_Z.forEach(z=>{
+    [0.5,2.1,3.8,5.4].forEach(ph=>{
+      const a0=ph, a1=ph+0.5, pts=[];
+      for(let i=0;i<=10;i++){ const a=a0+(a1-a0)*i/10;
+        pts.push(pt(A42*Math.cos(a), A42*Math.sin(a), z)); }
+      curve(pts, {color:CUR_HEX, w:3.0, alpha:al, arrowEnd:true, z:ZL+2});
+    });
+  });
+  /* 一个标签就够（其余交给卡片 / 插图 / 图例） */
+  text(pt(A42,0,LOOP_Z[4]), '@{K}_b = M', {color:'#B23A2B', size:12, bold:true,
+    dx:12, dy:-12, z:ZL+6});
+}
+/* 子午面 (u,z) → 世界（只画正对镜头的那一个面：u 轴 ≡ camU） */
+const mP=(u,z)=>pt(u*camU.x, u*camU.y, z);
+/* 场线上某处的小箭头（沿行进方向） */
+function lineArrow(pts,frac,col,w,z,al){
+  const i=Math.max(1,Math.min(pts.length-2, Math.floor(pts.length*frac)));
+  const a=pts[i-1], b=pts[i+1];
+  const A=mP(a[0],a[1]), B=mP(b[0],b[1]);
+  const d=vsub(B,A); if(vlen(d)<1e-6) return;
+  const u=vnorm(d), sd=vmul(vnorm(vcross(pt(0,0,1),u)), 0.016);
+  const aa=(al==null?0.95:al);
+  poly([B, vsub(vadd(A,sd),vmul(u,0.004)), vsub(vsub(A,sd),vmul(u,0.004))],
+       {fill:col, stroke:col, w:1, fillAlpha:aa, strokeAlpha:aa, z:z});
+}
+/* ③ 的全部场线 */
+function drawFieldLines(){
+  /* ⚠️ 磁化场线随取向度一起长出来：M→0 时 B′≡0，线上不该还在（t<18% 与 ② 页签一致） */
+  const s=sVis(), alBp=Math.max(0,Math.min(1,s/0.08));
+  if(state.show.bp && alBp>0.02){
+    for(const L of bpLines()){
+      const pts=L.pts.map(p=>mP(p[0],p[1]));
+      if(pts.length<2) continue;
+      curve(pts, {color:BP_HEX, w:1.7, dash:[5,4], alpha:0.92*alBp, z:ZL-1});
+      if(!L.axis && pts.length>6) lineArrow(L.pts,0.22,BP_HEX,1.7,ZL+1,0.92*alBp);
+    }
+  }
+  const tl=totalLines();
+  if(state.show.bt && tl){
+    for(const L of tl){
+      const pts=L.pts.map(p=>mP(p[0],p[1]));
+      if(pts.length<2) continue;
+      curve(pts, {color:BT_HEX, w:2.1, alpha:0.95, z:ZL});
+      if(pts.length>6) lineArrow(L.pts,0.30,BT_HEX,2.1,ZL+1);
+    }
+  }
+  /* 外场参考线：与总场线**同种子**的浅灰直线 —— 弯掉的部分就是磁化场的贡献 */
+  if(state.show.b0){
+    const al=0.5*b0Alpha();
+    if(al>0.01){
+      B0_SEEDS.forEach(u0=>{
+        line(mP(u0,-1.0), mP(u0,1.0), {color:B0_HEX, w:1.2, alpha:al, z:ZL-3});
+      });
+    }
+  }
+}
+
+/* ══════════════════════════ ① 分子电流（放大） ══════════════════════════ */
+let _loop1Cache={key:null,pts:null};
+function loop1Pts(){
+  const key=(state.flip?1:0)+'';
+  if(_loop1Cache.key===key) return _loop1Cache.pts;
+  const n=pt(0,0,1), c=O, r=BIG_R;
+  const [u,v]=loopFrame(n);
+  const out=[];
+  const N=48, sgn=state.flip?-1:1;
+  for(let i=0;i<=N;i++){ const t=sgn*2*Math.PI*i/N;
+    out.push(vadd(c, vadd(vmul(u,r*Math.cos(t)), vmul(v,r*Math.sin(t))))); }
+  _loop1Cache={key,pts:out};
+  return out;
+}
+let _fld1Cache={key:null,lines:null};
+function loop1Lines(){
+  const key=(state.flip?1:0)+'';
+  if(_fld1Cache.key===key) return _fld1Cache.lines;
+  const iA=state.flip?-1:1, lines=[];
+  [-0.12,-0.06,0,0.06,0.12].forEach(u0=>lines.push(traceLoop(u0,0.025,BIG_R,iA)));
+  [BIG_R+0.03,-(BIG_R+0.03)].forEach(u0=>lines.push(traceLoop(u0,0,BIG_R,iA)));
+  _fld1Cache={key,lines};
+  return lines;
+}
+function drawMolecularScene(){
+  if(state.show.box) drawAxes(EXT_AX);
+  /* 陪衬小环：说"磁介质里充满这样的小环"（位置固定，取向同主环） */
+  if(state.show.lat){
+    const n=state.flip?pt(0,0,-1):pt(0,0,1);
+    [[0.44,0.20,0.14],[0.52,-0.12,-0.06],[0.40,-0.30,0.18]].forEach(p=>{
+      drawLoop(pt(p[0],p[1],p[2]), n, 0.055, LOOP_HEX, 0.4);
+    });
+  }
+  if(state.show.loop){
+    const pts=loop1Pts();
+    curve(pts, {color:LOOP_HEX, w:2.6, alpha:0.95, z:ZL-1});
+    /* 环上流向箭头（比点阵里的大一号） */
+    const ph=(loopPhase*0.4)%1, t=2*Math.PI*ph;
+    const n=state.flip?pt(0,0,-1):pt(0,0,1);
+    const [uu,vv]=loopFrame(n);
+    const c=O;
+    const A=vadd(c, vadd(vmul(uu,BIG_R*Math.cos(t+0.10)), vmul(vv,BIG_R*Math.sin(t+0.10))));
+    const B=vadd(c, vadd(vmul(uu,BIG_R*Math.cos(t-0.05)), vmul(vv,BIG_R*Math.sin(t-0.05))));
+    const dir=vnorm(vsub(A,B)), side=vmul(vnorm(vcross(n,dir)), BIG_R*0.15);
+    poly([A, vadd(B,side), vsub(B,side)], {fill:LOOP_HI, stroke:LOOP_HI, w:1,
+      fillAlpha:0.95, strokeAlpha:0.95, z:ZL+2});
+    /* 磁矩 @{m}：沿环流右手定则的方向，长度随 m 线性涨（有钳制，见下） */
+    const mRef=3.0e-6*Math.PI*Math.pow(15e-10,2);       /* 量程上端处的 m */
+    const Lm=0.13+0.32*Math.max(0,Math.min(1,mMol()/mRef));
+    const tip=pt(0,0,state.flip?-Lm:Lm);
+    arrow(O, tip, {color:LOOP_HI, w:2.6, headScale:1.15, z:ZL+4});
+    text(tip, '@{m}', {color:LOOP_HI, size:13.5, bold:true, dx:9, dy:-8, z:ZL+6});
+  }
+  if(state.show.fld){
+    for(const L of loop1Lines()){
+      if(L.length<3) continue;
+      const pts=L.map(p=>mP(p[0],p[1]));
+      curve(pts, {color:LOOP_HEX, w:1.4, alpha:0.5, z:ZL-2});
+      lineArrow(L,0.30,LOOP_HEX,1.4,ZL);
+    }
+  }
+  /* ① 没有插图，左下角是空的 ⇒ caption 放屏幕空间（不进 3D、不压轴线） */
+  textScreen(16,H-18,'一个分子电流：画面大小是示意的，真实是原子尺度',
+             {size:10.5,color:'#7A8F9B'});
+}
+
+/* ══════════════════════════ ② 无外场 ══════════════════════════ */
+function drawNoFieldScene(){
+  if(state.show.box) drawAxes(EXT_AX);
+  cylShell(A42, L42, MED_HEX, 0.17);
+  poly(ringPts(A42, L42/2), {fill:MED_HEX,stroke:MED_HEX,w:1,fillAlpha:0.10,strokeAlpha:0.10});
+  poly(ringPts(A42,-L42/2),{fill:MED_HEX,stroke:MED_HEX,w:1,fillAlpha:0.10,strokeAlpha:0.10});
+  drawLattice(0);
+  drawInset(0);
+}
+
+/* ══════════════════════════ ③ 加外场 ══════════════════════════ */
+function drawPolingScene(){
+  if(state.show.box) drawAxes(EXT_AX);
+  cylShell(A42, L42, MED_HEX, 0.17);
+  poly(ringPts(A42, L42/2), {fill:MED_HEX,stroke:MED_HEX,w:1,fillAlpha:0.10,strokeAlpha:0.10});
+  poly(ringPts(A42,-L42/2),{fill:MED_HEX,stroke:MED_HEX,w:1,fillAlpha:0.10,strokeAlpha:0.10});
+  drawLattice(sVis());
+  drawSurfaceCurrent();
+  drawFieldLines();
+  drawInset(sVis());
+}
+
+/* ══════════════════════ 表层放大插图（屏幕空间，左下） ══════════════════════
+   ★ 这是全页的**教学核心**：垂直轴向看下去，分子电流在小方块里排成六方密排。
+     ② 随机取向（投影成各种倾斜的椭圆、顺逆都有）⇒ 接触点电流反向、互相抵消；
+     ③ 全部取向一致（投影成整圆、同一转向）⇒ 内部的抵消掉，
+        **外边界剩下一圈同向环流 = 宏观束缚电流 @{K}_b**（ textbook 原图 ）。 */
+function drawInset(s){
+  if(!state.show.inset) return;
+  /* ⚠️ 底部三行文字（K_b 标签 + 两行说明）必须分层排开：早先 K_b 在 by+158、
+     第二行说明在 by+160，两者只差 2px ⇒ 视觉自检报 28% 重叠。现在的布句：
+     环底 by+138 → K_b by+152 → 说明1 by+168 → 说明2 by+184（面板底 by+192）。 */
+  const bx=14, by=H-206, bw=176, bh=192;
+  const cx=bx+bw/2, cy=by+94;
+  P_(1e6+2,()=>{
+    ctx.save();
+    ctx.shadowColor='rgba(30,60,80,.10)'; ctx.shadowBlur=8; ctx.shadowOffsetY=2;
+    rrPath(bx,by,bw,bh,10); ctx.fillStyle='rgba(255,255,255,.94)'; ctx.fill();
+    ctx.restore();
+    ctx.save(); rrPath(bx,by,bw,bh,10); ctx.strokeStyle='#DCE6EB'; ctx.lineWidth=1; ctx.stroke(); ctx.restore();
+  });
+  /* ⚠️ 插图内文字必须用 textScreen（prim 制）：txt() 在 buildScene 期间直接画，
+     会被随后按深度排序的 3D prims 盖住（2.3 教训） */
+  textScreen(bx+12,by+15,'表层放大 · 俯视分子排列',{size:11,bold:true,color:'#1F3D4C'});
+  /* 边界环（= 宏观束缚电流）：随取向度长出来 */
+  const ringAl=Math.max(0,Math.min(1,(s-0.03)/0.25));
+  if(ringAl>0.01){
+    P_(1e6+3,()=>{ ctx.save();
+      ctx.strokeStyle=CUR_HEX; ctx.lineWidth=2.2; ctx.globalAlpha=ringAl*0.9;
+      if(s<0.6) ctx.setLineDash([4,3]);
+      ctx.beginPath(); ctx.arc(cx,cy,44,0,7); ctx.stroke();
+      /* 两个流向箭头（φ̂ = 俯视逆时针） */
+      ctx.setLineDash([]);
+      [Math.PI*0.25, Math.PI*1.25].forEach(a=>{
+        const px=cx+44*Math.cos(a), py=cy+44*Math.sin(a);
+        const ta=a+Math.PI/2;                          /* 逆时针切向 */
+        ctx.beginPath();
+        ctx.moveTo(px+7*Math.cos(ta), py+7*Math.sin(ta));
+        ctx.lineTo(px-4*Math.cos(ta)+4.5*Math.cos(ta+Math.PI/2), py-4*Math.sin(ta)+4.5*Math.sin(ta+Math.PI/2));
+        ctx.lineTo(px-4*Math.cos(ta)-4.5*Math.cos(ta+Math.PI/2), py-4*Math.sin(ta)-4.5*Math.sin(ta+Math.PI/2));
+        ctx.closePath(); ctx.fillStyle=CUR_HEX; ctx.fill();
+      });
+      ctx.restore(); });
+  }
+  /* 7 个分子环（第一层的中心 + 第一环），法矢与 3D 场景同源 */
+  const layer0=hexLayer();
+  const norms=loopNorms();
+  for(let k=0;k<7;k++){
+    const p=layer0[k];
+    const n=loopNormal(k,s);                          /* 前 7 个正好是第一层 */
+    const ex=cx+280*p.x, ey=cy-280*p.y;
+    const nz=n.z, nx2=Math.hypot(n.x,n.y);
+    /* 投影：长轴 = 水平直径（长 2r，沿 tilt 的垂向）；短轴 = 2r·|n·ẑ| */
+    const rot=nx2>1e-6 ? Math.atan2(-(n.x),-(n.y)) : 0;   /* 屏幕角（y 向下） */
+    const rx=14, ry=14*Math.abs(nz);
+    const ccw=nz>=0;
+    P_(1e6+3,()=>{ ctx.save();
+      ctx.strokeStyle=LOOP_HEX; ctx.lineWidth=1.5; ctx.globalAlpha=0.9;
+      ctx.beginPath(); ctx.ellipse(ex,ey,rx,ry,rot,0,7); ctx.stroke();
+      ctx.restore(); });
+    /* 滑动流向小点（沿椭圆；顺/逆由 n·ẑ 的符号决定） */
+    const ph=(loopPhase*0.4 + k*0.137)%1;
+    const th=(ccw?1:-1)*2*Math.PI*ph;
+    const dx=rx*Math.cos(th), dy=ry*Math.sin(th);
+    const c2=Math.cos(rot), s2=Math.sin(rot);
+    const px=ex+dx*c2-dy*s2, py=ey+dx*s2+dy*c2;
+    P_(1e6+4,()=>{ ctx.save(); ctx.globalAlpha=0.9;
+      ctx.fillStyle=LOOP_HI; ctx.beginPath(); ctx.arc(px,py,2.2,0,7); ctx.fill(); ctx.restore(); });
+  }
+  /* 接触点的「✕ 反向抵消」标记（只有取向一致后才出现） */
+  const xAl=Math.max(0,Math.min(1,(s-0.05)/0.3));
+  if(xAl>0.01){
+    P_(1e6+3,()=>{ ctx.save(); ctx.globalAlpha=xAl*0.85; ctx.strokeStyle='#8A9AA5'; ctx.lineWidth=1.4;
+      for(let k=0;k<6;k++){
+        const a=Math.PI/3*k, mx=cx+14*Math.cos(a), my=cy-14*Math.sin(a);
+        ctx.beginPath(); ctx.moveTo(mx-3,my-3); ctx.lineTo(mx+3,my+3);
+        ctx.moveTo(mx+3,my-3); ctx.lineTo(mx-3,my+3); ctx.stroke();
+      }
+      ctx.restore(); });
+  }
+  textScreen(cx,cy+58,'@{K}_b = M',{size:11.5,bold:true,color:'#B23A2B',align:'center'});
+  /* 底部两行说明（拆两行防溢出 176 宽的卡） */
+  textScreen(bx+12,by+bh-24, s<0.05
+      ? '取向杂乱 ⇒ 接触点电流反向'
+      : '取向一致 ⇒ 内部反向互相抵消',
+    {size:10,color:'#5F7482'});
+  textScreen(bx+12,by+bh-8, s<0.05
+      ? '表面无宏观环流'
+      : '外表面合成宏观环形电流 @{K}_b',
+    {size:10,color:'#5F7482'});
+}
+
+/* ══════════════════════════ 场景装配 ══════════════════════════ */
+function buildScene(){
+  prims=[];                     /* ★ 第一句必须是 prims=[]（否则每次重绘再叠一层整场景） */
+  if(state.mode==='molecular')   drawMolecularScene();
+  if(state.mode==='nofield')     drawNoFieldScene();
+  if(state.mode==='poling')      drawPolingScene();
+}
+
+/* ══════════════ 信息卡内容 ══════════ */
+function currentCard(){
+  if(state.mode==='molecular'){
+    const m=mMol(), S=Math.PI*Math.pow(state.rC*1e-10,2), mub=m/9.2740100783e-24;
+    return ['分子电流 · 磁矩 @{m}',[
+      ['分子电流 i', state.iC.toFixed(2)+' µA'],
+      ['环半径 r_c', state.rC.toFixed(1)+' Å'],
+      ['环面积 S = πr_c²', (S/1e-18).toFixed(2)+'×10'+supStr(-18)+' m²'],
+      ['磁矩 m = i·S', (m/1e-24).toFixed(2)+'×10'+supStr(-24)+' A·m²'],
+      ['　折合玻尔磁子', mub.toFixed(2)+' µ_B'],
+      ['§ 一块磁介质里充满这样的小环'],
+      ['　分子数密度 n', '1×10'+supStr(28)+' /m³'],
+      ['　全部同向时 M = n·m', (mMax()/1e3).toFixed(1)+' kA/m'],
+      ['　届时 @{B}′ = µ₀M', (MU0*mMax()*1e3).toFixed(1)+' mT'],
+      ['§ 磁矩方向：右手定则'],
+      ['　四指顺电流、拇指指 @{m}', state.flip?'当前沿 −z':'当前沿 +z'],
+    ],238];
+  }
+  if(state.mode==='nofield'){
+    return ['无外加磁场',[
+      ['外加磁场 @{B}₀', '0 mT'],
+      ['§ 分子层面'],
+      ['　分子电流', '环流方向各异'],
+      ['　磁矩 @{m} 取向', '杂乱无章'],
+      ['§ 宏观层面'],
+      ['　磁化强度 M', '0'],
+      ['　表面束缚电流 @{K}_b', '0'],
+      ['　磁化磁场 @{B}′', '0'],
+      ['　总磁场 @{B}', '0'],
+      ['§ 结论'],
+      ['　介质显磁性吗', '完全不显', '#0E6E4A'],
+    ],220];
+  }
+  const B0e=B0eff(), M=Mval(), a=aParam(B0e);
+  return ['加外场 · 磁化 · 总场',[
+    ['外场（终值）@{B}₀', state.B0.toFixed(0)+' mT'],
+    ['加场进程 t', Math.round(state.t*100)+'%'],
+    ['当前外场 @{B}₀·g', B0e.toFixed(1)+' mT'],
+    ['§ 分子层面（i 用 ① 的设定）'],
+    ['　分子磁矩 m = i·S', (mMol()/1e-24).toFixed(2)+'×10'+supStr(-24)+' A·m²'],
+    ['　取向度 s（示意）', (sVis()*100).toFixed(0)+'%'],
+    ['　真实取向度 L(a)', (sReal()*100).toExponential(1)+'%（a='+a.toExponential(2)+'）','#8A9AA5'],
+    ['§ 宏观层面'],
+    ['　磁化强度 M = n·m·s', (M/1e3).toFixed(1)+' kA/m'],
+    ['　表面束缚电流 @{K}_b = M', (M/1e3).toFixed(1)+' kA/m'],
+    ['　磁化磁场 @{B}′ = µ₀M', BpMT().toFixed(1)+' mT'],
+    ['　总磁场 @{B} = @{B}₀+@{B}′', BtMT().toFixed(1)+' mT'],
+    ['　相对磁导率 µ_r = @{B}/@{B}₀', isFinite(muR())?muR().toFixed(2):'—'],
+  ],276];
+}
+function drawOverlays(){ const c=currentCard(); infoCard(c[0],c[1],c[2]); }
+
+/* ══════════════════════════ 面板底部的实时结论条 ══════════════════════════ */
+function subNote(){
+  if(state.mode==='molecular')
+    return '<b>每个分子电流是一个小环</b>，磁矩 @{m} = i·S，方向由右手定则给出。'+
+      '把 <b>i 或 r_c</b> 拖大一倍：m 分别翻一倍 / 翻四倍（S 按 r_c² 涨）。<br>'+
+      '右下角那块<b>表层放大</b>在 ②③ 才出现 —— 它回答"这么多小环怎么变成一圈表面电流"。';
+  if(state.mode==='nofield')
+    return '<b>没有外加磁场时，分子电流的取向杂乱无章</b>：每一个环都在流，'+
+      '但环流的朝向 / 转向处处不同，<b>宏观上互相抵消</b>。<br>'+
+      '按<b>「重新随机」</b>换一种摆法 —— 画面全变，<b>结论一点不变</b>（M、@{K}_b、@{B}′ 恒为 0）。';
+  return '外场沿 <b>+z</b>（绿轴）。分子电流取向排列后：<b>内部相邻环流在接触点反向抵消</b>，'+
+    '<b>外表面剩下一圈同向环流</b> = 束缚电流 @{K}_b = M —— 它就像一个螺线管，'+
+    '产生沿 +z 的磁化磁场 @{B}′ = µ₀M。<br>'+
+    '★ <b>总场 = 外场 + 磁化场</b>：浅灰直线是"只有外场"时的路径，实线弯掉的部分就是 @{B}′ 的贡献。'+
+    'µ_r > 1 表示介质让磁场变强了。';
+}
+
+/* ══════════════════════════ 右侧面板 ══════════════════════════ */
+const panel=document.getElementById('panel');
+function h(html){const d=document.createElement('div');d.innerHTML=html;return d;}
+let _toastTimer=0;
+function toastMsg(msg){
+  const el=document.getElementById('toast'); if(!el) return;
+  el.textContent=msg; el.classList.add('show');
+  clearTimeout(_toastTimer); _toastTimer=setTimeout(()=>el.classList.remove('show'),1700);
+}
+function kchip(k,v,cls){return '<span class="coord-chip '+(cls||'')+'">'+richHTML(k)+'<b>'+richHTML(v)+'</b></span>';}
+function chipRow(parent,items,isOn,onPick){
+  const box=h('<div class="sub-chips"></div>').firstChild;
+  items.forEach(it=>{
+    const lab=richHTML(String(it.t??it.sub??it.label??''));
+    const b=h('<button class="chip '+(it.col||'')+(isOn(it.k)?' on':'')+'" data-k="'+it.k+'">'+lab+'</button>').firstChild;
+    b.onclick=()=>onPick(it.k);
+    box.appendChild(b);
+  });
+  parent.appendChild(box);
+  return box;
+}
+const SHOW_ITEMS={
+  molecular:[{k:'loop',t:'分子电流环（放大）'},{k:'lat',t:'周围的分子环'},{k:'fld',t:'环电流的场线'},{k:'box',t:'坐标轴'}],
+  nofield:  [{k:'mol',t:'分子点阵'},{k:'inset',t:'表层放大插图'},{k:'box',t:'坐标轴'}],
+  poling:   [{k:'mol',t:'分子点阵'},{k:'cur',t:'表面束缚电流'},{k:'bp',t:'磁化场 @{B}′ 线'},
+             {k:'bt',t:'总场 @{B} 线'},{k:'b0',t:'外场参考线'},{k:'inset',t:'表层放大插图'},{k:'box',t:'坐标轴'}],
+};
+function mkRange(sec,d){
+  const r=h('<div class="slider-row'+(d.wide?' w':'')+'"><label>'+richHTML(d.label)+'</label>'+
+    '<input type="range" id="s_'+d.k+'" min="'+d.min+'" max="'+d.max+'" step="'+d.step+'" value="'+d.get()+'">'+
+    '<span class="val" id="v_'+d.k+'">'+d.fmt(d.get())+'</span></div>');
+  const inp=r.querySelector('input');
+  inp.oninput=()=>{
+    /* ⚠️ 必须用 d.set() 的**返回值**（生效值）来格式化与回写滑块（防"显示≠真实状态"） */
+    const eff=d.set(parseFloat(inp.value));
+    const v=(eff==null||!isFinite(eff))?parseFloat(inp.value):eff;
+    if(String(inp.value)!==String(v)) inp.value=String(v);
+    document.getElementById('v_'+d.k).textContent=d.fmt(v);
+    needsRender=true; updateReadout(); updateModeTag();
+    if(d.after) d.after();
+  };
+  sec.appendChild(r);
+}
+function btnRow(sec,specs){
+  const bx=h('<div class="sub-chips"></div>').firstChild;
+  specs.forEach(s=>{ const b=h('<button class="chip '+(s.col||'')+(s.on?' on':'')+'">'+richHTML(s.t)+'</button>').firstChild;
+    b.onclick=s.act; bx.appendChild(b); });
+  sec.appendChild(bx);
+}
+function renderSubSec(sec){
+  sec.innerHTML='';
+  sec.appendChild(h('<div class="sec-title">显示</div>'));
+  chipRow(sec,SHOW_ITEMS[state.mode],k=>state.show[k],k=>{
+    const next=!state.show[k];
+    /* ⚠️ 不许把层全关掉：全关 ⇒ 只剩坐标轴/空画布，三页签行为不一致 */
+    const othersOn=SHOW_ITEMS[state.mode].some(it=>it.k!==k && state.show[it.k]);
+    if(!next && !othersOn){ toastMsg('至少保留一层显示'); return; }
+    state.show[k]=next; needsRender=true; renderPanel();
+  });
+  sec.appendChild(h('<div class="ex-note" style="margin-top:7px">'+richHTML(subNote())+'</div>'));
+}
+/* ⚠️ 这里的格式必须与 mkRange 建滑块时的 fmt **完全一致**（syncSliders 会反复调用）。 */
+const SLIDER_FMT={
+  iC:v=>v.toFixed(2)+' µA', rC:v=>v.toFixed(1)+' Å',
+  B0:v=>v.toFixed(0)+' mT', t:v=>Math.round(v*100)+'%',
+};
+function syncSliders(){
+  const set=(k,v)=>{ const s=document.getElementById('s_'+k); if(s) s.value=v;
+    const e=document.getElementById('v_'+k); if(e) e.textContent=SLIDER_FMT[k]?SLIDER_FMT[k](v):String(v); };
+  set('iC',state.iC); set('rC',state.rC); set('B0',state.B0); set('t',state.t);
+}
+function renderSliders(sec){
+  sec.innerHTML='';
+  if(state.mode==='molecular'){
+    sec.appendChild(h('<div class="slider-group-label">一个分子电流有多大</div>'));
+    mkRange(sec,{k:'iC',label:'分子电流 i',wide:true,min:IC_RANGE[0],max:IC_RANGE[1],step:0.02,
+      get:()=>state.iC,set:v=>{state.iC=v;},fmt:v=>v.toFixed(2)+' µA'});
+    mkRange(sec,{k:'rC',label:'环半径 r_c',wide:true,min:RC_RANGE[0],max:RC_RANGE[1],step:0.1,
+      get:()=>state.rC,set:v=>{state.rC=v;},fmt:v=>v.toFixed(1)+' Å'});
+    btnRow(sec,[
+      {t:'翻转电流方向（看 @{m} 反向）', col:'p', on:state.flip,
+        act:()=>{ state.flip=!state.flip; renderPanel(); updateAll(); }},
+      {t:'回到默认', on:Math.abs(state.iC-1)<1e-9&&Math.abs(state.rC-10)<1e-9,
+        act:()=>{ state.iC=1.0; state.rC=10; renderPanel(); updateAll(); }},
+    ]);
+    sec.appendChild(h('<div class="ex-note" style="margin-top:9px">'+richHTML(
+      'r_c 用的是<b>真实原子尺度</b>（Å）；画面上的环按同一比例放大到看得见。'+
+      '右上角卡片里的 m = i·S、M = n·m 都按滑块上的<b>真实值</b>算 —— '+
+      '③ 页的磁化强度由这两个滑块决定。')+'</div>'));
+  } else if(state.mode==='nofield'){
+    btnRow(sec,[
+      {t:'重新随机（换一种杂乱摆法）', col:'p',
+        act:()=>{ state.seed=(state.seed+1)|0; renderPanel(); updateAll(); }},
+    ]);
+    sec.appendChild(h('<div class="ex-note" style="margin-top:9px">'+richHTML(
+      '每一幅摆法都是<b>确定性</b>的（同一seed画同一幅图，截图才可复现）；'+
+      '按一次换一个 seed，取向分布始终均匀。<br>'+
+      '💡 盯着左下角插图看：每个环都在流，但<b>顺逆方向各异</b> —— '+
+      '这就是"杂乱无章"的微观含义。')+'</div>'));
+  } else {
+    sec.appendChild(h('<div class="slider-group-label">外加磁场</div>'));
+    mkRange(sec,{k:'B0',label:'外场 @{B}₀',wide:true,min:B0_RANGE[0],max:B0_RANGE[1],step:1,
+      get:()=>state.B0,set:v=>{state.B0=v;},fmt:v=>v.toFixed(0)+' mT'});
+    sec.appendChild(h('<div class="slider-group-label g" style="margin-top:12px">加场进程 · 全过程</div>'));
+    /* ★★ 进度条：t 就是"加场/取向进行到哪儿"，可以拖到**任意时刻**停住（2.3 的同款设计） */
+    mkRange(sec,{k:'t',label:'进程 t',wide:true,min:0,max:1,step:0.01,
+      get:()=>state.t,
+      set:v=>{ state.t=v; state.g=animG(v); state.anim=null; },
+      fmt:v=>Math.round(v*100)+'%',
+      after:()=>{ syncNotes(); updatePlayBtn(); }});
+    sec.appendChild(h('<div class="ex-note" style="margin-top:4px">'+richHTML(
+      't 在 <b>0~18%</b> 之间是「还没有外加场」（分子仍杂乱）；<b>18%→100%</b> 才在建立外场 —— '+
+      '分子随之取向排列，表面电流与磁化场一起长出来。')+'</div>'));
+    const pb=h('<button class="chip o" id="btnPlay">'+((state.anim&&state.anim.playing)?'⏸ 暂停':'▶ 播放全过程')+'</button>').firstChild;
+    pb.onclick=()=>{
+      if(state.anim) state.anim.playing=!state.anim.playing;
+      else { const u=(state.t>=0.999?0:state.t); state.anim={u, playing:true}; state.t=u; state.g=animG(u); }
+      renderPanel(); needsRender=true; syncSliders(); updateReadout(); updateModeTag();
+    };
+    const bx=h('<div class="sub-chips"></div>').firstChild; bx.appendChild(pb);
+    const rb=h('<button class="chip" id="btnNoField">⏮ 回到无外场</button>').firstChild;
+    rb.onclick=()=>{ stopAnim(); state.t=0; state.g=0; renderPanel(); syncSliders(); updateAll(); };
+    const fb=h('<button class="chip" id="btnFull">⏭ 直接到最强场</button>').firstChild;
+    fb.onclick=()=>{ stopAnim(); state.t=1; state.g=1; renderPanel(); updateAll(); };
+    bx.appendChild(rb); bx.appendChild(fb);
+    sec.appendChild(bx);
+    sec.appendChild(h('<div class="ex-note" id="polNote" style="margin-top:9px">'+richHTML(polNote())+'</div>'));
+  }
+  /* 三个页签共用的一句说明 */
+  sec.appendChild(h('<div class="ex-note" style="margin-top:9px">'+richHTML(
+    '⏱ 分子环上滑落的小箭头表示<b>环流方向</b>（按右手定则对应磁矩方向），'+
+    '只为看得见，不代表真实流速。<br>'+
+    '💡 ②③ 的分子点阵是<b>同一套几何</b>：切页签时只有"朝向"在变，别的一个像素都不动。')+'</div>'));
+}
+function polNote(){
+  const B0e=B0eff(), M=Mval();
+  if(B0e<0.05)
+    return '现在<b>还没有外加场</b>（t < 18%）：分子电流仍杂乱无章，'+
+      'M、@{K}_b、@{B}′ 全部为 0 —— 和 ② 页签完全一样。';
+  return '当前外场 <b>'+B0e.toFixed(1)+' mT</b>，取向度（示意）<b>'+(sVis()*100).toFixed(0)+'%</b>：'+
+    'M = <b>'+(M/1e3).toFixed(1)+' kA/m</b>，@{B}′ = µ₀M = <b>'+BpMT().toFixed(1)+' mT</b>，'+
+    '总场 @{B} = <b>'+BtMT().toFixed(1)+' mT</b>（µ_r = '+(isFinite(muR())?muR().toFixed(2):'—')+'）。';
+}
+
+
+/* ============================================================================
+   4.2 磁介质的磁化 —— 页面专属（二）：讲解卡 / 面板装配 / 数据条 / 主循环 / 交互
+   ⚠️ 所有进 DOM 的串都必须过 richHTML()（只认 @{...} 与 _x，**不认 Markdown 星号**）。
+   ⚠️ page1.js 里被引用的符号（本文件负责定义）：
+      renderPanel / updateReadout / updateModeTag / syncNotes / updatePlayBtn /
+      updateAll / needsRender / draw / tick / resize / NAV / CARDS
+   ============================================================================ */
+const CARDS={
+  molecular:[
+    {k:'1',tab:'1. 磁介质 = 无数分子电流',cls:'c1',body:
+      '把一块磁介质放大到分子尺度，看到的不是颗粒，而是<b>无数多个绕着小圈流动的电流</b>'+
+      '—— 分子电流（原子内电荷运动的经典图像）：'+
+      '<div class="frm">一块磁介质 = 无数个分子电流小环</div>'+
+      '<ul><li>每个环流使分子获得一个<b>磁矩</b> @{m} —— 它是带方向的矢量</li>'+
+      '<li>方向用<b>右手定则</b>：四指顺环流方向，拇指指 @{m}</li>'+
+      '<li>拖 <b>i</b>（电流大小）或 <b>r_c</b>（环半径）：@{m} 随之改变，'+
+      '画面上的紫色箭头长度就是 @{m} 的相对大小</li></ul>'+
+      '<div class="ex-note">页面为看得见把环放得极大：真实分子电流是<b>原子尺度</b>（Å），'+
+      '画面大小只是示意，卡片读数按滑块上的真实值算。</div>'},
+    {k:'2',tab:'2. 磁矩 @{m} = i·S',cls:'c2',body:
+      '环流的磁矩只由"流多少、流多大圈"决定：'+
+      '<div class="frm">@{m} = i·S = i·πr_c²　　单位 A·m²</div>'+
+      '<ul><li>默认 i = 1.00 µA、r_c = 10 Å ⇒ @{m} ≈ 3.1×10'+'⁻²⁴'+' A·m² ≈ 0.34 µ_B'+
+      '（玻尔磁子量级）</li>'+
+      '<li><b>i 翻倍 ⇒ @{m} 翻倍；r_c 翻倍 ⇒ @{m} 翻四倍</b>（S 按 r_c² 涨）</li>'+
+      '<li>按「翻转电流方向」：@{m} 精确反向 —— 箭头与场线同时反过来</li></ul>'+
+      '<div class="frm">整块介质的磁化强度上限：M = n·m　（n = 10²⁸ /m³）</div>'+
+      '<div class="ex-note">⭐ 记住这条链：<b>i、r_c → @{m} → M</b>。'+
+      '③ 页签的磁化强度就是由这两个滑块算出来的。</div>'},
+    {k:'3',tab:'3. 环流的磁场 · 右手定则',cls:'c3',body:
+      '一个环流的磁场（画面上的紫色细线）：'+
+      '<div class="frm">右手定则：四指顺电流，拇指指 @{m} = 环"这一面"出磁场的方向</div>'+
+      '<ul><li>环的 <b>+@{m} 一侧</b>：场线向外穿出，像一块小磁铁的 N 极</li>'+
+      '<li>另一侧：场线绕一圈回来穿入，像 S 极</li>'+
+      '<li>贴着环导线处最强，远处迅速衰减</li></ul>'+
+      '<div class="ex-note">⟶ ②③ 页签里那 95 个小环<b>每一个都在产生这样的场</b>：'+
+      '杂乱无章时互相抵消，取向排列时叠加成可观的宏观磁场 —— 这就是本页剩下的全部故事。</div>'},
+  ],
+  nofield:[
+    {k:'1',tab:'1. 无外场：分子电流杂乱无章',cls:'c1',body:
+      '没有外加磁场时，分子电流的取向<b>杂乱无章</b>：'+
+      '<ul><li>每一个小环<b>都在流</b> —— 分子电流是物质自身的属性，与加不加外场无关</li>'+
+      '<li>但环面的朝向、环流的转向<b>处处不同</b>（统计上均匀分布）</li>'+
+      '<li>按「重新随机」换一种摆法：画面全变，<b>结论一点不变</b></li></ul>'+
+      '<div class="ex-note">⚠️ 别把"无外场"读成"没有电流"：变的是<b>取向</b>，不是环流本身。</div>'},
+    {k:'2',tab:'2. 为什么宏观上不显磁性',cls:'c2',body:
+      '两个尺度上同时抵消：'+
+      '<div class="frm">接触点：相邻两环的电流方向相反 ⇒ 微观上抵消</div>'+
+      '<ul><li>任意相邻两环的接触点上，两边电流<b>大小相等、方向相反</b></li>'+
+      '<li>对所有分子磁矩求平均：⟨@{m}⟩ = 0 ⇒ <b>磁化强度 M = 0</b></li>'+
+      '<li>外表面<b>凑不出一圈同向环流</b> ⇒ 束缚电流 @{K}_b = 0</li>'+
+      '<li>于是磁化磁场 @{B}′ = 0；此时也没有外加场 ⇒ <b>总场 @{B} = 0</b></li></ul>'+
+      '<div class="ex-note">⭐ 左下角「表层放大」画的就是这件事：投影成椭圆的环顺逆各异，'+
+      '接触点的电流互相抵消，边界上没有任何宏观环流剩下。</div>'},
+    {k:'3',tab:'3. 和 2.3 的电介质对照记',cls:'c3',body:
+      '磁介质的磁化与 2.3 电介质的极化，结构完全平行：'+
+      '<div class="frm">分子电流 ↔ 取向电偶极子　　束缚电流 ↔ 极化电荷</div>'+
+      '<ul><li>无外场：分子电流杂乱无章 ↔ 取向偶极子杂乱无章，都不显宏观效应</li>'+
+      '<li>加外场：分子电流取向排列 ↔ 偶极子取向排列</li>'+
+      '<li>表面束缚电流 @{K}_b ↔ 表面极化电荷；磁化磁场 @{B}′ ↔ 极化电场</li>'+
+      '<li>µ_r 与 ε_r 是同一件事在磁 / 电两边的对应参数</li></ul>'+
+      '<div class="ex-note">⟶ 2.3 讲"电荷被拉开"，本页讲"环流被排齐" —— '+
+      '记住这张对偶表，两边都只需记一半。</div>'},
+  ],
+  poling:[
+    {k:'1',tab:'1. 加外场：分子电流取向排列',cls:'c1',body:
+      '沿 +z（绿轴）加一个外加磁场 @{B}₀，分子电流开始<b>取向排列</b>：'+
+      '<ul><li>每个环受到"让 @{m} 转向 @{B}₀"的力矩 ⇒ 环面逐渐趴倒到垂直于 +z</li>'+
+      '<li>拖 <b>t 进度条</b>可停在任意时刻：0~18% 还没加场，18%→100% 外场从零建到设定值</li>'+
+      '<li>按 <b>▶</b> 播放全过程：外场、分子取向、表面电流、磁化场<b>一起长出来</b></li></ul>'+
+      '<div class="ex-note">⚠️ 画面取向度是<b>示意放大</b>的（s_视 = min(1, 1.8×10⁴·a)，'+
+      'a = mB/k_BT）。真实顺磁质的取向度只有 ~10⁻⁵，卡片「真实取向度 L(a)」一行'+
+      '按未放大的真实值如实报告；参数按"强磁性材料"设，只为让 µ_r 明显大于 1。</div>'},
+    {k:'2',tab:'2. 外表面合成宏观环形电流',cls:'c2',body:
+      '取向排齐后，环与环在接触点上<b>反向抵消</b>，只剩最外圈：'+
+      '<div class="frm">内部：相邻环流在接触点抵消 ⇒ 外表面剩一圈同向环流</div>'+
+      '<ul><li>这圈外表面环流就是<b>束缚电流</b> @{K}_b（也叫磁化电流）</li>'+
+      '<li>@{K}_b = M×n̂；圆柱侧面 n̂ = ρ̂ ⇒ @{K}_b 沿 φ̂ 方向，<b>数值上 = M</b></li>'+
+      '<li>它相当于一个<b>螺线管</b>：一圈圈 φ̂ 向环流沿着棒排过去</li>'+
+      '<li>左下「表层放大」：内部接触点的 ✕ 逐渐淡化（抵消），边界环逐渐变实（剩下）</li></ul>'+
+      '<div class="ex-note">⭐ 这是全页最核心的一幅图：<b>无数分子电流 → 外表面一圈宏观环流</b>，'+
+      '中间的每一步都在插图上看得见。</div>'},
+    {k:'3',tab:'3. 总场 = 外加磁场 + 磁化磁场',cls:'c3',body:
+      '束缚电流产生<b>磁化磁场</b>，空间总场是两者叠加：'+
+      '<div class="frm">@{B}′ = µ₀M　　⇒　　@{B} = @{B}₀ + @{B}′　　µ_r = @{B}/@{B}₀</div>'+
+      '<ul><li>螺线管式的 @{K}_b 产生沿 +z 的 @{B}′，与 @{B}₀ <b>同向</b></li>'+
+      '<li>浅灰直线 = 只有 @{B}₀ 时的场线路径；<b>实线弯掉的部分就是 @{B}′ 的贡献</b></li>'+
+      '<li>µ_r &gt; 1 表示介质让磁场变强了（顺磁 / 铁磁）；µ_r = 1 就是没有磁化</li></ul>'+
+      '<div class="ex-note">⟶ 拖大 @{B}₀：分子逐渐被"排满"（取向度饱和），@{B}′ 越涨越慢，'+
+      'µ_r 随之趋近 1；把 <b>i / r_c</b> 拖大：M 直接涨，@{B}′ 与 µ_r 一起涨。</div>'},
+  ],
+};
+function renderExplain(sec){
+  sec.innerHTML='';
+  const list=CARDS[state.mode];
+  sec.appendChild(h('<div class="sec-title">讲解</div>'));
+  const tabs=h('<div class="card-tabs"></div>').firstChild;
+  list.forEach(c=>{
+    /* ⚠️ 页签名里也有 @{m}/@{K}_b 这类矢量标记 ⇒ 必须过 richHTML，
+       否则按钮上会字面显示 "@{m}"（3.1 的页签名是纯文本，没这个坑） */
+    const b=h('<button class="card-tab '+c.cls+(c.k===state.cardTab?' on':'')+'">'+richHTML(c.tab)+'</button>').firstChild;
+    b.onclick=()=>{ state.cardTab=c.k; renderPanel(); };
+    tabs.appendChild(b);
+  });
+  sec.appendChild(tabs);
+  const cur=list.find(c=>c.k===state.cardTab)||list[0];
+  const body=h('<div class="card-body '+cur.cls+'"><div class="ex-title">'+richHTML(cur.tab)+'</div></div>').firstChild;
+  body.appendChild(h('<div class="ex-body">'+richHTML(cur.body)+'</div>').firstChild);
+  sec.appendChild(body);
+}
+function renderPanel(){
+  ['subSec','sliderSec','explainSec'].forEach(id=>{const el=document.getElementById(id);if(el)el.remove();});
+  const mk=id=>{const d=document.createElement('div');d.className='panel-sec';d.id=id;return d;};
+  let tog=document.getElementById('toggleSec');
+  if(!tog){
+    tog=mk('toggleSec');
+    tog.appendChild(h('<label class="readout-toggle"><input type="checkbox" id="showReadoutCb"'+(state.showReadout?' checked':'')+'><span>在<b>画布下方</b>显示<b>实时数据</b>条</span></label>'));
+    tog.querySelector('#showReadoutCb').onchange=e=>{state.showReadout=e.target.checked;updateReadout();};
+    panel.appendChild(tog);
+  }else tog.querySelector('#showReadoutCb').checked=state.showReadout;
+  const s=mk('subSec'), sl=mk('sliderSec'), ex=mk('explainSec');
+  panel.appendChild(s); panel.appendChild(sl); panel.appendChild(ex);
+  renderSubSec(s); renderSliders(sl); renderExplain(ex);
+  updateReadout(); updateModeTag();
+}
+/* ⚠️ 图例（.cv-legend）absolute + bottom:14，而 .canvas-card 里还有一条数据条（.coord-strip）
+   也贴在底部 ⇒ 图例默认会压在数据条上。修法：bottom = 数据条高度 + 14。 */
+function placeLegend(){
+  const st=document.getElementById('coordStrip'), lg=document.getElementById('legend');
+  if(!st||!lg) return;
+  lg.style.bottom=(st.offsetHeight+14)+'px';
+}
+/* page1.js 的 t 滑块 after 钩子：进程变化 ⇒ 刷新底部结论与播放按钮文案 */
+function syncNotes(){
+  const n=document.getElementById('polNote'); if(n) n.innerHTML=richHTML(polNote());
+}
+function updatePlayBtn(){
+  const b=document.getElementById('btnPlay'); if(!b) return;
+  b.textContent=(state.anim&&state.anim.playing)?'⏸ 暂停':'▶ 播放全过程';
+}
+
+/* ══════════════════════════ 画布下方实时数据条 ══════════════════════════ */
+function updateReadout(){
+  const strip=document.getElementById('coordStrip'); if(!strip) return;
+  if(!state.showReadout){ strip.innerHTML=''; placeLegend(); return; }
+  const lgT=document.getElementById('lgTitle'), lgN=document.getElementById('lgNote');
+  let html='';
+  if(state.mode==='molecular'){
+    const m=mMol(), S=Math.PI*Math.pow(state.rC*1e-10,2);
+    html += kchip('@{m} = i·S =', (m/1e-24).toFixed(2)+'×10'+supStr(-24)+' A·m²','acc');
+    html += kchip('环面积 S = πr_c² =', (S/1e-18).toFixed(2)+'×10'+supStr(-18)+' m²');
+    html += kchip('折合玻尔磁子 =', (m/9.2740100783e-24).toFixed(2)+' µ_B');
+    html += kchip('全部同向 M = n·m =', (mMax()/1e3).toFixed(1)+' kA/m','warn');
+    html += kchip('届时 @{B}′ = µ₀M =', (MU0*mMax()*1e3).toFixed(1)+' mT');
+    lgT.textContent='一个分子电流（放大）';
+    lgN.innerHTML=richHTML('@{m} = i·S，方向按右手定则；紫线 = 它的磁场（示意比例）');
+  } else if(state.mode==='nofield'){
+    html += kchip('外加磁场 @{B}₀ =', '0 mT');
+    html += kchip('磁化强度 M =', '0 kA/m');
+    html += kchip('表面束缚电流 @{K}_b =', '0 kA/m');
+    html += kchip('磁化磁场 @{B}′ =', '0 mT');
+    html += kchip('总磁场 @{B} =', '0 mT');
+    html += kchip('宏观结论 =', '不显磁性','warn');
+    lgT.textContent='分子点阵 · 杂乱无章';
+    lgN.innerHTML=richHTML('接触点反向抵消 ⇒ M = 0、@{K}_b = 0、@{B}′ = 0');
+  } else {
+    const B0e=B0eff(), M=Mval(), a=aParam(B0e);
+    html += kchip('外场终值 @{B}₀ =', state.B0.toFixed(0)+' mT');
+    html += kchip('当前外场 @{B}₀·g =', B0e.toFixed(1)+' mT');
+    html += kchip('进程 t =', Math.round(state.t*100)+'%');
+    html += kchip('取向度 s（示意）=', (sVis()*100).toFixed(0)+'%');
+    html += kchip('真实取向度 L(a) =', (sReal()*100).toExponential(1)+'%');
+    html += kchip('M = n·m·s =', (M/1e3).toFixed(1)+' kA/m','warn');
+    html += kchip('@{K}_b = M =', (M/1e3).toFixed(1)+' kA/m');
+    html += kchip('@{B}′ = µ₀M =', BpMT().toFixed(1)+' mT');
+    html += kchip('@{B} = @{B}₀+@{B}′ =', BtMT().toFixed(1)+' mT','acc');
+    html += kchip('µ_r = @{B}/@{B}₀ =', isFinite(muR())?muR().toFixed(2):'—');
+    lgT.textContent='取向排列 · 磁化 · 总场';
+    lgN.innerHTML=richHTML('实线 = @{B}₀+@{B}′；灰直线 = 只有 @{B}₀；橙虚线 = @{B}′');
+  }
+  strip.innerHTML=html;
+  placeLegend();
+}
+function updateModeTag(){
+  const t=document.getElementById('modeTag'); if(!t) return;
+  const sb=document.getElementById('moduleSub');
+  if(state.mode==='molecular'){
+    const m=mMol();
+    t.innerHTML=richHTML('① 分子电流 · @{m} = i·S = <b>'+(m/1e-24).toFixed(2)+'×10'+supStr(-24)+
+      ' A·m²</b>（'+(m/9.2740100783e-24).toFixed(2)+' µ_B）');
+    if(sb) sb.innerHTML=richHTML('磁介质由<b>无数分子电流</b>组成');
+  } else if(state.mode==='nofield'){
+    t.innerHTML=richHTML('② 无外加磁场 · M = 0 ⇒ <b>不显磁性</b>');
+    if(sb) sb.innerHTML=richHTML('无外场：分子电流<b>杂乱无章</b>，宏观互相抵消');
+  } else {
+    const B0e=B0eff();
+    t.innerHTML=richHTML('③ 加外场 · µ_r = <b>'+(isFinite(muR())?muR().toFixed(2):'—')+
+      '</b>（@{B} = '+BtMT().toFixed(1)+' mT = '+B0e.toFixed(1)+' + '+BpMT().toFixed(1)+'）');
+    if(sb) sb.innerHTML=richHTML('取向排列 ⇒ 表面束缚电流 ⇒ <b>总场 = 外场 + 磁化场</b>');
+  }
+}
+
+/* ══════════════════════════════ 主循环 ══════════════════════════════ */
+let needsRender=true;
+let _lastT=0;
+function draw(){
+  setupCamera(); ctx.clearRect(0,0,W,H);
+  buildScene();
+  prims.sort((a,b)=>a.z-b.z);
+  for(const p of prims) p.draw(ctx);
+  drawOverlays();
+  const tg=document.getElementById('panTag');
+  if(tg) tg.classList.toggle('show',Math.abs(cam.px)>2||Math.abs(cam.py)>2);
+  needsRender=false;
+}
+/* ⚠️ tick 里的 draw 必须包 try/catch：下一帧是在函数末尾排的，
+   任何一帧抛异常 ⇒ 整个渲染循环永久停摆（症状是"画面卡住、点什么都没反应"）。 */
+function tick(ts){
+  try{
+    const dt=_lastT?Math.min(0.05,(ts-_lastT)/1000):0.016; _lastT=ts||0;
+    loopPhase=(loopPhase+dt*0.28)%1;               /* 分子环上滑落的小箭头（只表方向） */
+    if(state.anim){
+      const r=stepAnim(dt);
+      if(r==='end'){ updatePlayBtn(); syncNotes(); updateReadout(); updateModeTag(); }
+      else if(r) { syncNotes(); updateReadout(); updateModeTag(); }
+    }
+    needsRender=true;                               /* 环上箭头在动 ⇒ 每帧都要重画 */
+    if(state.autoRotate){ cam.az+=0.0045; }
+    draw();
+  }catch(err){ needsRender=false; console.error('draw/tick error:',err); }
+  requestAnimationFrame(tick);
+}
+function updateAll(){ needsRender=true; syncSliders(); updateReadout(); updateModeTag(); }
+
+/* ══════════════════════════════ 交互 ══════════════════════════════ */
+let drag=null;
+function localPos(ev){const r=canvas.getBoundingClientRect();return{x:ev.clientX-r.left,y:ev.clientY-r.top};}
+canvas=document.getElementById('cv');
+ctx=canvas.getContext('2d');
+canvas.addEventListener('pointerdown',ev=>{
+  try{ canvas.setPointerCapture(ev.pointerId); }catch(e){}
+  const m=localPos(ev);
+  drag={x:m.x,y:m.y,btn:ev.button,mode:(ev.button===2||ev.ctrlKey)?'pan':'rot'};
+  ev.preventDefault();
+});
+canvas.addEventListener('pointermove',ev=>{
+  const m=localPos(ev);
+  if(!drag) return;
+  const dx=m.x-drag.x, dy=m.y-drag.y; drag.x=m.x; drag.y=m.y;
+  if(drag.mode==='pan'){ cam.px+=dx; cam.py+=dy; needsRender=true; }
+  else { cam.az-=dx*0.0075; cam.el=Math.max(-1.45,Math.min(1.45,cam.el+dy*0.0062)); needsRender=true; }
+});
+canvas.addEventListener('pointerup',()=>{ drag=null; });
+canvas.addEventListener('pointercancel',()=>{ drag=null; });
+canvas.addEventListener('contextmenu',e=>e.preventDefault());
+canvas.addEventListener('wheel',e=>{e.preventDefault();cam.zoom=Math.max(.45,Math.min(3.2,cam.zoom*(e.deltaY<0?1.09:1/1.09)));needsRender=true;},{passive:false});
+document.getElementById('btnViewReset').onclick=()=>{ cam.az=.62; cam.el=.40; cam.zoom=1; cam.px=0; cam.py=0; needsRender=true; };
+document.getElementById('btnRotate').onclick=e=>{state.autoRotate=!state.autoRotate;e.target.classList.toggle('on',state.autoRotate);};
+document.getElementById('btnPanReset').onclick=()=>{cam.px=0;cam.py=0;needsRender=true;};
+function bindFold(bid,cls){document.getElementById(bid).onclick=()=>{document.body.classList.toggle(cls);setTimeout(resize,60);setTimeout(resize,260);};}
+bindFold('foldNav','nav-off'); bindFold('foldPanel','panel-off');
+document.getElementById('tglNav').onclick=()=>{document.body.classList.toggle('nav-off');setTimeout(resize,260);};
+document.getElementById('tglPanel').onclick=()=>{document.body.classList.toggle('panel-off');setTimeout(resize,260);};
+window.addEventListener('keydown',e=>{if(e.target.tagName==='INPUT')return;
+  if(e.key==='['){document.body.classList.toggle('nav-off');setTimeout(resize,260);}
+  if(e.key===']'){document.body.classList.toggle('panel-off');setTimeout(resize,260);}});
+
+/* ══════════ 右侧面板：拖动抓取条自由调整宽度 ══════════ */
+const PANEL_W0=398, PANEL_WMIN=260;
+const panelEl=document.getElementById('panel'), panelRz=document.getElementById('panelResizer');
+function panelMaxW(){
+  const navW=document.body.classList.contains('nav-off')?0:236;
+  return Math.max(PANEL_WMIN+60, Math.min(760, window.innerWidth-navW-330));
+}
+function setPanelW(px,save){
+  const w=Math.max(PANEL_WMIN, Math.min(panelMaxW(), Math.round(px)));
+  document.documentElement.style.setProperty('--panel-w', w+'px');
+  if(save){ try{ localStorage.setItem('em42-panel-w', String(w)); }catch(e){} }
+  return w;
+}
+(()=>{ let v=0; try{ v=parseInt(localStorage.getItem('em42-panel-w')||'0',10)||0; }catch(e){}
+      if(v>=PANEL_WMIN) setPanelW(v,false); })();
+let _rz=null;
+function rzEnd(){
+  if(_rz) setPanelW(panelEl.getBoundingClientRect().width,true);
+  _rz=null; document.body.classList.remove('resizing'); panelRz.classList.remove('dragging');
+}
+panelRz.addEventListener('pointerdown',ev=>{
+  if(document.body.classList.contains('panel-off')) return;
+  try{ panelRz.setPointerCapture(ev.pointerId); }catch(e){}
+  _rz={x:ev.clientX, w:panelEl.getBoundingClientRect().width};
+  document.body.classList.add('resizing'); panelRz.classList.add('dragging');
+  ev.preventDefault();
+});
+panelRz.addEventListener('pointermove',ev=>{ if(!_rz) return; setPanelW(_rz.w-(ev.clientX-_rz.x), false); });
+panelRz.addEventListener('pointerup',rzEnd);
+panelRz.addEventListener('pointercancel',rzEnd);
+panelRz.addEventListener('dblclick',()=>setPanelW(PANEL_W0,true));
+window.addEventListener('resize',()=>{ const cur=panelEl.getBoundingClientRect().width;
+  if(cur>panelMaxW()) setPanelW(cur,true); });
+
+/* ══════════════════════════════ 页签 ══════════════════════════════
+   ★ 每个页签有自己的预设（分子尺寸 / 外场与进程）⇒ 每个演示的起点都可复现。 */
+const MT=[{k:'molecular', t:'① 分子电流'},
+          {k:'nofield',  t:'② 无外加磁场'},
+          {k:'poling',   t:'③ 加外场 · 磁化 · 总场'}];
+const modeTabs=document.getElementById('modeTabs');
+MT.forEach(m=>{const b=document.createElement('button');b.textContent=m.t;b.dataset.k=m.k;
+  b.onclick=()=>{ stopAnim(); state.mode=m.k; state.cardTab='1';
+    Object.assign(state, JSON.parse(JSON.stringify(PRESET[m.k])));
+    clampState();                       /* ★ 见 phys.js：防"按钮把量设到量程外"的静默不一致 */
+    syncModeTabs(); cam.az=.62; cam.el=.40; cam.px=0; cam.py=0;
+    renderPanel(); updateAll(); };
+  modeTabs.appendChild(b);});
+function syncModeTabs(){Array.from(modeTabs.children).forEach(b=>b.classList.toggle('on',b.dataset.k===state.mode));}
+
+function resize(){
+  const r=canvas.getBoundingClientRect();
+  const nw=Math.max(60,Math.round(r.width)),nh=Math.max(60,Math.round(r.height));
+  DPR=Math.min(2,window.devicePixelRatio||1);
+  if(nw===W&&nh===H&&canvas.width===Math.round(nw*DPR))return;
+  W=nw;H=nh;canvas.width=Math.round(W*DPR);canvas.height=Math.round(H*DPR);
+  ctx.setTransform(DPR,0,0,DPR,0,0); needsRender=true;
+  placeLegend();
+}
+new ResizeObserver(()=>resize()).observe(canvas);
+
+const nav=document.getElementById('nav');
+NAV.forEach(g=>{nav.appendChild(h('<div class="nav-ch">'+g.ch+'</div>'));
+  g.items.forEach(it=>{const cls='nav-item'+(it.active?' active':'')+(it.ready?'':' soon');
+    nav.appendChild(h('<a class="'+cls+'" '+(it.href?'href="'+it.href+'"':'')+'><span class="dot"></span>'+it.t+'</a>'));});});
+
+syncModeTabs();
+resize();
+renderPanel();
+updateAll();
+tick(0);
+
+</script>
+</body>
+</html>
