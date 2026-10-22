@@ -370,9 +370,96 @@ const tickCheck=()=>new Promise(res=>{
   poll();
 });
 
+/* ============ ⑱ 放倒 + 面元拖动（2026-10-20 新增） ============
+   layT：竖放是恒等；放倒后圆柱轴沿 x（横截面 = x=0 竖直圆盘）。
+   面元拖动：真实 PointerEvent 打在 canvas 上，断言比例坐标变化且始终装得进圆盘。 */
+{
+  const fails=[]; let n=0;
+  clickTab('volume');
+  /* layT 恒等（竖放） */
+  n++; state.lay=false;
+  { const q=layT(pt(0.11,-0.22,0.33));
+    if(Math.abs(q.x-0.11)>1e-12||Math.abs(q.y+0.22)>1e-12||Math.abs(q.z-0.33)>1e-12)
+      fails.push('竖放时 layT 不是恒等：'+JSON.stringify(q)); }
+  /* 放倒：z→x */
+  n++; state.lay=true;
+  { const q=layT(pt(0.11,-0.22,0.33));
+    if(Math.abs(q.x-0.33)>1e-12||Math.abs(q.y+0.22)>1e-12||Math.abs(q.z+0.11)>1e-12)
+      fails.push('放倒时 layT 应是 (z,y,−x)：'+JSON.stringify(q)); }
+  /* 放倒后面元中心必在 x=0 盘 */
+  n++; { const c=elemCenter();
+    if(Math.abs(c.x)>1e-12) fails.push('放倒后面元中心 x='+c.x+' ≠ 0'); }
+  /* 放倒后载流子：轴向（x）在 [−L/2,L/2)，径向（绕 x 轴）≤ a */
+  n++; {
+    let bad=0;
+    for(const drift of [0,0.37,0.999]) { state.drift=drift;
+      for(const b0 of BASE_V){ const p=carrierPos(state.a,b0,A_L);
+        if(!(p.x>=-A_L/2-1e-9 && p.x<A_L/2-1e-9)) { bad++; break; }
+        if(Math.hypot(p.y,p.z)>state.a+1e-9) { bad++; break; } } }
+    if(bad) fails.push('放倒后载流子位置越界 ×'+bad);
+  }
+  state.drift=0;
+  /* 放倒后场景幂等 */
+  n++; buildScene(); const n1=prims.length; buildScene();
+  if(n1!==prims.length) fails.push('放倒后 buildScene 不幂等：'+n1+' → '+prims.length);
+  /* elemClampFrac：极端比例坐标必被钳回盘内 */
+  n++; state.elemFX=9.9; state.elemFY=-8.8; elemClampFrac();
+  if(!elemFits()) fails.push('elemClampFrac(9.9,−8.8) 后仍越盘：fx='+state.elemFX+' fy='+state.elemFY);
+  /* 真实指针拖拽：落在面元上 ⇒ 拖的是面元（比例坐标变、仍装得下、且不转相机） */
+  n++; {
+    state.lay=false; state.elemFX=0.55; state.elemFY=0; state.th=0;
+    cam.az=0.62; cam.el=0.40; cam.zoom=1; cam.px=0; cam.py=0;
+    buildScene();
+    const cv=document.getElementById('cv'), r=cv.getBoundingClientRect();
+    const s=pr(elemCenter());
+    const az0=cam.az, fx0=state.elemFX, fy0=state.elemFY;
+    const opts=(x,y)=>({pointerId:7, clientX:r.left+x, clientY:r.top+y, button:0, bubbles:true});
+    cv.dispatchEvent(new PointerEvent('pointerdown', opts(s.x,s.y)));
+    cv.dispatchEvent(new PointerEvent('pointermove', opts(s.x+50,s.y-38)));
+    cv.dispatchEvent(new PointerEvent('pointerup',   opts(s.x+50,s.y-38)));
+    const moved=Math.abs(state.elemFX-fx0)+Math.abs(state.elemFY-fy0);
+    if(moved<1e-6) fails.push('拖到面元上但比例坐标没动（命中判定失效？）');
+    if(!elemFits()) fails.push('拖完面元越盘');
+    if(Math.abs(cam.az-az0)>1e-12) fails.push('拖面元时相机被转动（命中判定失效？）');
+    R.push('DATA|⑱ 拖面元|fx '+fx0.toFixed(3)+'→'+state.elemFX.toFixed(3)+'　fy '+fy0.toFixed(3)+'→'+state.elemFY.toFixed(3));
+  }
+  /* 没落在面元上 ⇒ 仍是转相机 */
+  n++; {
+    state.elemFX=0.55; state.elemFY=0;
+    const cv=document.getElementById('cv'), r=cv.getBoundingClientRect();
+    const s=pr(elemCenter());
+    const az0=cam.az;
+    const opts=(x,y)=>({pointerId:8, clientX:r.left+x, clientY:r.top+y, button:0, bubbles:true});
+    cv.dispatchEvent(new PointerEvent('pointerdown', opts(s.x+120,s.y+120)));
+    cv.dispatchEvent(new PointerEvent('pointermove', opts(s.x+150,s.y+120)));
+    cv.dispatchEvent(new PointerEvent('pointerup',   opts(s.x+150,s.y+120)));
+    if(Math.abs(cam.az-az0)<1e-9) fails.push('空白处拖动没有转相机');
+  }
+  /* 放倒 + 拖动也要落在 x=0 盘内坐标系 */
+  n++; {
+    state.lay=true; state.elemFX=0.55; state.elemFY=0;
+    const cv=document.getElementById('cv'), r=cv.getBoundingClientRect();
+    const s=pr(elemCenter());
+    const fx0=state.elemFX, fy0=state.elemFY;
+    const opts=(x,y)=>({pointerId:9, clientX:r.left+x, clientY:r.top+y, button:0, bubbles:true});
+    cv.dispatchEvent(new PointerEvent('pointerdown', opts(s.x,s.y)));
+    cv.dispatchEvent(new PointerEvent('pointermove', opts(s.x-42,s.y+25)));
+    cv.dispatchEvent(new PointerEvent('pointerup',   opts(s.x-42,s.y+25)));
+    if(Math.abs(state.elemFX-fx0)+Math.abs(state.elemFY-fy0)<1e-6) fails.push('放倒后拖面元没动');
+    if(!elemFits()) fails.push('放倒后拖完越盘');
+    const c=elemCenter();
+    if(Math.abs(c.x)>1e-12) fails.push('放倒拖动后面元中心离开 x=0 盘');
+  }
+  /* 收尾复位 */
+  state.lay=false; state.elemFX=PRESET.volume.elemFX; state.elemFY=PRESET.volume.elemFY;
+  cam.az=0.62; cam.el=0.40; cam.px=0; cam.py=0;
+  group('⑱ 放倒（layT/几何/幂等）+ 面元真实拖拽', n, fails);
+}
+
 /* 收尾：恢复到默认页签，避免把页面留在一个奇怪的状态 */
 clickTab('volume'); state.rho=PRESET.volume.rho; state.u=PRESET.volume.u; state.a=PRESET.volume.a;
-state.dS=PRESET.volume.dS; state.th=PRESET.volume.th; state.drift=0; clampState();
+state.dS=PRESET.volume.dS; state.th=PRESET.volume.th; state.drift=0;
+state.lay=false; state.elemFX=PRESET.volume.elemFX; state.elemFY=PRESET.volume.elemFY; clampState();
 renderPanel(); updateAll();
 
 return tickCheck();

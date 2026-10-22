@@ -1,0 +1,1281 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>3.2 恒定电场的特点 · 电磁场可视化平台</title>
+<style>
+
+:root{--teal:#156082;--teal-dark:#0E4A66;--teal-light:#E3EFF4;--orange:#E97132;--orange-light:#FDF0E7;--green:#3E9B4F;--green-light:#EAF5EC;--purple:#9B59B6;--crimson:#D04A3A;--blue:#0F9ED5;--ink:#1F3D4C;--muted:#5F7482;--line:#DCE6EB;--bg:#F2F6F8;--panel-w:398px;}
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{height:100%;}
+body{font-family:"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--ink);overflow:hidden;}
+header{height:76px;background:#fff;border-bottom:1px solid var(--line);display:flex;align-items:center;padding:0 22px;gap:14px;}
+.logo{width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,var(--teal),#2E86AB);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:15px;text-decoration:none;}
+header h1{font-size:18px;font-weight:700;letter-spacing:.5px;}
+header .sub{font-size:12px;color:var(--muted);margin-top:2px;}
+header .badge{margin-left:auto;display:flex;flex-direction:column;align-items:flex-end;gap:4px;}
+header .badge .chip{font-size:12px;color:var(--teal);background:var(--teal-light);border:1px solid #C5DEE9;padding:4px 12px;border-radius:20px;white-space:nowrap;}
+header .badge .owner{font-size:11px;color:#5C6B73;background:#F4F7F9;border:1px solid #E2E8EC;padding:3px 10px;border-radius:20px;white-space:nowrap;display:inline-flex;align-items:center;gap:5px;}
+header .badge .owner b{color:var(--teal);font-weight:600;letter-spacing:.3px;}
+header .badge .owner::before{content:"";display:inline-block;width:5px;height:5px;background:var(--teal);border-radius:50%;}
+.layout{display:flex;height:calc(100vh - 76px);}
+aside{width:236px;background:#fff;border-right:1px solid var(--line);overflow-y:auto;padding:14px 0;flex-shrink:0;}
+aside::-webkit-scrollbar{width:6px;} aside::-webkit-scrollbar-thumb{background:#D5E0E6;border-radius:3px;}
+.nav-ch{font-size:12px;color:var(--muted);padding:12px 18px 6px;font-weight:600;letter-spacing:.5px;}
+.nav-item{display:flex;align-items:center;gap:8px;padding:9px 18px;font-size:13.5px;cursor:pointer;color:#3D5A68;border-left:3px solid transparent;transition:background .15s;text-decoration:none;}
+.nav-item:hover{background:#F5F9FB;}
+.nav-item.active{background:var(--teal-light);color:var(--teal-dark);font-weight:600;border-left-color:var(--teal);}
+.nav-item .dot{width:6px;height:6px;border-radius:50%;background:#C6D4DB;flex-shrink:0;}
+.nav-item.active .dot{background:var(--teal);}
+.nav-item.soon{color:#A5B6C0;cursor:not-allowed;}
+.nav-item.soon .dot{background:#E1E9ED;}
+.nav-item.soon::after{content:"建设中";font-size:10px;color:#B7C6CE;margin-left:auto;border:1px solid #DCE6EB;border-radius:8px;padding:1px 6px;}
+main{flex:1;display:flex;flex-direction:column;padding:14px 16px 12px;overflow:hidden;min-width:0;}
+.module-head{display:flex;align-items:center;gap:16px;margin-bottom:10px;flex-wrap:wrap;}
+.module-title{font-size:17px;font-weight:700;}
+.module-title small{font-weight:400;color:var(--muted);font-size:12px;margin-left:8px;}
+.seg{display:flex;background:#fff;border:1px solid var(--line);border-radius:10px;padding:3px;gap:2px;flex-wrap:wrap;}
+.seg button{border:none;background:transparent;padding:7px 15px;font-size:13px;border-radius:8px;cursor:pointer;color:var(--muted);font-family:inherit;transition:all .15s;white-space:nowrap;}
+.seg button:hover{color:var(--teal);}
+.seg button.on{background:var(--teal);color:#fff;font-weight:600;box-shadow:0 2px 6px rgba(21,96,130,.3);}
+.content-row{flex:1;display:flex;gap:14px;min-height:0;}
+.canvas-card{flex:1;background:#fff;border:1px solid var(--line);border-radius:14px;position:relative;overflow:hidden;min-width:0;display:flex;flex-direction:column;box-shadow:0 1px 4px rgba(30,60,80,.05);}
+#cv{width:100%;flex:1;min-height:0;min-width:0;display:block;cursor:grab;touch-action:none;}
+#cv:active{cursor:grabbing;}
+.cv-toolbar{position:absolute;top:12px;right:12px;display:flex;gap:8px;z-index:5;}
+.cv-toolbar button{border:1px solid var(--line);background:rgba(255,255,255,.92);border-radius:8px;padding:5px 12px;font-size:12px;color:var(--muted);cursor:pointer;font-family:inherit;backdrop-filter:blur(4px);transition:all .15s;}
+.cv-toolbar button:hover{color:var(--teal);border-color:var(--teal);}
+.cv-toolbar button.on{background:var(--teal);color:#fff;border-color:var(--teal);}
+.cv-mode-tag{position:absolute;top:12px;left:12px;font-size:12px;color:var(--teal-dark);background:rgba(227,239,244,.92);border:1px solid #C9E0EA;border-radius:8px;padding:5px 12px;z-index:4;pointer-events:none;font-weight:600;max-width:56%;}
+aside,.panel{transition:width .22s ease,padding .22s ease,border-width .22s ease;}
+body.nav-off aside{width:0;padding-top:0;padding-bottom:0;border-right-width:0;overflow:hidden;}
+body.panel-off .panel{width:0;border-left-width:0;border-right-width:0;overflow:hidden;}
+.fold-handle{position:absolute;top:50%;transform:translateY(-50%);z-index:6;width:15px;height:58px;padding:0;line-height:1;border:1px solid var(--line);background:rgba(255,255,255,.94);color:#A3B7C2;font-size:11px;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px);transition:all .15s;}
+.fold-handle:hover{color:var(--teal);border-color:var(--teal);background:#fff;}
+#foldNav{left:0;border-left:none;border-radius:0 9px 9px 0;}
+#foldPanel{right:0;border-right:none;border-radius:9px 0 0 9px;}
+/* ★ 右侧面板的**自由宽度**（不只是"收起 / 展开"两态）：面板左缘贴一条拖动抓取条。
+   ⚠️ 拖动时必须把 .panel 的 `transition:width` 关掉（body.resizing），
+      否则宽度会有 0.22s 的追赶延迟，鼠标跑得越快面板越"跟不上"。 */
+.panel-resizer{flex:0 0 11px;width:11px;margin:0 -5px;align-self:stretch;cursor:col-resize;position:relative;z-index:7;}
+.panel-resizer::before{content:"";position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:3px;height:46px;border-radius:2px;background:#DCE6EB;transition:background .15s,height .15s;}
+.panel-resizer:hover::before,.panel-resizer.dragging::before{background:var(--teal);height:72px;}
+body.resizing,body.resizing .panel,body.resizing aside{transition:none!important;}
+body.resizing{user-select:none;cursor:col-resize;}
+body.panel-off .panel-resizer{display:none;}
+.view-toggles{display:flex;gap:6px;margin-right:6px;}
+.view-toggles button{border:1px solid var(--line);background:#fff;border-radius:8px;padding:5px 11px;font-size:12px;color:var(--muted);cursor:pointer;font-family:inherit;transition:all .15s;}
+.view-toggles button:hover{border-color:var(--teal);color:var(--teal);}
+.view-toggles button.on{background:var(--teal);color:#fff;border-color:var(--teal);}
+.cv-pan-tag{position:absolute;top:12px;left:50%;transform:translateX(-50%);z-index:6;font-size:11.5px;color:#8A5A20;background:rgba(255,248,236,.95);border:1px solid #E7C48F;border-radius:8px;padding:5px 12px;display:none;align-items:center;gap:8px;}
+.cv-pan-tag.show{display:flex;}
+.cv-pan-tag button{border:1px solid #E0BE8C;background:#fff;border-radius:6px;padding:2px 9px;font-size:11.5px;color:#8A5A20;cursor:pointer;font-family:inherit;}
+.cv-pan-tag button:hover{background:#8A5A20;color:#fff;border-color:#8A5A20;}
+.cv-legend{position:absolute;bottom:14px;right:14px;z-index:5;background:rgba(255,255,255,.94);border:1px solid var(--line);border-radius:9px;padding:7px 11px 8px;font-size:11px;color:var(--muted);backdrop-filter:blur(4px);pointer-events:none;min-width:130px;}
+.cv-legend .lg-t{font-size:11px;color:var(--ink);font-weight:600;margin-bottom:5px;}
+.cv-legend .lg-note{font-size:10.5px;color:var(--muted);line-height:1.55;margin-top:4px;}
+.coord-strip{display:flex;gap:8px;padding:10px 12px;border-top:1px solid var(--line);background:#FBFDFE;flex-wrap:nowrap;overflow-x:auto;overflow-y:hidden;}
+.coord-strip::-webkit-scrollbar{height:5px;}
+.coord-strip::-webkit-scrollbar-thumb{background:#D5E0E6;border-radius:3px;}
+.coord-strip:empty{padding:0;border-top:none;}
+.coord-chip{font-size:12px;color:var(--muted);background:#F3F8FA;border:1px solid #E2ECF1;border-radius:8px;padding:5px 12px;white-space:nowrap;}
+.coord-chip b{color:var(--teal-dark);font-weight:600;margin-left:5px;font-family:Menlo,monospace;}
+.coord-chip i{font-style:italic;font-family:Georgia,serif;color:var(--ink);}
+.coord-chip.acc{background:#F5F0FA;border-color:#E2D4F0;}
+.coord-chip.acc b{color:#6B4E8A;}
+.coord-chip.warn{background:#FFF6EC;border-color:#F3DCC0;}
+.coord-chip.warn b{color:#B26A1E;}
+/* ⚠️ 面板宽度走 CSS 变量 --panel-w（而不是写死 398px）：拖动抓取条时只改变量，
+   body.panel-off 的 width:0 仍然靠更高优先级生效，两者不打架。 */
+.panel{width:var(--panel-w,398px);flex-shrink:0;background:#fff;border:1px solid var(--line);border-radius:14px;display:flex;flex-direction:column;overflow-y:auto;box-shadow:0 1px 4px rgba(30,60,80,.05);}
+.panel::-webkit-scrollbar{width:6px;} .panel::-webkit-scrollbar-thumb{background:#D5E0E6;border-radius:3px;}
+.panel-sec{padding:14px 16px;border-bottom:1px solid #EEF3F6;}
+.panel-sec:last-child{border-bottom:none;}
+.readout-toggle{display:flex;align-items:center;gap:8px;padding:8px 10px;margin-bottom:12px;background:#F3F8FA;border:1px solid #E2ECF1;border-radius:8px;cursor:pointer;font-size:12.5px;line-height:1.5;color:var(--muted);}
+.readout-toggle:hover{border-color:#C6DAE3;background:#EDF4F7;}
+.readout-toggle input{accent-color:var(--teal);cursor:pointer;margin:0;}
+.readout-toggle b{color:var(--ink);}
+.sec-title{font-size:12px;color:var(--muted);font-weight:600;letter-spacing:1px;margin-bottom:10px;display:flex;align-items:center;gap:6px;}
+.sec-title::before{content:"";width:3px;height:12px;background:var(--teal);border-radius:2px;}
+.sub-chips{display:flex;gap:6px;flex-wrap:wrap;}
+.chip{border:1px solid var(--line);background:#fff;border-radius:16px;padding:4px 13px;font-size:12.5px;line-height:1.5;cursor:pointer;font-family:inherit;color:var(--muted);transition:all .15s;}
+.chip:hover{border-color:var(--teal);color:var(--teal);}
+.chip.on{background:var(--teal);border-color:var(--teal);color:#fff;font-weight:600;}
+.chip.pre{border-style:dashed;border-color:#C9D6DD;color:#7A8F9B;}
+.chip.pre:hover{border-color:var(--orange);color:var(--orange);background:#FFF8F2;}
+.chip.g.on{background:var(--green);border-color:var(--green);}
+.chip.o.on{background:var(--orange);border-color:var(--orange);}
+.chip.p.on{background:var(--purple);border-color:var(--purple);}
+.slider-row{display:flex;align-items:center;gap:10px;margin-bottom:9px;}
+.slider-row label{width:46px;font-size:13px;font-style:italic;font-family:Georgia,serif;color:var(--ink);text-align:right;flex-shrink:0;}
+.slider-row.w label{width:62px;font-style:normal;font-family:inherit;}
+.slider-row input[type=range]{flex:1;accent-color:var(--teal);height:4px;cursor:pointer;}
+.slider-row .val{width:62px;font-size:12px;color:var(--muted);font-family:Menlo,monospace;flex-shrink:0;}
+.ex-title{font-size:14.5px;font-weight:700;color:var(--teal-dark);margin-bottom:8px;line-height:1.45;}
+.ex-body{font-size:14px;line-height:1.7;color:#3A5462;}
+.ex-body b{color:var(--ink);}
+.ex-body ul{padding-left:18px;margin:6px 0;}
+.ex-body li{margin-bottom:3px;}
+.ex-note{font-size:12.5px;line-height:1.65;color:#6B8290;background:#F7FAFB;border:1px solid #E7EFF3;border-radius:8px;padding:8px 11px;margin-top:9px;}
+.frm{display:block;background:#F4F9FB;border:1px solid #DDE9EF;border-left:3px solid var(--teal);border-radius:8px;padding:10px 14px 10px 18px;margin:10px 0;font-size:14px;line-height:1.7;font-family:Georgia,"Times New Roman",serif;color:var(--ink);overflow-x:auto;white-space:nowrap;}
+.vec{position:relative;font-style:italic;font-weight:700;white-space:nowrap;}
+.vec::before,.vec::after{content:'';position:absolute;pointer-events:none;}
+.vec::before{left:0;right:.24em;top:-.28em;height:1px;background:currentColor;opacity:.9;}
+.vec::after{right:0;top:-.42em;width:0;height:0;border-left:.26em solid currentColor;border-top:.14em solid transparent;border-bottom:.14em solid transparent;}
+sub{font-size:.72em;vertical-align:-.24em;}
+.vec sub{font-style:normal;font-weight:600;}
+.sqrt{display:inline-block;position:relative;padding-left:.62em;margin-left:.05em;font-style:normal;}
+.sqrt::before{content:"√";position:absolute;left:.02em;top:-.12em;font-size:1.1em;font-family:"Cambria Math","STIX Two Math","Latin Modern Math","Times New Roman",Georgia,serif;}
+.sqrt .in{display:inline-block;border-top:1.15px solid currentColor;padding:.10em .06em .02em .06em;border-radius:4px 4px 0 0;line-height:1.1;}
+.card-tabs{display:flex;gap:6px;flex-wrap:wrap;margin:4px 0 10px;}
+.card-tab{cursor:pointer;font-family:inherit;font-size:12.5px;padding:5px 9px;border-radius:9px;border:1px solid var(--line);background:#fff;color:var(--muted);transition:all .15s;line-height:1.4;white-space:nowrap;flex:1;text-align:center;min-width:0;}
+.card-tab:hover{border-color:var(--teal);color:var(--teal);}
+.card-tab.c1.on{background:#156082;border-color:#156082;color:#fff;font-weight:600;}
+.card-tab.c2.on{background:#0F9ED5;border-color:#0F9ED5;color:#fff;font-weight:600;}
+.card-tab.c3.on{background:#E97132;border-color:#E97132;color:#fff;font-weight:600;}
+.card-tab.c4.on{background:#9B59B6;border-color:#9B59B6;color:#fff;font-weight:600;}
+.card-body{background:#FCFEFE;border:1px solid #E2ECF1;border-radius:8px;padding:12px 16px 8px;border-left:4px solid var(--teal);}
+.card-body.c1{border-left-color:#156082;} .card-body.c2{border-left-color:#0F9ED5;}
+.card-body.c3{border-left-color:#E97132;} .card-body.c4{border-left-color:#9B59B6;}
+#toast{position:fixed;bottom:26px;left:50%;transform:translateX(-50%);background:rgba(31,61,76,.94);color:#fff;font-size:13px;padding:9px 20px;border-radius:22px;opacity:0;pointer-events:none;transition:opacity .25s;z-index:99;}
+#toast.show{opacity:1;}
+
+/* 2.1 追加：滑块分组标签（1.3 有定义、1.5 漏了，这里补齐） */
+.slider-group-label{font-size:12px;font-weight:600;color:var(--crimson);margin:4px 0 8px;}
+.slider-group-label.q{color:var(--blue);}
+.slider-group-label.g{color:var(--green);}
+.slider-group-label.o{color:var(--orange);}
+</style>
+</head>
+<body>
+<header>
+  <a class="logo" href="index.html" title="返回平台首页">E&M</a>
+  <div><h1>3.2 恒定电场的特点</h1><div class="sub">局外力 · 局外场强 · 电流连续性 · 环量特性</div></div>
+  <div class="view-toggles" id="viewToggles"><button id="tglNav" title="折叠 / 展开左侧目录（快捷键 [ ）">☰ 目录</button><button id="tglPanel" title="折叠 / 展开右侧控制面板（快捷键 ] ）">☰ 面板</button></div>
+  <div class="badge"><div class="chip">《工程电磁场》 ×《电磁场与电磁波》</div><div class="owner"><b>© 2026 Li Chenlu</b> All Rights Reserved</div></div>
+</header>
+<div class="layout">
+  <aside id="nav"></aside>
+  <main>
+    <div class="module-head">
+      <div class="module-title" id="moduleTitle">恒定电场的特点<small id="moduleSub">局外场强把电荷搬回正极</small></div>
+      <div class="seg" id="modeTabs"></div>
+    </div>
+    <div class="content-row">
+      <div class="canvas-card">
+        <canvas id="cv"></canvas>
+        <div class="cv-mode-tag" id="modeTag"></div>
+        <div class="cv-pan-tag" id="panTag"><span>画面已平移</span><button id="btnPanReset">回到原点</button></div>
+        <div class="cv-toolbar"><button id="btnViewReset">复位视角</button><button id="btnRotate">自动旋转</button></div>
+        <div class="cv-legend" id="legend"><div class="lg-t" id="lgTitle">恒定电场</div><div class="lg-note" id="lgNote"></div></div>
+        <button class="fold-handle" id="foldNav" title="折叠 / 展开左侧目录">‹</button>
+        <button class="fold-handle" id="foldPanel" title="折叠 / 展开右侧面板">›</button>
+        <div class="coord-strip" id="coordStrip"></div>
+      </div>
+      <div class="panel-resizer" id="panelResizer" title="拖动调整面板宽度（双击复位为 398px）"></div>
+      <div class="panel" id="panel"></div>
+    </div>
+  </main>
+</div>
+<div id="toast"></div>
+<script>
+'use strict';
+
+/* ============================== 向量工具（与 2.1 / 2.2 同源） ============================== */
+const pt=(x,y,z)=>({x,y,z});
+const vadd=(a,b)=>({x:a.x+b.x,y:a.y+b.y,z:a.z+b.z});
+const vsub=(a,b)=>({x:a.x-b.x,y:a.y-b.y,z:a.z-b.z});
+const vmul=(a,s)=>({x:a.x*s,y:a.y*s,z:a.z*s});
+const vdot=(a,b)=>a.x*b.x+a.y*b.y+a.z*b.z;
+const vlen=a=>Math.hypot(a.x,a.y,a.z);
+const vnorm=a=>{const l=vlen(a)||1;return vmul(a,1/l);};
+const vcross=(a,b)=>({x:a.y*b.z-a.z*b.y, y:a.z*b.x-a.x*b.z, z:a.x*b.y-a.y*b.x});
+const D2R=Math.PI/180, R2D=180/Math.PI;
+const clamp1=v=>Math.max(-1,Math.min(1,v));
+const sstep=x=>{x=Math.max(0,Math.min(1,x));return x*x*(3-2*x);};
+
+/* ============================== 富文本引擎（同源，勿改语义） ============================== */
+function parseRich(s){
+  const items=[], groups=[]; const st={g:-1};
+  (function walk(str){
+    let buf='';
+    const flush=()=>{ if(buf){ items.push({t:'n',s:buf,g:st.g}); buf=''; } };
+    for(let i=0;i<str.length;){
+      const c=str[i];
+      if(c==='@' && str[i+1]==='{'){
+        const j=str.indexOf('}', i+2);
+        if(j<0){ buf+=c; i++; continue; }
+        flush();
+        const save=st.g; st.g=groups.length; groups.push(1);
+        walk(str.slice(i+2,j)); st.g=save; i=j+1; continue;
+      }
+      if(c==='_'){
+        flush();
+        if(str[i+1]==='{'){ const j=str.indexOf('}',i+2);
+          if(j>=0){ items.push({t:'s',s:str.slice(i+2,j),g:st.g}); i=j+1; continue; } }
+        items.push({t:'s',s:str[i+1]||'',g:st.g}); i+=2; continue;
+      }
+      if(c==='<'){ const j=str.indexOf('>',i);
+        if(j>=0){ buf+=str.slice(i,j+1); i=j+1; continue; } }
+      buf+=c; i++;
+    }
+    flush();
+  })(String(s));
+  return {items, groups};
+}
+const RICHFONT='"PingFang SC","Microsoft YaHei",sans-serif';
+const RICHFONT_M='Georgia,"Times New Roman",serif';
+function richLayout(ctx,rich,size,bold){const subSize=size*0.74;const wM=bold?'700 ':'';const fN=wM+size+'px '+RICHFONT;const fNs=wM+subSize+'px '+RICHFONT;const fV='italic '+wM+size+'px '+RICHFONT_M;const fVs=wM+subSize+'px '+RICHFONT_M;const groups=rich.groups.map(()=>({x0:1e9,x1:-1e9,locked:false,top:1e9}));const out=[];let x=0;const oldBL=ctx.textBaseline;ctx.textBaseline='middle';rich.items.forEach(it=>{const sub=it.t==='s',vec=it.g>=0;const font=sub?(vec?fVs:fNs):(vec?fV:fN);ctx.font=font;const m=ctx.measureText(it.s),w=m.width;const dy=sub?size*0.20:0;const asc=(m.actualBoundingBoxAscent!=null)?m.actualBoundingBoxAscent:size*0.38;if(vec){const g=groups[it.g];if(!g.locked){if(sub)g.locked=true;else{if(x<g.x0)g.x0=x;g.x1=x+w;}}const top=dy-asc;if(top<g.top)g.top=top;}out.push({s:it.s,sub,x,w,font,dy});x+=w;});ctx.textBaseline=oldBL;return{items:out,groups,w:x,size,subSize};}
+function richDraw(ctx,lo,cx,cy,align,color,fat){let ox=align==='center'?cx-lo.w/2:align==='right'?cx-lo.w:cx;const dy=it=>cy+it.dy;const ay=g=>cy+g.top-Math.max(2.2,lo.size*0.13);const span=g=>[ox+g.x0-0.6,ox+g.x1+0.6];ctx.save();ctx.textAlign='left';ctx.textBaseline='middle';ctx.lineJoin='round';ctx.lineCap='butt';ctx.lineWidth=3.4;ctx.strokeStyle='rgba(255,255,255,.92)';lo.items.forEach(it=>{ctx.font=it.font;ctx.strokeText(it.s,ox+it.x,dy(it));});lo.groups.forEach(g=>{if(g.x1<=g.x0)return;const y=ay(g),s=span(g);ctx.beginPath();ctx.moveTo(s[0],y);ctx.lineTo(s[1],y);ctx.stroke();});lo.groups.forEach(g=>{if(g.x1<=g.x0)return;const y=ay(g),s=span(g),ax=s[0],bx=s[1];ctx.strokeStyle=color;ctx.lineWidth=1.15;ctx.beginPath();ctx.moveTo(ax,y);ctx.lineTo(bx-1.2,y);ctx.stroke();const h=Math.min(3.6,Math.max(2.6,(bx-ax)*0.40));ctx.beginPath();ctx.moveTo(bx,y);ctx.lineTo(bx-h,y-h*0.52);ctx.lineTo(bx-h,y+h*0.52);ctx.closePath();ctx.fillStyle=color;ctx.fill();});lo.items.forEach(it=>{ctx.font=it.font;if(fat>0){ctx.strokeStyle=color;ctx.lineWidth=fat;ctx.strokeText(it.s,ox+it.x,dy(it));}ctx.fillStyle=color;ctx.fillText(it.s,ox+it.x,dy(it));});ctx.restore();}
+function richHTML(s){const r=parseRich(s);let h='',gi=-1;r.items.forEach(it=>{const body=it.t==='s'?'<sub>'+it.s+'</sub>':it.s;if(it.g!==gi){if(gi>=0)h+='</span>';if(it.g>=0)h+='<span class="vec">';gi=it.g;}h+=body;});if(gi>=0)h+='</span>';return wrapSqrt(h);}
+function wrapSqrt(html){const out=[];let i=0;while(i<html.length){const k=html.indexOf('√(',i);if(k<0){out.push(html.slice(i));break;}out.push(html.slice(i,k));out.push('<span class="sqrt"><span class="in">');let j=k+2,depth=1;while(j<html.length&&depth>0){const c=html[j];if(c==='(')depth++;else if(c===')'){depth--;if(depth===0)break;}j++;}if(depth!==0){out.push(html.slice(k));return out.join('');}out.push(html.slice(k+2,j));out.push('</span></span>');i=j+1;}return out.join('');}
+
+/* ============================== 颜色 / 相机 / 图元 ============================== */
+const C = {teal:'#156082',orange:'#E97132',green:'#3E9B4F',purple:'#9B59B6',crimson:'#D04A3A',blue:'#0F9ED5',gray:'#8CA0AC',light:'#C9D6DD',ink:'#22414F',grid:'#EAF0F4',muted:'#7A8F9B'};
+
+let canvas,ctx,W=800,H=600,DPR=1;
+const cam={az:0.62,el:0.40,zoom:1,px:0,py:0};
+let camU,camV,camD,camScale,CX2,CY;
+/* ══════════ 右上角信息卡的几何 + "HUD 安全区" ══════════
+   ⚠️ 根因：信息卡（叠加在画布上）固定贴右上，而场景原来是**按整个画布**居中的
+      ⇒ 画布越窄，两边的"中心"越靠拢，卡片左缘就会压到介质盒上。
+      实测（camScale=202.5、②③ 场景屏幕半宽 ≈164px、卡片宽 252 + 边距）：
+         场景右缘 = W/2 + 164，卡片左缘 = W − 268 ⇒ **W < 864 就开始重叠**。
+      用户反馈的正是这个（窄窗口下卡片盖住了右边的介质盒）。
+   ⇒ 两条规则（都不改 camScale，只在必要时才缩，避免"为了不遮挡把图缩小"）：
+      ① 只要够宽就把场景居中不动（W ≥ 864 时行为与旧版**完全一致**）；
+      ② 不够宽就把场景整体左移到卡片左边；实在放不下（cx 被压到可用区的 30% 以左）
+         才整体缩小，保证既不遮挡、也不裁切。 */
+const CARD_W=252, CARD_X=()=>W-CARD_W-16, CARD_Y=62;
+const CARD_RESERVE=CARD_W+26;      /* 右侧留给"卡片 + 工具条 + 图例"的整条带 */
+const HALF_SCENE=0.50;             /* 3.2：平面回路半宽 0.36 + 极板/标注留白 ⇒ 0.50 */
+function setupCamera(){
+  const ca=Math.cos(cam.az),sa=Math.sin(cam.az),ce=Math.cos(cam.el),se=Math.sin(cam.el);
+  camD={x:ce*ca,y:ce*sa,z:se};camU={x:-sa,y:ca,z:0};camV={x:-ca*se,y:-sa*se,z:ce};
+  let cs=Math.min(W,H)/2.2*cam.zoom;
+  const usable=Math.max(240,W-CARD_RESERVE);
+  let half=HALF_SCENE*cs;
+  /* ① 可用区里根本摆不下整幅场景 ⇒ 先整体缩小（宁可小一点，也不要既被裁又被盖）。 */
+  if(2*half > usable-16){ cs=Math.min(cs,(usable-16)/(2*HALF_SCENE)); half=HALF_SCENE*cs; }
+  /* ② 尽量居中；会压到卡片时左移。 */
+  let cx=Math.min(W/2, W-CARD_RESERVE-10-half);
+  /* ③ 左移过头撞到左边界 ⇒ 再移回来（这一步只会在"卡片+场景真放不下"的极端宽度下触发，
+       此时宁可让卡片压到一点，也不要裁掉场景左半边）。 */
+  if(cx-half<6) cx=6+half;
+  camScale=cs; CX2=Math.max(8,cx); CY=H*0.55;
+}
+function pr(p){return{x:CX2+cam.px+camScale*vdot(p,camU),y:CY+cam.py-camScale*vdot(p,camV),d:vdot(p,camD)};}
+
+let prims=[];
+function P_(z,fn){prims.push({z,draw:fn});}
+/* ⚠️ 各图元的 o.z：可选覆盖画家算法的深度。半透明的介质盒 / 球壳会横跨一大段深度，
+   凡是"必须始终看得清"的标注都要显式抬到它们之上，否则会被洗掉。
+   ⚠️ 凡是 pr() 返回的点都带真实 .d；裸 pt(x,y,z) 的 .d 是 undefined ⇒ 会让排序静默失效。 */
+function line(a,b,o={}){const A=pr(a),B=pr(b);P_(o.z!=null?o.z:(A.d+B.d)/2,()=>{ctx.save();ctx.globalAlpha=o.alpha!=null?o.alpha:1;ctx.strokeStyle=o.color||C.gray;ctx.lineWidth=o.w||1.4;if(o.dash)ctx.setLineDash(o.dash);ctx.beginPath();ctx.moveTo(A.x,A.y);ctx.lineTo(B.x,B.y);ctx.stroke();ctx.restore();});}
+function arrowSeg(A,B,color,w,headScale){const dx=B.x-A.x,dy=B.y-A.y,L=Math.hypot(dx,dy);if(L<0.5)return;const ux=dx/L,uy=dy/L,hs=(headScale||1)*9;ctx.strokeStyle=color;ctx.lineWidth=w;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(A.x,A.y);ctx.lineTo(B.x-ux*hs*.55,B.y-uy*hs*.55);ctx.stroke();const ang=Math.atan2(dy,dx);ctx.beginPath();ctx.moveTo(B.x,B.y);ctx.lineTo(B.x-hs*Math.cos(ang-.42),B.y-hs*Math.sin(ang-.42));ctx.lineTo(B.x-hs*Math.cos(ang+.42),B.y-hs*Math.sin(ang+.42));ctx.closePath();ctx.fillStyle=color;ctx.fill();}
+function arrow(a,b,o={}){const A=pr(a),B=pr(b);P_(o.z!=null?o.z:(A.d+B.d)/2,()=>{ctx.save();ctx.globalAlpha=o.alpha!=null?o.alpha:1;if(o.dash)ctx.setLineDash(o.dash);arrowSeg(A,B,o.color||C.teal,o.w||2,o.headScale);ctx.restore();});if(o.label)text(vmul(vadd(a,b),.5),o.label,{color:o.color||C.teal,dx:o.ldx||0,dy:o.ldy!==undefined?o.ldy:-10,size:o.lsize||12.5,bold:true,align:o.lalign,alpha:o.alpha});}
+function curve(ptsArr,o={}){if(ptsArr.length<2)return;const S=ptsArr.map(pr);P_(o.z!=null?o.z:S.reduce((s,p)=>s+p.d,0)/S.length,()=>{ctx.save();ctx.globalAlpha=o.alpha!=null?o.alpha:1;ctx.strokeStyle=o.color||C.gray;ctx.lineWidth=o.w||1.8;ctx.lineCap='round';ctx.lineJoin='round';if(o.dash)ctx.setLineDash(o.dash);ctx.beginPath();ctx.moveTo(S[0].x,S[0].y);for(let i=1;i<S.length;i++)ctx.lineTo(S[i].x,S[i].y);ctx.stroke();if(o.arrowEnd){const a=S[S.length-2],b=S[S.length-1];ctx.setLineDash([]);arrowSeg(a,b,o.color||C.gray,o.w||1.8,.75);}ctx.restore();});}
+function poly(ptsArr,o={}){if(ptsArr.length<3)return;const S=ptsArr.map(pr);P_(o.z!=null?o.z:S.reduce((s,p)=>s+p.d,0)/S.length,()=>{ctx.save();ctx.beginPath();ctx.moveTo(S[0].x,S[0].y);for(let i=1;i<S.length;i++)ctx.lineTo(S[i].x,S[i].y);ctx.closePath();if(o.fill){ctx.globalAlpha=o.fillAlpha!=null?o.fillAlpha:.15;ctx.fillStyle=o.fill;ctx.fill();}if(o.stroke!==false){ctx.globalAlpha=o.strokeAlpha!=null?o.strokeAlpha:(o.fillAlpha!=null?o.fillAlpha:1);ctx.strokeStyle=o.stroke||o.fill||C.gray;ctx.lineWidth=o.w||1;if(o.dash)ctx.setLineDash(o.dash);ctx.stroke();}ctx.restore();});}
+function marker(p,o={}){
+  const S=pr(p);
+  P_(o.z!=null?o.z:S.d+0.02, ()=>{ ctx.save();
+    ctx.globalAlpha=o.alpha!=null?o.alpha:1;
+    ctx.beginPath(); ctx.arc(S.x,S.y,o.r||5,0,7);
+    ctx.fillStyle=o.color||C.orange; ctx.fill();
+    ctx.lineWidth=2; ctx.strokeStyle='#fff'; ctx.stroke();
+    if(o.ring){ ctx.beginPath(); ctx.arc(S.x,S.y,(o.r||5)+4,0,7);
+      ctx.strokeStyle=o.ring; ctx.lineWidth=2.2; ctx.stroke(); }
+    ctx.restore(); });
+  if(o.label) text(p, o.label, {color:o.color||C.orange,
+    dx:o.ldx!=null?o.ldx:10, dy:o.ldy!=null?o.ldy:-10, size:o.lsize||13, bold:true, align:o.lalign, alpha:o.alpha});
+}
+function text(p,str,o={}){const S=pr(p);P_(1e6,()=>{ctx.save();if(o.alpha!=null)ctx.globalAlpha*=o.alpha;const size=o.size||12.5,bold=!!o.bold;const lo=richLayout(ctx,parseRich(str),size,bold);richDraw(ctx,lo,S.x+(o.dx||0),S.y+(o.dy||0),o.align||'left',o.color||C.ink,o.fat||0);ctx.restore();});}
+function textScreen(x,y,str,o={}){P_(1e6+1,()=>{ctx.save();if(o.alpha!=null)ctx.globalAlpha*=o.alpha;const lo=richLayout(ctx,parseRich(str),o.size||12,!!o.bold);richDraw(ctx,lo,x,y,o.align||'left',o.color||C.ink);ctx.restore();});}
+function dimLine(a,b,o={}){
+  line(a,b,o);
+  const A=pr(a),B=pr(b);
+  const dx=B.x-A.x,dy=B.y-A.y,L=Math.hypot(dx,dy);
+  if(L<1)return;
+  const px=-dy/L,py=dx/L,t=o.tick||6;
+  const tk=P=>{P_(o.z!=null?o.z:(A.d+B.d)/2,()=>{ctx.save();if(o.alpha!=null)ctx.globalAlpha*=o.alpha;ctx.strokeStyle=o.color||C.gray;ctx.lineWidth=o.w||1.4;ctx.setLineDash([]);ctx.beginPath();ctx.moveTo(P.x+px*t,P.y+py*t);ctx.lineTo(P.x-px*t,P.y-py*t);ctx.stroke();ctx.restore();});};
+  tk(A);tk(B);
+  if(o.label)text(vmul(vadd(a,b),.5),o.label,{color:o.color||C.gray,dx:o.ldx||0,dy:o.ldy!==undefined?o.ldy:-10,size:o.lsize||12.5,bold:true,align:o.lalign,alpha:o.alpha});
+}
+function screenDot(p,rad,fill,alpha,z){const S=pr(p);P_(z!=null?z:S.d+0.02,()=>{ctx.save();ctx.globalAlpha=alpha!=null?alpha:1;ctx.beginPath();ctx.arc(S.x,S.y,rad,0,7);ctx.fillStyle=fill;ctx.fill();ctx.restore();});}
+function hexA(hex,a){const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);return 'rgba('+r+','+g+','+b+','+a+')';}
+
+/* ══════════════════════════ 坐标轴（同源） ══════════════════════════ */
+function drawAxes(ext){
+  if(!state.show.box) return;
+  const g=ext*0.86;
+  for(let v=-g;v<=g+1e-9;v+=ext*0.30){line(pt(v,-g,-ext*0.86),pt(v,g,-ext*0.86),{color:C.grid,w:1});line(pt(-g,v,-ext*0.86),pt(g,v,-ext*0.86),{color:C.grid,w:1});}
+  line(pt(0,0,0),pt(-ext,0,0),{color:'#B9C9D2',dash:[5,4],w:1.2});
+  line(pt(0,0,0),pt(0,-ext,0),{color:'#B9C9D2',dash:[5,4],w:1.2});
+  line(pt(0,0,0),pt(0,0,-ext),{color:'#B9C9D2',dash:[5,4],w:1.2});
+  arrow(pt(0,0,0),pt(ext,0,0),{color:C.teal,w:2});
+  arrow(pt(0,0,0),pt(0,ext,0),{color:C.orange,w:2});
+  arrow(pt(0,0,0),pt(0,0,ext),{color:C.green,w:2.2});
+  text(pt(ext*1.05,0,0),'x',{color:C.teal,bold:true,size:13,dy:-4});
+  text(pt(0,ext*1.05,0),'y',{color:C.orange,bold:true,size:13,dy:-4});
+  text(pt(0,0,ext*1.05),'z',{color:C.green,bold:true,size:13,dx:-4});
+}
+
+/* ============================================================================
+   3.2 恒定电场的特点 —— 物理模型与几何（引擎段与 2.1~2.5、3.1、4.2 同源）
+   ----------------------------------------------------------------------------
+   ★★ 本页的教学主线（三个页签，逐句对应用户给的需求：
+       "说清楚什么是局外力和局外场强的动态变化过程，有电源和没电源"）：
+       ① 没电源：充了电的极板接成回路 ⇒ 放电暂态
+          Q、E、I 全部按 e^{−t/τ} 衰减 ⇒ 静电场是"一次性"的，电流转瞬即逝
+       ② 有电源：电源内部的局外场强 @{E}_e（非静电起源）把正电荷
+          从负极搬回正极 ⇒ 极板电荷、导线中的场、电流全都**恒定**
+       ③ 环量：恒定电场由驻立电荷产生 ⇒ 与静电场一样是保守场：
+          回路不经电源 ⇒ ∮@{E}·d@{l} = 0；
+          回路穿过电源 ⇒ ∮(@{E}+@{E}_e)·d@{l} = ℰ（电动势全部来自局外场）
+
+   ★★ 场模型：两块极板 = 一对**软化库仑点电荷** ±Q（软化半径 PL_EPS ≈ 板宽）。
+     E 场 = −∇φ 严格保守 ⇒ ③ 的环路积分是**真积分**（不是贴出来的 0）。
+     kQ 按"两极板间电位差 ≡ ℰ"标定 ⇒ ∫_电源段 E·dl = −ℰ 严格成立，
+     ∫_电源段 E_e·dl = +ℰ 是局外场的定义 ⇒ ∮(E+E_e)·dl = ℰ 自动成立。
+
+   ★ 单位制：ℰ 用 V、R 用 kΩ ⇒ I∞ = ℰ/R 用 mA；Q 用 µC（C = 0.5 µF）；
+     E、E_e 用 V/m；时间常数 τ 用 s（示意值，动画按 1:1 秒走）。
+   ============================================================================ */
+
+/* ============================== 几何尺度 ==============================
+   ★ 回路平放在 xy 平面（z=0）：相机近正对 +z 看下去就是 PPT 的电路图视角，
+     学生也可以拖着转看立体关系。 */
+const LP_W = 0.72;             /* 回路宽 m（x 方向） */
+const LP_H = 0.50;             /* 回路高 m（y 方向） */
+const SRC_H = 0.11;            /* 电源区半高 m（左边 y∈[−SRC_H, SRC_H]） */
+const LP_L = 2*(LP_W+LP_H);    /* 回路总长 2.44 m */
+const EXT_AX = 0.55;           /* 坐标轴长度（默认隐藏，电路图不需要轴） */
+const PL_EPS = 0.06;           /* 极板软化半径 m（≈ 板半宽） */
+const PL_HALF = 0.055;         /* 极板画成多长（半长 m） */
+
+/* ============================== 确定性伪随机（同 3.1 自带一份） ============================== */
+function mkRng(seed){
+  let s=(seed>>>0)||1;
+  return ()=>{ s=(s*1664525+1013904223)>>>0; return s/4294967296; };
+}
+
+/* ============================== 状态 ============================== */
+const state = {
+  mode:'nosrc',                /* nosrc | source | loop */
+  showReadout:true,
+  autoRotate:false,
+  cardTab:'1',
+  /* 电路参数 */
+  EMF:12,                      /* 电动势 ℰ V */
+  RES:4,                       /* 回路电阻 R kΩ ⇒ I∞ = ℰ/R mA */
+  Q0:4,                        /* ① 极板初始电荷 µC */
+  TAU:1.4,                     /* 时间常数 s（① 放电 / ② 建立的示意值） */
+  /* 过程进度 */
+  t:0,                         /* ①② 的过程时间 s（滑块量程随 τ 走，见 clampState） */
+  /* ③ 的试探路径 */
+  s:0,                         /* 路径进度 [0,1] */
+  path:'A',                    /* A = 不经电源的小环 / B = 沿导线一圈（穿过电源） */
+  anim:null,                   /* 播放句柄（拖 t/s 滑块必须置 null，同 4.2 的教训） */
+  flow:0,                      /* 载流子沿环的累计位移（弧长 m） */
+  /* ⚠️⚠️ 键必须与 SHOW_ITEMS（page1.js）逐字对齐（3.1 踩过的坑） */
+  show:{ wire:true, src:true, plate:true, car:true, fld:true, efe:true, path:true, box:false },
+};
+const EMF_RANGE=[3,24], RES_RANGE=[1,8], Q0_RANGE=[0.5,8], TAU_RANGE=[0.4,3];
+const PRESET={
+  nosrc: {Q0:4, TAU:1.4, t:0},
+  source:{EMF:12, RES:4, TAU:1.4, t:0},
+  loop:  {EMF:12, RES:4, s:0, path:'A'},
+};
+/* ★ 防御：滑块量钳制（预设/按钮把量设到量程外 ⇒ "滑块显示 ≠ 真实状态"的静默 bug） */
+function clampState(){
+  const cl=(v,lo,hi)=>Math.max(lo,Math.min(hi,v));
+  state.EMF=cl(state.EMF,EMF_RANGE[0],EMF_RANGE[1]);
+  state.RES=cl(state.RES,RES_RANGE[0],RES_RANGE[1]);
+  state.Q0 =cl(state.Q0, Q0_RANGE[0], Q0_RANGE[1]);
+  state.TAU=cl(state.TAU,TAU_RANGE[0],TAU_RANGE[1]);
+  state.t  =cl(state.t, 0, tMax());
+  state.s  =cl(state.s, 0, 1);
+  return state;
+}
+function tMax(){ return 4*state.TAU; }   /* ①② 的过程窗：4 个时间常数（e⁻⁴ ≈ 1.8%） */
+
+/* ============================== 电学量 ============================== */
+const C_CAP = 0.5;                     /* 极板等效电容 µF（示意） */
+function qInf(){ return C_CAP*state.EMF; }                    /* 稳态极板电荷 µC */
+function iInf(){ return state.EMF/state.RES; }                /* 稳态电流 mA */
+/* 当前极板电荷：① 放电 e^{−t/τ}；② 建立 1−e^{−t/τ}；③ 已是稳态 */
+function Qnow(){
+  if(state.mode==='loop') return qInf();
+  return state.mode==='nosrc' ? state.Q0*Math.exp(-state.t/state.TAU)
+                              : qInf()*(1-Math.exp(-state.t/state.TAU));
+}
+/* 当前电流：① I = −dQ/dt = (Q₀/τ)e^{−t/τ}（µC/s = µA）；② I∞(1−e^{−t/τ})（mA） */
+function Inow(){
+  if(state.mode==='loop') return iInf();
+  return state.mode==='nosrc' ? (state.Q0/state.TAU)*Math.exp(-state.t/state.TAU)
+                              : iInf()*(1-Math.exp(-state.t/state.TAU));
+}
+/* 局外场强：只在电源内部，方向 − 极 → + 极（沿 +y），数值 = ℰ/d */
+function EeVal(){ return state.EMF/(2*SRC_H); }               /* V/m */
+
+/* ============================== 极板对的软化库仑场 ==============================
+   E(p) = kQ·[ (p−p₊)/(|p−p₊|²+ε²)^{3/2} − (p−p₋)/(|p−p₋|²+ε²)^{3/2} ]
+   ★ −∇φ 严格保守 ⇒ 任意闭合路径 ∮E·dl = 0（数值积分残差 ~1e-3·ℰ，如实显示）。
+   ★ kQ 按"板间电位差 = ℰ"标定 ⇒ ∫_电源段 E·dl = −ℰ 严格成立。 */
+function phiAt(p){
+  const k=kQbase();
+  const dp=Math.hypot(p.x-(-LP_W/2), p.y-SRC_H, p.z);
+  const dm=Math.hypot(p.x-(-LP_W/2), p.y+SRC_H, p.z);
+  return k*(1/Math.hypot(dp,PL_EPS) - 1/Math.hypot(dm,PL_EPS));
+}
+function kQbase(){
+  /* Δφ = φ(上板中心) − φ(下板中心) = 2kQ·(1/ε − 1/√((2h)²+ε²)) ≡ ℰ */
+  return state.EMF / (2*(1/PL_EPS - 1/Math.hypot(2*SRC_H,PL_EPS)));
+}
+/* 场的强度随极板电荷走（① 衰减 / ② 建立 / ③ 稳态） */
+function kQnow(){ return kQbase() * (Qnow()/qInf()); }
+function Efield(p){
+  const k=kQnow();
+  const out=pt(0,0,0);
+  for(const sgn of [1,-1]){
+    const cx=-LP_W/2, cy=sgn*SRC_H;
+    const dx=p.x-cx, dy=p.y-cy, dz=p.z;
+    const r2=dx*dx+dy*dy+dz*dz+PL_EPS*PL_EPS;
+    const f=sgn*k/Math.pow(r2,1.5);
+    out.x+=dx*f; out.y+=dy*f; out.z+=dz*f;
+  }
+  return out;
+}
+/* 板间（电源段中点）的 E：竖直向下（+ → −），读数用 */
+function Eplates(){ return -Efield(pt(-LP_W/2,0,0)).y; }      /* V/m，取正数报 */
+
+/* ============================== 回路参数化 ==============================
+   ★ 沿电流正方向（稳态②）：电源内部 −→+（向上）→ 左上段向上 → 顶边向右 →
+     右边向下 → 底边向左 → 左下段向上回到电源。
+     s ∈ [0, LP_L) 弧长参数；段边界见 SEG。 */
+const SEG=(()=>{
+  const d=2*SRC_H, a=d+(LP_H/2-SRC_H), b=a+LP_W, c=b+LP_H, e=c+LP_W;
+  return {d, a, b, c, e};                    /* 电源/左上/顶/右/底/左下 的分界 */
+})();
+function loopPt(s){
+  s=((s%LP_L)+LP_L)%LP_L;
+  const x0=-LP_W/2, x1=LP_W/2, yb=-LP_H/2, yt=LP_H/2;
+  if(s<SEG.d)  return pt(x0, -SRC_H+s, 0);                    /* 电源段：向上 */
+  if(s<SEG.a)  return pt(x0,  SRC_H+(s-SEG.d), 0);            /* 左上段：向上 */
+  if(s<SEG.b)  return pt(x0+(s-SEG.a), yt, 0);                /* 顶边：向右 */
+  if(s<SEG.c)  return pt(x1, yt-(s-SEG.b), 0);                /* 右边：向下 */
+  if(s<SEG.e)  return pt(x1-(s-SEG.c), yb, 0);                /* 底边：向左 */
+  return pt(x0, yb+(s-SEG.e), 0);                             /* 左下段：向上 */
+}
+function loopTan(s){
+  s=((s%LP_L)+LP_L)%LP_L;
+  if(s<SEG.a)  return pt(0,1,0);                              /* 电源段 + 左上段 */
+  if(s<SEG.b)  return pt(1,0,0);
+  if(s<SEG.c)  return pt(0,-1,0);
+  if(s<SEG.e)  return pt(-1,0,0);
+  return pt(0,1,0);
+}
+function inSource(s){ s=((s%LP_L)+LP_L)%LP_L; return s<SEG.d; }
+
+/* ============================== 载流子 ============================== */
+const NC_C = 56;
+/* 载流子：均匀排在环上 + 随 flow 累计前移；流速 ∝ 当前电流（显示比例见 page2 DRIFT_K） */
+function carrierAt(i){
+  const s=(i*LP_L/NC_C + state.flow)%LP_L;
+  return loopPt(s<0?s+LP_L:s);
+}
+
+/* ============================== ③ 的试探路径与环路积分 ============================== */
+/* 路径 A：不经电源的小圆（回路内部空旷区，离极板 ≥0.45 m ⇒ 场光滑，数值积分准）
+   ⚠️ 半径别超 0.13：再大会贴上 / 越过右边与顶边的导线 */
+const PA_C = pt(0.13, 0.07, 0), PA_R = 0.13;
+function pathPt(u){                       /* u ∈ [0,1) → 试探路径上的点 */
+  u=((u%1)+1)%1;
+  if(state.path==='A'){
+    const a=2*Math.PI*u;
+    return pt(PA_C.x+PA_R*Math.cos(a), PA_C.y+PA_R*Math.sin(a), 0);
+  }
+  return loopPt(u*LP_L);                  /* 路径 B：沿导线一圈（穿过电源） */
+}
+function pathTan(u){
+  u=((u%1)+1)%1;
+  if(state.path==='A'){
+    const a=2*Math.PI*u;
+    return pt(-Math.sin(a), Math.cos(a), 0);
+  }
+  return loopTan(u*LP_L);
+}
+function pathLen(){ return state.path==='A' ? 2*Math.PI*PA_R : LP_L; }
+/* ★ 环路积分（数值）：∮E·dl 用中点规则。
+   E 是保守场 ⇒ 真值是 0；残差如实显示（教学点：驻立电荷的场和静电场一样保守）。
+   E_e 只在电源段：∫E_e·dl = EeVal·(2·SRC_H) = ℰ —— 这是局外场电动势的**定义**，解析给。 */
+const INT_N = 720;
+function intE(path){                       /* ∮E·dl（V） */
+  let acc=0;
+  if(path==='B'){
+    /* 沿导线：保守场 ⇒ ∮ = 0 严格；为了把"≈0 是算出来的"演给学生看，仍数值积分。
+       电源段近极板处 |E| 尖锐 ⇒ 该段单独加密（中点规则 600 段）。 */
+    const N1=480;
+    for(let i=0;i<N1;i++){
+      const s0=SEG.d+(LP_L-SEG.d)*i/N1, s1=SEG.d+(LP_L-SEG.d)*(i+1)/N1;
+      const m=loopPt((s0+s1)/2), t=loopTan((s0+s1)/2);
+      acc+=vdot(Efield(m),t)*(s1-s0);
+    }
+    const N2=600;
+    for(let i=0;i<N2;i++){
+      const s0=SEG.d*i/N2, s1=SEG.d*(i+1)/N2;
+      const m=loopPt((s0+s1)/2), t=loopTan((s0+s1)/2);
+      acc+=vdot(Efield(m),t)*(s1-s0);
+    }
+    return acc;
+  }
+  for(let i=0;i<INT_N;i++){
+    const u0=i/INT_N, u1=(i+1)/INT_N;
+    const m=pathPt((u0+u1)/2), t=pathTan((u0+u1)/2);
+    acc+=vdot(Efield(m),t)*pathLen()*(u1-u0);
+  }
+  return acc;
+}
+function intEe(path){ return path==='B' ? EeVal()*2*SRC_H : 0; }   /* ∫E_e·dl（V） */
+/* 进度相关的"累计积分"：路径走到 s（[0,1]）时的累计值（给 ③ 的进度显示用） */
+function intE_upto(uEnd){
+  uEnd=Math.max(0,Math.min(1,uEnd));
+  const N=Math.max(2,Math.round(INT_N*uEnd));
+  let acc=0;
+  if(state.path==='B'){
+    /* B：近似按"保守场 ⇒ 累计 ≈ −(φ(P)−φ(P0))"显示（单调可知、无采样抖动） */
+    const P0=loopPt(0), P=loopPt(uEnd*LP_L);
+    return -(phiAt(P)-phiAt(P0));
+  }
+  for(let i=0;i<N;i++){
+    const u0=i/INT_N, u1=(i+1)/INT_N;
+    const m=pathPt((u0+u1)/2), t=pathTan((u0+u1)/2);
+    acc+=vdot(Efield(m),t)*pathLen()*(u1-u0);
+  }
+  return acc;
+}
+/* E_e 的累计：只有路径 B 走进电源段才有 */
+function intEe_upto(uEnd){
+  if(state.path!=='B') return 0;
+  const sIn=Math.max(0,Math.min(uEnd*LP_L, SEG.d));
+  return EeVal()*sIn;
+}
+
+
+/* ============================== 目录（3.2 本页 active；版本戳 20261020r4） ============================== */
+const NAV = [
+  { ch:'第 1 章 · 矢量分析', items:[
+    { id:'coord', t:'1.1 三种常见坐标系', ready:true, href:'index.html?v=20261020r4' },
+    { id:'ch1-2', t:'1.2 矢量的代数运算', ready:true, href:'1.2-vector-algebra.htm?v=20261020r4' },
+    { id:'ch1-3', t:'1.3 方向导数与梯度', ready:true, href:'1.3-directional-derivative.htm?v=20261020r4' },
+    { id:'ch1-4', t:'1.4 通量与散度', ready:true, href:'1.4-divergence-flux.htm?v=20261020r4' },
+    { id:'ch1-5', t:'1.5 环量与旋度', ready:true, href:'1.5-curl-circulation.htm?v=20261020r4' },
+  ]},
+  { ch:'第 2 章 · 静电场', items:[
+    { id:'ch2-1', t:'2.1 电场强度与电荷密度', ready:true, href:'2.1-field-charge-density.htm?v=20261020r4' },
+    { id:'ch2-2', t:'2.2 静电场中的导体', ready:true, href:'2.2-conductor-electrostatic.htm?v=20261020r4' },
+    { id:'ch2-3', t:'2.3 静电场中的电介质', ready:true, href:'2.3-dielectric-polarization.htm?v=20261020r4' },
+    { id:'ch2-4', t:'2.4 高斯定理及其应用', ready:true, href:'2.4-gauss-law.htm?v=20261020r4' },
+    { id:'ch2-5', t:'2.5 多导体系统的电容与串扰', ready:true, href:'2.5-multi-conductor-crosstalk.htm?v=20261020r4' },
+  ]},
+  { ch:'第 3 章 · 恒定电场', items:[
+    { id:'ch3-1', t:'3.1 电流的分类', ready:true, href:'3.1-current-density.htm?v=20261020r4' },
+    { id:'ch3-2', t:'3.2 恒定电场的特点', ready:true, active:true },
+  ]},
+  { ch:'第 4 章 · 恒定磁场', items:[
+    { id:'ch4-1', t:'4.1 磁感应强度' },
+    { id:'ch4-2', t:'4.2 磁介质的磁化', ready:true, href:'4.2-magnetization.htm?v=20261020r4' },
+  ]},
+];
+
+
+/* ============================================================================
+   3.2 恒定电场的特点 —— 页面专属（一）：图元助手 / 场景装配 / 信息卡 / 面板上半
+   ⚠️ 所有进画布的串都必须走 parseRich()（@{...} 矢量 / _x 下标），
+      所有进 DOM 的串都必须走 richHTML()；本引擎**不认 Markdown 星号**，加粗只能用 <b>。
+   ============================================================================ */
+
+/* ---------- 画布小卡助手（与 2.1~2.5 / 3.1 / 4.2 同源） ---------- */
+function txt(x,y,str,o={}){
+  ctx.save();
+  const lo=richLayout(ctx,parseRich(str),o.size||12,!!o.bold);
+  richDraw(ctx,lo,x,y,o.align||'left',o.color||C.ink);
+  ctx.restore();
+}
+function rrPath(x,y,w,h,r){
+  ctx.beginPath(); ctx.moveTo(x+r,y); ctx.lineTo(x+w-r,y); ctx.quadraticCurveTo(x+w,y,x+w,y+r);
+  ctx.lineTo(x+w,y+h-r); ctx.quadraticCurveTo(x+w,y+h,x+w,y+h-r);
+  ctx.lineTo(x+r,y+h); ctx.quadraticCurveTo(x,y+h,x+r,y+h);
+  ctx.lineTo(x,y+h-r); ctx.quadraticCurveTo(x,y,x+r,y); ctx.closePath();
+}
+function crd(x,y,w,h){
+  ctx.save(); ctx.shadowColor='rgba(30,60,80,.10)'; ctx.shadowBlur=8; ctx.shadowOffsetY=2;
+  rrPath(x,y,w,h,10); ctx.fillStyle='rgba(255,255,255,.95)'; ctx.fill(); ctx.restore();
+  ctx.save(); rrPath(x,y,w,h,10); ctx.strokeStyle='#DCE6EB'; ctx.lineWidth=1; ctx.stroke(); ctx.restore();
+}
+const ZL = 1e4+40;                 /* 标注深度档：压在场景之上 */
+const O  = pt(0,0,0);
+const WIRE_HEX = '#2E86AB';          /* 导线（淡蓝，与 3.1 导体同族） */
+const E_HEX    = '#136A9B';          /* 库仑场 E（青） */
+const EE_HEX   = C.orange;           /* 局外场 E_e（橙 = "非静电的那一份"） */
+const CAR_HEX  = C.teal;             /* 载流子 */
+const PLT_HEX  = '#37474F';          /* 极板 */
+const PTH_HEX  = '#136A9B';          /* ③ 路径 A */
+const PTHB_HEX = '#8A6A2F';          /* ③ 路径 B */
+
+/* ══════════════════════════ 右上角信息卡 ══════════════════════════ */
+function infoCard(title,rows,h){
+  const x0=CARD_X(), y0=CARD_Y, w=CARD_W;
+  crd(x0,y0,w,h);
+  txt(x0+12,y0+15,title,{size:11.5,bold:true,color:'#1F3D4C'});
+  rows.forEach((r,i)=>{
+    const y=y0+38+i*19;
+    /* ⚠️ 章节行要同时认两种写法：['§','文本'] 与 ['§ 文本']（2.3 踩过：只认前者 ⇒ 右列 undefined） */
+    const markerOnly=(r[0]==='§');
+    if(markerOnly || (r.length===1 && String(r[0]||'')[0]==='§')){
+      const lab=markerOnly ? String(r[1]==null?'':r[1]) : String(r[0]).slice(1);
+      txt(x0+11,y,lab.trim(),{size:11,bold:true,color:r[2]||'#1F3D4C'}); return;
+    }
+    let lab=String(r[0]==null?'':r[0]);
+    if(lab[0]==='§') lab=lab.slice(1).trim();
+    txt(x0+13,y,lab,{size:11,color:'#5F7482'});
+    txt(x0+w-13,y,r[1]==null?'':String(r[1]),{size:11,bold:true,color:r[2]||'#0E4A66',align:'right'});
+  });
+}
+
+/* ══════════════════════════ 场景零件 ══════════════════════════ */
+/* 导线环（整条回路；②③ 穿过电源盒，① 左边就是放电导线） */
+function drawWire(){
+  const N=160, pts=[];
+  for(let i=0;i<=N;i++) pts.push(loopPt(LP_L*i/N));
+  curve(pts, {color:WIRE_HEX, w:5.2, alpha:0.95});
+  curve(pts, {color:'#0F4C66', w:1.6, alpha:0.9});   /* 描边加强存在感 */
+}
+/* 电源盒（②③）：左边中段的方框 + 标签 */
+function drawSourceBox(){
+  const x0=-LP_W/2, g=PL_HALF+0.022;
+  const c=[ pt(x0-g,-SRC_H-g,0), pt(x0+g,-SRC_H-g,0), pt(x0+g,SRC_H+g,0), pt(x0-g,SRC_H+g,0) ];
+  poly(c, {fill:'#FFF3E4', stroke:EE_HEX, w:1.6, fillAlpha:0.35, strokeAlpha:0.95, z:ZL-4});
+  /* ⚠️ 「电源」标签必须离开盒区：源区（盒+极板+电荷符号+两列箭头）在斜视角下
+     全部投影进 ~60px 的一团 ⇒ 标签一律用「锚盒中心 + 固定屏幕偏移」（与相机无关）。
+     底中不行（撞上 − 极板的 − 号），取左下。 */
+  text(pt(x0,0,0), '电源', {color:'#B85A1E',size:12,bold:true,dx:-55,dy:40,align:'right',z:ZL});
+}
+/* 极板：两横板 + 电荷符号（个数 ∝ Q(t)） */
+function drawPlates(){
+  const x0=-LP_W/2;
+  line(pt(x0-PL_HALF,SRC_H,0), pt(x0+PL_HALF,SRC_H,0), {color:PLT_HEX,w:4.2,z:ZL-2});
+  line(pt(x0-PL_HALF,-SRC_H,0), pt(x0+PL_HALF,-SRC_H,0), {color:PLT_HEX,w:4.2,z:ZL-2});
+  text(pt(x0,SRC_H,0), '+ 极板', {color:PLT_HEX,size:11,bold:true,dx:-100,dy:-2,align:'right',z:ZL});
+  text(pt(x0,-SRC_H,0), '− 极板', {color:PLT_HEX,size:11,bold:true,dx:-100,dy:-2,align:'right',z:ZL});
+  /* ⚠️ 极板标签要**远远离开板体**（左移 100px）：斜视角下极板近乎"端视"，
+     锚在板端/近旁必然撞上板上 +/− 符号和 E_e/E 标签（vis32 实测撞过三轮 36%/68%/72%）。
+     「驻立电荷」一词在 E 标签和讲解卡里已有，不丢概念。 */
+  /* 电荷符号：个数 ∝ Q（上 + 下 −）。
+     ⚠️ 上限 4 个：符号是 ~8px 宽的字形，板长只有 0.11 m（~30px），
+     n=6 时间距只有 5px ⇒ 相邻符号重叠 37%（vis32 实测）。 */
+  const n=Math.min(4, Math.round(Qnow()/2));
+  for(let i=0;i<n;i++){
+    const dx=-PL_HALF+ (2*PL_HALF)*(i+0.5)/Math.max(1,n);
+    text(pt(x0+dx, SRC_H,0), '+', {color:'#C62828',size:12,bold:true,dx:0,dy:-9,align:'center',z:ZL+2});
+    text(pt(x0+dx,-SRC_H,0), '−', {color:'#1565C0',size:12,bold:true,dx:0,dy:16,align:'center',z:ZL+2});
+  }
+}
+/* 载流子：沿环流动；速度 ∝ I(t) ⇒ ① 里自己慢下来、最后停住
+   （白心青圈：压在 5.2px 宽的青蓝导线上要跳得出来） */
+function drawCarriers(){
+  if(!state.show.car) return;
+  for(let i=0;i<NC_C;i++){
+    marker(carrierAt(i), {r:3.6, color:'#F5FAFC', ring:'#0F4C66', z:ZL+4});
+  }
+}
+/* 导线上的 E 箭头（青）：方向沿电流，长度 ∝ 当地 E（极板对的库仑场，沿线不均匀是真实的） */
+const LE_K=0.010, LE_MIN=0.6, LE_MAX=0.095;      /* E 显示比例：线性 + 上下限钳制（学 2.1 的 LE） */
+function drawFieldArrows(){
+  if(!state.show.fld) return;
+  const step=0.12;
+  for(let s=SEG.d+0.03; s<LP_L-0.02; s+=step){
+    const p=loopPt(s), E=Efield(p), t=loopTan(s);
+    const Et=vdot(E,t);
+    if(Math.abs(Et)<LE_MIN) continue;             /* 太弱不画（下限以下不画） */
+    const len=Math.min(LE_MAX, Math.abs(Et)*LE_K);
+    arrow(p, vadd(p, vmul(t, Math.sign(Et)*len)), {color:E_HEX, w:1.8, headScale:0.95, alpha:0.9});
+  }
+  text(pt(0.15, -LP_H/2, 0), '@{E}（驻立电荷的库仑场）', {color:E_HEX,size:11.5,bold:true,dx:0,dy:20,align:'center',z:ZL});
+}
+/* 电源内部：E_e 向上（橙）与 E 向下（青）并排画 —— "两股力在电源里对着干"
+   ⚠️ 两条并排箭头起点间距 ≥20px（0.11·cs≈26px）⇒ 左右错开画 */
+function drawEe(){
+  if(!state.show.efe) return;
+  if(state.mode==='nosrc') return;                /* ① 没有电源 ⇒ 没有局外场 */
+  const x0=-LP_W/2;
+  const xe=x0+PL_HALF+0.028, xE=x0-PL_HALF-0.028;
+  for(const y of [-0.058,0,0.058])
+    arrow(pt(xe,y-0.048,0), pt(xe,y+0.048,0), {color:EE_HEX,w:2.2,headScale:1.0,z:ZL+2});
+  const Emid=Efield(pt(x0,0,0));                  /* 电源段中点的库仑场（向下） */
+  const lenE=Math.min(LE_MAX, Math.abs(Emid.y)*0.0040);
+  arrow(pt(xE,0.048,0), pt(xE,0.048-lenE,0), {color:E_HEX,w:2.2,headScale:1.0,z:ZL+2});
+  /* ⚠️ 标签沿「源区中心 → 箭头列」的屏幕方向水平外移（与相机无关，永不回撞盒区）：
+     斜视角下源区投影成一团，任何"世界方向"的锚都会撞上极板符号（vis32 实测 82%）。 */
+  const scC=pr(pt(x0,0,0)), scEe=pr(pt(xe,0,0)), scE=pr(pt(xE,0,0));
+  const sgnEe=(scEe.x-scC.x)>=0?1:-1, sgnE=(scE.x-scC.x)>=0?1:-1;
+  text(pt(xe,0,0), '@{E}_e', {color:'#B85A1E',size:12.5,bold:true,dx:sgnEe*40,dy:-2,align:sgnEe>0?'left':'right',z:ZL+2});
+  text(pt(xE,0,0), '@{E}', {color:E_HEX,size:12.5,bold:true,dx:sgnE*26,dy:-2,align:sgnE>0?'left':'right',z:ZL+2});
+}
+/* ③ 的试探路径 + 动点 + 累计积分 */
+function drawTestPath(){
+  if(state.mode!=='loop' || !state.show.path) return;
+  const N=96, pts=[];
+  if(state.path==='A'){
+    for(let i=0;i<=N;i++) pts.push(pathPt(i/N));
+    curve(pts, {color:PTH_HEX, w:1.6, dash:[6,4], alpha:0.9, z:ZL-2});
+    /* 标签锚圆心 + 屏幕左下移（斜视角下圆被压扁，"圆顶/正下方"会撞上动点 P 与极板标签） */
+    text(PA_C, '路径 l：不经电源的小环', {color:PTH_HEX,size:11.5,bold:true,dx:-30,dy:52,align:'right',z:ZL});
+  } else {
+    /* 沿导线外偏 0.018（看清楚"贴着导线走一整圈"；外向 = (−t.y, t.x)） */
+    for(let i=0;i<=N;i++){
+      const s=LP_L*i/N, p=loopPt(s), t=loopTan(s);
+      pts.push(vadd(p, vmul(pt(-t.y,t.x,0), 0.018)));
+    }
+    curve(pts, {color:PTHB_HEX, w:1.8, dash:[7,4], alpha:0.95, z:ZL-2});
+    text(pt(LP_W/2+0.018, 0, 0), '路径 l：沿导线一圈（穿过电源）', {color:PTHB_HEX,size:11.5,bold:true,dx:10,dy:-4,align:'left',z:ZL});
+  }
+  /* 动点 P + 已走过的一段加粗 */
+  const q=Math.max(0.001, state.s);
+  const segs=[];
+  for(let i=0;i<=Math.round(N*q);i++) segs.push(state.path==='A'?pathPt(i/N):vadd(loopPt(LP_L*i/N), (()=>{const t=loopTan(LP_L*i/N);return vmul(pt(-t.y,t.x,0),0.018);})()));
+  if(segs.length>1) curve(segs, {color:state.path==='A'?PTH_HEX:PTHB_HEX, w:3.6, alpha:0.95, z:ZL+2});
+  const P=pathPt(state.s);
+  marker(P, {r:6.0, color:C.orange, ring:'#E8B48A', z:ZL+6});
+  text(P, 'P', {color:'#B85A1E',size:12.5,bold:true,dx:11,dy:-9,z:ZL+6});
+}
+
+/* ══════════════════════════ 场景装配 ══════════════════════════ */
+function buildScene(){
+  prims=[];                     /* ★ 第一句必须是 prims=[]（否则每次重绘再叠一层整场景） */
+  if(state.show.box) drawAxes(EXT_AX);
+  if(state.show.wire) drawWire();
+  if(state.show.src && state.mode!=='nosrc') drawSourceBox();
+  if(state.show.plate) drawPlates();
+  drawFieldArrows();
+  drawEe();
+  drawCarriers();
+  drawTestPath();
+}
+
+/* ══════════ 信息卡内容 ══════════ */
+function fmtI(){  /* ① 用 µA、②③ 用 mA */
+  const I=Inow();
+  return state.mode==='nosrc' ? I.toFixed(2)+' µA' : I.toFixed(3)+' mA';
+}
+function currentCard(){
+  if(state.mode==='nosrc'){
+    return ['没有电源：放电暂态',[
+      ['极板电荷 Q(t) = Q₀·e^(−t/τ)', Qnow().toFixed(2)+' µC'],
+      ['板间场强 E(t)', Eplates().toFixed(1)+' V/m'],
+      ['回路电流 I(t) = −dQ/dt', fmtI()],
+      ['t / τ', (state.t/state.TAU).toFixed(2)],
+      ['再过 1 个 τ，Q 只剩 37%', 'e⁻¹ ≈ 0.37'],
+      ['§ 结论'],
+      ['没有局外力，静电场把自己"抹平"', 'I → 0'],
+      ['电流转瞬即逝 ⇒', '不是恒定电流','#C62828'],
+    ],238];
+  }
+  if(state.mode==='source'){
+    return ['有电源：局外场强维持恒定',[
+      ['电动势 ℰ', state.EMF.toFixed(1)+' V'],
+      ['局外场强 E_e = ℰ/d（只在电源内）', EeVal().toFixed(1)+' V/m','#B85A1E'],
+      ['极板电荷 Q(t) → Q∞', Qnow().toFixed(2)+' / '+qInf().toFixed(1)+' µC'],
+      ['回路电流 I(t) → I∞ = ℰ/R', fmtI()+' → '+iInf().toFixed(3)+' mA'],
+      ['t / τ', (state.t/state.TAU).toFixed(2)],
+      ['§ 动态平衡（PPT 第 16 页）'],
+      ['E_e 把正电荷从 − 极搬回 + 极', '维持 Q 不变'],
+      ['Q 不变 ⇒ E 不变 ⇒ I 不变', '恒定电场','#2E7D32'],
+    ],238];
+  }
+  const iE=intE(state.path), iEe=intEe(state.path);
+  return ['环量：恒定电场是保守场',[
+    ['路径 l', state.path==='A'?'不经电源的小环':'沿导线一圈（穿过电源）'],
+    ['∮ @{E}·d@{l}（实测，数值积分）', iE.toFixed(3)+' V'],
+    ['∫ @{E}_e·d@{l}（只在电源段）', iEe.toFixed(1)+' V','#B85A1E'],
+    ['∮ (@{E}+@{E}_e)·d@{l}', (iE+iEe).toFixed(2)+' V','#0E4A66'],
+    ['§ 结论（PPT 第 16 页）'],
+    ['回路不经电源', '∮E·dl = 0'],
+    ['回路穿过电源', '∮(E+E_e)·dl = ℰ'],
+    ['E 是保守场 ⇒ 绕一圈电位回原值', '电动势来自 E_e'],
+  ],238];
+}
+function drawOverlays(){ const c=currentCard(); infoCard(c[0],c[1],c[2]); }
+
+/* ══════════════════════════ 面板底部的实时结论条 ══════════════════════════ */
+function subNote(){
+  if(state.mode==='nosrc')
+    return '<b>充了电的极板 + 一根导线</b>：库仑场 @{E} 驱动正电荷沿导线从 + 极流向 − 极，'+
+      '每流过去一份，极板电荷就少一份 ⇒ <b>E 跟着变弱 ⇒ I 跟着变小</b>，最后全部中和、电流归零。<br>'+
+      '🔑 没有局外力把电荷<b>搬回去</b>，静电场是"一次性"的 —— 这就是<b>为什么必须有电源</b>。';
+  if(state.mode==='source')
+    return '<b>局外场强 @{E}_e</b>（橙色，只在电源内部）：非静电起源的搬运工（化学能 / 磁 / 热），'+
+      '把正电荷<b>逆着库仑场</b>从 − 极搬回 + 极。<br>'+
+      '🔑 动态平衡：@{E}_e 搬上去多少，@{E} 就沿导线流下来多少 ⇒ <b>电荷分布不变 ⇒ 场不变 ⇒ 电流恒定</b>。';
+  return '沿路径 l 移动进度 s，看 <b>∮@{E}·d@{l} 的累计值</b>：'+
+    '<b>路径 A</b>（不经电源）绕一圈回到 0；<b>路径 B</b>（穿过电源）的 @{E} 积分同样是 0，'+
+    '但 @{E}_e 在电源段贡献了整个电动势 ℰ。<br>'+
+    '🔑 驻立电荷的场与静电场<b>环量特性相同</b>（∇×@{E}=0）；恒定电流能转圈，靠的是 @{E}_e。';
+}
+
+/* ══════════════════════════ 右侧面板 ══════════════════════════ */
+const panel=document.getElementById('panel');
+function h(html){const d=document.createElement('div');d.innerHTML=html;return d;}
+let _toastTimer=0;
+function toastMsg(msg){
+  const el=document.getElementById('toast'); if(!el) return;
+  el.textContent=msg; el.classList.add('show');
+  clearTimeout(_toastTimer); _toastTimer=setTimeout(()=>el.classList.remove('show'),1700);
+}
+function kchip(k,v,cls){return '<span class="coord-chip '+(cls||'')+'">'+richHTML(k)+'<b>'+richHTML(v)+'</b></span>';}
+function chipRow(parent,items,isOn,onPick){
+  const box=h('<div class="sub-chips"></div>').firstChild;
+  items.forEach(it=>{
+    const lab=richHTML(String(it.t??it.sub??it.label??''));
+    const b=h('<button class="chip '+(it.col||'')+(isOn(it.k)?' on':'')+'" data-k="'+it.k+'">'+lab+'</button>').firstChild;
+    b.onclick=()=>onPick(it.k);
+    box.appendChild(b);
+  });
+  parent.appendChild(box);
+  return box;
+}
+const SHOW_ITEMS={
+  nosrc: [{k:'wire',t:'导线回路'},{k:'plate',t:'极板与电荷'},{k:'car',t:'载流子'},{k:'fld',t:'电场 @{E}'},{k:'box',t:'坐标轴'}],
+  source:[{k:'wire',t:'导线回路'},{k:'src',t:'电源'},{k:'plate',t:'极板与电荷'},{k:'car',t:'载流子'},{k:'fld',t:'电场 @{E}'},{k:'efe',t:'局外场 @{E}_e'},{k:'box',t:'坐标轴'}],
+  loop:  [{k:'wire',t:'导线回路'},{k:'src',t:'电源'},{k:'plate',t:'极板与电荷'},{k:'car',t:'载流子'},{k:'fld',t:'电场 @{E}'},{k:'efe',t:'局外场 @{E}_e'},{k:'path',t:'试探路径'},{k:'box',t:'坐标轴'}],
+};
+function mkRange(sec,d){
+  const r=h('<div class="slider-row'+(d.wide?' w':'')+'"><label>'+richHTML(d.label)+'</label>'+
+    '<input type="range" id="s_'+d.k+'" min="'+d.min+'" max="'+d.max+'" step="'+d.step+'" value="'+d.get()+'">'+
+    '<span class="val" id="v_'+d.k+'">'+d.fmt(d.get())+'</span></div>');
+  const inp=r.querySelector('input');
+  inp.oninput=()=>{
+    /* ⚠️ 必须用 d.set() 的**返回值**（生效值）来回写滑块（钳制契约，3.1 起钉死） */
+    const eff=d.set(parseFloat(inp.value));
+    const v=(eff==null||!isFinite(eff))?parseFloat(inp.value):eff;
+    if(String(inp.value)!==String(v)) inp.value=String(v);
+    document.getElementById('v_'+d.k).textContent=d.fmt(v);
+    needsRender=true; updateReadout(); updateModeTag();
+    if(d.after) d.after();
+  };
+  sec.appendChild(r);
+}
+function btnRow(sec,specs){
+  const bx=h('<div class="sub-chips"></div>').firstChild;
+  specs.forEach(s=>{ const b=h('<button class="chip '+(s.col||'')+(s.on?' on':'')+'">'+richHTML(s.t)+'</button>').firstChild;
+    b.onclick=s.act; bx.appendChild(b); });
+  sec.appendChild(bx);
+}
+function renderSubSec(sec){
+  sec.innerHTML='';
+  sec.appendChild(h('<div class="sec-title">显示</div>'));
+  chipRow(sec,SHOW_ITEMS[state.mode],k=>state.show[k],k=>{
+    const next=!state.show[k];
+    /* ⚠️ 不许把层全关掉：全关 ⇒ prims=0 ⇒ 整块画布纯白（2.3 踩过） */
+    const othersOn=SHOW_ITEMS[state.mode].some(it=>it.k!==k && state.show[it.k]);
+    if(!next && !othersOn){ toastMsg('至少保留一层显示'); return; }
+    state.show[k]=next; needsRender=true; renderPanel();
+  });
+  sec.appendChild(h('<div class="ex-note" style="margin-top:7px">'+richHTML(subNote())+'</div>'));
+}
+/* ⚠️ 这里的格式必须与 mkRange 建滑块时的 fmt **完全一致**（syncSliders 会反复调用）。 */
+const SLIDER_FMT={
+  EMF:v=>v.toFixed(1)+' V', RES:v=>v.toFixed(1)+' kΩ', Q0:v=>v.toFixed(1)+' µC',
+  TAU:v=>v.toFixed(1)+' s', t:v=>v.toFixed(2)+' s', s:v=>(v*100).toFixed(0)+' %',
+};
+function syncSliders(){
+  const set=(k,v)=>{ const s=document.getElementById('s_'+k); if(s) s.value=v;
+    const e=document.getElementById('v_'+k); if(e) e.textContent=SLIDER_FMT[k]?SLIDER_FMT[k](v):String(v); };
+  set('EMF',state.EMF); set('RES',state.RES); set('Q0',state.Q0);
+  set('TAU',state.TAU); set('t',state.t); set('s',state.s);
+}
+function renderSliders(sec){
+  sec.innerHTML='';
+  if(state.mode==='nosrc'){
+    sec.appendChild(h('<div class="slider-group-label">放电回路（无电源）</div>'));
+    mkRange(sec,{k:'Q0',label:'极板初始电荷 Q₀',wide:true,min:Q0_RANGE[0],max:Q0_RANGE[1],step:0.1,
+      get:()=>state.Q0,set:v=>{state.Q0=v;},fmt:v=>v.toFixed(1)+' µC'});
+    mkRange(sec,{k:'TAU',label:'放电时间常数 τ',wide:true,min:TAU_RANGE[0],max:TAU_RANGE[1],step:0.1,
+      get:()=>state.TAU,set:v=>{state.TAU=v; state.t=Math.min(state.t,tMax());},fmt:v=>v.toFixed(1)+' s'});
+    sec.appendChild(h('<div class="slider-group-label g" style="margin-top:12px">放电进程</div>'));
+    mkRange(sec,{k:'t',label:'时间 t（拖到 4τ 看"电流没了"）',wide:true,min:0,max:tMax(),step:0.02,
+      get:()=>state.t,set:v=>{state.anim=null; state.t=v;},fmt:v=>v.toFixed(2)+' s'});
+    btnRow(sec,[
+      {t:(state.anim&&state.anim.playing)?'⏸ 暂停':'▶ 播放放电过程', on:!!(state.anim&&state.anim.playing), col:'acc',
+        act:()=>{ if(state.anim&&state.anim.playing){ stopAnim(); } else { playT(); } renderPanel(); }},
+      {t:'↺ 回到 t = 0（极板重新带电）', on:false,
+        act:()=>{ stopAnim(); state.t=0; renderPanel(); updateAll(); }},
+    ]);
+  } else if(state.mode==='source'){
+    sec.appendChild(h('<div class="slider-group-label">电源与回路</div>'));
+    mkRange(sec,{k:'EMF',label:'电动势 ℰ',wide:true,min:EMF_RANGE[0],max:EMF_RANGE[1],step:0.5,
+      get:()=>state.EMF,set:v=>{state.EMF=v;},fmt:v=>v.toFixed(1)+' V'});
+    mkRange(sec,{k:'RES',label:'回路电阻 R',wide:true,min:RES_RANGE[0],max:RES_RANGE[1],step:0.5,
+      get:()=>state.RES,set:v=>{state.RES=v;},fmt:v=>v.toFixed(1)+' kΩ'});
+    mkRange(sec,{k:'TAU',label:'建立时间常数 τ',wide:true,min:TAU_RANGE[0],max:TAU_RANGE[1],step:0.1,
+      get:()=>state.TAU,set:v=>{state.TAU=v; state.t=Math.min(state.t,tMax());},fmt:v=>v.toFixed(1)+' s'});
+    sec.appendChild(h('<div class="slider-group-label g" style="margin-top:12px">建立进程</div>'));
+    mkRange(sec,{k:'t',label:'时间 t（看电荷、场、电流怎样建立）',wide:true,min:0,max:tMax(),step:0.02,
+      get:()=>state.t,set:v=>{state.anim=null; state.t=v;},fmt:v=>v.toFixed(2)+' s'});
+    btnRow(sec,[
+      {t:(state.anim&&state.anim.playing)?'⏸ 暂停':'▶ 播放建立过程', on:!!(state.anim&&state.anim.playing), col:'acc',
+        act:()=>{ if(state.anim&&state.anim.playing){ stopAnim(); } else { playT(); } renderPanel(); }},
+      {t:'↺ 回到 t = 0（刚接通瞬间）', on:false,
+        act:()=>{ stopAnim(); state.t=0; renderPanel(); updateAll(); }},
+    ]);
+  } else {
+    sec.appendChild(h('<div class="slider-group-label">试探路径（③）</div>'));
+    btnRow(sec,[
+      {t:'路径 A：不经电源的小环', on:state.path==='A', col:'acc',
+        act:()=>{ state.path='A'; state.s=0; renderPanel(); updateAll(); }},
+      {t:'路径 B：沿导线一圈（穿过电源）', on:state.path==='B',
+        act:()=>{ state.path='B'; state.s=0; renderPanel(); updateAll(); }},
+    ]);
+    mkRange(sec,{k:'s',label:'路径进度 s（看 ∮ 累计值怎样转一圈回 0）',wide:true,min:0,max:1,step:0.005,
+      get:()=>state.s,set:v=>{state.anim=null; state.s=v;},fmt:v=>(v*100).toFixed(0)+' %'});
+    btnRow(sec,[
+      {t:(state.anim&&state.anim.playing)?'⏸ 暂停':'▶ 动点走一圈', on:!!(state.anim&&state.anim.playing), col:'acc',
+        act:()=>{ if(state.anim&&state.anim.playing){ stopAnim(); } else { playS(); } renderPanel(); }},
+    ]);
+    sec.appendChild(h('<div class="ex-note" style="margin-top:9px">'+richHTML(
+      '⚠️ @{E} 的环积分为什么是 0：@{E} 是<b>驻立电荷</b>产生的库仑场（−∇φ），'+
+      '绕任何闭合回路一圈，起点终点是同一个点 ⇒ 电位差必然是 0。<br>'+
+      '本页的 ∮ 不是贴出来的：<b>是沿路径逐段数值积分出来的</b>（720 段中点规则），'+
+      '残差 ~10⁻³ V 如实显示。')+'</div>'));
+  }
+}
+
+
+/* ============================================================================
+   3.2 恒定电场的特点 —— 页面专属（二）：讲解卡 / 面板装配 / 数据条 / 主循环 / 交互
+   ⚠️ 所有进 DOM 的串都必须过 richHTML()（只认 @{...} 与 _x，**不认 Markdown 星号**）。
+   ============================================================================ */
+const CARDS={
+  nosrc:[
+    {k:'1',tab:'1. 没有电源：电流转瞬即逝',cls:'c1',body:
+      '把一对<b>充了电的极板</b>用导线接起来：库仑场 @{E} 立刻驱动正电荷沿导线从 + 极流向 − 极。'+
+      '<div class="frm">Q(t) = Q₀·e^(−t/τ)　　I(t) = −dQ/dt = (Q₀/τ)·e^(−t/τ)</div>'+
+      '<ul><li>每流过去一份电荷，极板上的电荷就少一份 ⇒ <b>场的来源在被消耗</b></li>'+
+      '<li>E 变弱 ⇒ 电流跟着变小 ⇒ 电荷消耗得越来越慢，但<b>方向不变、总量在减</b></li>'+
+      '<li>拖 t 滑块到 4τ：Q 只剩 e⁻⁴ ≈ 1.8%，电流表基本归零</li></ul>'+
+      '<div class="ex-note">🔑 这就是"为什么静电场维持不了恒定电流"：<b>它驱动电荷去中和的，正是它自己的来源</b>。</div>'},
+    {k:'2',tab:'2. 恒定电流需要"把电荷搬回去"',cls:'c2',body:
+      '恒定电流的定义是<b>不随时间变化</b> ⇒ 空间各处的电荷分布必须<b>不随时间变化</b>'+
+      '（否则场就跟着变）：'+
+      '<div class="frm">恒定电流 ⇒ 电荷分布不变 ⇒ 恒定电场</div>'+
+      '<ul><li>但电荷沿导线流动，本身就<b>改变</b>着各处的电荷分布</li>'+
+      '<li>要"分布不变"，必须有一股<b>非静电的力</b>，把流到 − 极的电荷<b>再搬回 + 极</b></li>'+
+      '<li>这股力只能来自电源内部 —— 它就是<b>局外力</b>，对应的场强叫<b>局外场强 @{E}_e</b></li></ul>'+
+      '<div class="ex-note">⟶ 切到 ② 页签，看局外场强怎样把电荷"搬上楼"。</div>'},
+    {k:'3',tab:'3. 电流连续性：电流线必须闭合',cls:'c3',body:
+      '恒定电场中电荷分布不随时间变化 ⇒ 任何闭合面里电荷不增不减：'+
+      '<div class="frm">∮ @{J}·d@{S} = 0　⇒　电流线是无头无尾的闭合曲线</div>'+
+      '<ul><li>这就是<b>电流连续性定理</b>：恒定电流只能走闭合回路</li>'+
+      '<li>所以恒定电流的回路里必须有一段"电荷爬坡"的路程 —— 那段就在电源内部</li>'+
+      '<li>没有电源（没有局外场），闭合回路的"爬坡段"没人负责 ⇒ 闭合不起来 ⇒ 只能暂态放电</li></ul>'+
+      '<div class="ex-note">⚠️ ① 的画面里电流看起来也在"转圈"：那是因为<b>极板在被消耗</b>，'+
+      '每一步都不是恒定状态 —— 判别标准是"能不能一直这样流下去"。</div>'},
+  ],
+  source:[
+    {k:'1',tab:'1. 局外力与局外场强',cls:'c1',body:
+      '<b>局外力</b>：电源内部把正电荷从负极搬向正极的<b>非静电力</b>（化学的、磁的、热的……）。'+
+      '<div class="frm">局外场强 @{E}_e = @{F}_局外 / q　（只在电源内部存在）</div>'+
+      '<ul><li>方向：电源内部由 − 极指向 + 极（橙色箭头）</li>'+
+      '<li>同一处，驻立电荷的库仑场 @{E} 由 + 极指向 − 极（青色箭头）—— <b>两股力对着干</b></li>'+
+      '<li>开路平衡时两者等大反向；接上回路后 @{E}_e 略占上风，把电荷持续搬上去</li></ul>'+
+      '<div class="ex-note">⭐ 单位电动势的定义就写在这里：ℰ = ∫_−^+ @{E}_e·d@{l}（电源内部从负极到正极）。</div>'},
+    {k:'2',tab:'2. 动态建立过程（拖 t 滑块）',cls:'c2',body:
+      '接通瞬间（t = 0）极板还没来得及堆电荷；之后局外场搬运、库仑场消耗，两边趋近平衡：'+
+      '<div class="frm">Q(t) = Q∞(1−e^(−t/τ))　　I(t) = I∞(1−e^(−t/τ))</div>'+
+      '<ul><li>t 很小时：Q 在涨、I 在涨 —— 这一段<b>不是</b>恒定电场</li>'+
+      '<li>t ≳ 3τ 后：Q→Q∞、I→I∞ = ℰ/R，进入<b>稳态</b></li>'+
+      '<li>稳态的判决：任意闭合面里电荷不增不减（搬运 = 消耗）</li></ul>'+
+      '<div class="ex-note">⟶ 拖 t 从 0 到 4τ：数极板上的 + 号、看载流子加速、看读数条的三行同步爬升。</div>'},
+    {k:'3',tab:'3. 为什么此时电场是"恒定"的',cls:'c3',body:
+      '稳态时电荷在流，但<b>分布不变</b>：每个位置"流走多少、补来多少"：'+
+      '<div class="frm">电荷分布不变 ⇒ 驻立电荷的场不变 ⇒ @{E} 是恒定电场</div>'+
+      '<ul><li>@{E} 由<b>相对静止的驻立电荷</b>产生 ⇒ 与静电场有<b>相同的环量特性</b>：∇×@{E} = 0</li>'+
+      '<li>载流子流动的动力是 @{E}（导线里）与 @{E}_e（电源里）的接力</li>'+
+      '<li>能量账：@{E}_e 在电源里做功（化学能 → 电能），@{E} 在导线里把电能交给电阻（→ 热）</li></ul>'+
+      '<div class="ex-note">⟶ ③ 页签用环路积分把"环量特性"算给你看。</div>'},
+  ],
+  loop:[
+    {k:'1',tab:'1. 回路不经电源：∮E·dl = 0',cls:'c1',body:
+      '恒定电场的 @{E} 是<b>驻立电荷</b>产生的库仑场 ⇒ 与静电场一样是<b>保守场</b>：'+
+      '<div class="frm">∮_l @{E}·d@{l} = 0　　∇×@{E} = 0</div>'+
+      '<ul><li>路径 A 是回路内部一个不经电源的小环：动点 P 走一圈，∮ 的累计值最终回到 0</li>'+
+      '<li>物理意义：绕一圈回到出发点，<b>电位必须回到原值</b>（否则电位就不是位置的函数了）</li>'+
+      '<li>本页的积分是<b>真算出来的</b>：沿路径 720 段中点规则数值积分，残差如实显示</li></ul>'+
+      '<div class="ex-note">⚠️ 这就是"3.2 标题为什么叫恒定电场的<b>特点</b>"：它首先是一场"环量等于零"的场。</div>'},
+    {k:'2',tab:'2. 回路穿过电源：多出来的 ℰ',cls:'c2',body:
+      '把试探路径换成<b>沿导线一整圈</b>（路径 B，会穿过电源内部）：'+
+      '<div class="frm">∮ @{E}·d@{l} = 0　　∮ (@{E}+@{E}_e)·d@{l} = ℰ</div>'+
+      '<ul><li>@{E} 的部分仍然是 0（保守场与路径无关）</li>'+
+      '<li>@{E}_e 只在电源段有贡献：∫_−^+ @{E}_e·d@{l} = ℰ（电动势的定义）</li>'+
+      '<li>所以总场的环量 = ℰ ≠ 0 —— <b>恒定电场的"有源性"全部来自局外场</b></li></ul>'+
+      '<div class="ex-note">🔑 这正是 PPT 第 16 页的话：积分回路<b>不经过外源</b>时 ∮@{E}·d@{l} = 0、∇×@{E} = 0。</div>'},
+    {k:'3',tab:'3. 一张图总结这一节',cls:'c3',body:
+      '三个页签合起来就是恒定电场的完整图像：'+
+      '<div class="frm">没电源 ⇒ 放电归零　｜　有电源 ⇒ 局外场维持恒定</div>'+
+      '<ul><li>电流连续性：∮@{J}·d@{S} = 0 ⇒ 电流线闭合 ⇒ 必须有"爬坡段"</li>'+
+      '<li>局外场强 @{E}_e 负责爬坡（电源内部，− 极 → + 极）</li>'+
+      '<li>环量特性：@{E} 保守（∮=0）；电动势 ℰ = ∫@{E}_e·d@{l} 是回路"有源性"的全部来源</li></ul>'+
+      '<div class="ex-note">⭐ 往后 3.3 的边值问题、3.4 的静电比拟，都建立在"@{E} 保守 + @{J} 连续"这两条上。</div>'},
+  ],
+};
+function renderExplain(sec){
+  sec.innerHTML='';
+  const list=CARDS[state.mode];
+  sec.appendChild(h('<div class="sec-title">讲解</div>'));
+  const tabs=h('<div class="card-tabs"></div>').firstChild;
+  list.forEach(c=>{
+    const b=h('<button class="card-tab '+c.cls+(c.k===state.cardTab?' on':'')+'">'+c.tab+'</button>').firstChild;
+    b.onclick=()=>{ state.cardTab=c.k; renderPanel(); };
+    tabs.appendChild(b);
+  });
+  sec.appendChild(tabs);
+  const cur=list.find(c=>c.k===state.cardTab)||list[0];
+  const body=h('<div class="card-body '+cur.cls+'"><div class="ex-title">'+richHTML(cur.tab)+'</div></div>').firstChild;
+  body.appendChild(h('<div class="ex-body">'+richHTML(cur.body)+'</div>').firstChild);
+  sec.appendChild(body);
+}
+function renderPanel(){
+  ['subSec','sliderSec','explainSec'].forEach(id=>{const el=document.getElementById(id);if(el)el.remove();});
+  const mk=id=>{const d=document.createElement('div');d.className='panel-sec';d.id=id;return d;};
+  let tog=document.getElementById('toggleSec');
+  if(!tog){
+    tog=mk('toggleSec');
+    tog.appendChild(h('<label class="readout-toggle"><input type="checkbox" id="showReadoutCb"'+(state.showReadout?' checked':'')+'><span>在<b>画布下方</b>显示<b>实时数据</b>条</span></label>'));
+    tog.querySelector('#showReadoutCb').onchange=e=>{state.showReadout=e.target.checked;updateReadout();};
+    panel.appendChild(tog);
+  }else tog.querySelector('#showReadoutCb').checked=state.showReadout;
+  const s=mk('subSec'), sl=mk('sliderSec'), ex=mk('explainSec');
+  panel.appendChild(s); panel.appendChild(sl); panel.appendChild(ex);
+  renderSubSec(s); renderSliders(sl); renderExplain(ex);
+  updateReadout(); updateModeTag();
+}
+/* ⚠️ 图例（.cv-legend）absolute + bottom:14，而 .canvas-card 里还有一条数据条（.coord-strip）
+   也贴在底部 ⇒ 图例默认会压在数据条上。修法：bottom = 数据条高度 + 14。 */
+function placeLegend(){
+  const st=document.getElementById('coordStrip'), lg=document.getElementById('legend');
+  if(!st||!lg) return;
+  lg.style.bottom=(st.offsetHeight+14)+'px';
+}
+
+/* ══════════════════════════ 画布下方实时数据条 ══════════════════════════ */
+function updateReadout(){
+  const strip=document.getElementById('coordStrip'); if(!strip) return;
+  if(!state.showReadout){ strip.innerHTML=''; placeLegend(); return; }
+  const lgT=document.getElementById('lgTitle'), lgN=document.getElementById('lgNote');
+  let html='';
+  if(state.mode==='nosrc'){
+    html += kchip('Q(t) =', Qnow().toFixed(2)+' µC','warn');
+    html += kchip('E(t) =', Eplates().toFixed(1)+' V/m');
+    html += kchip('I(t) =', fmtI(),'acc');
+    html += kchip('t/τ =', (state.t/state.TAU).toFixed(2));
+    html += kchip('衰减规律', 'e^(−t/τ)');
+    lgT.textContent='没有电源：放电暂态';
+    lgN.innerHTML=richHTML('Q、E、I 同步按 e^(−t/τ) 衰减 ⇒ 没有局外力，电流转瞬即逝');
+  } else if(state.mode==='source'){
+    html += kchip('ℰ =', state.EMF.toFixed(1)+' V','warn');
+    html += kchip('@{E}_e = ℰ/d =', EeVal().toFixed(1)+' V/m','acc');
+    html += kchip('Q(t) → Q∞ =', Qnow().toFixed(2)+' → '+qInf().toFixed(1)+' µC');
+    html += kchip('I(t) → I∞ =', fmtI()+' → '+iInf().toFixed(3)+' mA','acc');
+    html += kchip('t/τ =', (state.t/state.TAU).toFixed(2));
+    lgT.textContent='有电源：局外场强维持恒定';
+    lgN.innerHTML=richHTML('@{E}_e 把正电荷从 − 极搬回 + 极 ⇒ 电荷分布不变 ⇒ 恒定电场');
+  } else {
+    const iE=intE(state.path), iEe=intEe(state.path);
+    html += kchip('路径', state.path==='A'?'A · 不经电源':'B · 穿过电源','warn');
+    html += kchip('进度 s =', (state.s*100).toFixed(0)+' %');
+    html += kchip('∮ @{E}·d@{l} 累计 =', intE_upto(state.s).toFixed(3)+' V');
+    if(state.path==='B') html += kchip('∫ @{E}_e·d@{l} 累计 =', intEe_upto(state.s).toFixed(2)+' V','acc');
+    html += kchip('走完整圈：∮ @{E}·d@{l} =', iE.toFixed(3)+' V');
+    html += kchip('∮ (@{E}+@{E}_e)·d@{l} =', (iE+iEe).toFixed(2)+' V','warn');
+    lgT.textContent='环量：恒定电场是保守场';
+    lgN.innerHTML=richHTML('@{E} 保守（∮=0）· ℰ 全部来自局外场 @{E}_e');
+  }
+  strip.innerHTML=html;
+  placeLegend();
+}
+function updateModeTag(){
+  const t=document.getElementById('modeTag'); if(!t) return;
+  const sb=document.getElementById('moduleSub');
+  if(state.mode==='nosrc'){
+    t.innerHTML=richHTML('① 没电源 · I(t) = <b>'+fmtI()+'</b>　按 e^(−t/τ) 衰减');
+    if(sb) sb.innerHTML=richHTML('静电场一次性：驱动电荷去中和自己的来源');
+  } else if(state.mode==='source'){
+    t.innerHTML=richHTML('② 有电源 · @{E}_e = <b>'+EeVal().toFixed(1)+' V/m</b>　I → ℰ/R = '+iInf().toFixed(3)+' mA');
+    if(sb) sb.innerHTML=richHTML('局外力把正电荷从负极搬回正极 ⇒ 维持恒定');
+  } else {
+    t.innerHTML=richHTML('③ 环量 · ∮@{E}·d@{l} = <b>0</b>（保守场）　∮(@{E}+@{E}_e)·d@{l} = ℰ');
+    if(sb) sb.innerHTML=richHTML('驻立电荷的场与静电场环量特性相同');
+  }
+}
+
+/* ══════════════════════════════ 主循环 ══════════════════════════════ */
+let needsRender=true;
+/* ⏱ 载流子流速的显示比例：① 的电流是 µA 量级、②③ 是 mA 量级 ⇒ 两套比例。
+   读数一律按真实公式算，与动画快慢无关（3.1 的口径）。 */
+function flowSpeed(){ return state.mode==='nosrc' ? Inow()*0.05 : Inow()*0.033; }   /* 世界 m/s */
+let _lastT=0;
+function draw(){
+  setupCamera(); ctx.clearRect(0,0,W,H);
+  buildScene();
+  prims.sort((a,b)=>a.z-b.z);
+  for(const p of prims) p.draw(ctx);
+  drawOverlays();
+  const tg=document.getElementById('panTag');
+  if(tg) tg.classList.toggle('show',Math.abs(cam.px)>2||Math.abs(cam.py)>2);
+  needsRender=false;
+}
+/* ⚠️ tick 里的 draw 必须包 try/catch：下一帧是在函数末尾排的，
+   任何一帧抛异常 ⇒ 整个渲染循环永久停摆（症状是"画面卡住、点什么都没反应"）。 */
+function tick(ts){
+  try{
+    const dt=_lastT?Math.min(0.05,(ts-_lastT)/1000):0.016; _lastT=ts||0;
+    state.flow += flowSpeed()*dt;
+    if(state.flow>1e6) state.flow%=LP_L;              /* 防累积溢出 */
+    if(state.anim) stepAnim(dt);
+    needsRender=true;                                 /* 载流子在动 ⇒ 每帧都要重画 */
+    if(state.autoRotate){ cam.az+=0.0045; }
+    draw();
+  }catch(err){ needsRender=false; console.error('draw/tick error:',err); }
+  requestAnimationFrame(tick);
+}
+function updateAll(){ needsRender=true; syncSliders(); updateReadout(); updateModeTag(); }
+
+/* ══════════ 播放（①② 的 t 进程 / ③ 的 s 进程） ══════════
+   ★ 拖滑块必须 state.anim=null（4.2 踩过：anim.u 与 state.t 失配）。
+   ★ 播放全程 6 s 走完 [0, 4τ] / [0,1]；到顶自动停。 */
+function playT(){ state.anim={playing:true, kind:'t'}; }
+function playS(){ state.anim={playing:true, kind:'s'}; }
+function stopAnim(){ if(state.anim) state.anim.playing=false; state.anim=null; }
+function stepAnim(dt){
+  if(!state.anim||!state.anim.playing) return;
+  if(state.anim.kind==='t'){
+    state.t=Math.min(tMax(), state.t+dt*tMax()/6);
+    if(state.t>=tMax()){ stopAnim(); renderPanel(); }
+  } else {
+    state.s=Math.min(1, state.s+dt/5);
+    if(state.s>=1){ stopAnim(); renderPanel(); }
+  }
+  syncSliders(); updateReadout(); updateModeTag();
+}
+
+/* ══════════════════════════════ 交互 ══════════════════════════════ */
+let drag=null;
+function localPos(ev){const r=canvas.getBoundingClientRect();return{x:ev.clientX-r.left,y:ev.clientY-r.top};}
+canvas=document.getElementById('cv');
+ctx=canvas.getContext('2d');
+canvas.addEventListener('pointerdown',ev=>{
+  try{ canvas.setPointerCapture(ev.pointerId); }catch(e){}
+  const m=localPos(ev);
+  drag={x:m.x,y:m.y,btn:ev.button,mode:(ev.button===2||ev.ctrlKey)?'pan':'rot'};
+  ev.preventDefault();
+});
+canvas.addEventListener('pointermove',ev=>{
+  const m=localPos(ev);
+  if(!drag) return;
+  const dx=m.x-drag.x, dy=m.y-drag.y; drag.x=m.x; drag.y=m.y;
+  if(drag.mode==='pan'){ cam.px+=dx; cam.py+=dy; needsRender=true; }
+  else { cam.az-=dx*0.0075; cam.el=Math.max(-1.45,Math.min(1.45,cam.el+dy*0.0062)); needsRender=true; }
+});
+canvas.addEventListener('pointerup',()=>{ drag=null; });
+canvas.addEventListener('pointercancel',()=>{ drag=null; });
+canvas.addEventListener('contextmenu',e=>e.preventDefault());
+canvas.addEventListener('wheel',e=>{e.preventDefault();cam.zoom=Math.max(.45,Math.min(3.2,cam.zoom*(e.deltaY<0?1.09:1/1.09)));needsRender=true;},{passive:false});
+document.getElementById('btnViewReset').onclick=()=>{ cam.az=CAM0.az; cam.el=CAM0.el; cam.zoom=1.12; cam.px=0; cam.py=0; needsRender=true; };
+document.getElementById('btnRotate').onclick=e=>{state.autoRotate=!state.autoRotate;e.target.classList.toggle('on',state.autoRotate);};
+document.getElementById('btnPanReset').onclick=()=>{cam.px=0;cam.py=0;needsRender=true;};
+function bindFold(bid,cls){document.getElementById(bid).onclick=()=>{document.body.classList.toggle(cls);setTimeout(resize,60);setTimeout(resize,260);};}
+bindFold('foldNav','nav-off'); bindFold('foldPanel','panel-off');
+document.getElementById('tglNav').onclick=()=>{document.body.classList.toggle('nav-off');setTimeout(resize,260);};
+document.getElementById('tglPanel').onclick=()=>{document.body.classList.toggle('panel-off');setTimeout(resize,260);};
+window.addEventListener('keydown',e=>{if(e.target.tagName==='INPUT')return;
+  if(e.key==='['){document.body.classList.toggle('nav-off');setTimeout(resize,260);}
+  if(e.key===']'){document.body.classList.toggle('panel-off');setTimeout(resize,260);}});
+
+/* ══════════ 右侧面板：拖动抓取条自由调整宽度 ══════════ */
+const PANEL_W0=398, PANEL_WMIN=260;
+const panelEl=document.getElementById('panel'), panelRz=document.getElementById('panelResizer');
+function panelMaxW(){
+  const navW=document.body.classList.contains('nav-off')?0:236;
+  return Math.max(PANEL_WMIN+60, Math.min(760, window.innerWidth-navW-330));
+}
+function setPanelW(px,save){
+  const w=Math.max(PANEL_WMIN, Math.min(panelMaxW(), Math.round(px)));
+  document.documentElement.style.setProperty('--panel-w', w+'px');
+  if(save){ try{ localStorage.setItem('em32-panel-w', String(w)); }catch(e){} }
+  return w;
+}
+(()=>{ let v=0; try{ v=parseInt(localStorage.getItem('em32-panel-w')||'0',10)||0; }catch(e){}
+      if(v>=PANEL_WMIN) setPanelW(v,false); })();
+let _rz=null;
+function rzEnd(){
+  if(_rz) setPanelW(panelEl.getBoundingClientRect().width,true);
+  _rz=null; document.body.classList.remove('resizing'); panelRz.classList.remove('dragging');
+}
+panelRz.addEventListener('pointerdown',ev=>{
+  if(document.body.classList.contains('panel-off')) return;
+  try{ panelRz.setPointerCapture(ev.pointerId); }catch(e){}
+  _rz={x:ev.clientX, w:panelEl.getBoundingClientRect().width};
+  document.body.classList.add('resizing'); panelRz.classList.add('dragging');
+  ev.preventDefault();
+});
+panelRz.addEventListener('pointermove',ev=>{ if(!_rz) return; setPanelW(_rz.w-(ev.clientX-_rz.x), false); });
+panelRz.addEventListener('pointerup',rzEnd);
+panelRz.addEventListener('pointercancel',rzEnd);
+panelRz.addEventListener('dblclick',()=>setPanelW(PANEL_W0,true));
+window.addEventListener('resize',()=>{ const cur=panelEl.getBoundingClientRect().width;
+  if(cur>panelMaxW()) setPanelW(cur,true); });
+
+/* ══════════════════════════════ 页签 ══════════════════════════════
+   ★ 每个页签有自己的预设 ⇒ 每个演示的起点都可复现。
+   ★ 相机：电路图视角（近正对 +z 俯视 xy 平面，微倾看出立体感）。 */
+const CAM0={az:-1.45, el:1.32};
+const MT=[{k:'nosrc', t:'① 没电源 · 放电'},
+          {k:'source',t:'② 有电源 · 局外场'},
+          {k:'loop',  t:'③ 环量 · 保守场'}];
+const modeTabs=document.getElementById('modeTabs');
+MT.forEach(m=>{const b=document.createElement('button');b.textContent=m.t;b.dataset.k=m.k;
+  b.onclick=()=>{ stopAnim(); state.mode=m.k; state.cardTab='1';
+    Object.assign(state, JSON.parse(JSON.stringify(PRESET[m.k])));
+    clampState();                       /* ★ 防"按钮把量设到量程外"的静默不一致 */
+    syncModeTabs(); cam.az=CAM0.az; cam.el=CAM0.el; cam.zoom=1.12; cam.px=0; cam.py=0;
+    renderPanel(); updateAll(); };
+  modeTabs.appendChild(b);});
+function syncModeTabs(){Array.from(modeTabs.children).forEach(b=>b.classList.toggle('on',b.dataset.k===state.mode));}
+
+function resize(){
+  const r=canvas.getBoundingClientRect();
+  const nw=Math.max(60,Math.round(r.width)),nh=Math.max(60,Math.round(r.height));
+  DPR=Math.min(2,window.devicePixelRatio||1);
+  if(nw===W&&nh===H&&canvas.width===Math.round(nw*DPR))return;
+  W=nw;H=nh;canvas.width=Math.round(W*DPR);canvas.height=Math.round(H*DPR);
+  ctx.setTransform(DPR,0,0,DPR,0,0); needsRender=true;
+  placeLegend();
+}
+new ResizeObserver(()=>resize()).observe(canvas);
+
+const nav=document.getElementById('nav');
+NAV.forEach(g=>{nav.appendChild(h('<div class="nav-ch">'+g.ch+'</div>'));
+  g.items.forEach(it=>{const cls='nav-item'+(it.active?' active':'')+(it.ready?'':' soon');
+    nav.appendChild(h('<a class="'+cls+'" '+(it.href?'href="'+it.href+'"':'')+'><span class="dot"></span>'+it.t+'</a>'));});});
+
+cam.az=CAM0.az; cam.el=CAM0.el; cam.zoom=1.12;
+syncModeTabs();
+resize();
+renderPanel();
+updateAll();
+tick(0);
+
+</script>
+</body>
+</html>

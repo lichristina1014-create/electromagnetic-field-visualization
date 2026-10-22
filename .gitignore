@@ -13,3 +13,7 @@ tests/3.1-current-density/shots/
 # 4.2 装配中间产物 / 截图（同 2.4/3.1 规则）
 tests/4.2-magnetization/_inline.js
 tests/4.2-magnetization/shots/
+
+# 3.2 装配中间产物 / 截图（同 2.4/3.1/4.2 规则）
+tests/3.2-static-field/_inline.js
+tests/3.2-static-field/shots/

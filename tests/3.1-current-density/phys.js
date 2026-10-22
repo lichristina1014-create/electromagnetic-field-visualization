@@ -106,7 +106,14 @@ const state = {
   /* ① 的面元 */
   a:A_R0,                      /* 导体半径 m */
   dS:0.008,                    /* 面元面积 m² */
-  th:0,                        /* 面元法矢与 +z 的夹角（度）⇒ 只剩 cosθ 的分量算数 */
+  th:0,                        /* 面元法矢与漂移方向的夹角（度）⇒ 只剩 cosθ 的分量算数 */
+  /* ★ 面元在横截面内的**比例坐标**（× 半径 a ⇒ 世界坐标）：用比例而不是绝对值，
+     拖半径滑块时面元跟着缩放、永不越盘（旧版 elemCenter=0.55a 就是 0.55 的特例）。
+     指针拖动直接改这两个量（见 page2.js 的 drag.mode==='elem'），elemClampFrac 钳回盘内。 */
+  elemFX:0.55, elemFY:0.0,
+  /* ★ 放倒：① 的圆柱从"轴沿 z（竖放）"转成"轴沿 x（横放）"——PPT 里体电流图的样子。
+     只作用于 ① 页签的场景几何（layT 内部有 mode 守卫），②③ 与坐标轴不动。 */
+  lay:false,
   /* ② 的线元 */
   b:B_R0,                      /* 壳半径 m */
   dl:0.30,                     /* 线元长度 m（圆周上的一段） */
@@ -131,9 +138,10 @@ const DS_RANGE=[0.004,0.012], TH_RANGE=[0,80];
    超了"dl 占横截线"会 >100%）。"取半圈"按钮因此要显式 clamp。 */
 const DL_RANGE=[0.05,1.20];
 const PRESET={
-  volume: {rho:2.0, u:4.0, a:A_R0, dS:0.008, th:0},
+  volume: {rho:2.0, u:4.0, a:A_R0, dS:0.008, th:0, elemFX:0.55, elemFY:0.0},
   surface:{sig:1.0, u:4.0, b:B_R0, dl:0.30},
   line:   {tau:1.0, u:4.0},
+  /* ⚠️ lay 刻意不进 PRESET：切页签不重置"放倒"，用户的选择跨页签保持 */
 };
 
 /* ★ 防御：把 state 里所有"滑块量"夹回各自量程。
@@ -151,7 +159,17 @@ function clampState(){
   state.dS =cl(state.dS, DS_RANGE[0], DS_RANGE[1]);
   state.th =cl(state.th, TH_RANGE[0], TH_RANGE[1]);
   state.dl =cl(state.dl, DL_RANGE[0], DL_RANGE[1]);
+  elemClampFrac();               /* a / dS / θ 被钳后，面元位置也要重新钳回盘内 */
   return state;
+}
+
+/* ============================== 放倒（① 专用） ==============================
+   ★ 绕 y 轴转 +90°：(x,y,z) → (z,y,−x)，于是 +z（漂移方向）→ +x，
+     z=0 的横截圆盘 → x=0 的竖直圆盘（正对 +x 方向看就是正圆）。
+   ★ 只作用于 ① 的场景几何：mode 守卫 ⇒ ② 面电流 / ③ 线电流与坐标轴都不动。
+   ★ 旋转变换 ⇒ 对点和方向矢量通用；vcross/dot 等运算与变换可交换。 */
+function layT(p){
+  return (state.mode==='volume' && state.lay) ? pt(p.z, p.y, -p.x) : p;
 }
 
 /* ============================== 物理量 ============================== */
@@ -176,22 +194,40 @@ function fracV(){ return state.dS*Math.cos(state.th*D2R)/(Math.PI*state.a*state.
 function fracS(){ return state.dl/(2*Math.PI*state.b); }
 
 /* ============================== 面元 / 线元几何 ==============================
-   ★ 面元是**有方向的**：法矢 n̂ 与漂移方向（+z）夹 θ 角，
-     只有它的**垂直投影** dS⊥ = dS·cosθ 参与"穿过"的计数。 */
-function elemN(){ const t=state.th*D2R; return pt(Math.sin(t),0,Math.cos(t)); }
-/* 面元圆心取在 0.55a 处（沿 +x）—— 配合下面的 dS 上限，保证**整块面元落在圆盘内**。
-   推导：方形面元半边长 s/2，角点到轴距离² = (0.55a+s/2)² + (s/2)² ≤ a²
-        ⇒ 令 t=s/(2a)：2t²+1.1t−0.6975 ≤ 0 ⇒ t ≤ 0.376 ⇒ dS = s² ≤ 0.566a²。
-   ★ 自检 chk_geom 对"整个滑块量程 × 两种极端半径"逐点断言这条不等式。 */
-function elemCenter(){ return pt(state.a*0.55,0,0); }
+   ★ 面元是**有方向的**：法矢 n̂ 与漂移方向夹 θ 角，
+     只有它的**垂直投影** dS⊥ = dS·cosθ 参与"穿过"的计数。
+   ★ 面元位置 = 比例坐标 (elemFX, elemFY) × a，盘内任意拖动；
+     所有"盘内"判定都在盘内坐标系做（与放倒与否无关，layT 只是最后一步的旋转）。 */
+function elemN(){ const t=state.th*D2R; return layT(pt(Math.sin(t),0,Math.cos(t))); }
+/* ★ 面元圆心：(elemFX·a, elemFY·a) —— 默认 (0.55a, 0) 与旧版完全一致。
+   角点到轴距离² = (|fx|·a + s/2·|cosθ|)² + (|fy|·a + s/2)² ≤ a²（θ=0 时退化为旧推导） */
+function elemCenter(){ return layT(pt(state.elemFX*state.a, state.elemFY*state.a, 0)); }
 function elemSide(){ return Math.sqrt(state.dS); }
+/* 盘内坐标下的"整块装进圆盘"判定（与 lay 无关 ⇒ 放倒后同样成立） */
 function elemFits(){
-  const h=elemSide()/2, c=state.a*0.55;
-  return Math.hypot(c+h,h) <= state.a+1e-12;
+  const h=elemSide()/2, c=Math.abs(Math.cos(state.th*D2R));
+  return Math.hypot(Math.abs(state.elemFX)*state.a + h*c, Math.abs(state.elemFY)*state.a + h)
+         <= state.a+1e-12;
+}
+/* ★ 拖动 / 钳制后的收尾：把比例坐标钳回"面元整块仍在盘内"。
+   g(k) = 角点最大半径随缩放系数 k 单调 ⇒ 倍增回退必在有限步收敛；
+   极端情况（都装不下）退回盘心 —— DS_RANGE 的上限保证 (0,0) 恒可行。 */
+function elemClampFrac(){
+  if(elemFits()) return;
+  let k=0.95;
+  for(let i=0;i<60 && k>1e-3;i++){
+    const fx=state.elemFX*k, fy=state.elemFY*k;
+    const h=elemSide()/2, c=Math.abs(Math.cos(state.th*D2R));
+    if(Math.hypot(Math.abs(fx)*state.a + h*c, Math.abs(fy)*state.a + h)<=state.a+1e-12){
+      state.elemFX=fx; state.elemFY=fy; return;
+    }
+    k*=0.9;
+  }
+  state.elemFX=0; state.elemFY=0;
 }
 /* 面元的两个面内方向：u₁ 沿 y，u₂ = n̂ × u₁（保证 n̂·u₂ = 0） */
-function elemU1(){ return pt(0,1,0); }
-function elemU2(){ const n=elemN(); return vcross(n,pt(0,1,0)); }
+function elemU1(){ return layT(pt(0,1,0)); }
+function elemU2(){ const t=state.th*D2R; return layT(vcross(pt(Math.sin(t),0,Math.cos(t)),pt(0,1,0))); }
 function elemCorners(){
   const c=elemCenter(), s=elemSide()/2, u1=elemU1(), u2=elemU2();
   return [ vadd(vadd(c,vmul(u1,-s)),vmul(u2,-s)),
@@ -220,7 +256,7 @@ const HIT_V = 0.0055, HIT_S = 0.0055, HIT_L = 0.0050;   /* "正在穿过"的判�
 function carrierPos(b, base, L){
   let z=base.z+state.drift;
   z=((z+0.5)%1+1)%1-0.5;                                /* 归一到 [−0.5,0.5) */
-  return pt(base.x*b, base.y*b, z*L);
+  return layT(pt(base.x*b, base.y*b, z*L));
 }
 /* ①：既要在面元的 footprint 里、又要贴着截面，才算"正穿过面元" */
 function hitV(p){
@@ -244,13 +280,13 @@ function cylShell(radius,h,hex,emph,alpha){
   const hh=h/2, N=40;
   for(let i=0;i<N;i++){
     const a0=2*Math.PI*i/N, a1=2*Math.PI*(i+1)/N;
-    const p0=pt(radius*Math.cos(a0), radius*Math.sin(a0),-hh);
-    const p1=pt(radius*Math.cos(a1), radius*Math.sin(a1),-hh);
-    const p2=pt(radius*Math.cos(a1), radius*Math.sin(a1), hh);
-    const p3=pt(radius*Math.cos(a0), radius*Math.sin(a0), hh);
-    /* 伪光照：法矢的水平分量 · 屏幕光方向 */
-    const nx=Math.cos((a0+a1)/2), ny=Math.sin((a0+a1)/2);
-    const lam=Math.max(0,Math.min(1, Math.abs(nx*GX_LX+ny*GX_LY)));
+    const p0=layT(pt(radius*Math.cos(a0), radius*Math.sin(a0),-hh));
+    const p1=layT(pt(radius*Math.cos(a1), radius*Math.sin(a1),-hh));
+    const p2=layT(pt(radius*Math.cos(a1), radius*Math.sin(a1), hh));
+    const p3=layT(pt(radius*Math.cos(a0), radius*Math.sin(a0), hh));
+    /* 伪光照：法矢（放倒后用**变换后**的法矢点屏幕光方向，光影跟着圆柱一起倒） */
+    const nm=layT(pt(Math.cos((a0+a1)/2), Math.sin((a0+a1)/2), 0));
+    const lam=Math.max(0,Math.min(1, Math.abs(nm.x*GX_LX+nm.y*GX_LY)));
     poly([p0,p1,p2,p3],{fill:hex, stroke:hex, w:1,
       fillAlpha:alpha*(0.55+0.85*lam), strokeAlpha:alpha*(0.55+0.85*lam)});
   }
@@ -260,10 +296,10 @@ function cylCap(radius,h,hex,alpha){
   for(let i=0;i<N;i++){ const a=2*Math.PI*i/N; ring.push(pt(radius*Math.cos(a),radius*Math.sin(a),hh)); }
   poly(ring,{fill:hex,stroke:hex,w:1,fillAlpha:alpha,strokeAlpha:alpha});
 }
-/* 沿 z 的一段圆弧（横截线） */
+/* 沿 z 的一段圆弧（横截线）；① 放倒时随场景一起转（layT 内有 mode 守卫，② 不受影响） */
 function arcPts(radius,z,a0,a1,n){
   const out=[];
-  for(let i=0;i<=n;i++){ const a=a0+(a1-a0)*i/n; out.push(pt(radius*Math.cos(a),radius*Math.sin(a),z)); }
+  for(let i=0;i<=n;i++){ const a=a0+(a1-a0)*i/n; out.push(layT(pt(radius*Math.cos(a),radius*Math.sin(a),z))); }
   return out;
 }
 const SUP={'-':'⁻','0':'⁰','1':'¹','2':'²','3':'³','4':'⁴','5':'⁵','6':'⁶','7':'⁷','8':'⁸','9':'⁹'};

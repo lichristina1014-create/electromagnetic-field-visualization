@@ -429,7 +429,14 @@ const state = {
   /* ① 的面元 */
   a:A_R0,                      /* 导体半径 m */
   dS:0.008,                    /* 面元面积 m² */
-  th:0,                        /* 面元法矢与 +z 的夹角（度）⇒ 只剩 cosθ 的分量算数 */
+  th:0,                        /* 面元法矢与漂移方向的夹角（度）⇒ 只剩 cosθ 的分量算数 */
+  /* ★ 面元在横截面内的**比例坐标**（× 半径 a ⇒ 世界坐标）：用比例而不是绝对值，
+     拖半径滑块时面元跟着缩放、永不越盘（旧版 elemCenter=0.55a 就是 0.55 的特例）。
+     指针拖动直接改这两个量（见 page2.js 的 drag.mode==='elem'），elemClampFrac 钳回盘内。 */
+  elemFX:0.55, elemFY:0.0,
+  /* ★ 放倒：① 的圆柱从"轴沿 z（竖放）"转成"轴沿 x（横放）"——PPT 里体电流图的样子。
+     只作用于 ① 页签的场景几何（layT 内部有 mode 守卫），②③ 与坐标轴不动。 */
+  lay:false,
   /* ② 的线元 */
   b:B_R0,                      /* 壳半径 m */
   dl:0.30,                     /* 线元长度 m（圆周上的一段） */
@@ -454,9 +461,10 @@ const DS_RANGE=[0.004,0.012], TH_RANGE=[0,80];
    超了"dl 占横截线"会 >100%）。"取半圈"按钮因此要显式 clamp。 */
 const DL_RANGE=[0.05,1.20];
 const PRESET={
-  volume: {rho:2.0, u:4.0, a:A_R0, dS:0.008, th:0},
+  volume: {rho:2.0, u:4.0, a:A_R0, dS:0.008, th:0, elemFX:0.55, elemFY:0.0},
   surface:{sig:1.0, u:4.0, b:B_R0, dl:0.30},
   line:   {tau:1.0, u:4.0},
+  /* ⚠️ lay 刻意不进 PRESET：切页签不重置"放倒"，用户的选择跨页签保持 */
 };
 
 /* ★ 防御：把 state 里所有"滑块量"夹回各自量程。
@@ -474,7 +482,17 @@ function clampState(){
   state.dS =cl(state.dS, DS_RANGE[0], DS_RANGE[1]);
   state.th =cl(state.th, TH_RANGE[0], TH_RANGE[1]);
   state.dl =cl(state.dl, DL_RANGE[0], DL_RANGE[1]);
+  elemClampFrac();               /* a / dS / θ 被钳后，面元位置也要重新钳回盘内 */
   return state;
+}
+
+/* ============================== 放倒（① 专用） ==============================
+   ★ 绕 y 轴转 +90°：(x,y,z) → (z,y,−x)，于是 +z（漂移方向）→ +x，
+     z=0 的横截圆盘 → x=0 的竖直圆盘（正对 +x 方向看就是正圆）。
+   ★ 只作用于 ① 的场景几何：mode 守卫 ⇒ ② 面电流 / ③ 线电流与坐标轴都不动。
+   ★ 旋转变换 ⇒ 对点和方向矢量通用；vcross/dot 等运算与变换可交换。 */
+function layT(p){
+  return (state.mode==='volume' && state.lay) ? pt(p.z, p.y, -p.x) : p;
 }
 
 /* ============================== 物理量 ============================== */
@@ -499,22 +517,40 @@ function fracV(){ return state.dS*Math.cos(state.th*D2R)/(Math.PI*state.a*state.
 function fracS(){ return state.dl/(2*Math.PI*state.b); }
 
 /* ============================== 面元 / 线元几何 ==============================
-   ★ 面元是**有方向的**：法矢 n̂ 与漂移方向（+z）夹 θ 角，
-     只有它的**垂直投影** dS⊥ = dS·cosθ 参与"穿过"的计数。 */
-function elemN(){ const t=state.th*D2R; return pt(Math.sin(t),0,Math.cos(t)); }
-/* 面元圆心取在 0.55a 处（沿 +x）—— 配合下面的 dS 上限，保证**整块面元落在圆盘内**。
-   推导：方形面元半边长 s/2，角点到轴距离² = (0.55a+s/2)² + (s/2)² ≤ a²
-        ⇒ 令 t=s/(2a)：2t²+1.1t−0.6975 ≤ 0 ⇒ t ≤ 0.376 ⇒ dS = s² ≤ 0.566a²。
-   ★ 自检 chk_geom 对"整个滑块量程 × 两种极端半径"逐点断言这条不等式。 */
-function elemCenter(){ return pt(state.a*0.55,0,0); }
+   ★ 面元是**有方向的**：法矢 n̂ 与漂移方向夹 θ 角，
+     只有它的**垂直投影** dS⊥ = dS·cosθ 参与"穿过"的计数。
+   ★ 面元位置 = 比例坐标 (elemFX, elemFY) × a，盘内任意拖动；
+     所有"盘内"判定都在盘内坐标系做（与放倒与否无关，layT 只是最后一步的旋转）。 */
+function elemN(){ const t=state.th*D2R; return layT(pt(Math.sin(t),0,Math.cos(t))); }
+/* ★ 面元圆心：(elemFX·a, elemFY·a) —— 默认 (0.55a, 0) 与旧版完全一致。
+   角点到轴距离² = (|fx|·a + s/2·|cosθ|)² + (|fy|·a + s/2)² ≤ a²（θ=0 时退化为旧推导） */
+function elemCenter(){ return layT(pt(state.elemFX*state.a, state.elemFY*state.a, 0)); }
 function elemSide(){ return Math.sqrt(state.dS); }
+/* 盘内坐标下的"整块装进圆盘"判定（与 lay 无关 ⇒ 放倒后同样成立） */
 function elemFits(){
-  const h=elemSide()/2, c=state.a*0.55;
-  return Math.hypot(c+h,h) <= state.a+1e-12;
+  const h=elemSide()/2, c=Math.abs(Math.cos(state.th*D2R));
+  return Math.hypot(Math.abs(state.elemFX)*state.a + h*c, Math.abs(state.elemFY)*state.a + h)
+         <= state.a+1e-12;
+}
+/* ★ 拖动 / 钳制后的收尾：把比例坐标钳回"面元整块仍在盘内"。
+   g(k) = 角点最大半径随缩放系数 k 单调 ⇒ 倍增回退必在有限步收敛；
+   极端情况（都装不下）退回盘心 —— DS_RANGE 的上限保证 (0,0) 恒可行。 */
+function elemClampFrac(){
+  if(elemFits()) return;
+  let k=0.95;
+  for(let i=0;i<60 && k>1e-3;i++){
+    const fx=state.elemFX*k, fy=state.elemFY*k;
+    const h=elemSide()/2, c=Math.abs(Math.cos(state.th*D2R));
+    if(Math.hypot(Math.abs(fx)*state.a + h*c, Math.abs(fy)*state.a + h)<=state.a+1e-12){
+      state.elemFX=fx; state.elemFY=fy; return;
+    }
+    k*=0.9;
+  }
+  state.elemFX=0; state.elemFY=0;
 }
 /* 面元的两个面内方向：u₁ 沿 y，u₂ = n̂ × u₁（保证 n̂·u₂ = 0） */
-function elemU1(){ return pt(0,1,0); }
-function elemU2(){ const n=elemN(); return vcross(n,pt(0,1,0)); }
+function elemU1(){ return layT(pt(0,1,0)); }
+function elemU2(){ const t=state.th*D2R; return layT(vcross(pt(Math.sin(t),0,Math.cos(t)),pt(0,1,0))); }
 function elemCorners(){
   const c=elemCenter(), s=elemSide()/2, u1=elemU1(), u2=elemU2();
   return [ vadd(vadd(c,vmul(u1,-s)),vmul(u2,-s)),
@@ -543,7 +579,7 @@ const HIT_V = 0.0055, HIT_S = 0.0055, HIT_L = 0.0050;   /* "正在穿过"的判�
 function carrierPos(b, base, L){
   let z=base.z+state.drift;
   z=((z+0.5)%1+1)%1-0.5;                                /* 归一到 [−0.5,0.5) */
-  return pt(base.x*b, base.y*b, z*L);
+  return layT(pt(base.x*b, base.y*b, z*L));
 }
 /* ①：既要在面元的 footprint 里、又要贴着截面，才算"正穿过面元" */
 function hitV(p){
@@ -567,13 +603,13 @@ function cylShell(radius,h,hex,emph,alpha){
   const hh=h/2, N=40;
   for(let i=0;i<N;i++){
     const a0=2*Math.PI*i/N, a1=2*Math.PI*(i+1)/N;
-    const p0=pt(radius*Math.cos(a0), radius*Math.sin(a0),-hh);
-    const p1=pt(radius*Math.cos(a1), radius*Math.sin(a1),-hh);
-    const p2=pt(radius*Math.cos(a1), radius*Math.sin(a1), hh);
-    const p3=pt(radius*Math.cos(a0), radius*Math.sin(a0), hh);
-    /* 伪光照：法矢的水平分量 · 屏幕光方向 */
-    const nx=Math.cos((a0+a1)/2), ny=Math.sin((a0+a1)/2);
-    const lam=Math.max(0,Math.min(1, Math.abs(nx*GX_LX+ny*GX_LY)));
+    const p0=layT(pt(radius*Math.cos(a0), radius*Math.sin(a0),-hh));
+    const p1=layT(pt(radius*Math.cos(a1), radius*Math.sin(a1),-hh));
+    const p2=layT(pt(radius*Math.cos(a1), radius*Math.sin(a1), hh));
+    const p3=layT(pt(radius*Math.cos(a0), radius*Math.sin(a0), hh));
+    /* 伪光照：法矢（放倒后用**变换后**的法矢点屏幕光方向，光影跟着圆柱一起倒） */
+    const nm=layT(pt(Math.cos((a0+a1)/2), Math.sin((a0+a1)/2), 0));
+    const lam=Math.max(0,Math.min(1, Math.abs(nm.x*GX_LX+nm.y*GX_LY)));
     poly([p0,p1,p2,p3],{fill:hex, stroke:hex, w:1,
       fillAlpha:alpha*(0.55+0.85*lam), strokeAlpha:alpha*(0.55+0.85*lam)});
   }
@@ -583,10 +619,10 @@ function cylCap(radius,h,hex,alpha){
   for(let i=0;i<N;i++){ const a=2*Math.PI*i/N; ring.push(pt(radius*Math.cos(a),radius*Math.sin(a),hh)); }
   poly(ring,{fill:hex,stroke:hex,w:1,fillAlpha:alpha,strokeAlpha:alpha});
 }
-/* 沿 z 的一段圆弧（横截线） */
+/* 沿 z 的一段圆弧（横截线）；① 放倒时随场景一起转（layT 内有 mode 守卫，② 不受影响） */
 function arcPts(radius,z,a0,a1,n){
   const out=[];
-  for(let i=0;i<=n;i++){ const a=a0+(a1-a0)*i/n; out.push(pt(radius*Math.cos(a),radius*Math.sin(a),z)); }
+  for(let i=0;i<=n;i++){ const a=a0+(a1-a0)*i/n; out.push(layT(pt(radius*Math.cos(a),radius*Math.sin(a),z))); }
   return out;
 }
 const SUP={'-':'⁻','0':'⁰','1':'¹','2':'²','3':'³','4':'⁴','5':'⁵','6':'⁶','7':'⁷','8':'⁸','9':'⁹'};
@@ -599,26 +635,26 @@ function sgnTxt(v,d){ return (v>0?'+':(v<0?'−':''))+Math.abs(v).toFixed(d==nul
 /* ============================== 目录 ============================== */
 const NAV = [
   { ch:'第 1 章 · 矢量分析', items:[
-    { id:'coord', t:'1.1 三种常见坐标系', ready:true, href:'index.html?v=20261019r3' },
-    { id:'ch1-2', t:'1.2 矢量的代数运算', ready:true, href:'1.2-vector-algebra.htm?v=20261019r3' },
-    { id:'ch1-3', t:'1.3 方向导数与梯度', ready:true, href:'1.3-directional-derivative.htm?v=20261019r3' },
-    { id:'ch1-4', t:'1.4 通量与散度', ready:true, href:'1.4-divergence-flux.htm?v=20261019r3' },
-    { id:'ch1-5', t:'1.5 环量与旋度', ready:true, href:'1.5-curl-circulation.htm?v=20261019r3' },
+    { id:'coord', t:'1.1 三种常见坐标系', ready:true, href:'index.html?v=20261020r4' },
+    { id:'ch1-2', t:'1.2 矢量的代数运算', ready:true, href:'1.2-vector-algebra.htm?v=20261020r4' },
+    { id:'ch1-3', t:'1.3 方向导数与梯度', ready:true, href:'1.3-directional-derivative.htm?v=20261020r4' },
+    { id:'ch1-4', t:'1.4 通量与散度', ready:true, href:'1.4-divergence-flux.htm?v=20261020r4' },
+    { id:'ch1-5', t:'1.5 环量与旋度', ready:true, href:'1.5-curl-circulation.htm?v=20261020r4' },
   ]},
   { ch:'第 2 章 · 静电场', items:[
-    { id:'ch2-1', t:'2.1 电场强度与电荷密度', ready:true, href:'2.1-field-charge-density.htm?v=20261019r3' },
-    { id:'ch2-2', t:'2.2 静电场中的导体', ready:true, href:'2.2-conductor-electrostatic.htm?v=20261019r3' },
-    { id:'ch2-3', t:'2.3 静电场中的电介质', ready:true, href:'2.3-dielectric-polarization.htm?v=20261019r3' },
-    { id:'ch2-4', t:'2.4 高斯定理及其应用', ready:true, href:'2.4-gauss-law.htm?v=20261019r3' },
-    { id:'ch2-5', t:'2.5 多导体系统的电容与串扰', ready:true, href:'2.5-multi-conductor-crosstalk.htm?v=20261019r3' },
+    { id:'ch2-1', t:'2.1 电场强度与电荷密度', ready:true, href:'2.1-field-charge-density.htm?v=20261020r4' },
+    { id:'ch2-2', t:'2.2 静电场中的导体', ready:true, href:'2.2-conductor-electrostatic.htm?v=20261020r4' },
+    { id:'ch2-3', t:'2.3 静电场中的电介质', ready:true, href:'2.3-dielectric-polarization.htm?v=20261020r4' },
+    { id:'ch2-4', t:'2.4 高斯定理及其应用', ready:true, href:'2.4-gauss-law.htm?v=20261020r4' },
+    { id:'ch2-5', t:'2.5 多导体系统的电容与串扰', ready:true, href:'2.5-multi-conductor-crosstalk.htm?v=20261020r4' },
   ]},
   { ch:'第 3 章 · 恒定电场', items:[
     { id:'ch3-1', t:'3.1 电流的分类', ready:true, active:true },
-    { id:'ch3-2', t:'3.2 恒定电场的特点' },
+    { id:'ch3-2', t:'3.2 恒定电场的特点', ready:true, href:'3.2-constant-field.htm?v=20261020r4' },
   ]},
   { ch:'第 4 章 · 恒定磁场', items:[
     { id:'ch4-1', t:'4.1 磁感应强度' },
-    { id:'ch4-2', t:'4.2 磁介质的磁化', ready:true, active:false, href:'4.2-magnetization.htm?v=20261019r3' },
+    { id:'ch4-2', t:'4.2 磁介质的磁化', ready:true, active:false, href:'4.2-magnetization.htm?v=20261020r4' },
   ]},
 ];
 
@@ -714,47 +750,73 @@ function drawVolumeScene(){
     poly(ringPts(state.a,-A_L/2),{fill:VOL_HEX,stroke:VOL_HEX,w:1,fillAlpha:0.10,strokeAlpha:0.10});
   }
   if(state.show.sec){
-    /* 横截面：z = 0 的圆盘 —— "体电流穿过的东西" */
+    /* 横截面：圆盘 —— "体电流穿过的东西"（放倒时是 x=0 的竖直圆盘，ringPts 已含 layT） */
     poly(ringPts(state.a,0), {fill:SEC_HEX,stroke:C.blue,w:1.2,dash:[6,4],
       fillAlpha:0.22,strokeAlpha:0.55, z:ZL-2});
     /* ⚠️ 标签放在圆盘的 **−x 侧 rim 外**（−x 正是面元 / n̂ 的反侧，那一侧永远空着）：
        曾经放"圆盘左半侧"，θ=80° 时 n̂ 倒向 +x、投影恰好落到屏幕左侧，重叠 48%；
        也曾经放"正上方"，θ=40° 时与 θ 角标签重叠 92%。
-       现在这个位置在 4 组相机角 × θ∈{0,40,80} 下都不撞（chk_vis 逐画面断言）。 */
-    text(pt(-state.a*0.92,0,0), '横截面 S', {color:'#136A9B',size:12,bold:true,
+       现在这个位置在 4 组相机角 × θ∈{0,40,80} 下都不撞（chk_vis 逐画面断言）。
+       放倒后 layT(−0.92a,0,0)=(0,0,0.92a)：竖直圆盘的 +z 侧 rim 外，同样不撞（vis31 放倒断言）。 */
+    text(layT(pt(-state.a*0.92,0,0)), '横截面 S', {color:'#136A9B',size:12,bold:true,
       dx:10,dy:-10,align:'left',z:ZL});
   }
   if(state.show.elem){
     const c=elemCenter(), n=elemN();
     poly(elemCorners(), {fill:ELEM_HEX,stroke:'#B85A1E',w:1.6,fillAlpha:0.42,strokeAlpha:0.9, z:ZL+6});
     if(state.show.nrm){
-      arrow(c, vadd(c,vmul(n,0.19)), {color:ELEM_HEX,w:2.1,headScale:1.05,z:ZL+8});
-      /* ⚠️ dy 用 -18 而不是 -9：θ 拖大后 n̂ 倒向 +x，标签会降到面元附近，
-         θ=80° 时与「dS = …」实测重叠 44%。抬高 9 px 后在 4 组相机角下都不撞。 */
-      text(vadd(c,vmul(n,0.24)), 'n̂', {color:'#B85A1E',size:12.5,bold:true,dx:5,dy:-18,z:ZL+8});
-      /* 漂移方向（+z）与 n̂ 的夹角 —— "只有垂直投影算数"的几何来源 */
+      /* ⚠️ 放倒+正对镜头时 n̂ 与视线几乎平行 ⇒ 箭头投影缩成一点（看不见）。
+         按制图惯例画 ⊙（圆心点=箭头朝读者）替代，标签贴右边。 */
+      const tip0=vadd(c,vmul(n,0.19));
+      const sc0=pr(c), st0=pr(tip0);
+      const nlen=Math.hypot(st0.x-sc0.x, st0.y-sc0.y);
+      if(nlen<10){
+        marker(c, {r:5.5,color:'#fff',ring:ELEM_HEX,z:ZL+8});
+        marker(c, {r:1.8,color:ELEM_HEX,z:ZL+9});
+        text(c, 'n̂', {color:'#B85A1E',size:12.5,bold:true,dx:14,dy:-8,z:ZL+8});
+      } else {
+        arrow(c, tip0, {color:ELEM_HEX,w:2.1,headScale:1.05,z:ZL+8});
+        /* ⚠️ dy 用 -18 而不是 -9：θ 拖大后 n̂ 倒向 +x，标签会降到面元附近，
+           θ=80° 时与「dS = …」实测重叠 44%。抬高 9 px 后在 4 组相机角下都不撞。 */
+        text(vadd(c,vmul(n,0.24)), 'n̂', {color:'#B85A1E',size:12.5,bold:true,dx:5,dy:-18,z:ZL+8});
+      }
+      /* 漂移方向（竖放 +z / 放倒 +x）与 n̂ 的夹角 —— "只有垂直投影算数"的几何来源 */
       if(state.th>0.5){
-        line(c, vadd(c,pt(0,0,0.17)), {color:C.green,w:1.4,dash:[5,4],z:ZL+8});
-        curve(arcUV(c,pt(0,0,1),pt(1,0,0),0.13,0,state.th*D2R,22),
+        line(c, vadd(c,vmul(layT(pt(0,0,1)),0.17)), {color:C.green,w:1.4,dash:[5,4],z:ZL+8});
+        curve(arcUV(c,layT(pt(0,0,1)),layT(pt(1,0,0)),0.13,0,state.th*D2R,22),
               {color:'#8A6A2F',w:1.3,z:ZL+8});
         const am=state.th/2*D2R;
-        text(vadd(c,pt(0.13*Math.sin(am)*1.35,0,0.13*Math.cos(am))), 'θ = '+state.th+'°',
-             {color:'#8A6A2F',size:11.5,bold:true,dx:6,dy:-4,z:ZL+8});
+        /* ⚠️ 放倒时 θ 标签改用「面元中心 + 固定屏幕偏移（下右）」：
+           放倒后 n̂/θ弧/dS 三个锚点的世界方向在某些相机下投影到**同一片屏幕区域**
+           （vis31 放倒断言实测 n̂×θ 33%）⇒ 固定偏移与相机无关，永远分得开。 */
+        if(state.lay){
+          /* 放倒时四个标签分占四角：n̂ 贴箭尖、dS 左下（右对齐）、θ 左上（右对齐）——
+             右上被半径标注 a 的杆标签占据（实测 θ 放右上与 a 标签撞 39%） */
+          text(c, 'θ = '+state.th+'°',
+               {color:'#8A6A2F',size:11.5,bold:true,dx:-20,dy:-24,align:'right',z:ZL+8});
+        } else {
+          text(vadd(c,pt(0.13*Math.sin(am)*1.35,0,0.13*Math.cos(am))), 'θ = '+state.th+'°',
+               {color:'#8A6A2F',size:11.5,bold:true,dx:6,dy:-4,z:ZL+8});
+        }
       }
     }
     /* dS 标签挂在面元**正下方**（沿 u₁，而 u₁=(0,1,0) 与 θ 无关 ⇒ 位置不随倾角跳）。
        ⚠️ 曾经挂在 u₂ 方向（θ=0 时是 −x，正撞上半径标注 a 的杆中点）：
          实测两个标签屏幕重叠 49%。自检 chk_vis 用 richLayout 的宽度算包围盒、
-         两两求交来盯这件事。 */
+         两两求交来盯这件事。
+       ⚠️ 放倒时改**右对齐左移**：竖放时 −u₁ 是"屏幕下方"；放倒后 −u₁ 变成"屏幕左方"，
+         但居中的宽标签（~90px）右缘会伸回面元正下方，正撞 n̂/θ 标签（vis31 放倒断言实测
+         57%/47% 重叠）⇒ 放倒时让整条标签待在面元左侧。 */
     text(vadd(c,vmul(elemU1(),-elemSide()*1.0)), 'dS = '+state.dS.toFixed(3)+' m²',
-         {color:'#B85A1E',size:11.5,bold:true,dx:0,dy:15,align:'center',z:ZL+8});
+         state.lay ? {color:'#B85A1E',size:11.5,bold:true,dx:-14,dy:15,align:'right',z:ZL+8}
+                   : {color:'#B85A1E',size:11.5,bold:true,dx:0,dy:15,align:'center',z:ZL+8});
   }
-  /* 半径标注：沿 camU 拉（投影恒为水平半径，不会在某些视角下缩成一点） */
-  dimLine(O, vmul(camU,state.a), {color:'#9FB4C0',dash:[5,4],w:1.2,z:ZL,
+  /* 半径标注：沿 layT(camU) 拉 —— 放倒后 camU 被旋进圆盘面内，半径标注仍然贴着 rim */
+  dimLine(O, vmul(layT(camU),state.a), {color:'#9FB4C0',dash:[5,4],w:1.2,z:ZL,
     label:'a = '+state.a.toFixed(2)+' m', lsize:11.5, ldy:12});
 }
 function ringPts(r,z){
-  const out=[]; for(let i=0;i<40;i++){ const a=2*Math.PI*i/40; out.push(pt(r*Math.cos(a),r*Math.sin(a),z)); }
+  const out=[]; for(let i=0;i<40;i++){ const a=2*Math.PI*i/40; out.push(layT(pt(r*Math.cos(a),r*Math.sin(a),z))); }
   return out;
 }
 /* ② 面电流：圆柱壳 + 横截线（整条圆周 + 高亮线元 dl） */
@@ -853,7 +915,7 @@ function currentCard(){
       ['穿过 dS 的电流 J·dS⊥', IelemV().toFixed(3)+' nA'],
       ['载流子穿过整截面', rateV().toFixed(2)+' 个/s'],
       ['§ 单位：A/m²（nA/m²）'],
-      ['方向', '正电荷漂移方向'],
+      ['方向', state.lay?'正电荷漂移方向（沿 +x）':'正电荷漂移方向（沿 +z）'],
     ],238];
   }
   if(state.mode==='surface'){
@@ -1003,6 +1065,23 @@ function renderSliders(sec){
       {t:'ρ 翻倍（J 翻倍）', on:state.rho>=3.95,
         act:()=>{ state.rho=Math.min(4.0,state.rho*2); renderPanel(); updateAll(); }},
     ]);
+    sec.appendChild(h('<div class="slider-group-label" style="margin-top:12px">姿态（对照 PPT 的体电流图）</div>'));
+    btnRow(sec,[
+      /* ★ 放倒 = 圆柱轴从 z 转到 x（PPT 第 5 页体电流图的样子）；
+         竖放/放倒各配一个合适的相机角，用户仍可以再拖着转。 */
+      {t: state.lay?'⤴ 竖起来（轴沿 z）':'⤵ 放倒看切面（轴沿 x）', on:state.lay, col:'acc',
+        act:()=>{ state.lay=!state.lay;
+          /* 放倒默认相机：az=−1.35 ⇒ +x 几乎正对屏幕右侧（圆柱横躺、载流子向右流，
+             与 PPT 第 5 页体电流图同向）；az=−0.45 那版 +x 大半指向纵深，圆柱缩成一团 */
+          if(state.lay){ cam.az=-1.35; cam.el=0.18; } else { cam.az=0.62; cam.el=0.40; }
+          cam.px=0; cam.py=0; renderPanel(); updateAll(); }},
+      {t:'⊡ 正看切面（正对横截面）', on:false,
+        act:()=>{ state.lay=true; cam.az=0; cam.el=0; cam.px=0; cam.py=0; renderPanel(); updateAll(); }},
+    ]);
+    sec.appendChild(h('<div class="ex-note" style="margin-top:7px">'+richHTML(
+      '🖱 橙色的<b>面元可以直接拖动</b>：按住它，拖到横截面上的任意位置（怎么拖都在盘内）。<br>'+
+      '⤵ <b>放倒</b>之后圆柱横躺在 x 轴上、漂移方向沿 +x，和 PPT 上的体电流图是同一个样子；'+
+      '「正看切面」再把相机正对着横截面。')+'</div>'));
   } else if(state.mode==='surface'){
     sec.appendChild(h('<div class="slider-group-label">面电荷密度与漂移速度</div>'));
     mkRange(sec,{k:'sig',label:'面电荷密度 σ',wide:true,min:SIG_RANGE[0],max:SIG_RANGE[1],step:0.1,
@@ -1280,21 +1359,45 @@ let drag=null;
 function localPos(ev){const r=canvas.getBoundingClientRect();return{x:ev.clientX-r.left,y:ev.clientY-r.top};}
 canvas=document.getElementById('cv');
 ctx=canvas.getContext('2d');
+/* ★ 面元拖动：指针落在面元中心 30px 内 ⇒ 按住拖的是面元，否则才是相机旋转/平移。
+   屏幕位移 → 世界位移：Δp·camU = Δsx/cs、Δp·camV = −Δsy/cs（pr 的逆映射）。 */
+const ELEM_HIT_PX=30;
+function elemScreenNear(m){
+  if(state.mode!=='volume'||!state.show.elem) return false;
+  const s=pr(elemCenter());
+  return Math.hypot(m.x-s.x,m.y-s.y)<=ELEM_HIT_PX;
+}
 canvas.addEventListener('pointerdown',ev=>{
   try{ canvas.setPointerCapture(ev.pointerId); }catch(e){}
   const m=localPos(ev);
-  drag={x:m.x,y:m.y,btn:ev.button,mode:(ev.button===2||ev.ctrlKey)?'pan':'rot'};
+  if(ev.button===0 && !ev.ctrlKey && elemScreenNear(m)){
+    drag={x:m.x,y:m.y,btn:ev.button,mode:'elem'};
+    canvas.style.cursor='grabbing';
+  } else {
+    drag={x:m.x,y:m.y,btn:ev.button,mode:(ev.button===2||ev.ctrlKey)?'pan':'rot'};
+  }
   ev.preventDefault();
 });
 canvas.addEventListener('pointermove',ev=>{
   const m=localPos(ev);
-  if(!drag) return;
+  if(!drag){ canvas.style.cursor=elemScreenNear(m)?'grab':''; return; }
   const dx=m.x-drag.x, dy=m.y-drag.y; drag.x=m.x; drag.y=m.y;
-  if(drag.mode==='pan'){ cam.px+=dx; cam.py+=dy; needsRender=true; }
+  if(drag.mode==='elem'){
+    /* 世界位移 → 盘内比例坐标。盘内坐标：竖放 = (world.x, world.y)；
+       放倒后面元在 x=0 盘（elemCenter = (0, fy·a, −fx·a)）⇒ fx = −world.z/a */
+    const wx=(dx/camScale)*camU.x + (-dy/camScale)*camV.x;
+    const wy=(dx/camScale)*camU.y + (-dy/camScale)*camV.y;
+    const wz=(dx/camScale)*camU.z + (-dy/camScale)*camV.z;
+    if(state.lay){ state.elemFX += -wz/state.a; state.elemFY += wy/state.a; }
+    else         { state.elemFX +=  wx/state.a; state.elemFY += wy/state.a; }
+    elemClampFrac();
+    needsRender=true;
+  }
+  else if(drag.mode==='pan'){ cam.px+=dx; cam.py+=dy; needsRender=true; }
   else { cam.az-=dx*0.0075; cam.el=Math.max(-1.45,Math.min(1.45,cam.el+dy*0.0062)); needsRender=true; }
 });
-canvas.addEventListener('pointerup',()=>{ drag=null; });
-canvas.addEventListener('pointercancel',()=>{ drag=null; });
+canvas.addEventListener('pointerup',()=>{ if(drag&&drag.mode==='elem') canvas.style.cursor='grab'; drag=null; });
+canvas.addEventListener('pointercancel',()=>{ canvas.style.cursor=''; drag=null; });
 canvas.addEventListener('contextmenu',e=>e.preventDefault());
 canvas.addEventListener('wheel',e=>{e.preventDefault();cam.zoom=Math.max(.45,Math.min(3.2,cam.zoom*(e.deltaY<0?1.09:1/1.09)));needsRender=true;},{passive:false});
 document.getElementById('btnViewReset').onclick=()=>{ cam.az=.62; cam.el=.40; cam.zoom=1; cam.px=0; cam.py=0; needsRender=true; };

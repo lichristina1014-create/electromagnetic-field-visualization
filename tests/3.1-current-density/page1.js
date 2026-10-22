@@ -89,47 +89,73 @@ function drawVolumeScene(){
     poly(ringPts(state.a,-A_L/2),{fill:VOL_HEX,stroke:VOL_HEX,w:1,fillAlpha:0.10,strokeAlpha:0.10});
   }
   if(state.show.sec){
-    /* 横截面：z = 0 的圆盘 —— "体电流穿过的东西" */
+    /* 横截面：圆盘 —— "体电流穿过的东西"（放倒时是 x=0 的竖直圆盘，ringPts 已含 layT） */
     poly(ringPts(state.a,0), {fill:SEC_HEX,stroke:C.blue,w:1.2,dash:[6,4],
       fillAlpha:0.22,strokeAlpha:0.55, z:ZL-2});
     /* ⚠️ 标签放在圆盘的 **−x 侧 rim 外**（−x 正是面元 / n̂ 的反侧，那一侧永远空着）：
        曾经放"圆盘左半侧"，θ=80° 时 n̂ 倒向 +x、投影恰好落到屏幕左侧，重叠 48%；
        也曾经放"正上方"，θ=40° 时与 θ 角标签重叠 92%。
-       现在这个位置在 4 组相机角 × θ∈{0,40,80} 下都不撞（chk_vis 逐画面断言）。 */
-    text(pt(-state.a*0.92,0,0), '横截面 S', {color:'#136A9B',size:12,bold:true,
+       现在这个位置在 4 组相机角 × θ∈{0,40,80} 下都不撞（chk_vis 逐画面断言）。
+       放倒后 layT(−0.92a,0,0)=(0,0,0.92a)：竖直圆盘的 +z 侧 rim 外，同样不撞（vis31 放倒断言）。 */
+    text(layT(pt(-state.a*0.92,0,0)), '横截面 S', {color:'#136A9B',size:12,bold:true,
       dx:10,dy:-10,align:'left',z:ZL});
   }
   if(state.show.elem){
     const c=elemCenter(), n=elemN();
     poly(elemCorners(), {fill:ELEM_HEX,stroke:'#B85A1E',w:1.6,fillAlpha:0.42,strokeAlpha:0.9, z:ZL+6});
     if(state.show.nrm){
-      arrow(c, vadd(c,vmul(n,0.19)), {color:ELEM_HEX,w:2.1,headScale:1.05,z:ZL+8});
-      /* ⚠️ dy 用 -18 而不是 -9：θ 拖大后 n̂ 倒向 +x，标签会降到面元附近，
-         θ=80° 时与「dS = …」实测重叠 44%。抬高 9 px 后在 4 组相机角下都不撞。 */
-      text(vadd(c,vmul(n,0.24)), 'n̂', {color:'#B85A1E',size:12.5,bold:true,dx:5,dy:-18,z:ZL+8});
-      /* 漂移方向（+z）与 n̂ 的夹角 —— "只有垂直投影算数"的几何来源 */
+      /* ⚠️ 放倒+正对镜头时 n̂ 与视线几乎平行 ⇒ 箭头投影缩成一点（看不见）。
+         按制图惯例画 ⊙（圆心点=箭头朝读者）替代，标签贴右边。 */
+      const tip0=vadd(c,vmul(n,0.19));
+      const sc0=pr(c), st0=pr(tip0);
+      const nlen=Math.hypot(st0.x-sc0.x, st0.y-sc0.y);
+      if(nlen<10){
+        marker(c, {r:5.5,color:'#fff',ring:ELEM_HEX,z:ZL+8});
+        marker(c, {r:1.8,color:ELEM_HEX,z:ZL+9});
+        text(c, 'n̂', {color:'#B85A1E',size:12.5,bold:true,dx:14,dy:-8,z:ZL+8});
+      } else {
+        arrow(c, tip0, {color:ELEM_HEX,w:2.1,headScale:1.05,z:ZL+8});
+        /* ⚠️ dy 用 -18 而不是 -9：θ 拖大后 n̂ 倒向 +x，标签会降到面元附近，
+           θ=80° 时与「dS = …」实测重叠 44%。抬高 9 px 后在 4 组相机角下都不撞。 */
+        text(vadd(c,vmul(n,0.24)), 'n̂', {color:'#B85A1E',size:12.5,bold:true,dx:5,dy:-18,z:ZL+8});
+      }
+      /* 漂移方向（竖放 +z / 放倒 +x）与 n̂ 的夹角 —— "只有垂直投影算数"的几何来源 */
       if(state.th>0.5){
-        line(c, vadd(c,pt(0,0,0.17)), {color:C.green,w:1.4,dash:[5,4],z:ZL+8});
-        curve(arcUV(c,pt(0,0,1),pt(1,0,0),0.13,0,state.th*D2R,22),
+        line(c, vadd(c,vmul(layT(pt(0,0,1)),0.17)), {color:C.green,w:1.4,dash:[5,4],z:ZL+8});
+        curve(arcUV(c,layT(pt(0,0,1)),layT(pt(1,0,0)),0.13,0,state.th*D2R,22),
               {color:'#8A6A2F',w:1.3,z:ZL+8});
         const am=state.th/2*D2R;
-        text(vadd(c,pt(0.13*Math.sin(am)*1.35,0,0.13*Math.cos(am))), 'θ = '+state.th+'°',
-             {color:'#8A6A2F',size:11.5,bold:true,dx:6,dy:-4,z:ZL+8});
+        /* ⚠️ 放倒时 θ 标签改用「面元中心 + 固定屏幕偏移（下右）」：
+           放倒后 n̂/θ弧/dS 三个锚点的世界方向在某些相机下投影到**同一片屏幕区域**
+           （vis31 放倒断言实测 n̂×θ 33%）⇒ 固定偏移与相机无关，永远分得开。 */
+        if(state.lay){
+          /* 放倒时四个标签分占四角：n̂ 贴箭尖、dS 左下（右对齐）、θ 左上（右对齐）——
+             右上被半径标注 a 的杆标签占据（实测 θ 放右上与 a 标签撞 39%） */
+          text(c, 'θ = '+state.th+'°',
+               {color:'#8A6A2F',size:11.5,bold:true,dx:-20,dy:-24,align:'right',z:ZL+8});
+        } else {
+          text(vadd(c,pt(0.13*Math.sin(am)*1.35,0,0.13*Math.cos(am))), 'θ = '+state.th+'°',
+               {color:'#8A6A2F',size:11.5,bold:true,dx:6,dy:-4,z:ZL+8});
+        }
       }
     }
     /* dS 标签挂在面元**正下方**（沿 u₁，而 u₁=(0,1,0) 与 θ 无关 ⇒ 位置不随倾角跳）。
        ⚠️ 曾经挂在 u₂ 方向（θ=0 时是 −x，正撞上半径标注 a 的杆中点）：
          实测两个标签屏幕重叠 49%。自检 chk_vis 用 richLayout 的宽度算包围盒、
-         两两求交来盯这件事。 */
+         两两求交来盯这件事。
+       ⚠️ 放倒时改**右对齐左移**：竖放时 −u₁ 是"屏幕下方"；放倒后 −u₁ 变成"屏幕左方"，
+         但居中的宽标签（~90px）右缘会伸回面元正下方，正撞 n̂/θ 标签（vis31 放倒断言实测
+         57%/47% 重叠）⇒ 放倒时让整条标签待在面元左侧。 */
     text(vadd(c,vmul(elemU1(),-elemSide()*1.0)), 'dS = '+state.dS.toFixed(3)+' m²',
-         {color:'#B85A1E',size:11.5,bold:true,dx:0,dy:15,align:'center',z:ZL+8});
+         state.lay ? {color:'#B85A1E',size:11.5,bold:true,dx:-14,dy:15,align:'right',z:ZL+8}
+                   : {color:'#B85A1E',size:11.5,bold:true,dx:0,dy:15,align:'center',z:ZL+8});
   }
-  /* 半径标注：沿 camU 拉（投影恒为水平半径，不会在某些视角下缩成一点） */
-  dimLine(O, vmul(camU,state.a), {color:'#9FB4C0',dash:[5,4],w:1.2,z:ZL,
+  /* 半径标注：沿 layT(camU) 拉 —— 放倒后 camU 被旋进圆盘面内，半径标注仍然贴着 rim */
+  dimLine(O, vmul(layT(camU),state.a), {color:'#9FB4C0',dash:[5,4],w:1.2,z:ZL,
     label:'a = '+state.a.toFixed(2)+' m', lsize:11.5, ldy:12});
 }
 function ringPts(r,z){
-  const out=[]; for(let i=0;i<40;i++){ const a=2*Math.PI*i/40; out.push(pt(r*Math.cos(a),r*Math.sin(a),z)); }
+  const out=[]; for(let i=0;i<40;i++){ const a=2*Math.PI*i/40; out.push(layT(pt(r*Math.cos(a),r*Math.sin(a),z))); }
   return out;
 }
 /* ② 面电流：圆柱壳 + 横截线（整条圆周 + 高亮线元 dl） */
@@ -228,7 +254,7 @@ function currentCard(){
       ['穿过 dS 的电流 J·dS⊥', IelemV().toFixed(3)+' nA'],
       ['载流子穿过整截面', rateV().toFixed(2)+' 个/s'],
       ['§ 单位：A/m²（nA/m²）'],
-      ['方向', '正电荷漂移方向'],
+      ['方向', state.lay?'正电荷漂移方向（沿 +x）':'正电荷漂移方向（沿 +z）'],
     ],238];
   }
   if(state.mode==='surface'){
@@ -378,6 +404,23 @@ function renderSliders(sec){
       {t:'ρ 翻倍（J 翻倍）', on:state.rho>=3.95,
         act:()=>{ state.rho=Math.min(4.0,state.rho*2); renderPanel(); updateAll(); }},
     ]);
+    sec.appendChild(h('<div class="slider-group-label" style="margin-top:12px">姿态（对照 PPT 的体电流图）</div>'));
+    btnRow(sec,[
+      /* ★ 放倒 = 圆柱轴从 z 转到 x（PPT 第 5 页体电流图的样子）；
+         竖放/放倒各配一个合适的相机角，用户仍可以再拖着转。 */
+      {t: state.lay?'⤴ 竖起来（轴沿 z）':'⤵ 放倒看切面（轴沿 x）', on:state.lay, col:'acc',
+        act:()=>{ state.lay=!state.lay;
+          /* 放倒默认相机：az=−1.35 ⇒ +x 几乎正对屏幕右侧（圆柱横躺、载流子向右流，
+             与 PPT 第 5 页体电流图同向）；az=−0.45 那版 +x 大半指向纵深，圆柱缩成一团 */
+          if(state.lay){ cam.az=-1.35; cam.el=0.18; } else { cam.az=0.62; cam.el=0.40; }
+          cam.px=0; cam.py=0; renderPanel(); updateAll(); }},
+      {t:'⊡ 正看切面（正对横截面）', on:false,
+        act:()=>{ state.lay=true; cam.az=0; cam.el=0; cam.px=0; cam.py=0; renderPanel(); updateAll(); }},
+    ]);
+    sec.appendChild(h('<div class="ex-note" style="margin-top:7px">'+richHTML(
+      '🖱 橙色的<b>面元可以直接拖动</b>：按住它，拖到横截面上的任意位置（怎么拖都在盘内）。<br>'+
+      '⤵ <b>放倒</b>之后圆柱横躺在 x 轴上、漂移方向沿 +x，和 PPT 上的体电流图是同一个样子；'+
+      '「正看切面」再把相机正对着横截面。')+'</div>'));
   } else if(state.mode==='surface'){
     sec.appendChild(h('<div class="slider-group-label">面电荷密度与漂移速度</div>'));
     mkRange(sec,{k:'sig',label:'面电荷密度 σ',wide:true,min:SIG_RANGE[0],max:SIG_RANGE[1],step:0.1,

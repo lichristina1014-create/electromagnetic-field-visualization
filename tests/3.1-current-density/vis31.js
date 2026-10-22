@@ -26,6 +26,8 @@ let scenes=0, labels=0, worst=0, worstTag='';
 function grab(mode,th){
   boxes.length=0;
   state.mode=mode; if(mode==='volume') state.th=th;
+  setupCamera();          /* ⚠️ 必须补：pr 用的 camU/camV/camScale 是 setupCamera 算出来的，
+                             不调用 ⇒ 用的是**上一轮**的旧相机（错位一轮，量出来的不是目标视角） */
   buildScene();
   scenes++; labels+=boxes.length;
   return boxes.slice();
@@ -62,6 +64,35 @@ for(const [az,el] of CAMS){
   }
 }
 text=Otext;
+/* ============ 放倒模式（2026-10-20 新增）：① 页签 × 3 组相机 × θ∈{0,40,80} ============ */
+const fails2=[];
+{
+  const boxes2=[];
+  const Ot2=text;
+  text=function(p,s,o){ o=o||{};
+    const S=pr(p), size=o.size||12.5;
+    const lo=richLayout(ctx,parseRich(s),size,!!o.bold);
+    const ax=S.x+(o.dx||0), ay=S.y+(o.dy||0);
+    const x0=(o.align==='center')?ax-lo.w/2:(o.align==='right')?ax-lo.w:ax;
+    boxes2.push({s:String(s),x0:x0,x1:x0+lo.w,y0:ay-size*0.72,y1:ay+size*0.72});
+    return Ot2(p,s,o);
+  };
+  let sc2=0, lb2=0;
+  for(const [az,el] of [[-1.35,0.18],[0,0],[0.9,-0.5]]){
+    cam.az=az; cam.el=el; cam.zoom=1; cam.px=0; cam.py=0;
+    for(const th of [0,40,80]){
+      boxes2.length=0;
+      state.mode='volume'; state.lay=true; state.th=th;
+      setupCamera(); buildScene(); sc2++; lb2+=boxes2.length;
+      const bad=check('lay az='+az+'/'+el+' θ'+th, boxes2);
+      if(bad.length) fails2.push('az='+az+' el='+el+' θ='+th+' → '+bad.slice(0,2).join(' ; '));
+    }
+  }
+  text=Ot2;
+  state.lay=false;
+  ok('视觉（放倒）：标签不重叠 / 不越界 / 不被信息卡压（'+sc2+' 个画面 × '+lb2+' 个标签）', fails2.length===0, fails2.slice(0,3).join(' ; '));
+  R.push('DATA|放倒视觉扫查|画面 '+sc2+' 个　标签 '+lb2+' 个');
+}
 ok('视觉：标签不重叠 / 不越界 / 不被信息卡压（'+scenes+' 个画面 × '+labels+' 个标签）', fails.length===0, fails.slice(0,3).join(' ; '));
 R.push('DATA|视觉扫查|画面 '+scenes+' 个　标签 '+labels+' 个　最大重叠 '+(worst*100).toFixed(0)+'%（'+worstTag+'）');
 /* 相机复位后回到默认角，别把页面留歪 */

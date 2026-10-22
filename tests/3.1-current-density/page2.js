@@ -230,21 +230,45 @@ let drag=null;
 function localPos(ev){const r=canvas.getBoundingClientRect();return{x:ev.clientX-r.left,y:ev.clientY-r.top};}
 canvas=document.getElementById('cv');
 ctx=canvas.getContext('2d');
+/* ★ 面元拖动：指针落在面元中心 30px 内 ⇒ 按住拖的是面元，否则才是相机旋转/平移。
+   屏幕位移 → 世界位移：Δp·camU = Δsx/cs、Δp·camV = −Δsy/cs（pr 的逆映射）。 */
+const ELEM_HIT_PX=30;
+function elemScreenNear(m){
+  if(state.mode!=='volume'||!state.show.elem) return false;
+  const s=pr(elemCenter());
+  return Math.hypot(m.x-s.x,m.y-s.y)<=ELEM_HIT_PX;
+}
 canvas.addEventListener('pointerdown',ev=>{
   try{ canvas.setPointerCapture(ev.pointerId); }catch(e){}
   const m=localPos(ev);
-  drag={x:m.x,y:m.y,btn:ev.button,mode:(ev.button===2||ev.ctrlKey)?'pan':'rot'};
+  if(ev.button===0 && !ev.ctrlKey && elemScreenNear(m)){
+    drag={x:m.x,y:m.y,btn:ev.button,mode:'elem'};
+    canvas.style.cursor='grabbing';
+  } else {
+    drag={x:m.x,y:m.y,btn:ev.button,mode:(ev.button===2||ev.ctrlKey)?'pan':'rot'};
+  }
   ev.preventDefault();
 });
 canvas.addEventListener('pointermove',ev=>{
   const m=localPos(ev);
-  if(!drag) return;
+  if(!drag){ canvas.style.cursor=elemScreenNear(m)?'grab':''; return; }
   const dx=m.x-drag.x, dy=m.y-drag.y; drag.x=m.x; drag.y=m.y;
-  if(drag.mode==='pan'){ cam.px+=dx; cam.py+=dy; needsRender=true; }
+  if(drag.mode==='elem'){
+    /* 世界位移 → 盘内比例坐标。盘内坐标：竖放 = (world.x, world.y)；
+       放倒后面元在 x=0 盘（elemCenter = (0, fy·a, −fx·a)）⇒ fx = −world.z/a */
+    const wx=(dx/camScale)*camU.x + (-dy/camScale)*camV.x;
+    const wy=(dx/camScale)*camU.y + (-dy/camScale)*camV.y;
+    const wz=(dx/camScale)*camU.z + (-dy/camScale)*camV.z;
+    if(state.lay){ state.elemFX += -wz/state.a; state.elemFY += wy/state.a; }
+    else         { state.elemFX +=  wx/state.a; state.elemFY += wy/state.a; }
+    elemClampFrac();
+    needsRender=true;
+  }
+  else if(drag.mode==='pan'){ cam.px+=dx; cam.py+=dy; needsRender=true; }
   else { cam.az-=dx*0.0075; cam.el=Math.max(-1.45,Math.min(1.45,cam.el+dy*0.0062)); needsRender=true; }
 });
-canvas.addEventListener('pointerup',()=>{ drag=null; });
-canvas.addEventListener('pointercancel',()=>{ drag=null; });
+canvas.addEventListener('pointerup',()=>{ if(drag&&drag.mode==='elem') canvas.style.cursor='grab'; drag=null; });
+canvas.addEventListener('pointercancel',()=>{ canvas.style.cursor=''; drag=null; });
 canvas.addEventListener('contextmenu',e=>e.preventDefault());
 canvas.addEventListener('wheel',e=>{e.preventDefault();cam.zoom=Math.max(.45,Math.min(3.2,cam.zoom*(e.deltaY<0?1.09:1/1.09)));needsRender=true;},{passive:false});
 document.getElementById('btnViewReset').onclick=()=>{ cam.az=.62; cam.el=.40; cam.zoom=1; cam.px=0; cam.py=0; needsRender=true; };
