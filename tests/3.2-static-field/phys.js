@@ -157,10 +157,21 @@ function inSource(s){ s=((s%LP_L)+LP_L)%LP_L; return s<SEG.d; }
 
 /* ============================== 载流子 ============================== */
 const NC_C = 56;
-/* 载流子：均匀排在环上 + 随 flow 累计前移；流速 ∝ 当前电流（显示比例见 page2 DRIFT_K） */
-function carrierAt(i){
+/* ★★ 载流子只许走"能导电"的段落（2026-10-26 修掉的物理错误）：
+     ②③ 有电源 ⇒ 整环皆通路（含电源内部，@{E}_e 在里面对抗搬运）；
+     ① 没电源 ⇒ 两块极板之间是绝缘介质，载流子只能绕外电路
+     （s ∈ [SEG.d, LP_L)，即从 + 极板出发经外导线到 − 极板），
+     绝不能画成"从极板间隙直接穿过去中和"。 */
+function carrierS(i){
+  if(state.mode==='nosrc'){
+    const L=LP_L-SEG.d, s=(i*L/NC_C + state.flow)%L;
+    return SEG.d + (s<0?s+L:s);
+  }
   const s=(i*LP_L/NC_C + state.flow)%LP_L;
-  return loopPt(s<0?s+LP_L:s);
+  return s<0?s+LP_L:s;
+}
+function carrierAt(i){
+  return loopPt(carrierS(i));
 }
 
 /* ============================== ③ 的试探路径与环路积分 ============================== */

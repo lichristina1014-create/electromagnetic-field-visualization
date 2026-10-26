@@ -53,12 +53,38 @@ function infoCard(title,rows,h){
 }
 
 /* ══════════════════════════ 场景零件 ══════════════════════════ */
-/* 导线环（整条回路；②③ 穿过电源盒，① 左边就是放电导线） */
-function drawWire(){
+/* 导线（②③ 是完整闭环、穿过电源；① 没电源 ⇒ 极板间绝缘，只画外电路）
+   ★★ ① 的导线两端正好是 +/− 极板中心：loopPt(SEG.d)=(x0,+SRC_H)、
+     loopPt(LP_L)=(x0,−SRC_H) —— "外导线把两块极板连起来"。
+     ⚠️ 绝不能让 ① 的导线穿过间隙（2026-10-26 修的物理错误）。 */
+function wirePts(){
   const N=160, pts=[];
-  for(let i=0;i<=N;i++) pts.push(loopPt(LP_L*i/N));
+  if(state.mode==='nosrc'){
+    for(let i=0;i<=N;i++) pts.push(loopPt(SEG.d + (LP_L-SEG.d)*i/N));
+  } else {
+    for(let i=0;i<=N;i++) pts.push(loopPt(LP_L*i/N));
+  }
+  return pts;
+}
+function drawWire(){
+  const pts=wirePts();
   curve(pts, {color:WIRE_HEX, w:5.2, alpha:0.95});
   curve(pts, {color:'#0F4C66', w:1.6, alpha:0.9});   /* 描边加强存在感 */
+}
+/* ① 的极板间隙：绝缘 ⇒ 只有库仑场 @{E} 的场线（+ 板 → − 板），没有载流子。
+   透明度随 Q(t) 衰减 —— "场在变弱"与"电荷在中和"同步可见。 */
+function drawGapField(){
+  if(state.mode!=='nosrc' || !state.show.fld) return;
+  const x0=-LP_W/2, a=0.2+0.8*Math.max(0, Math.min(1, Qnow()/state.Q0));
+  for(const dx of [-0.033, 0, 0.033])
+    arrow(pt(x0+dx, SRC_H-0.018, 0), pt(x0+dx, -SRC_H+0.018, 0),
+          {color:E_HEX, w:1.6, headScale:1.1, alpha:a, z:ZL-3});
+  /* ⚠️ 源区（极板+符号+场线）在斜视角下投影成一团 ⇒ 标注用固定屏幕偏移；
+     ⚠️ 极板投到右半屏时（如 az=0.8）会撞右上信息卡 ⇒ 换到左侧；
+     ⚠️ 但左侧 −58px 处是「+/− 极板」标签 ⇒ 左放时直接越过去（−200px） */
+  const leftSide = pr(pt(x0,0,0)).x > CARD_X()-240;
+  text(pt(x0,0,0), '极板间绝缘：只有电场 @{E}，无载流子',
+       {color:'#5F7482', size:11, dx:leftSide?-200:58, dy:2, align:leftSide?'right':'left', z:ZL});
 }
 /* 电源盒（②③）：左边中段的方框 + 标签 */
 function drawSourceBox(){
@@ -167,6 +193,7 @@ function buildScene(){
   if(state.show.src && state.mode!=='nosrc') drawSourceBox();
   if(state.show.plate) drawPlates();
   drawFieldArrows();
+  drawGapField();
   drawEe();
   drawCarriers();
   drawTestPath();
@@ -219,8 +246,9 @@ function drawOverlays(){ const c=currentCard(); infoCard(c[0],c[1],c[2]); }
 /* ══════════════════════════ 面板底部的实时结论条 ══════════════════════════ */
 function subNote(){
   if(state.mode==='nosrc')
-    return '<b>充了电的极板 + 一根导线</b>：库仑场 @{E} 驱动正电荷沿导线从 + 极流向 − 极，'+
-      '每流过去一份，极板电荷就少一份 ⇒ <b>E 跟着变弱 ⇒ I 跟着变小</b>，最后全部中和、电流归零。<br>'+
+    return '<b>充了电的极板 + 一根导线</b>：极板间是绝缘介质，电荷穿不过间隙，库仑场 @{E} 只能驱动正电荷'+
+      '<b>沿外导线</b>从 + 极流向 − 极；每流过去一份，极板电荷就少一份 ⇒ <b>E 跟着变弱 ⇒ I 跟着变小</b>，'+
+      '最后全部中和、电流归零。<br>'+
       '🔑 没有局外力把电荷<b>搬回去</b>，静电场是"一次性"的 —— 这就是<b>为什么必须有电源</b>。';
   if(state.mode==='source')
     return '<b>局外场强 @{E}_e</b>（橙色，只在电源内部）：非静电起源的搬运工（化学能 / 磁 / 热），'+

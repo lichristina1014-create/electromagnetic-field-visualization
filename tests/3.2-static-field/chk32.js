@@ -362,6 +362,40 @@ function scanDom(tag,fails){
   group('⑯ ① 载流子流速 ∝ I(t)（随放电指数衰减）', n, fails);
 }
 
+/* ============ ⑱ ① 的物理正确性：载流子与导线都不进极板间隙（2026-10-26 修） ============ */
+{
+  const fails=[]; let n=0;
+  state.mode='nosrc'; state.t=0; state.Q0=4; state.TAU=1.4;
+  /* 载流子只在外电路（s ∈ [SEG.d, LP_L)），间隙（电源段区间）里一个都不许有 */
+  for(const f of [0, 0.37, 1.11]){
+    state.flow=f;
+    for(let i=0;i<NC_C;i++){
+      n++; const s=carrierS(i);
+      if(s<SEG.d-1e-9) fails.push('flow='+f+' 载流子 '+i+' 跑进极板间隙：s='+s.toFixed(3));
+    }
+  }
+  /* ① 的导线不穿过间隙：wirePts 没有任何点落在 x=x0 且 |y|<SRC_H */
+  n++; { const pts=wirePts(), x0=-LP_W/2;
+    const bad=pts.filter(p=>Math.abs(p.x-x0)<1e-9 && Math.abs(p.y)<SRC_H-1e-9);
+    if(bad.length) fails.push('① 导线有 '+bad.length+' 个点穿过极板间隙'); }
+  /* 外电路两端正好接上两块极板的中心 */
+  n++; { const pts=wirePts(), x0=-LP_W/2, a=pts[0], b=pts[pts.length-1];
+    if(Math.abs(a.x-x0)>1e-9||Math.abs(a.y-SRC_H)>1e-9) fails.push('① 导线起点不在 + 极板');
+    if(Math.abs(b.x-x0)>1e-9||Math.abs(b.y+SRC_H)>1e-9) fails.push('① 导线终点不在 − 极板'); }
+  /* ② 仍是完整闭环：电源段是通路（E_e 在里面搬运），导线与载流子都要经过 */
+  state.mode='source';
+  n++; { const pts=wirePts(), x0=-LP_W/2;
+    if(!pts.some(p=>Math.abs(p.x-x0)<1e-9 && Math.abs(p.y)<SRC_H-0.02))
+      fails.push('② 的导线应穿过电源区（电源内部是通路）'); }
+  for(const f of [0, 0.5]){
+    state.flow=f; n++;
+    let any=false; for(let i=0;i<NC_C;i++){ if(carrierS(i)<SEG.d-1e-9){ any=true; break; } }
+    if(!any) fails.push('② flow='+f+' 电源段内应有载流子（E_e 在内部搬运）');
+  }
+  state.mode='nosrc'; state.flow=0;
+  group('⑱ ① 间隙绝缘：载流子/导线只走外电路；② 电源段保持通路', n, fails);
+}
+
 /* ============ ⑰ tick 主循环真的在跑（载流子在动） ============ */
 clickTab('source'); state.t=tMax(); updateAll();
 const tickCheck=()=>new Promise(res=>{

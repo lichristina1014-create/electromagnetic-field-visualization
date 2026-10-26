@@ -480,10 +480,21 @@ function inSource(s){ s=((s%LP_L)+LP_L)%LP_L; return s<SEG.d; }
 
 /* ============================== 载流子 ============================== */
 const NC_C = 56;
-/* 载流子：均匀排在环上 + 随 flow 累计前移；流速 ∝ 当前电流（显示比例见 page2 DRIFT_K） */
-function carrierAt(i){
+/* ★★ 载流子只许走"能导电"的段落（2026-10-26 修掉的物理错误）：
+     ②③ 有电源 ⇒ 整环皆通路（含电源内部，@{E}_e 在里面对抗搬运）；
+     ① 没电源 ⇒ 两块极板之间是绝缘介质，载流子只能绕外电路
+     （s ∈ [SEG.d, LP_L)，即从 + 极板出发经外导线到 − 极板），
+     绝不能画成"从极板间隙直接穿过去中和"。 */
+function carrierS(i){
+  if(state.mode==='nosrc'){
+    const L=LP_L-SEG.d, s=(i*L/NC_C + state.flow)%L;
+    return SEG.d + (s<0?s+L:s);
+  }
   const s=(i*LP_L/NC_C + state.flow)%LP_L;
-  return loopPt(s<0?s+LP_L:s);
+  return s<0?s+LP_L:s;
+}
+function carrierAt(i){
+  return loopPt(carrierS(i));
 }
 
 /* ============================== ③ 的试探路径与环路积分 ============================== */
@@ -563,29 +574,29 @@ function intEe_upto(uEnd){
 }
 
 
-/* ============================== 目录（3.2 本页 active；版本戳 20261020r4） ============================== */
+/* ============================== 目录（3.2 本页 active；版本戳 20261026r1） ============================== */
 const NAV = [
   { ch:'第 1 章 · 矢量分析', items:[
-    { id:'coord', t:'1.1 三种常见坐标系', ready:true, href:'index.html?v=20261020r4' },
-    { id:'ch1-2', t:'1.2 矢量的代数运算', ready:true, href:'1.2-vector-algebra.htm?v=20261020r4' },
-    { id:'ch1-3', t:'1.3 方向导数与梯度', ready:true, href:'1.3-directional-derivative.htm?v=20261020r4' },
-    { id:'ch1-4', t:'1.4 通量与散度', ready:true, href:'1.4-divergence-flux.htm?v=20261020r4' },
-    { id:'ch1-5', t:'1.5 环量与旋度', ready:true, href:'1.5-curl-circulation.htm?v=20261020r4' },
+    { id:'coord', t:'1.1 三种常见坐标系', ready:true, href:'index.html?v=20261026r1' },
+    { id:'ch1-2', t:'1.2 矢量的代数运算', ready:true, href:'1.2-vector-algebra.htm?v=20261026r1' },
+    { id:'ch1-3', t:'1.3 方向导数与梯度', ready:true, href:'1.3-directional-derivative.htm?v=20261026r1' },
+    { id:'ch1-4', t:'1.4 通量与散度', ready:true, href:'1.4-divergence-flux.htm?v=20261026r1' },
+    { id:'ch1-5', t:'1.5 环量与旋度', ready:true, href:'1.5-curl-circulation.htm?v=20261026r1' },
   ]},
   { ch:'第 2 章 · 静电场', items:[
-    { id:'ch2-1', t:'2.1 电场强度与电荷密度', ready:true, href:'2.1-field-charge-density.htm?v=20261020r4' },
-    { id:'ch2-2', t:'2.2 静电场中的导体', ready:true, href:'2.2-conductor-electrostatic.htm?v=20261020r4' },
-    { id:'ch2-3', t:'2.3 静电场中的电介质', ready:true, href:'2.3-dielectric-polarization.htm?v=20261020r4' },
-    { id:'ch2-4', t:'2.4 高斯定理及其应用', ready:true, href:'2.4-gauss-law.htm?v=20261020r4' },
-    { id:'ch2-5', t:'2.5 多导体系统的电容与串扰', ready:true, href:'2.5-multi-conductor-crosstalk.htm?v=20261020r4' },
+    { id:'ch2-1', t:'2.1 电场强度与电荷密度', ready:true, href:'2.1-field-charge-density.htm?v=20261026r1' },
+    { id:'ch2-2', t:'2.2 静电场中的导体', ready:true, href:'2.2-conductor-electrostatic.htm?v=20261026r1' },
+    { id:'ch2-3', t:'2.3 静电场中的电介质', ready:true, href:'2.3-dielectric-polarization.htm?v=20261026r1' },
+    { id:'ch2-4', t:'2.4 高斯定理及其应用', ready:true, href:'2.4-gauss-law.htm?v=20261026r1' },
+    { id:'ch2-5', t:'2.5 多导体系统的电容与串扰', ready:true, href:'2.5-multi-conductor-crosstalk.htm?v=20261026r1' },
   ]},
   { ch:'第 3 章 · 恒定电场', items:[
-    { id:'ch3-1', t:'3.1 电流的分类', ready:true, href:'3.1-current-density.htm?v=20261020r4' },
+    { id:'ch3-1', t:'3.1 电流的分类', ready:true, href:'3.1-current-density.htm?v=20261026r1' },
     { id:'ch3-2', t:'3.2 恒定电场的特点', ready:true, active:true },
   ]},
   { ch:'第 4 章 · 恒定磁场', items:[
     { id:'ch4-1', t:'4.1 磁感应强度' },
-    { id:'ch4-2', t:'4.2 磁介质的磁化', ready:true, href:'4.2-magnetization.htm?v=20261020r4' },
+    { id:'ch4-2', t:'4.2 磁介质的磁化', ready:true, href:'4.2-magnetization.htm?v=20261026r1' },
   ]},
 ];
 
@@ -645,12 +656,38 @@ function infoCard(title,rows,h){
 }
 
 /* ══════════════════════════ 场景零件 ══════════════════════════ */
-/* 导线环（整条回路；②③ 穿过电源盒，① 左边就是放电导线） */
-function drawWire(){
+/* 导线（②③ 是完整闭环、穿过电源；① 没电源 ⇒ 极板间绝缘，只画外电路）
+   ★★ ① 的导线两端正好是 +/− 极板中心：loopPt(SEG.d)=(x0,+SRC_H)、
+     loopPt(LP_L)=(x0,−SRC_H) —— "外导线把两块极板连起来"。
+     ⚠️ 绝不能让 ① 的导线穿过间隙（2026-10-26 修的物理错误）。 */
+function wirePts(){
   const N=160, pts=[];
-  for(let i=0;i<=N;i++) pts.push(loopPt(LP_L*i/N));
+  if(state.mode==='nosrc'){
+    for(let i=0;i<=N;i++) pts.push(loopPt(SEG.d + (LP_L-SEG.d)*i/N));
+  } else {
+    for(let i=0;i<=N;i++) pts.push(loopPt(LP_L*i/N));
+  }
+  return pts;
+}
+function drawWire(){
+  const pts=wirePts();
   curve(pts, {color:WIRE_HEX, w:5.2, alpha:0.95});
   curve(pts, {color:'#0F4C66', w:1.6, alpha:0.9});   /* 描边加强存在感 */
+}
+/* ① 的极板间隙：绝缘 ⇒ 只有库仑场 @{E} 的场线（+ 板 → − 板），没有载流子。
+   透明度随 Q(t) 衰减 —— "场在变弱"与"电荷在中和"同步可见。 */
+function drawGapField(){
+  if(state.mode!=='nosrc' || !state.show.fld) return;
+  const x0=-LP_W/2, a=0.2+0.8*Math.max(0, Math.min(1, Qnow()/state.Q0));
+  for(const dx of [-0.033, 0, 0.033])
+    arrow(pt(x0+dx, SRC_H-0.018, 0), pt(x0+dx, -SRC_H+0.018, 0),
+          {color:E_HEX, w:1.6, headScale:1.1, alpha:a, z:ZL-3});
+  /* ⚠️ 源区（极板+符号+场线）在斜视角下投影成一团 ⇒ 标注用固定屏幕偏移；
+     ⚠️ 极板投到右半屏时（如 az=0.8）会撞右上信息卡 ⇒ 换到左侧；
+     ⚠️ 但左侧 −58px 处是「+/− 极板」标签 ⇒ 左放时直接越过去（−200px） */
+  const leftSide = pr(pt(x0,0,0)).x > CARD_X()-240;
+  text(pt(x0,0,0), '极板间绝缘：只有电场 @{E}，无载流子',
+       {color:'#5F7482', size:11, dx:leftSide?-200:58, dy:2, align:leftSide?'right':'left', z:ZL});
 }
 /* 电源盒（②③）：左边中段的方框 + 标签 */
 function drawSourceBox(){
@@ -759,6 +796,7 @@ function buildScene(){
   if(state.show.src && state.mode!=='nosrc') drawSourceBox();
   if(state.show.plate) drawPlates();
   drawFieldArrows();
+  drawGapField();
   drawEe();
   drawCarriers();
   drawTestPath();
@@ -811,8 +849,9 @@ function drawOverlays(){ const c=currentCard(); infoCard(c[0],c[1],c[2]); }
 /* ══════════════════════════ 面板底部的实时结论条 ══════════════════════════ */
 function subNote(){
   if(state.mode==='nosrc')
-    return '<b>充了电的极板 + 一根导线</b>：库仑场 @{E} 驱动正电荷沿导线从 + 极流向 − 极，'+
-      '每流过去一份，极板电荷就少一份 ⇒ <b>E 跟着变弱 ⇒ I 跟着变小</b>，最后全部中和、电流归零。<br>'+
+    return '<b>充了电的极板 + 一根导线</b>：极板间是绝缘介质，电荷穿不过间隙，库仑场 @{E} 只能驱动正电荷'+
+      '<b>沿外导线</b>从 + 极流向 − 极；每流过去一份，极板电荷就少一份 ⇒ <b>E 跟着变弱 ⇒ I 跟着变小</b>，'+
+      '最后全部中和、电流归零。<br>'+
       '🔑 没有局外力把电荷<b>搬回去</b>，静电场是"一次性"的 —— 这就是<b>为什么必须有电源</b>。';
   if(state.mode==='source')
     return '<b>局外场强 @{E}_e</b>（橙色，只在电源内部）：非静电起源的搬运工（化学能 / 磁 / 热），'+
@@ -959,7 +998,8 @@ function renderSliders(sec){
 const CARDS={
   nosrc:[
     {k:'1',tab:'1. 没有电源：电流转瞬即逝',cls:'c1',body:
-      '把一对<b>充了电的极板</b>用导线接起来：库仑场 @{E} 立刻驱动正电荷沿导线从 + 极流向 − 极。'+
+      '把一对<b>充了电的极板</b>用导线接起来：库仑场 @{E} 立刻驱动正电荷<b>沿外导线</b>从 + 极流向 − 极。'+
+      '（注意：<b>极板间是绝缘的</b>，电荷不能直接穿过间隙——否则就是击穿打火了。）'+
       '<div class="frm">Q(t) = Q₀·e^(−t/τ)　　I(t) = −dQ/dt = (Q₀/τ)·e^(−t/τ)</div>'+
       '<ul><li>每流过去一份电荷，极板上的电荷就少一份 ⇒ <b>场的来源在被消耗</b></li>'+
       '<li>E 变弱 ⇒ 电流跟着变小 ⇒ 电荷消耗得越来越慢，但<b>方向不变、总量在减</b></li>'+
@@ -979,8 +1019,9 @@ const CARDS={
       '<ul><li>这就是<b>电流连续性定理</b>：恒定电流只能走闭合回路</li>'+
       '<li>所以恒定电流的回路里必须有一段"电荷爬坡"的路程 —— 那段就在电源内部</li>'+
       '<li>没有电源（没有局外场），闭合回路的"爬坡段"没人负责 ⇒ 闭合不起来 ⇒ 只能暂态放电</li></ul>'+
-      '<div class="ex-note">⚠️ ① 的画面里电流看起来也在"转圈"：那是因为<b>极板在被消耗</b>，'+
-      '每一步都不是恒定状态 —— 判别标准是"能不能一直这样流下去"。</div>'},
+      '<div class="ex-note">⚠️ ① 的画面里电流只在<b>外导线</b>中流动，极板间隙里<b>没有载流子</b>（绝缘、只有电场线）——'+
+      '而且每流过去一份，极板电荷就少一份，电流越来越小 ⇒ <b>不是恒定电流</b>。'+
+      '判别恒定与否的标准是"能不能一直这样流下去"。</div>'},
   ],
   source:[
     {k:'1',tab:'1. 局外力与局外场强',cls:'c1',body:
