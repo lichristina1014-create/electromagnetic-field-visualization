@@ -83,8 +83,14 @@ function drawGapField(){
      ⚠️ 极板投到右半屏时（如 az=0.8）会撞右上信息卡 ⇒ 换到左侧；
      ⚠️ 但左侧 −58px 处是「+/− 极板」标签 ⇒ 左放时直接越过去（−200px） */
   const leftSide = pr(pt(x0,0,0)).x > CARD_X()-240;
+  const lx=leftSide?-200:58, la=leftSide?'right':'left';
   text(pt(x0,0,0), '极板间绝缘：只有电场 @{E}，无载流子',
-       {color:'#5F7482', size:11, dx:leftSide?-200:58, dy:2, align:leftSide?'right':'left', z:ZL});
+       {color:'#5F7482', size:11, dx:lx, dy:2, align:la, z:ZL});
+  /* 末态徽标：快中和完时给一句醒目的绿色结论（① 的落脚点就是"电流没了"） */
+  const r=Qnow()/state.Q0;
+  if(r<0.2)
+    text(pt(x0,0,0), r<0.05?'已中和：Q ≈ 0、E ≈ 0、I ≈ 0（静电场一次性）':'即将中和完毕……',
+         {color:'#2E7D32', size:11.5, bold:true, dx:lx, dy:20, align:la, z:ZL});
 }
 /* 电源盒（②③）：左边中段的方框 + 标签 */
 function drawSourceBox(){
@@ -96,11 +102,19 @@ function drawSourceBox(){
      底中不行（撞上 − 极板的 − 号），取左下。 */
   text(pt(x0,0,0), '电源', {color:'#B85A1E',size:12,bold:true,dx:-55,dy:40,align:'right',z:ZL});
 }
-/* 极板：两横板 + 电荷符号（个数 ∝ Q(t)） */
+/* 极板着色强度 ∝ 当前电荷 / 满充电荷（① 随放电褪回灰 ⇒ 末态醒目；
+   ② 建立过程颜色慢慢长出来；③ 稳态满色）。0.15 保底 ⇒ 极板始终可见。 */
+function plateTint(){
+  const qref=state.mode==='nosrc'?state.Q0:qInf();
+  return 0.15+0.85*Math.max(0, Math.min(1, Qnow()/qref));
+}
+/* 极板：两横板（灰底 + 带电着色层：+ 红 / − 蓝，深浅=Q 多少）+ 电荷符号（个数 ∝ Q(t)） */
 function drawPlates(){
-  const x0=-LP_W/2;
+  const x0=-LP_W/2, a=plateTint();
   line(pt(x0-PL_HALF,SRC_H,0), pt(x0+PL_HALF,SRC_H,0), {color:PLT_HEX,w:4.2,z:ZL-2});
   line(pt(x0-PL_HALF,-SRC_H,0), pt(x0+PL_HALF,-SRC_H,0), {color:PLT_HEX,w:4.2,z:ZL-2});
+  line(pt(x0-PL_HALF,SRC_H,0), pt(x0+PL_HALF,SRC_H,0), {color:hexA('#D85A30',a),w:4.2,z:ZL-1});
+  line(pt(x0-PL_HALF,-SRC_H,0), pt(x0+PL_HALF,-SRC_H,0), {color:hexA('#378ADD',a),w:4.2,z:ZL-1});
   text(pt(x0,SRC_H,0), '+ 极板', {color:PLT_HEX,size:11,bold:true,dx:-100,dy:-2,align:'right',z:ZL});
   text(pt(x0,-SRC_H,0), '− 极板', {color:PLT_HEX,size:11,bold:true,dx:-100,dy:-2,align:'right',z:ZL});
   /* ⚠️ 极板标签要**远远离开板体**（左移 100px）：斜视角下极板近乎"端视"，
@@ -136,7 +150,11 @@ function drawFieldArrows(){
     const len=Math.min(LE_MAX, Math.abs(Et)*LE_K);
     arrow(p, vadd(p, vmul(t, Math.sign(Et)*len)), {color:E_HEX, w:1.8, headScale:0.95, alpha:0.9});
   }
-  text(pt(0.15, -LP_H/2, 0), '@{E}（驻立电荷的库仑场）', {color:E_HEX,size:11.5,bold:true,dx:0,dy:20,align:'center',z:ZL});
+  /* ⚠️ 措辞分模式：① 是暂态，写"驻立"会被误读成"恒定"——"驻立"指电荷驻留在
+     表面（空间上不随电流跑），不是说分布不随时间变；① 的场是准静态衰减场 */
+  text(pt(0.15, -LP_H/2, 0), state.mode==='nosrc' ? '@{E}（极板表面电荷的库仑场，随 Q 衰减）'
+                                                  : '@{E}（驻立电荷的库仑场）',
+       {color:E_HEX,size:11.5,bold:true,dx:0,dy:20,align:'center',z:ZL});
 }
 /* 电源内部：E_e 向上（橙）与 E 向下（青）并排画 —— "两股力在电源里对着干"
    ⚠️ 两条并排箭头起点间距 ≥20px（0.11·cs≈26px）⇒ 左右错开画 */

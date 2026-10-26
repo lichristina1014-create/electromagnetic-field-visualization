@@ -396,6 +396,31 @@ function scanDom(tag,fails){
   group('⑱ ① 间隙绝缘：载流子/导线只走外电路；② 电源段保持通路', n, fails);
 }
 
+/* ============ ⑲ 末态醒目：极板着色随 Q 衰减 + 末态徽标只在快放完时出现 ============ */
+{
+  const fails=[]; let n=0;
+  state.mode='nosrc'; state.Q0=4; state.TAU=1.4;
+  n++; state.t=0;      const a0=plateTint();
+  n++; state.t=1.4;    const a1=plateTint();
+  n++; state.t=tMax(); const a4=plateTint();
+  if(!(a0>0.99)) fails.push('t=0 极板应满着色，得 α='+a0);
+  if(!(a1<a0 && a4<a1)) fails.push('着色没随放电单调衰减：'+a0.toFixed(3)+'/'+a1.toFixed(3)+'/'+a4.toFixed(3));
+  if(!(a4<0.2)) fails.push('t=4τ 极板应接近灰（α<0.2），得 '+a4.toFixed(3));
+  /* ② 稳态保持近满着色（t=4τ ⇒ 1−e⁻⁴=98.2% ⇒ α≈0.984，按 0.97 判） */
+  n++; state.mode='source'; state.t=tMax();
+  if(plateTint()<0.97) fails.push('② 稳态极板应接近满着色，得 α='+plateTint().toFixed(3));
+  /* ① 末态徽标：t=4τ 出现"已中和"，t=0 不出现 */
+  const badgeAt=(tt)=>{ state.mode='nosrc'; state.t=tt;
+    const seen=[]; const Ot=text;
+    text=function(p,s,o){ seen.push(String(s)); return Ot(p,s,o); };
+    try{ buildScene(); } finally { text=Ot; }
+    return seen.some(s=>s.indexOf('已中和')>=0); };
+  n++; if(!badgeAt(tMax())) fails.push('t=4τ 没出现"已中和"徽标');
+  n++; if(badgeAt(0)) fails.push('t=0 不该出现"已中和"徽标');
+  state.mode='nosrc'; state.t=0;
+  group('⑲ 末态醒目：极板着色 ∝Q 单调衰减 / ② 稳态满色 / 末态徽标时机', n, fails);
+}
+
 /* ============ ⑰ tick 主循环真的在跑（载流子在动） ============ */
 clickTab('source'); state.t=tMax(); updateAll();
 const tickCheck=()=>new Promise(res=>{
