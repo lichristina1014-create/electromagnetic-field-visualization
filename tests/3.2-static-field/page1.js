@@ -84,10 +84,13 @@ function drawGapField(){
      ⚠️ 但左侧 −58px 处是「+/− 极板」标签 ⇒ 左放时直接越过去（−200px） */
   const leftSide = pr(pt(x0,0,0)).x > CARD_X()-240;
   const lx=leftSide?-200:58, la=leftSide?'right':'left';
-  text(pt(x0,0,0), '极板间绝缘：只有电场 @{E}，无载流子',
+  /* ⚠️ 标注跟着电量走：中和后（Q≈0）不能再写"只有电场 @{E}"——
+     场的来源就是电荷，电荷没了场也没了（否则与"已中和"徽标自相矛盾） */
+  const r=Qnow()/state.Q0;
+  text(pt(x0,0,0), r<0.05 ? '极板间绝缘：无载流子；电场也已随电荷消失'
+                          : '极板间绝缘：只有电场 @{E}，无载流子',
        {color:'#5F7482', size:11, dx:lx, dy:2, align:la, z:ZL});
   /* 末态徽标：快中和完时给一句醒目的绿色结论（① 的落脚点就是"电流没了"） */
-  const r=Qnow()/state.Q0;
   if(r<0.2)
     text(pt(x0,0,0), r<0.05?'已中和：Q ≈ 0、E ≈ 0、I ≈ 0（静电场一次性）':'即将中和完毕……',
          {color:'#2E7D32', size:11.5, bold:true, dx:lx, dy:20, align:la, z:ZL});

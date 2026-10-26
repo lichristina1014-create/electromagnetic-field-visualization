@@ -417,8 +417,19 @@ function scanDom(tag,fails){
     return seen.some(s=>s.indexOf('已中和')>=0); };
   n++; if(!badgeAt(tMax())) fails.push('t=4τ 没出现"已中和"徽标');
   n++; if(badgeAt(0)) fails.push('t=0 不该出现"已中和"徽标');
+  /* ① 的绝缘标注跟着电量走：末态不能再写"只有电场 E"（与"已中和"徽标矛盾） */
+  const gapNoteAt=(tt)=>{ state.mode='nosrc'; state.t=tt;
+    const seen=[]; const Ot=text;
+    text=function(p,s,o){ seen.push(String(s)); return Ot(p,s,o); };
+    try{ buildScene(); } finally { text=Ot; }
+    return seen; };
+  n++; { const s=gapNoteAt(tMax());
+    if(!s.some(x=>x.indexOf('电场也已随电荷消失')>=0)) fails.push('t=4τ 绝缘标注没切换成"电场已消失"');
+    if(s.some(x=>x.indexOf('只有电场')>=0)) fails.push('t=4τ 仍写"只有电场"，与已中和矛盾'); }
+  n++; { const s=gapNoteAt(0);
+    if(!s.some(x=>x.indexOf('只有电场')>=0)) fails.push('t=0 绝缘标注应是"只有电场 E，无载流子"'); }
   state.mode='nosrc'; state.t=0;
-  group('⑲ 末态醒目：极板着色 ∝Q 单调衰减 / ② 稳态满色 / 末态徽标时机', n, fails);
+  group('⑲ 末态醒目：极板着色 ∝Q 单调衰减 / ② 稳态满色 / 末态徽标与标注时机', n, fails);
 }
 
 /* ============ ⑰ tick 主循环真的在跑（载流子在动） ============ */
