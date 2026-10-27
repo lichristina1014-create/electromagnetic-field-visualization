@@ -17,3 +17,7 @@ tests/4.2-magnetization/shots/
 # 3.2 装配中间产物 / 截图（同 2.4/3.1/4.2 规则）
 tests/3.2-static-field/_inline.js
 tests/3.2-static-field/shots/
+
+# 5.8 装配中间产物 / 截图（同 3.2 规则）
+tests/5.8-wave-lab/_inline.js
+tests/5.8-wave-lab/shots/
