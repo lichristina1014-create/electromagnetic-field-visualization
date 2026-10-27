@@ -1,0 +1,977 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>5.8 电磁波传播实验室 · 电磁场可视化平台</title>
+<style>
+
+:root{--teal:#156082;--teal-dark:#0E4A66;--teal-light:#E3EFF4;--orange:#E97132;--orange-light:#FDF0E7;--green:#3E9B4F;--green-light:#EAF5EC;--purple:#9B59B6;--crimson:#D04A3A;--blue:#0F9ED5;--ink:#1F3D4C;--muted:#5F7482;--line:#DCE6EB;--bg:#F2F6F8;--panel-w:398px;}
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{height:100%;}
+body{font-family:"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--ink);overflow:hidden;}
+header{height:76px;background:#fff;border-bottom:1px solid var(--line);display:flex;align-items:center;padding:0 22px;gap:14px;}
+.logo{width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,var(--teal),#2E86AB);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:15px;text-decoration:none;}
+header h1{font-size:18px;font-weight:700;letter-spacing:.5px;}
+header .sub{font-size:12px;color:var(--muted);margin-top:2px;}
+header .badge{margin-left:auto;display:flex;flex-direction:column;align-items:flex-end;gap:4px;}
+header .badge .chip{font-size:12px;color:var(--teal);background:var(--teal-light);border:1px solid #C5DEE9;padding:4px 12px;border-radius:20px;white-space:nowrap;}
+header .badge .owner{font-size:11px;color:#5C6B73;background:#F4F7F9;border:1px solid #E2E8EC;padding:3px 10px;border-radius:20px;white-space:nowrap;display:inline-flex;align-items:center;gap:5px;}
+header .badge .owner b{color:var(--teal);font-weight:600;letter-spacing:.3px;}
+header .badge .owner::before{content:"";display:inline-block;width:5px;height:5px;background:var(--teal);border-radius:50%;}
+.layout{display:flex;height:calc(100vh - 76px);}
+aside{width:236px;background:#fff;border-right:1px solid var(--line);overflow-y:auto;padding:14px 0;flex-shrink:0;}
+aside::-webkit-scrollbar{width:6px;} aside::-webkit-scrollbar-thumb{background:#D5E0E6;border-radius:3px;}
+.nav-ch{font-size:12px;color:var(--muted);padding:12px 18px 6px;font-weight:600;letter-spacing:.5px;}
+.nav-item{display:flex;align-items:center;gap:8px;padding:9px 18px;font-size:13.5px;cursor:pointer;color:#3D5A68;border-left:3px solid transparent;transition:background .15s;text-decoration:none;}
+.nav-item:hover{background:#F5F9FB;}
+.nav-item.active{background:var(--teal-light);color:var(--teal-dark);font-weight:600;border-left-color:var(--teal);}
+.nav-item .dot{width:6px;height:6px;border-radius:50%;background:#C6D4DB;flex-shrink:0;}
+.nav-item.active .dot{background:var(--teal);}
+.nav-item.soon{color:#A5B6C0;cursor:not-allowed;}
+.nav-item.soon .dot{background:#E1E9ED;}
+.nav-item.soon::after{content:"建设中";font-size:10px;color:#B7C6CE;margin-left:auto;border:1px solid #DCE6EB;border-radius:8px;padding:1px 6px;}
+main{flex:1;display:flex;flex-direction:column;padding:14px 16px 12px;overflow:hidden;min-width:0;}
+.module-head{display:flex;align-items:center;gap:16px;margin-bottom:10px;flex-wrap:wrap;}
+.module-title{font-size:17px;font-weight:700;}
+.module-title small{font-weight:400;color:var(--muted);font-size:12px;margin-left:8px;}
+.seg{display:flex;background:#fff;border:1px solid var(--line);border-radius:10px;padding:3px;gap:2px;flex-wrap:wrap;}
+.seg button{border:none;background:transparent;padding:7px 15px;font-size:13px;border-radius:8px;cursor:pointer;color:var(--muted);font-family:inherit;transition:all .15s;white-space:nowrap;}
+.seg button:hover{color:var(--teal);}
+.seg button.on{background:var(--teal);color:#fff;font-weight:600;box-shadow:0 2px 6px rgba(21,96,130,.3);}
+.content-row{flex:1;display:flex;gap:14px;min-height:0;}
+.canvas-card{flex:1;background:#fff;border:1px solid var(--line);border-radius:14px;position:relative;overflow:hidden;min-width:0;display:flex;flex-direction:column;box-shadow:0 1px 4px rgba(30,60,80,.05);}
+#cv{width:100%;flex:1;min-height:0;min-width:0;display:block;cursor:grab;touch-action:none;}
+#cv:active{cursor:grabbing;}
+.cv-toolbar{position:absolute;top:12px;right:12px;display:flex;gap:8px;z-index:5;}
+.cv-toolbar button{border:1px solid var(--line);background:rgba(255,255,255,.92);border-radius:8px;padding:5px 12px;font-size:12px;color:var(--muted);cursor:pointer;font-family:inherit;backdrop-filter:blur(4px);transition:all .15s;}
+.cv-toolbar button:hover{color:var(--teal);border-color:var(--teal);}
+.cv-toolbar button.on{background:var(--teal);color:#fff;border-color:var(--teal);}
+.cv-mode-tag{position:absolute;top:12px;left:12px;font-size:12px;color:var(--teal-dark);background:rgba(227,239,244,.92);border:1px solid #C9E0EA;border-radius:8px;padding:5px 12px;z-index:4;pointer-events:none;font-weight:600;max-width:56%;}
+aside,.panel{transition:width .22s ease,padding .22s ease,border-width .22s ease;}
+body.nav-off aside{width:0;padding-top:0;padding-bottom:0;border-right-width:0;overflow:hidden;}
+body.panel-off .panel{width:0;border-left-width:0;border-right-width:0;overflow:hidden;}
+.fold-handle{position:absolute;top:50%;transform:translateY(-50%);z-index:6;width:15px;height:58px;padding:0;line-height:1;border:1px solid var(--line);background:rgba(255,255,255,.94);color:#A3B7C2;font-size:11px;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px);transition:all .15s;}
+.fold-handle:hover{color:var(--teal);border-color:var(--teal);background:#fff;}
+#foldNav{left:0;border-left:none;border-radius:0 9px 9px 0;}
+#foldPanel{right:0;border-right:none;border-radius:9px 0 0 9px;}
+/* ★ 右侧面板的**自由宽度**（不只是"收起 / 展开"两态）：面板左缘贴一条拖动抓取条。
+   ⚠️ 拖动时必须把 .panel 的 `transition:width` 关掉（body.resizing），
+      否则宽度会有 0.22s 的追赶延迟，鼠标跑得越快面板越"跟不上"。 */
+.panel-resizer{flex:0 0 11px;width:11px;margin:0 -5px;align-self:stretch;cursor:col-resize;position:relative;z-index:7;}
+.panel-resizer::before{content:"";position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:3px;height:46px;border-radius:2px;background:#DCE6EB;transition:background .15s,height .15s;}
+.panel-resizer:hover::before,.panel-resizer.dragging::before{background:var(--teal);height:72px;}
+body.resizing,body.resizing .panel,body.resizing aside{transition:none!important;}
+body.resizing{user-select:none;cursor:col-resize;}
+body.panel-off .panel-resizer{display:none;}
+.view-toggles{display:flex;gap:6px;margin-right:6px;}
+.view-toggles button{border:1px solid var(--line);background:#fff;border-radius:8px;padding:5px 11px;font-size:12px;color:var(--muted);cursor:pointer;font-family:inherit;transition:all .15s;}
+.view-toggles button:hover{border-color:var(--teal);color:var(--teal);}
+.view-toggles button.on{background:var(--teal);color:#fff;border-color:var(--teal);}
+.cv-pan-tag{position:absolute;top:12px;left:50%;transform:translateX(-50%);z-index:6;font-size:11.5px;color:#8A5A20;background:rgba(255,248,236,.95);border:1px solid #E7C48F;border-radius:8px;padding:5px 12px;display:none;align-items:center;gap:8px;}
+.cv-pan-tag.show{display:flex;}
+.cv-pan-tag button{border:1px solid #E0BE8C;background:#fff;border-radius:6px;padding:2px 9px;font-size:11.5px;color:#8A5A20;cursor:pointer;font-family:inherit;}
+.cv-pan-tag button:hover{background:#8A5A20;color:#fff;border-color:#8A5A20;}
+.cv-legend{position:absolute;bottom:14px;right:14px;z-index:5;background:rgba(255,255,255,.94);border:1px solid var(--line);border-radius:9px;padding:7px 11px 8px;font-size:11px;color:var(--muted);backdrop-filter:blur(4px);pointer-events:none;min-width:130px;}
+.cv-legend .lg-t{font-size:11px;color:var(--ink);font-weight:600;margin-bottom:5px;}
+.cv-legend .lg-note{font-size:10.5px;color:var(--muted);line-height:1.55;margin-top:4px;}
+.coord-strip{display:flex;gap:8px;padding:10px 12px;border-top:1px solid var(--line);background:#FBFDFE;flex-wrap:nowrap;overflow-x:auto;overflow-y:hidden;}
+.coord-strip::-webkit-scrollbar{height:5px;}
+.coord-strip::-webkit-scrollbar-thumb{background:#D5E0E6;border-radius:3px;}
+.coord-strip:empty{padding:0;border-top:none;}
+.coord-chip{font-size:12px;color:var(--muted);background:#F3F8FA;border:1px solid #E2ECF1;border-radius:8px;padding:5px 12px;white-space:nowrap;}
+.coord-chip b{color:var(--teal-dark);font-weight:600;margin-left:5px;font-family:Menlo,monospace;}
+.coord-chip i{font-style:italic;font-family:Georgia,serif;color:var(--ink);}
+.coord-chip.acc{background:#F5F0FA;border-color:#E2D4F0;}
+.coord-chip.acc b{color:#6B4E8A;}
+.coord-chip.warn{background:#FFF6EC;border-color:#F3DCC0;}
+.coord-chip.warn b{color:#B26A1E;}
+/* ⚠️ 面板宽度走 CSS 变量 --panel-w（而不是写死 398px）：拖动抓取条时只改变量，
+   body.panel-off 的 width:0 仍然靠更高优先级生效，两者不打架。 */
+.panel{width:var(--panel-w,398px);flex-shrink:0;background:#fff;border:1px solid var(--line);border-radius:14px;display:flex;flex-direction:column;overflow-y:auto;box-shadow:0 1px 4px rgba(30,60,80,.05);}
+.panel::-webkit-scrollbar{width:6px;} .panel::-webkit-scrollbar-thumb{background:#D5E0E6;border-radius:3px;}
+.panel-sec{padding:14px 16px;border-bottom:1px solid #EEF3F6;}
+.panel-sec:last-child{border-bottom:none;}
+.readout-toggle{display:flex;align-items:center;gap:8px;padding:8px 10px;margin-bottom:12px;background:#F3F8FA;border:1px solid #E2ECF1;border-radius:8px;cursor:pointer;font-size:12.5px;line-height:1.5;color:var(--muted);}
+.readout-toggle:hover{border-color:#C6DAE3;background:#EDF4F7;}
+.readout-toggle input{accent-color:var(--teal);cursor:pointer;margin:0;}
+.readout-toggle b{color:var(--ink);}
+.sec-title{font-size:12px;color:var(--muted);font-weight:600;letter-spacing:1px;margin-bottom:10px;display:flex;align-items:center;gap:6px;}
+.sec-title::before{content:"";width:3px;height:12px;background:var(--teal);border-radius:2px;}
+.sub-chips{display:flex;gap:6px;flex-wrap:wrap;}
+.chip{border:1px solid var(--line);background:#fff;border-radius:16px;padding:4px 13px;font-size:12.5px;line-height:1.5;cursor:pointer;font-family:inherit;color:var(--muted);transition:all .15s;}
+.chip:hover{border-color:var(--teal);color:var(--teal);}
+.chip.on{background:var(--teal);border-color:var(--teal);color:#fff;font-weight:600;}
+.chip.pre{border-style:dashed;border-color:#C9D6DD;color:#7A8F9B;}
+.chip.pre:hover{border-color:var(--orange);color:var(--orange);background:#FFF8F2;}
+.chip.g.on{background:var(--green);border-color:var(--green);}
+.chip.o.on{background:var(--orange);border-color:var(--orange);}
+.chip.p.on{background:var(--purple);border-color:var(--purple);}
+.slider-row{display:flex;align-items:center;gap:10px;margin-bottom:9px;}
+.slider-row label{width:46px;font-size:13px;font-style:italic;font-family:Georgia,serif;color:var(--ink);text-align:right;flex-shrink:0;}
+.slider-row.w label{width:62px;font-style:normal;font-family:inherit;}
+.slider-row input[type=range]{flex:1;accent-color:var(--teal);height:4px;cursor:pointer;}
+.slider-row .val{width:62px;font-size:12px;color:var(--muted);font-family:Menlo,monospace;flex-shrink:0;}
+.ex-title{font-size:14.5px;font-weight:700;color:var(--teal-dark);margin-bottom:8px;line-height:1.45;}
+.ex-body{font-size:14px;line-height:1.7;color:#3A5462;}
+.ex-body b{color:var(--ink);}
+.ex-body ul{padding-left:18px;margin:6px 0;}
+.ex-body li{margin-bottom:3px;}
+.ex-note{font-size:12.5px;line-height:1.65;color:#6B8290;background:#F7FAFB;border:1px solid #E7EFF3;border-radius:8px;padding:8px 11px;margin-top:9px;}
+.frm{display:block;background:#F4F9FB;border:1px solid #DDE9EF;border-left:3px solid var(--teal);border-radius:8px;padding:10px 14px 10px 18px;margin:10px 0;font-size:14px;line-height:1.7;font-family:Georgia,"Times New Roman",serif;color:var(--ink);overflow-x:auto;white-space:nowrap;}
+.vec{position:relative;font-style:italic;font-weight:700;white-space:nowrap;}
+.vec::before,.vec::after{content:'';position:absolute;pointer-events:none;}
+.vec::before{left:0;right:.24em;top:-.28em;height:1px;background:currentColor;opacity:.9;}
+.vec::after{right:0;top:-.42em;width:0;height:0;border-left:.26em solid currentColor;border-top:.14em solid transparent;border-bottom:.14em solid transparent;}
+sub{font-size:.72em;vertical-align:-.24em;}
+.vec sub{font-style:normal;font-weight:600;}
+.sqrt{display:inline-block;position:relative;padding-left:.62em;margin-left:.05em;font-style:normal;}
+.sqrt::before{content:"√";position:absolute;left:.02em;top:-.12em;font-size:1.1em;font-family:"Cambria Math","STIX Two Math","Latin Modern Math","Times New Roman",Georgia,serif;}
+.sqrt .in{display:inline-block;border-top:1.15px solid currentColor;padding:.10em .06em .02em .06em;border-radius:4px 4px 0 0;line-height:1.1;}
+.card-tabs{display:flex;gap:6px;flex-wrap:wrap;margin:4px 0 10px;}
+.card-tab{cursor:pointer;font-family:inherit;font-size:12.5px;padding:5px 9px;border-radius:9px;border:1px solid var(--line);background:#fff;color:var(--muted);transition:all .15s;line-height:1.4;white-space:nowrap;flex:1;text-align:center;min-width:0;}
+.card-tab:hover{border-color:var(--teal);color:var(--teal);}
+.card-tab.c1.on{background:#156082;border-color:#156082;color:#fff;font-weight:600;}
+.card-tab.c2.on{background:#0F9ED5;border-color:#0F9ED5;color:#fff;font-weight:600;}
+.card-tab.c3.on{background:#E97132;border-color:#E97132;color:#fff;font-weight:600;}
+.card-tab.c4.on{background:#9B59B6;border-color:#9B59B6;color:#fff;font-weight:600;}
+.card-body{background:#FCFEFE;border:1px solid #E2ECF1;border-radius:8px;padding:12px 16px 8px;border-left:4px solid var(--teal);}
+.card-body.c1{border-left-color:#156082;} .card-body.c2{border-left-color:#0F9ED5;}
+.card-body.c3{border-left-color:#E97132;} .card-body.c4{border-left-color:#9B59B6;}
+#toast{position:fixed;bottom:26px;left:50%;transform:translateX(-50%);background:rgba(31,61,76,.94);color:#fff;font-size:13px;padding:9px 20px;border-radius:22px;opacity:0;pointer-events:none;transition:opacity .25s;z-index:99;}
+#toast.show{opacity:1;}
+
+/* 2.1 追加：滑块分组标签（1.3 有定义、1.5 漏了，这里补齐） */
+.slider-group-label{font-size:12px;font-weight:600;color:var(--crimson);margin:4px 0 8px;}
+.slider-group-label.q{color:var(--blue);}
+.slider-group-label.g{color:var(--green);}
+.slider-group-label.o{color:var(--orange);}
+</style>
+</head>
+<body>
+<header>
+  <a class="logo" href="index.html" title="返回平台首页">E&M</a>
+  <div><h1>5.8 电磁波传播实验室</h1><div class="sub">E 与 H 相互垂直 · 同相振荡 · 能量沿 E×H 方向传播</div></div>
+  <div class="view-toggles" id="viewToggles"><button id="tglNav" title="折叠 / 展开左侧目录（快捷键 [ ）">☰ 目录</button><button id="tglPanel" title="折叠 / 展开右侧控制面板（快捷键 ] ）">☰ 面板</button></div>
+  <div class="badge"><div class="chip">《工程电磁场》 ×《电磁场与电磁波》</div><div class="owner"><b>© 2026 Li Chenlu</b> All Rights Reserved</div></div>
+</header>
+<div class="layout">
+  <aside id="nav"></aside>
+  <main>
+    <div class="module-head">
+      <div class="module-title" id="moduleTitle">电磁波传播实验室<small id="moduleSub">均匀平面波 · 主仿真</small></div>
+      <div class="seg" id="modeTabs"></div>
+    </div>
+    <div class="content-row">
+      <div class="canvas-card">
+        <canvas id="cv"></canvas>
+        <div class="cv-mode-tag" id="modeTag"></div>
+        <div class="cv-pan-tag" id="panTag"><span>画面已平移</span><button id="btnPanReset">回到原点</button></div>
+        <div class="cv-toolbar"><button id="btnViewReset">复位视角</button><button id="btnRotate">自动旋转</button></div>
+        <div class="cv-legend" id="legend"><div class="lg-t" id="lgTitle">均匀平面电磁波</div><div class="lg-note" id="lgNote"></div></div>
+        <button class="fold-handle" id="foldNav" title="折叠 / 展开左侧目录">‹</button>
+        <button class="fold-handle" id="foldPanel" title="折叠 / 展开右侧面板">›</button>
+        <div class="coord-strip" id="coordStrip"></div>
+      </div>
+      <div class="panel-resizer" id="panelResizer" title="拖动调整面板宽度（双击复位为 398px）"></div>
+      <div class="panel" id="panel"></div>
+    </div>
+  </main>
+</div>
+<div id="toast"></div>
+<script>
+'use strict';
+
+/* ============================== 向量工具（与 2.1 / 2.2 同源） ============================== */
+const pt=(x,y,z)=>({x,y,z});
+const vadd=(a,b)=>({x:a.x+b.x,y:a.y+b.y,z:a.z+b.z});
+const vsub=(a,b)=>({x:a.x-b.x,y:a.y-b.y,z:a.z-b.z});
+const vmul=(a,s)=>({x:a.x*s,y:a.y*s,z:a.z*s});
+const vdot=(a,b)=>a.x*b.x+a.y*b.y+a.z*b.z;
+const vlen=a=>Math.hypot(a.x,a.y,a.z);
+const vnorm=a=>{const l=vlen(a)||1;return vmul(a,1/l);};
+const vcross=(a,b)=>({x:a.y*b.z-a.z*b.y, y:a.z*b.x-a.x*b.z, z:a.x*b.y-a.y*b.x});
+const D2R=Math.PI/180, R2D=180/Math.PI;
+const clamp1=v=>Math.max(-1,Math.min(1,v));
+const sstep=x=>{x=Math.max(0,Math.min(1,x));return x*x*(3-2*x);};
+
+/* ============================== 富文本引擎（同源，勿改语义） ============================== */
+function parseRich(s){
+  const items=[], groups=[]; const st={g:-1};
+  (function walk(str){
+    let buf='';
+    const flush=()=>{ if(buf){ items.push({t:'n',s:buf,g:st.g}); buf=''; } };
+    for(let i=0;i<str.length;){
+      const c=str[i];
+      if(c==='@' && str[i+1]==='{'){
+        const j=str.indexOf('}', i+2);
+        if(j<0){ buf+=c; i++; continue; }
+        flush();
+        const save=st.g; st.g=groups.length; groups.push(1);
+        walk(str.slice(i+2,j)); st.g=save; i=j+1; continue;
+      }
+      if(c==='_'){
+        flush();
+        if(str[i+1]==='{'){ const j=str.indexOf('}',i+2);
+          if(j>=0){ items.push({t:'s',s:str.slice(i+2,j),g:st.g}); i=j+1; continue; } }
+        items.push({t:'s',s:str[i+1]||'',g:st.g}); i+=2; continue;
+      }
+      if(c==='<'){ const j=str.indexOf('>',i);
+        if(j>=0){ buf+=str.slice(i,j+1); i=j+1; continue; } }
+      buf+=c; i++;
+    }
+    flush();
+  })(String(s));
+  return {items, groups};
+}
+const RICHFONT='"PingFang SC","Microsoft YaHei",sans-serif';
+const RICHFONT_M='Georgia,"Times New Roman",serif';
+function richLayout(ctx,rich,size,bold){const subSize=size*0.74;const wM=bold?'700 ':'';const fN=wM+size+'px '+RICHFONT;const fNs=wM+subSize+'px '+RICHFONT;const fV='italic '+wM+size+'px '+RICHFONT_M;const fVs=wM+subSize+'px '+RICHFONT_M;const groups=rich.groups.map(()=>({x0:1e9,x1:-1e9,locked:false,top:1e9}));const out=[];let x=0;const oldBL=ctx.textBaseline;ctx.textBaseline='middle';rich.items.forEach(it=>{const sub=it.t==='s',vec=it.g>=0;const font=sub?(vec?fVs:fNs):(vec?fV:fN);ctx.font=font;const m=ctx.measureText(it.s),w=m.width;const dy=sub?size*0.20:0;const asc=(m.actualBoundingBoxAscent!=null)?m.actualBoundingBoxAscent:size*0.38;if(vec){const g=groups[it.g];if(!g.locked){if(sub)g.locked=true;else{if(x<g.x0)g.x0=x;g.x1=x+w;}}const top=dy-asc;if(top<g.top)g.top=top;}out.push({s:it.s,sub,x,w,font,dy});x+=w;});ctx.textBaseline=oldBL;return{items:out,groups,w:x,size,subSize};}
+function richDraw(ctx,lo,cx,cy,align,color,fat){let ox=align==='center'?cx-lo.w/2:align==='right'?cx-lo.w:cx;const dy=it=>cy+it.dy;const ay=g=>cy+g.top-Math.max(2.2,lo.size*0.13);const span=g=>[ox+g.x0-0.6,ox+g.x1+0.6];ctx.save();ctx.textAlign='left';ctx.textBaseline='middle';ctx.lineJoin='round';ctx.lineCap='butt';ctx.lineWidth=3.4;ctx.strokeStyle='rgba(255,255,255,.92)';lo.items.forEach(it=>{ctx.font=it.font;ctx.strokeText(it.s,ox+it.x,dy(it));});lo.groups.forEach(g=>{if(g.x1<=g.x0)return;const y=ay(g),s=span(g);ctx.beginPath();ctx.moveTo(s[0],y);ctx.lineTo(s[1],y);ctx.stroke();});lo.groups.forEach(g=>{if(g.x1<=g.x0)return;const y=ay(g),s=span(g),ax=s[0],bx=s[1];ctx.strokeStyle=color;ctx.lineWidth=1.15;ctx.beginPath();ctx.moveTo(ax,y);ctx.lineTo(bx-1.2,y);ctx.stroke();const h=Math.min(3.6,Math.max(2.6,(bx-ax)*0.40));ctx.beginPath();ctx.moveTo(bx,y);ctx.lineTo(bx-h,y-h*0.52);ctx.lineTo(bx-h,y+h*0.52);ctx.closePath();ctx.fillStyle=color;ctx.fill();});lo.items.forEach(it=>{ctx.font=it.font;if(fat>0){ctx.strokeStyle=color;ctx.lineWidth=fat;ctx.strokeText(it.s,ox+it.x,dy(it));}ctx.fillStyle=color;ctx.fillText(it.s,ox+it.x,dy(it));});ctx.restore();}
+function richHTML(s){const r=parseRich(s);let h='',gi=-1;r.items.forEach(it=>{const body=it.t==='s'?'<sub>'+it.s+'</sub>':it.s;if(it.g!==gi){if(gi>=0)h+='</span>';if(it.g>=0)h+='<span class="vec">';gi=it.g;}h+=body;});if(gi>=0)h+='</span>';return wrapSqrt(h);}
+function wrapSqrt(html){const out=[];let i=0;while(i<html.length){const k=html.indexOf('√(',i);if(k<0){out.push(html.slice(i));break;}out.push(html.slice(i,k));out.push('<span class="sqrt"><span class="in">');let j=k+2,depth=1;while(j<html.length&&depth>0){const c=html[j];if(c==='(')depth++;else if(c===')'){depth--;if(depth===0)break;}j++;}if(depth!==0){out.push(html.slice(k));return out.join('');}out.push(html.slice(k+2,j));out.push('</span></span>');i=j+1;}return out.join('');}
+
+/* ============================== 颜色 / 相机 / 图元 ============================== */
+const C = {teal:'#156082',orange:'#E97132',green:'#3E9B4F',purple:'#9B59B6',crimson:'#D04A3A',blue:'#0F9ED5',gray:'#8CA0AC',light:'#C9D6DD',ink:'#22414F',grid:'#EAF0F4',muted:'#7A8F9B'};
+
+let canvas,ctx,W=800,H=600,DPR=1;
+const cam={az:0.62,el:0.40,zoom:1,px:0,py:0};
+let camU,camV,camD,camScale,CX2,CY;
+/* ══════════ 右上角信息卡的几何 + "HUD 安全区" ══════════
+   ⚠️ 根因：信息卡（叠加在画布上）固定贴右上，而场景原来是**按整个画布**居中的
+      ⇒ 画布越窄，两边的"中心"越靠拢，卡片左缘就会压到介质盒上。
+      实测（camScale=202.5、②③ 场景屏幕半宽 ≈164px、卡片宽 252 + 边距）：
+         场景右缘 = W/2 + 164，卡片左缘 = W − 268 ⇒ **W < 864 就开始重叠**。
+      用户反馈的正是这个（窄窗口下卡片盖住了右边的介质盒）。
+   ⇒ 两条规则（都不改 camScale，只在必要时才缩，避免"为了不遮挡把图缩小"）：
+      ① 只要够宽就把场景居中不动（W ≥ 864 时行为与旧版**完全一致**）；
+      ② 不够宽就把场景整体左移到卡片左边；实在放不下（cx 被压到可用区的 30% 以左）
+         才整体缩小，保证既不遮挡、也不裁切。 */
+const CARD_W=252, CARD_X=()=>W-CARD_W-16, CARD_Y=62;
+const CARD_RESERVE=CARD_W+26;      /* 右侧留给"卡片 + 工具条 + 图例"的整条带 */
+const HALF_SCENE=0.62;             /* 5.8：波列半宽 0.55 + 标注留白 ⇒ 0.62 */
+function setupCamera(){
+  const ca=Math.cos(cam.az),sa=Math.sin(cam.az),ce=Math.cos(cam.el),se=Math.sin(cam.el);
+  camD={x:ce*ca,y:ce*sa,z:se};camU={x:-sa,y:ca,z:0};camV={x:-ca*se,y:-sa*se,z:ce};
+  let cs=Math.min(W,H)/2.4*cam.zoom;
+  const usable=Math.max(240,W-CARD_RESERVE);
+  let half=HALF_SCENE*cs;
+  /* ① 可用区里根本摆不下整幅场景 ⇒ 先整体缩小（宁可小一点，也不要既被裁又被盖）。 */
+  if(2*half > usable-16){ cs=Math.min(cs,(usable-16)/(2*HALF_SCENE)); half=HALF_SCENE*cs; }
+  /* ② 尽量居中；会压到卡片时左移。 */
+  let cx=Math.min(W/2, W-CARD_RESERVE-10-half);
+  /* ③ 左移过头撞到左边界 ⇒ 再移回来（这一步只会在"卡片+场景真放不下"的极端宽度下触发，
+       此时宁可让卡片压到一点，也不要裁掉场景左半边）。 */
+  if(cx-half<6) cx=6+half;
+  camScale=cs; CX2=Math.max(8,cx); CY=H*0.55;
+}
+function pr(p){return{x:CX2+cam.px+camScale*vdot(p,camU),y:CY+cam.py-camScale*vdot(p,camV),d:vdot(p,camD)};}
+
+let prims=[];
+function P_(z,fn){prims.push({z,draw:fn});}
+/* ⚠️ 各图元的 o.z：可选覆盖画家算法的深度。半透明的介质盒 / 球壳会横跨一大段深度，
+   凡是"必须始终看得清"的标注都要显式抬到它们之上，否则会被洗掉。
+   ⚠️ 凡是 pr() 返回的点都带真实 .d；裸 pt(x,y,z) 的 .d 是 undefined ⇒ 会让排序静默失效。 */
+function line(a,b,o={}){const A=pr(a),B=pr(b);P_(o.z!=null?o.z:(A.d+B.d)/2,()=>{ctx.save();ctx.globalAlpha=o.alpha!=null?o.alpha:1;ctx.strokeStyle=o.color||C.gray;ctx.lineWidth=o.w||1.4;if(o.dash)ctx.setLineDash(o.dash);ctx.beginPath();ctx.moveTo(A.x,A.y);ctx.lineTo(B.x,B.y);ctx.stroke();ctx.restore();});}
+function arrowSeg(A,B,color,w,headScale){const dx=B.x-A.x,dy=B.y-A.y,L=Math.hypot(dx,dy);if(L<0.5)return;const ux=dx/L,uy=dy/L,hs=(headScale||1)*9;ctx.strokeStyle=color;ctx.lineWidth=w;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(A.x,A.y);ctx.lineTo(B.x-ux*hs*.55,B.y-uy*hs*.55);ctx.stroke();const ang=Math.atan2(dy,dx);ctx.beginPath();ctx.moveTo(B.x,B.y);ctx.lineTo(B.x-hs*Math.cos(ang-.42),B.y-hs*Math.sin(ang-.42));ctx.lineTo(B.x-hs*Math.cos(ang+.42),B.y-hs*Math.sin(ang+.42));ctx.closePath();ctx.fillStyle=color;ctx.fill();}
+function arrow(a,b,o={}){const A=pr(a),B=pr(b);P_(o.z!=null?o.z:(A.d+B.d)/2,()=>{ctx.save();ctx.globalAlpha=o.alpha!=null?o.alpha:1;if(o.dash)ctx.setLineDash(o.dash);arrowSeg(A,B,o.color||C.teal,o.w||2,o.headScale);ctx.restore();});if(o.label)text(vmul(vadd(a,b),.5),o.label,{color:o.color||C.teal,dx:o.ldx||0,dy:o.ldy!==undefined?o.ldy:-10,size:o.lsize||12.5,bold:true,align:o.lalign,alpha:o.alpha});}
+function curve(ptsArr,o={}){if(ptsArr.length<2)return;const S=ptsArr.map(pr);P_(o.z!=null?o.z:S.reduce((s,p)=>s+p.d,0)/S.length,()=>{ctx.save();ctx.globalAlpha=o.alpha!=null?o.alpha:1;ctx.strokeStyle=o.color||C.gray;ctx.lineWidth=o.w||1.8;ctx.lineCap='round';ctx.lineJoin='round';if(o.dash)ctx.setLineDash(o.dash);ctx.beginPath();ctx.moveTo(S[0].x,S[0].y);for(let i=1;i<S.length;i++)ctx.lineTo(S[i].x,S[i].y);ctx.stroke();if(o.arrowEnd){const a=S[S.length-2],b=S[S.length-1];ctx.setLineDash([]);arrowSeg(a,b,o.color||C.gray,o.w||1.8,.75);}ctx.restore();});}
+function poly(ptsArr,o={}){if(ptsArr.length<3)return;const S=ptsArr.map(pr);P_(o.z!=null?o.z:S.reduce((s,p)=>s+p.d,0)/S.length,()=>{ctx.save();ctx.beginPath();ctx.moveTo(S[0].x,S[0].y);for(let i=1;i<S.length;i++)ctx.lineTo(S[i].x,S[i].y);ctx.closePath();if(o.fill){ctx.globalAlpha=o.fillAlpha!=null?o.fillAlpha:.15;ctx.fillStyle=o.fill;ctx.fill();}if(o.stroke!==false){ctx.globalAlpha=o.strokeAlpha!=null?o.strokeAlpha:(o.fillAlpha!=null?o.fillAlpha:1);ctx.strokeStyle=o.stroke||o.fill||C.gray;ctx.lineWidth=o.w||1;if(o.dash)ctx.setLineDash(o.dash);ctx.stroke();}ctx.restore();});}
+function marker(p,o={}){
+  const S=pr(p);
+  P_(o.z!=null?o.z:S.d+0.02, ()=>{ ctx.save();
+    ctx.globalAlpha=o.alpha!=null?o.alpha:1;
+    ctx.beginPath(); ctx.arc(S.x,S.y,o.r||5,0,7);
+    ctx.fillStyle=o.color||C.orange; ctx.fill();
+    ctx.lineWidth=2; ctx.strokeStyle='#fff'; ctx.stroke();
+    if(o.ring){ ctx.beginPath(); ctx.arc(S.x,S.y,(o.r||5)+4,0,7);
+      ctx.strokeStyle=o.ring; ctx.lineWidth=2.2; ctx.stroke(); }
+    ctx.restore(); });
+  if(o.label) text(p, o.label, {color:o.color||C.orange,
+    dx:o.ldx!=null?o.ldx:10, dy:o.ldy!=null?o.ldy:-10, size:o.lsize||13, bold:true, align:o.lalign, alpha:o.alpha});
+}
+function text(p,str,o={}){const S=pr(p);P_(1e6,()=>{ctx.save();if(o.alpha!=null)ctx.globalAlpha*=o.alpha;const size=o.size||12.5,bold=!!o.bold;const lo=richLayout(ctx,parseRich(str),size,bold);richDraw(ctx,lo,S.x+(o.dx||0),S.y+(o.dy||0),o.align||'left',o.color||C.ink,o.fat||0);ctx.restore();});}
+function textScreen(x,y,str,o={}){P_(1e6+1,()=>{ctx.save();if(o.alpha!=null)ctx.globalAlpha*=o.alpha;const lo=richLayout(ctx,parseRich(str),o.size||12,!!o.bold);richDraw(ctx,lo,x,y,o.align||'left',o.color||C.ink);ctx.restore();});}
+function dimLine(a,b,o={}){
+  line(a,b,o);
+  const A=pr(a),B=pr(b);
+  const dx=B.x-A.x,dy=B.y-A.y,L=Math.hypot(dx,dy);
+  if(L<1)return;
+  const px=-dy/L,py=dx/L,t=o.tick||6;
+  const tk=P=>{P_(o.z!=null?o.z:(A.d+B.d)/2,()=>{ctx.save();if(o.alpha!=null)ctx.globalAlpha*=o.alpha;ctx.strokeStyle=o.color||C.gray;ctx.lineWidth=o.w||1.4;ctx.setLineDash([]);ctx.beginPath();ctx.moveTo(P.x+px*t,P.y+py*t);ctx.lineTo(P.x-px*t,P.y-py*t);ctx.stroke();ctx.restore();});};
+  tk(A);tk(B);
+  if(o.label)text(vmul(vadd(a,b),.5),o.label,{color:o.color||C.gray,dx:o.ldx||0,dy:o.ldy!==undefined?o.ldy:-10,size:o.lsize||12.5,bold:true,align:o.lalign,alpha:o.alpha});
+}
+function screenDot(p,rad,fill,alpha,z){const S=pr(p);P_(z!=null?z:S.d+0.02,()=>{ctx.save();ctx.globalAlpha=alpha!=null?alpha:1;ctx.beginPath();ctx.arc(S.x,S.y,rad,0,7);ctx.fillStyle=fill;ctx.fill();ctx.restore();});}
+function hexA(hex,a){const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);return 'rgba('+r+','+g+','+b+','+a+')';}
+
+/* ══════════════════════════ 坐标轴（同源） ══════════════════════════ */
+function drawAxes(ext){
+  if(!state.show.box) return;
+  const g=ext*0.86;
+  for(let v=-g;v<=g+1e-9;v+=ext*0.30){line(pt(v,-g,-ext*0.86),pt(v,g,-ext*0.86),{color:C.grid,w:1});line(pt(-g,v,-ext*0.86),pt(g,v,-ext*0.86),{color:C.grid,w:1});}
+  line(pt(0,0,0),pt(-ext,0,0),{color:'#B9C9D2',dash:[5,4],w:1.2});
+  line(pt(0,0,0),pt(0,-ext,0),{color:'#B9C9D2',dash:[5,4],w:1.2});
+  line(pt(0,0,0),pt(0,0,-ext),{color:'#B9C9D2',dash:[5,4],w:1.2});
+  arrow(pt(0,0,0),pt(ext,0,0),{color:C.teal,w:2});
+  arrow(pt(0,0,0),pt(0,ext,0),{color:C.orange,w:2});
+  arrow(pt(0,0,0),pt(0,0,ext),{color:C.green,w:2.2});
+  text(pt(ext*1.05,0,0),'x',{color:C.teal,bold:true,size:13,dy:-4});
+  text(pt(0,ext*1.05,0),'y',{color:C.orange,bold:true,size:13,dy:-4});
+  text(pt(0,0,ext*1.05),'z',{color:C.green,bold:true,size:13,dx:-4});
+}
+
+/* ============================================================================
+   5.8 电磁波传播实验室 —— 物理模型与几何（引擎段与 2.1~2.5、3.x、4.2 同源）
+   ----------------------------------------------------------------------------
+   ★★ 本页的教学主线（对应用户给的设计稿）：
+       均匀平面电磁波沿 +x 传播：@{E} 沿 y（红）、@{H} 沿 z（蓝），
+       三者互相垂直；无耗时 E/H 同相，能流方向 = @{E}×@{H}（橙）。
+       ★ 核心辨析：电场/磁场箭头只在**各自位置原地振荡**，
+         向前推进的是**相位**（紫点）与**能量** —— 不是箭头沿 x 跑。
+
+   ★★ 物理（均匀平面波，μ_r=1）：
+       无耗：v = c/√ε_r，λ = v/f，η = η₀/√ε_r（η₀=376.73 Ω），E/H 同相
+       有耗（损耗角正切 tanδ 固定 0.3）：
+         A = √(1+tanδ²)
+         α = (ω/c)√(ε_r/2)·√(A−1)，β = (ω/c)√(ε_r/2)·√(A+1)
+         |η| = η₀/√ε_r·A^(−1/4)，φ_η = ½·atan(tanδ)（H 滞后 E 的相位）
+         E_y = E₀·e^(−αx)·cos(ωt−βx)，H_z = (E₀/|η|)·e^(−αx)·cos(ωt−βx−φ_η)
+         S_avg(x) = E₀²·e^(−2αx)/(2|η|)·cos(φ_η)
+
+   ★ 显示映射：波列世界长度 1.1（x∈[−0.55,+0.55]）≡ 真实 9 m
+     （= f=100 MHz、ε_r=1、无耗时的 3 个波长）⇒ 频率/介电常数改变时
+     **波长在画面上真的变密变疏**。时间动画用显示角速度 OM_D=1.2 rad/s
+     （示意速率，读数一律按真实 f 算，与动画快慢无关 —— 3.1 的口径）。
+   ============================================================================ */
+
+/* ============================== 几何尺度 ============================== */
+const WAVE_L  = 1.1;             /* 波列世界长度（x∈[−0.55,+0.55]） */
+const X0      = -0.55;           /* 源面位置 */
+const L_REAL  = 9.0;             /* 波列对应的真实长度 m */
+const W2R     = L_REAL/WAVE_L;   /* 世界 → 真实 的比例（8.18 m/世界单位） */
+const OM_D    = 1.2;             /* 显示角速度 rad/s（动画示意速率） */
+const T_D     = 2*Math.PI/OM_D;  /* 显示周期 s（t 滑块量程） */
+const EXT_AX  = 0.17;            /* 方向三脚架臂长（左下角） */
+
+/* ============================== 状态 ============================== */
+const state = {
+  showReadout:true,
+  autoRotate:false,
+  cardTab:'1',
+  freqIdx:1,                     /* 0/1/2 → 100/200/400 MHz */
+  epsr:1,                        /* 相对介电常数 1..9（μ_r=1） */
+  lossy:false,                   /* 无耗 | 有耗（tanδ=0.3） */
+  playing:true,
+  t:0,                           /* 显示时间 s（∈[0,T_D]） */
+  /* ⚠️⚠️ 键必须与 SHOW_ITEMS（page1.js）逐字对齐 */
+  show:{ eArr:true, hArr:true, wave:true, sVec:true, phase:true, prop:true, triad:true },
+};
+const EPSR_RANGE=[1,9];
+const FREQS=[100,200,400];       /* MHz */
+const TAND=0.3;                  /* 有耗介质的损耗角正切（固定） */
+
+function clampState(){
+  state.freqIdx=Math.max(0,Math.min(2,Math.round(state.freqIdx)));
+  state.epsr=Math.max(EPSR_RANGE[0],Math.min(EPSR_RANGE[1],Math.round(state.epsr)));
+  state.t=((state.t%T_D)+T_D)%T_D;
+  return state;
+}
+
+/* ============================== 平面波物理量 ============================== */
+const C0=3e8, ETA0=376.73, E0=1.0;    /* E₀ = 1 V/m */
+function freqHz(){ return FREQS[state.freqIdx]*1e6; }
+/* 一组派生量：无耗与有耗统一给出 k(β)、α、v、λ、η 模、相位差 φ_η */
+function waveParams(){
+  const om=2*Math.PI*freqHz(), er=state.epsr, fac=om/C0*Math.sqrt(er);
+  if(!state.lossy){
+    const k=fac;
+    return {om, k, alpha:0, v:om/k, lam:2*Math.PI/k, eta:ETA0/Math.sqrt(er), phiEta:0};
+  }
+  return waveParamsLossy(om, er);
+}
+function waveParamsLossy(om, er){
+  const fac=om/C0*Math.sqrt(er/2);
+  const A=Math.sqrt(1+TAND*TAND);
+  const alpha=fac*Math.sqrt(A-1), beta=fac*Math.sqrt(A+1);
+  const etaAbs=ETA0/Math.sqrt(er)*Math.pow(A,-0.25);
+  const phiEta=0.5*Math.atan(TAND);
+  return {om, k:beta, alpha, v:om/beta, lam:2*Math.PI/beta, eta:etaAbs, phiEta};
+}
+/* 世界坐标里的波数与衰减常数（相位 = OM_D·t − kWorld·xRel，xRel = x−X0） */
+function kWorld(){ return waveParams().k*W2R; }
+function alphaWorld(){ return waveParams().alpha*W2R; }
+
+/* 场：x 为世界坐标，t 为显示时间。返回真实物理单位的值 */
+function waveE(x,t){
+  const p=waveParams(), xr=(x-X0)*W2R;
+  return E0*Math.exp(-p.alpha*xr)*Math.cos(OM_D*t - p.k*xr);
+}
+function waveH(x,t){
+  const p=waveParams(), xr=(x-X0)*W2R;
+  return (E0/p.eta)*Math.exp(-p.alpha*xr)*Math.cos(OM_D*t - p.k*xr - p.phiEta);
+}
+/* 平均能流密度 W/m²（随 x 衰减） */
+function sAvg(x){
+  const p=waveParams(), xr=(x-X0)*W2R;
+  return E0*E0*Math.exp(-2*p.alpha*xr)/(2*p.eta)*Math.cos(p.phiEta);
+}
+/* 显示比例（线性 + 上下限钳制，学 2.1 的 LE）：
+   E₀=1 ⇒ E 箭头最长 0.16；H 基准（ε_r=1 无耗）≈0.13，ε_r 大 ⇒ H 箭头更长（η 小） */
+const LE_K=0.16, LE_MIN=0.012, LE_MAX=0.20;
+const LH_K=50,   LH_MIN=0.012, LH_MAX=0.24;
+const LS_K=45;                   /* S = E·H（W/m² 量级 1e-3） ⇒ 最长 ~0.12 */
+function clampLen(v,lo,hi){ return Math.max(lo,Math.min(hi,v)); }
+
+
+/* ============================== 目录（5.8 本页 active；版本戳 20261027r1） ============================== */
+const NAV = [
+  { ch:'第 1 章 · 矢量分析', items:[
+    { id:'coord', t:'1.1 三种常见坐标系', ready:true, href:'index.html?v=20261027r1' },
+    { id:'ch1-2', t:'1.2 矢量的代数运算', ready:true, href:'1.2-vector-algebra.htm?v=20261027r1' },
+    { id:'ch1-3', t:'1.3 方向导数与梯度', ready:true, href:'1.3-directional-derivative.htm?v=20261027r1' },
+    { id:'ch1-4', t:'1.4 通量与散度', ready:true, href:'1.4-divergence-flux.htm?v=20261027r1' },
+    { id:'ch1-5', t:'1.5 环量与旋度', ready:true, href:'1.5-curl-circulation.htm?v=20261027r1' },
+  ]},
+  { ch:'第 2 章 · 静电场', items:[
+    { id:'ch2-1', t:'2.1 电场强度与电荷密度', ready:true, href:'2.1-field-charge-density.htm?v=20261027r1' },
+    { id:'ch2-2', t:'2.2 静电场中的导体', ready:true, href:'2.2-conductor-electrostatic.htm?v=20261027r1' },
+    { id:'ch2-3', t:'2.3 静电场中的电介质', ready:true, href:'2.3-dielectric-polarization.htm?v=20261027r1' },
+    { id:'ch2-4', t:'2.4 高斯定理及其应用', ready:true, href:'2.4-gauss-law.htm?v=20261027r1' },
+    { id:'ch2-5', t:'2.5 多导体系统的电容与串扰', ready:true, href:'2.5-multi-conductor-crosstalk.htm?v=20261027r1' },
+  ]},
+  { ch:'第 3 章 · 恒定电场', items:[
+    { id:'ch3-1', t:'3.1 电流的分类', ready:true, href:'3.1-current-density.htm?v=20261027r1' },
+    { id:'ch3-2', t:'3.2 恒定电场的特点', ready:true, href:'3.2-constant-field.htm?v=20261027r1' },
+  ]},
+  { ch:'第 4 章 · 恒定磁场', items:[
+    { id:'ch4-1', t:'4.1 磁感应强度' },
+    { id:'ch4-2', t:'4.2 磁介质的磁化', ready:true, href:'4.2-magnetization.htm?v=20261027r1' },
+  ]},
+  { ch:'第 5 章 · 时变电磁场', items:[
+    { id:'ch5-1', t:'5.1 变化的磁场激发电场' },
+    { id:'ch5-2', t:'5.2 变化的电场激发磁场' },
+    { id:'ch5-4', t:'5.4 介质边界与反射透射' },
+    { id:'ch5-6', t:'5.6 坡印廷矢量与能量流' },
+    { id:'ch5-8', t:'5.8 电磁波传播实验室 ★', ready:true, active:true },
+  ]},
+];
+
+
+/* ============================================================================
+   5.8 电磁波传播实验室 —— 页面专属（一）：图元助手 / 场景装配 / 信息卡 / 面板上半
+   ⚠️ 所有进画布的串都必须走 parseRich()（@{...} 矢量 / _x 下标），
+      所有进 DOM 的串都必须走 richHTML()；本引擎**不认 Markdown 星号**，加粗只能用 <b>。
+   ============================================================================ */
+
+/* ---------- 画布小卡助手（与 2.1~2.5 / 3.x / 4.2 同源） ---------- */
+function txt(x,y,str,o={}){
+  ctx.save();
+  const lo=richLayout(ctx,parseRich(str),o.size||12,!!o.bold);
+  richDraw(ctx,lo,x,y,o.align||'left',o.color||C.ink);
+  ctx.restore();
+}
+function rrPath(x,y,w,h,r){
+  ctx.beginPath(); ctx.moveTo(x+r,y); ctx.lineTo(x+w-r,y); ctx.quadraticCurveTo(x+w,y,x+w,y+r);
+  ctx.lineTo(x+w,y+h-r); ctx.quadraticCurveTo(x+w,y+h,x+w,y+h-r);
+  ctx.lineTo(x+r,y+h); ctx.quadraticCurveTo(x,y+h,x+r,y+h);
+  ctx.lineTo(x,y+h-r); ctx.quadraticCurveTo(x,y,x+r,y); ctx.closePath();
+}
+function crd(x,y,w,h){
+  ctx.save(); ctx.shadowColor='rgba(30,60,80,.10)'; ctx.shadowBlur=8; ctx.shadowOffsetY=2;
+  rrPath(x,y,w,h,10); ctx.fillStyle='rgba(255,255,255,.95)'; ctx.fill(); ctx.restore();
+  ctx.save(); rrPath(x,y,w,h,10); ctx.strokeStyle='#DCE6EB'; ctx.lineWidth=1; ctx.stroke(); ctx.restore();
+}
+const ZL = 1e4+40;                 /* 标注深度档：压在场景之上 */
+const E_HEX   = '#D04A3A';         /* 电场 E（红，y 方向） */
+const H_HEX   = '#0F9ED5';         /* 磁场 H（蓝，z 方向） */
+const P_HEX   = '#3E9B4F';         /* 传播方向（绿，+x） */
+const S_HEX   = '#E97132';         /* 坡印廷矢量 S（橙） */
+const PH_HEX  = '#9B59B6';         /* 相位点（紫） */
+const AXI_HEX = '#8AA3AF';         /* 参考轴线（浅灰青） */
+
+/* ══════════════════════════ 右上角信息卡 ══════════════════════════ */
+function infoCard(title,rows,h){
+  const x0=CARD_X(), y0=CARD_Y, w=CARD_W;
+  crd(x0,y0,w,h);
+  txt(x0+12,y0+15,title,{size:11.5,bold:true,color:'#1F3D4C'});
+  rows.forEach((r,i)=>{
+    const y=y0+38+i*19;
+    /* ⚠️ 章节行要同时认两种写法：['§','文本'] 与 ['§ 文本'] */
+    const markerOnly=(r[0]==='§');
+    if(markerOnly || (r.length===1 && String(r[0]||'')[0]==='§')){
+      const lab=markerOnly ? String(r[1]==null?'':r[1]) : String(r[0]).slice(1);
+      txt(x0+11,y,lab.trim(),{size:11,bold:true,color:r[2]||'#1F3D4C'}); return;
+    }
+    let lab=String(r[0]==null?'':r[0]);
+    if(lab[0]==='§') lab=lab.slice(1).trim();
+    txt(x0+13,y,lab,{size:11,color:'#5F7482'});
+    txt(x0+w-13,y,r[1]==null?'':String(r[1]),{size:11,bold:true,color:r[2]||'#0E4A66',align:'right'});
+  });
+}
+
+/* ══════════════════════════ 场景零件 ══════════════════════════ */
+/* 方向三脚架（左下角）：+x 绿 = 传播方向、+y 红 = E、+z 蓝 = H —— 三者两两垂直 */
+function drawTriad(){
+  if(!state.show.triad) return;
+  const o=pt(X0-0.02,-0.30,-0.26);
+  arrow(o, vadd(o,pt(EXT_AX,0,0)), {color:P_HEX,w:2.2,headScale:1.1,z:ZL-2});
+  arrow(o, vadd(o,pt(0,EXT_AX,0)), {color:E_HEX,w:2.2,headScale:1.1,z:ZL-2});
+  arrow(o, vadd(o,pt(0,0,EXT_AX)), {color:H_HEX,w:2.2,headScale:1.1,z:ZL-2});
+  text(vadd(o,pt(EXT_AX,0,0)), 'x 传播', {color:P_HEX,size:11,bold:true,dx:8,dy:2,z:ZL});
+  text(vadd(o,pt(0,EXT_AX,0)), 'y @{E}', {color:E_HEX,size:11,bold:true,dx:8,dy:0,z:ZL});
+  text(vadd(o,pt(0,0,EXT_AX)), 'z @{H}', {color:H_HEX,size:11,bold:true,dx:8,dy:-4,z:ZL});
+}
+/* 波源面（x = X0 的半透明薄片） */
+function drawSourcePlane(){
+  const g=0.21;
+  poly([pt(X0,-g,-g),pt(X0,g,-g),pt(X0,g,g),pt(X0,-g,g)],
+       {fill:'#BFD6DE',stroke:'#5B7C8A',w:1.0,fillAlpha:0.28,strokeAlpha:0.85,z:ZL-6});
+  /* ⚠️ 标签放波源面**顶边上方**：放底部会撞三脚架的 y @{E} 标签（visWL 实测 80%） */
+  text(pt(X0,0,g), '波源面', {color:'#40606E',size:11,bold:true,dx:-12,dy:-10,align:'right',z:ZL});
+}
+/* 参考轴线（波列所在的 x 轴，浅灰细线） */
+function drawAxisLine(){
+  const pts=[pt(X0,0,0),pt(X0+WAVE_L,0,0)];
+  curve(pts,{color:AXI_HEX,w:1.0,alpha:0.8});
+}
+/* E 箭头列（红，±y；长度 ∝ 当地 E，下限以下不画 —— 学 2.1 的 LE 口径） */
+const N_ST=36;
+function drawEArrows(){
+  if(!state.show.eArr) return;
+  for(let i=0;i<=N_ST;i++){
+    const x=X0+WAVE_L*i/N_ST, E=waveE(x,state.t), len=E*LE_K;
+    if(Math.abs(len)<LE_MIN) continue;             /* 节点处不画（节点本身就可见） */
+    arrow(pt(x,0,0), pt(x,clampLen(Math.abs(len),0,LE_MAX)*Math.sign(E),0),
+          {color:E_HEX,w:1.8,headScale:0.9,alpha:0.92});
+  }
+  const xl=X0+WAVE_L*3/N_ST;
+  /* ⚠️ 标签与 H 标签同站错向：E 向上偏左（align right）、H 向下偏右，
+     否则默认相机下两者投影几乎重合（visWL 实测 46%） */
+  text(pt(xl,LE_K*1.02,0), '@{E}（沿 y 振荡）', {color:E_HEX,size:11.5,bold:true,dx:-6,dy:-10,align:'right',z:ZL});
+}
+/* H 箭头列（蓝，±z） */
+function drawHArrows(){
+  if(!state.show.hArr) return;
+  for(let i=0;i<=N_ST;i++){
+    const x=X0+WAVE_L*i/N_ST, H=waveH(x,state.t), len=H*LH_K;
+    if(Math.abs(len)<LH_MIN) continue;
+    arrow(pt(x,0,0), pt(x,0,clampLen(Math.abs(len),0,LH_MAX)*Math.sign(H)),
+          {color:H_HEX,w:1.8,headScale:0.9,alpha:0.92});
+  }
+  /* ⚠️ H 标签要放到第一波程之外：相位点的波峰恒在 x∈[−0.55,−0.18] 内巡游
+     （第一波长 λ_w≈0.37），第 6 站（x≈−0.36）必撞 ⇒ 放到第 14 站（x≈−0.12） */
+  const xl=X0+WAVE_L*14/N_ST;
+  text(pt(xl,0,LH_K/ETA0*1.05), '@{H}（沿 z 振荡）', {color:H_HEX,size:11.5,bold:true,dx:8,dy:14,z:ZL});
+}
+/* 波形曲线：E 在 xy 平面（红）、H 在 xz 平面（蓝） —— 与箭头尖端重合 */
+function drawWaves(){
+  if(!state.show.wave) return;
+  const N=200, pe=[], ph=[];
+  for(let i=0;i<=N;i++){
+    const x=X0+WAVE_L*i/N;
+    pe.push(pt(x, waveE(x,state.t)*LE_K, 0));
+    ph.push(pt(x, 0, waveH(x,state.t)*LH_K));
+  }
+  curve(pe,{color:E_HEX,w:2.2,alpha:0.95,z:ZL-3});
+  curve(ph,{color:H_HEX,w:2.2,alpha:0.95,z:ZL-3});
+}
+/* 传播方向：绿色粗箭头（固定在波列下方） */
+function drawProp(){
+  if(!state.show.prop) return;
+  const y=-0.27;
+  arrow(pt(X0+0.06,y,0), pt(X0+WAVE_L-0.06,y,0), {color:P_HEX,w:3.0,headScale:1.3,z:ZL-4});
+  text(pt(X0+WAVE_L/2,y,0), '传播方向 +x', {color:P_HEX,size:11.5,bold:true,dx:0,dy:16,align:'center',z:ZL});
+}
+/* 坡印廷矢量 S = E×H（橙，+x；长度 ∝ 瞬时能流，隔站画） */
+function drawSVec(){
+  if(!state.show.sVec) return;
+  for(let i=2;i<=N_ST;i+=4){
+    const x=X0+WAVE_L*i/N_ST, S=waveE(x,state.t)*waveH(x,state.t);
+    const len=clampLen(Math.abs(S)*LS_K,0,0.14);
+    if(len<0.01) continue;
+    arrow(pt(x,0,0), pt(x+len*Math.sign(S),0,0), {color:S_HEX,w:2.6,headScale:1.05,alpha:0.95,z:ZL-1});
+  }
+  /* ⚠️ S 标签不能放波列中点上方（az=0.6 时三脚架旋进中区，连撞两处）⇒
+     放传播箭头尾端右下（与"传播方向 +x"标签一左一右拉开） */
+  text(pt(X0+WAVE_L,-0.27,0), '@{S}=@{E}×@{H}（能流，橙）',
+       {color:'#B85A1E',size:11.5,bold:true,dx:-4,dy:32,align:'right',z:ZL});
+}
+/* 相位点（紫）：盯住一个波峰 —— "向前跑的是它，不是箭头" */
+function drawPhaseMark(){
+  if(!state.show.phase) return;
+  const kw=kWorld();
+  const m=Math.floor(OM_D*state.t/(2*Math.PI));
+  const xRel=(OM_D*state.t-2*Math.PI*m)/kw;        /* 视野内第一个波峰 */
+  const x=X0+xRel, E=waveE(x,state.t);
+  line(pt(x,0,0), pt(x,E*LE_K,0), {color:PH_HEX,w:1.2,dash:[4,3],z:ZL-2});
+  marker(pt(x,E*LE_K,0), {r:5.2,color:PH_HEX,ring:'#E4D5F0',z:ZL+2});
+  /* ⚠️ 相位点标签放波峰**下方**：E 标签在波列上方，紫点在波峰上，
+     再上移必撞（visWL 实测 88%） */
+  text(pt(x,E*LE_K,0), '相位点', {color:PH_HEX,size:11,bold:true,dx:10,dy:14,z:ZL+2});
+}
+
+/* ══════════════════════════ 场景装配 ══════════════════════════ */
+function buildScene(){
+  prims=[];                     /* ★ 第一句必须是 prims=[]（否则每次重绘再叠一层整场景） */
+  drawAxisLine();
+  drawSourcePlane();
+  drawTriad();
+  drawEArrows();
+  drawHArrows();
+  drawWaves();
+  drawProp();
+  drawSVec();
+  drawPhaseMark();
+}
+
+/* ══════════ 信息卡内容 ══════════ */
+function fmtV(){ return (waveParams().v/1e8).toFixed(2)+'×10⁸ m/s'; }
+function currentCard(){
+  const p=waveParams();
+  const rows=[
+    ['频率 f', FREQS[state.freqIdx]+' MHz'],
+    ['波速 v = 1/√(με)', fmtV()],
+    ['波长 λ = v/f', p.lam.toFixed(2)+' m'],
+  ];
+  if(state.lossy){
+    rows.push(['|η|（波阻抗的模）', p.eta.toFixed(1)+' Ω']);
+    rows.push(['衰减常数 α（tanδ=0.3）', p.alpha.toFixed(3)+' Np/m']);
+    rows.push(['@{E} 超前 @{H} 的相位 φ_η', (p.phiEta*57.2958).toFixed(1)+'°','#B85A1E']);
+    rows.push(['S_avg（源面处）', (sAvg(X0)*1000).toFixed(3)+' mW/m²']);
+    rows.push(['§ 有耗介质']);
+    rows.push(['振幅沿 x 按 e^(−αx) 衰减','能量被介质吸收','#B85A1E']);
+    rows.push(['@{E} 与 @{H} 不再同相','φ_η = ½·atan(tanδ)','#B85A1E']);
+  } else {
+    rows.push(['波阻抗 η = √(μ/ε)', p.eta.toFixed(1)+' Ω']);
+    rows.push(['S_avg（处处相同）', (sAvg(X0)*1000).toFixed(3)+' mW/m²']);
+    rows.push(['§ 无耗介质中的均匀平面波']);
+    rows.push(['@{E} ⊥ @{H} ⊥ 传播方向','三者同相','#2E7D32']);
+    rows.push(['E/H = η（波阻抗）','@{S} = @{E}×@{H} 沿 +x','#2E7D32']);
+  }
+  return [state.lossy?'有耗介质中的平面波':'无耗介质中的平面波', rows, 38+rows.length*19+8];
+}
+function drawOverlays(){ const c=currentCard(); infoCard(c[0],c[1],c[2]); }
+
+/* ══════════════════════════ 面板底部的实时结论条 ══════════════════════════ */
+function subNote(){
+  return '红箭头 <b>@{E}</b> 沿 y、蓝箭头 <b>@{H}</b> 沿 z、绿箭头 <b>+x</b> 是传播方向：'+
+    '<b>三者两两垂直</b>。注意看：<b>箭头只在原地振荡</b>，向前跑的是紫色<b>相位点</b>和橙色能流 —— '+
+    '传播的是相位与能量，不是电场箭头沿 x 跑过去。';
+}
+
+/* ══════════════════════════ 右侧面板（上半） ══════════════════════════ */
+const panel=document.getElementById('panel');
+function h(html){const d=document.createElement('div');d.innerHTML=html;return d;}
+let _toastTimer=0;
+function toastMsg(msg){
+  const el=document.getElementById('toast'); if(!el) return;
+  el.textContent=msg; el.classList.add('show');
+  clearTimeout(_toastTimer); _toastTimer=setTimeout(()=>el.classList.remove('show'),1700);
+}
+function kchip(k,v,cls){return '<span class="coord-chip '+(cls||'')+'">'+richHTML(k)+'<b>'+richHTML(v)+'</b></span>';}
+function chipRow(parent,items,isOn,onPick){
+  const box=h('<div class="sub-chips"></div>').firstChild;
+  items.forEach(it=>{
+    const lab=richHTML(String(it.t??it.sub??it.label??''));
+    const b=h('<button class="chip '+(it.col||'')+(isOn(it.k)?' on':'')+'" data-k="'+it.k+'">'+lab+'</button>').firstChild;
+    b.onclick=()=>onPick(it.k);
+    box.appendChild(b);
+  });
+  parent.appendChild(box);
+  return box;
+}
+const SHOW_ITEMS=[
+  {k:'eArr',t:'电场 @{E}（红）'},{k:'hArr',t:'磁场 @{H}（蓝）'},{k:'wave',t:'波形曲线'},
+  {k:'sVec',t:'坡印廷矢量 @{S}'},{k:'phase',t:'相位点'},{k:'prop',t:'传播方向'},{k:'triad',t:'方向三脚架'},
+];
+function mkRange(sec,d){
+  const r=h('<div class="slider-row'+(d.wide?' w':'')+'"><label>'+richHTML(d.label)+'</label>'+
+    '<input type="range" id="s_'+d.k+'" min="'+d.min+'" max="'+d.max+'" step="'+d.step+'" value="'+d.get()+'">'+
+    '<span class="val" id="v_'+d.k+'">'+d.fmt(d.get())+'</span></div>');
+  const inp=r.querySelector('input');
+  inp.oninput=()=>{
+    /* ⚠️ 必须用 d.set() 的**返回值**（生效值）来回写滑块（钳制契约） */
+    const eff=d.set(parseFloat(inp.value));
+    const v=(eff==null||!isFinite(eff))?parseFloat(inp.value):eff;
+    if(String(inp.value)!==String(v)) inp.value=String(v);
+    document.getElementById('v_'+d.k).textContent=d.fmt(v);
+    needsRender=true; updateReadout(); updateModeTag();
+    if(d.after) d.after();
+  };
+  sec.appendChild(r);
+}
+function btnRow(sec,specs){
+  const bx=h('<div class="sub-chips"></div>').firstChild;
+  specs.forEach(s=>{ const b=h('<button class="chip '+(s.col||'')+(s.on?' on':'')+'">'+richHTML(s.t)+'</button>').firstChild;
+    b.onclick=s.act; bx.appendChild(b); });
+  sec.appendChild(bx);
+}
+function renderSubSec(sec){
+  sec.innerHTML='';
+  sec.appendChild(h('<div class="sec-title">显示</div>'));
+  chipRow(sec,SHOW_ITEMS,k=>state.show[k],k=>{
+    const next=!state.show[k];
+    /* ⚠️ 不许把层全关掉：全关 ⇒ prims=0 ⇒ 整块画布纯白 */
+    const othersOn=SHOW_ITEMS.some(it=>it.k!==k && state.show[it.k]);
+    if(!next && !othersOn){ toastMsg('至少保留一层显示'); return; }
+    state.show[k]=next; needsRender=true; renderPanel();
+  });
+  sec.appendChild(h('<div class="ex-note" style="margin-top:7px">'+richHTML(subNote())+'</div>'));
+}
+const SLIDER_FMT={
+  epsr:v=>'ε_r = '+v.toFixed(0),
+  t:v=>'t = '+v.toFixed(2)+' s',
+};
+function syncSliders(){
+  const set=(k,v)=>{ const s=document.getElementById('s_'+k); if(s) s.value=v;
+    const e=document.getElementById('v_'+k); if(e) e.textContent=SLIDER_FMT[k]?SLIDER_FMT[k](v):String(v); };
+  set('epsr',state.epsr); set('t',state.t);
+}
+function renderSliders(sec){
+  sec.innerHTML='';
+  sec.appendChild(h('<div class="slider-group-label">波与介质</div>'));
+  mkRange(sec,{k:'epsr',label:'相对介电常数 ε_r（μ_r=1）',wide:true,min:EPSR_RANGE[0],max:EPSR_RANGE[1],step:1,
+    get:()=>state.epsr,set:v=>{state.epsr=v; return clampState().epsr;},fmt:v=>'ε_r = '+v.toFixed(0)});
+  sec.appendChild(h('<div class="slider-group-label q" style="margin-top:10px">频率</div>'));
+  chipRow(sec,[{k:'f0',t:'低 · 100 MHz'},{k:'f1',t:'中 · 200 MHz'},{k:'f2',t:'高 · 400 MHz'}],
+    k=>state.freqIdx===+k.slice(1),
+    k=>{ state.freqIdx=+k.slice(1); renderPanel(); updateAll(); });
+  sec.appendChild(h('<div class="slider-group-label g" style="margin-top:10px">介质类型</div>'));
+  chipRow(sec,[{k:'loss0',t:'无耗介质'},{k:'loss1',t:'有耗介质（tanδ=0.3）'}],
+    k=>state.lossy===(k==='loss1'),
+    k=>{ state.lossy=(k==='loss1'); renderPanel(); updateAll(); });
+  sec.appendChild(h('<div class="slider-group-label o" style="margin-top:10px">时间进程</div>'));
+  mkRange(sec,{k:'t',label:'时间 t（拖动看箭头原地振荡、相位点前进）',wide:true,min:0,max:T_D,step:0.01,
+    get:()=>state.t,set:v=>{state.playing=false; state.t=v;},fmt:v=>'t = '+v.toFixed(2)+' s'});
+  btnRow(sec,[
+    {t:state.playing?'⏸ 暂停':'▶ 播放', on:!!state.playing, col:'acc',
+      act:()=>{ playPause(); renderPanel(); }},
+    {t:'↺ t = 0（回到初始相位）', on:false,
+      act:()=>{ state.playing=false; state.t=0; renderPanel(); updateAll(); }},
+  ]);
+}
+
+
+/* ============================================================================
+   5.8 电磁波传播实验室 —— 页面专属（二）：讲解卡 / 面板装配 / 数据条 / 主循环 / 交互
+   ⚠️ 所有进 DOM 的串都必须过 richHTML()（只认 @{...} 与 _x，**不认 Markdown 星号**）。
+   ============================================================================ */
+const CARDS=[
+  {k:'1',tab:'1. 三个方向，两两垂直',cls:'c1',body:
+    '均匀平面电磁波里：<b>@{E} 沿 y（红）、@{H} 沿 z（蓝）、传播沿 x（绿）</b>，三者两两垂直。'+
+    '<div class="frm">@{S} = @{E}×@{H}　⇒　能流方向 = 传播方向（+x）</div>'+
+    '<ul><li>@{E} 与 @{H} 的量值由<b>波阻抗</b>联系：E/H = η = √(μ/ε)（无耗时）</li>'+
+    '<li>ε_r 越大 ⇒ η 越小 ⇒ 同样的 E，H 越强（蓝箭头更长）</li>'+
+    '<li>左下角的三脚架就是给"谁沿哪个方向"备的参照</li></ul>'+
+    '<div class="ex-note">⟶ 关掉"波形曲线"只看箭头列：红蓝箭头各自在自己的方向上生长。</div>'},
+  {k:'2',tab:'2. 振荡 ≠ 跑动',cls:'c2',body:
+    '最容易误解的一点：<b>电场箭头并没有沿 x 方向"跑"</b>。'+
+    '<div class="frm">E_y(x,t) = E₀·e^(−αx)·cos(ωt − kx)</div>'+
+    '<ul><li>固定一个位置 x：箭头只在自己的 y / z 方向<b>原地振荡</b>（拖 t 滑块慢慢看）</li>'+
+    '<li>固定一个相位（紫色<b>相位点</b>，如某个波峰）：它随时间向 +x 匀速前进 —— 前进的是<b>相位</b></li>'+
+    '<li>跟着相位一起前进的还有<b>能量</b>：橙色 @{S} 箭头始终指向 +x</li></ul>'+
+    '<div class="ex-note">🔑 "波"= 相位与能量的传递；介质中的电荷只在原地附近振动，没有宏观迁移。</div>'},
+  {k:'3',tab:'3. 介质改变了什么',cls:'c3',body:
+    '换 ε_r 和"无耗 / 有耗"，盯住数据条的四个读数：'+
+    '<div class="frm">v = 1/√(με)　λ = v/f　η = √(μ/ε)　S_avg = E₀²/(2|η|)·cosφ_η</div>'+
+    '<ul><li>ε_r ↑ ⇒ v ↓、λ ↓（波列变密）、η ↓ —— 同一介质里 f ↑ 则 λ ↓</li>'+
+    '<li><b>有耗介质</b>（tanδ=0.3）：振幅按 e^(−αx) 沿程衰减，@{E} 超前 @{H} 一个相位 φ_η = ½·atan(tanδ) ≈ 13.3°</li>'+
+    '<li>有耗时平均能流还要多乘一个 cosφ_η，并沿 x 按 e^(−2αx) 衰减 —— 能量被介质吃掉了</li></ul>'+
+    '<div class="ex-note">⟶ 切到"有耗介质"再拖 t：看红蓝箭头列末端一起变短、且峰值位置错开。</div>'},
+];
+function renderExplain(sec){
+  sec.innerHTML='';
+  sec.appendChild(h('<div class="sec-title">讲解</div>'));
+  const tabs=h('<div class="card-tabs"></div>').firstChild;
+  CARDS.forEach(c=>{
+    const b=h('<button class="card-tab '+c.cls+(c.k===state.cardTab?' on':'')+'">'+c.tab+'</button>').firstChild;
+    b.onclick=()=>{ state.cardTab=c.k; renderPanel(); };
+    tabs.appendChild(b);
+  });
+  sec.appendChild(tabs);
+  const cur=CARDS.find(c=>c.k===state.cardTab)||CARDS[0];
+  const body=h('<div class="card-body '+cur.cls+'"><div class="ex-title">'+richHTML(cur.tab)+'</div></div>').firstChild;
+  body.appendChild(h('<div class="ex-body">'+richHTML(cur.body)+'</div>').firstChild);
+  sec.appendChild(body);
+}
+function renderPanel(){
+  ['subSec','sliderSec','explainSec'].forEach(id=>{const el=document.getElementById(id);if(el)el.remove();});
+  const mk=id=>{const d=document.createElement('div');d.className='panel-sec';d.id=id;return d;};
+  let tog=document.getElementById('toggleSec');
+  if(!tog){
+    tog=mk('toggleSec');
+    tog.appendChild(h('<label class="readout-toggle"><input type="checkbox" id="showReadoutCb"'+(state.showReadout?' checked':'')+'><span>在<b>画布下方</b>显示<b>实时数据</b>条</span></label>'));
+    tog.querySelector('#showReadoutCb').onchange=e=>{state.showReadout=e.target.checked;updateReadout();};
+    panel.appendChild(tog);
+  }else tog.querySelector('#showReadoutCb').checked=state.showReadout;
+  const s=mk('subSec'), sl=mk('sliderSec'), ex=mk('explainSec');
+  panel.appendChild(s); panel.appendChild(sl); panel.appendChild(ex);
+  renderSubSec(s); renderSliders(sl); renderExplain(ex);
+  updateReadout(); updateModeTag();
+}
+/* ⚠️ 图例（.cv-legend）absolute + bottom:14，而 .canvas-card 里还有一条数据条（.coord-strip）
+   也贴在底部 ⇒ 图例默认会压在数据条上。修法：bottom = 数据条高度 + 14。 */
+function placeLegend(){
+  const st=document.getElementById('coordStrip'), lg=document.getElementById('legend');
+  if(!st||!lg) return;
+  lg.style.bottom=(st.offsetHeight+14)+'px';
+}
+
+/* ══════════════════════════ 画布下方实时数据条 ══════════════════════════ */
+function updateReadout(){
+  const strip=document.getElementById('coordStrip'); if(!strip) return;
+  if(!state.showReadout){ strip.innerHTML=''; placeLegend(); return; }
+  const lgT=document.getElementById('lgTitle'), lgN=document.getElementById('lgNote');
+  const p=waveParams();
+  let html='';
+  html += kchip('f =', FREQS[state.freqIdx]+' MHz','warn');
+  html += kchip('v =', fmtV());
+  html += kchip('λ =', p.lam.toFixed(2)+' m','acc');
+  html += kchip(state.lossy?'|η| =':'η =', p.eta.toFixed(1)+' Ω');
+  if(state.lossy){
+    html += kchip('α =', p.alpha.toFixed(3)+' Np/m','warn');
+    html += kchip('φ_η =', (p.phiEta*57.2958).toFixed(1)+'°','acc');
+  }
+  html += kchip('S_avg(源面) =', (sAvg(X0)*1000).toFixed(3)+' mW/m²');
+  lgT.textContent=state.lossy?'有耗介质：振幅沿程衰减':'无耗介质：E、H、传播方向两两垂直';
+  lgN.innerHTML=richHTML(state.lossy
+    ? '振幅 e^(−αx) 衰减 · @{E} 超前 @{H} φ_η ≈ 13.3° · 能量被介质吸收'
+    : '@{E}（红·y）⊥ @{H}（蓝·z）⊥ 传播（绿·x）· 同相 · @{S}=@{E}×@{H}');
+  strip.innerHTML=html;
+  placeLegend();
+}
+function updateModeTag(){
+  const t=document.getElementById('modeTag'); if(!t) return;
+  const sb=document.getElementById('moduleSub');
+  t.innerHTML=richHTML('均匀平面波 · f = <b>'+FREQS[state.freqIdx]+' MHz</b> · ε_r = '+state.epsr+
+    ' · '+(state.lossy?'有耗':'无耗')+' · λ = <b>'+waveParams().lam.toFixed(2)+' m</b>');
+  if(sb) sb.innerHTML=richHTML('均匀平面波 · 主仿真');
+}
+
+/* ══════════════════════════════ 主循环 ══════════════════════════════ */
+let needsRender=true;
+function draw(){
+  setupCamera(); ctx.clearRect(0,0,W,H);
+  buildScene();
+  prims.sort((a,b)=>a.z-b.z);
+  for(const p of prims) p.draw(ctx);
+  drawOverlays();
+  const tg=document.getElementById('panTag');
+  if(tg) tg.classList.toggle('show',Math.abs(cam.px)>2||Math.abs(cam.py)>2);
+  needsRender=false;
+}
+/* ⚠️ tick 里的 draw 必须包 try/catch：任何一帧抛异常 ⇒ 渲染循环永久停摆。 */
+let _lastT=0;
+function tick(ts){
+  try{
+    const dt=_lastT?Math.min(0.05,(ts-_lastT)/1000):0.016; _lastT=ts||0;
+    if(state.playing){
+      state.t+=dt;
+      if(state.t>=T_D) state.t-=T_D;
+      needsRender=true;                       /* 波在动 ⇒ 每帧都要重画 */
+    }
+    if(state.autoRotate){ cam.az+=0.0045; needsRender=true; }
+    if(needsRender) draw();
+  }catch(err){ needsRender=false; console.error('draw/tick error:',err); }
+  requestAnimationFrame(tick);
+}
+function updateAll(){ needsRender=true; syncSliders(); updateReadout(); updateModeTag(); }
+function playPause(){ state.playing=!state.playing; }
+
+/* ══════════════════════════════ 交互 ══════════════════════════════ */
+let drag=null;
+function localPos(ev){const r=canvas.getBoundingClientRect();return{x:ev.clientX-r.left,y:ev.clientY-r.top};}
+canvas=document.getElementById('cv');
+ctx=canvas.getContext('2d');
+canvas.addEventListener('pointerdown',ev=>{
+  try{ canvas.setPointerCapture(ev.pointerId); }catch(e){}
+  const m=localPos(ev);
+  drag={x:m.x,y:m.y,btn:ev.button,mode:(ev.button===2||ev.ctrlKey)?'pan':'rot'};
+  ev.preventDefault();
+});
+canvas.addEventListener('pointermove',ev=>{
+  const m=localPos(ev);
+  if(!drag) return;
+  const dx=m.x-drag.x, dy=m.y-drag.y; drag.x=m.x; drag.y=m.y;
+  if(drag.mode==='pan'){ cam.px+=dx; cam.py+=dy; needsRender=true; }
+  else { cam.az-=dx*0.0075; cam.el=Math.max(-1.45,Math.min(1.45,cam.el+dy*0.0062)); needsRender=true; }
+});
+canvas.addEventListener('pointerup',()=>{ drag=null; });
+canvas.addEventListener('pointercancel',()=>{ drag=null; });
+canvas.addEventListener('contextmenu',e=>e.preventDefault());
+canvas.addEventListener('wheel',e=>{e.preventDefault();cam.zoom=Math.max(.45,Math.min(3.2,cam.zoom*(e.deltaY<0?1.09:1/1.09)));needsRender=true;},{passive:false});
+function resetView(){ cam.az=CAM0.az; cam.el=CAM0.el; cam.zoom=1.05; cam.px=0; cam.py=0; needsRender=true; }
+document.getElementById('btnViewReset').onclick=resetView;
+document.getElementById('btnRotate').onclick=e=>{state.autoRotate=!state.autoRotate;e.target.classList.toggle('on',state.autoRotate);};
+document.getElementById('btnPanReset').onclick=()=>{cam.px=0;cam.py=0;needsRender=true;};
+function bindFold(bid,cls){document.getElementById(bid).onclick=()=>{document.body.classList.toggle(cls);setTimeout(resize,60);setTimeout(resize,260);};}
+bindFold('foldNav','nav-off'); bindFold('foldPanel','panel-off');
+document.getElementById('tglNav').onclick=()=>{document.body.classList.toggle('nav-off');setTimeout(resize,260);};
+document.getElementById('tglPanel').onclick=()=>{document.body.classList.toggle('panel-off');setTimeout(resize,260);};
+window.addEventListener('keydown',e=>{if(e.target.tagName==='INPUT')return;
+  if(e.key==='['){document.body.classList.toggle('nav-off');setTimeout(resize,260);}
+  if(e.key===']'){document.body.classList.toggle('panel-off');setTimeout(resize,260);}});
+
+/* ══════════ 右侧面板：拖动抓取条自由调整宽度 ══════════ */
+const PANEL_W0=398, PANEL_WMIN=260;
+const panelEl=document.getElementById('panel'), panelRz=document.getElementById('panelResizer');
+function panelMaxW(){
+  const navW=document.body.classList.contains('nav-off')?0:236;
+  return Math.max(PANEL_WMIN+60, Math.min(760, window.innerWidth-navW-330));
+}
+function setPanelW(px,save){
+  const w=Math.max(PANEL_WMIN, Math.min(panelMaxW(), Math.round(px)));
+  document.documentElement.style.setProperty('--panel-w', w+'px');
+  if(save){ try{ localStorage.setItem('em58-panel-w', String(w)); }catch(e){} }
+  return w;
+}
+(()=>{ let v=0; try{ v=parseInt(localStorage.getItem('em58-panel-w')||'0',10)||0; }catch(e){}
+      if(v>=PANEL_WMIN) setPanelW(v,false); })();
+let _rz=null;
+function rzEnd(){
+  if(_rz) setPanelW(panelEl.getBoundingClientRect().width,true);
+  _rz=null; document.body.classList.remove('resizing'); panelRz.classList.remove('dragging');
+}
+panelRz.addEventListener('pointerdown',ev=>{
+  if(document.body.classList.contains('panel-off')) return;
+  try{ panelRz.setPointerCapture(ev.pointerId); }catch(e){}
+  _rz={x:ev.clientX, w:panelEl.getBoundingClientRect().width};
+  document.body.classList.add('resizing'); panelRz.classList.add('dragging');
+  ev.preventDefault();
+});
+panelRz.addEventListener('pointermove',ev=>{ if(!_rz) return; setPanelW(_rz.w-(ev.clientX-_rz.x), false); });
+panelRz.addEventListener('pointerup',rzEnd);
+panelRz.addEventListener('pointercancel',rzEnd);
+panelRz.addEventListener('dblclick',()=>setPanelW(PANEL_W0,true));
+window.addEventListener('resize',()=>{ const cur=panelEl.getBoundingClientRect().width;
+  if(cur>panelMaxW()) setPanelW(cur,true); });
+
+/* ══════════════════════════════ 相机与启动 ══════════════════════════════ */
+const CAM0={az:-0.95, el:0.42};
+
+function resize(){
+  const r=canvas.getBoundingClientRect();
+  const nw=Math.max(60,Math.round(r.width)),nh=Math.max(60,Math.round(r.height));
+  DPR=Math.min(2,window.devicePixelRatio||1);
+  if(nw===W&&nh===H&&canvas.width===Math.round(nw*DPR))return;
+  W=nw;H=nh;canvas.width=Math.round(W*DPR);canvas.height=Math.round(H*DPR);
+  ctx.setTransform(DPR,0,0,DPR,0,0); needsRender=true;
+  placeLegend();
+}
+new ResizeObserver(()=>resize()).observe(canvas);
+
+const nav=document.getElementById('nav');
+NAV.forEach(g=>{nav.appendChild(h('<div class="nav-ch">'+g.ch+'</div>'));
+  g.items.forEach(it=>{const cls='nav-item'+(it.active?' active':'')+(it.ready?'':' soon');
+    nav.appendChild(h('<a class="'+cls+'" '+(it.href?'href="'+it.href+'"':'')+'><span class="dot"></span>'+it.t+'</a>'));});});
+
+cam.az=CAM0.az; cam.el=CAM0.el; cam.zoom=1.05;
+resize();
+renderPanel();
+updateAll();
+tick(0);
+
+</script>
+</body>
+</html>
