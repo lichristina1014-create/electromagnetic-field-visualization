@@ -21,3 +21,13 @@ tests/3.2-static-field/shots/
 # 5.8 装配中间产物 / 截图（同 3.2 规则）
 tests/5.8-wave-lab/_inline.js
 tests/5.8-wave-lab/shots/
+
+# 5.1/5.2/5.4/5.6 装配中间产物与截图（同 3.2 规则）
+tests/5.1-faraday/_inline.js
+tests/5.1-faraday/shots/
+tests/5.2-displacement/_inline.js
+tests/5.2-displacement/shots/
+tests/5.4-boundary/_inline.js
+tests/5.4-boundary/shots/
+tests/5.6-poynting/_inline.js
+tests/5.6-poynting/shots/
