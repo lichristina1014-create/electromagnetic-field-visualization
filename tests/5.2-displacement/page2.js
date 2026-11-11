@@ -137,7 +137,7 @@ canvas.addEventListener('pointerup',()=>{ drag=null; });
 canvas.addEventListener('pointercancel',()=>{ drag=null; });
 canvas.addEventListener('contextmenu',e=>e.preventDefault());
 canvas.addEventListener('wheel',e=>{e.preventDefault();cam.zoom=Math.max(.45,Math.min(3.2,cam.zoom*(e.deltaY<0?1.09:1/1.09)));needsRender=true;},{passive:false});
-document.getElementById('btnViewReset').onclick=()=>{ cam.az=CAM0.az; cam.el=CAM0.el; cam.zoom=1.1; cam.px=0; cam.py=0; needsRender=true; };
+document.getElementById('btnViewReset').onclick=()=>{ cam.az=CAM0.az; cam.el=CAM0.el; cam.zoom=1.15; cam.px=0; cam.py=0; needsRender=true; };
 document.getElementById('btnRotate').onclick=e=>{state.autoRotate=!state.autoRotate;e.target.classList.toggle('on',state.autoRotate);};
 document.getElementById('btnPanReset').onclick=()=>{cam.px=0;cam.py=0;needsRender=true;};
 function bindFold(bid,cls){document.getElementById(bid).onclick=()=>{document.body.classList.toggle(cls);setTimeout(resize,60);setTimeout(resize,260);};}
@@ -183,7 +183,7 @@ window.addEventListener('resize',()=>{ const cur=panelEl.getBoundingClientRect()
   if(cur>panelMaxW()) setPanelW(cur,true); });
 
 /* ══════════════════════════════ 相机与启动 ══════════════════════════════ */
-const CAM0={az:-0.9, el:0.5};
+const CAM0={az:-1.10, el:0.95};
 
 function resize(){
   const r=canvas.getBoundingClientRect();
@@ -201,7 +201,7 @@ NAV.forEach(g=>{nav.appendChild(h('<div class="nav-ch">'+g.ch+'</div>'));
   g.items.forEach(it=>{const cls='nav-item'+(it.active?' active':'')+(it.ready?'':' soon');
     nav.appendChild(h('<a class="'+cls+'" '+(it.href?'href="'+it.href+'"':'')+'><span class="dot"></span>'+it.t+'</a>'));});});
 
-cam.az=CAM0.az; cam.el=CAM0.el; cam.zoom=1.1;
+cam.az=CAM0.az; cam.el=CAM0.el; cam.zoom=1.15;
 resize();
 renderPanel();
 updateAll();

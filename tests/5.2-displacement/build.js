@@ -36,11 +36,11 @@ for(const must of ['const pt=(x,y,z)','const vcross=','const D2R=','function par
   if(!engine.includes(must)) throw new Error('❌ 引擎段缺：'+must);
 }
 
-/* ★ 5.2 的场景是 x∈[−0.5,0.5] 的横向电路（半宽 ~0.55 ⇒ 0.58） */
+/* ★ 5.2 的场景是 x∈[−0.60,0.60] 的横向电路 + r=0.33 的 B 环 ⇒ 半宽 0.70 */
 const engReps=[
-  ['let cs=Math.min(W,H)/3.2*cam.zoom;', 'let cs=Math.min(W,H)/2.4*cam.zoom;'],
+  ['let cs=Math.min(W,H)/3.2*cam.zoom;', 'let cs=Math.min(W,H)/1.2*cam.zoom;'],
   ['const HALF_SCENE=0.92;             /* 场景在屏幕水平方向的半宽（世界单位；②③ 实测 0.81，① 取 0.90） */',
-   'const HALF_SCENE=0.58;             /* 5.2：横向电路半宽 0.5 + 标注留白 ⇒ 0.58 */'],
+   'const HALF_SCENE=0.60;             /* 5.2：两盘 + 大 B 环，横向半宽 0.60 */'],
 ];
 for(const [a,b] of engReps){
   const n=engine.split(a).length-1;

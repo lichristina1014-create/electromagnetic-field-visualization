@@ -12,7 +12,7 @@ text=function(p,s,o){ o=o||{};
   boxes.push({s:String(s),x0:x0,x1:x0+lo.w,y0:ay-size*0.72,y1:ay+size*0.72});
   return Otext(p,s,o);
 };
-const CAMS=[[-0.9,0.5],[-0.4,0.8],[0.7,0.6],[2.2,0.35]];
+const CAMS=[[-1.10,0.95],[-0.45,0.75],[0.65,0.60],[2.20,0.35]];
 let scenes=0, labels=0, worst=0, worstTag='';
 function grab(extra){
   boxes.length=0;

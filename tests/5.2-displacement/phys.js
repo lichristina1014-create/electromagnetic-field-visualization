@@ -21,12 +21,14 @@
    ============================================================================ */
 
 /* ============================== 几何尺度 ============================== */
-const PL_X   = 0.10;           /* 极板位置 x=∓PL_X / +PL_X（间隙 0.20 m） */
-const PL_H   = 0.13;           /* 极板半高（y 方向） */
-const WIRE_X = 0.50;           /* 导线端点 x=±0.5 */
-const S_PLATE= 0.018;          /* 极板面积 m²（0.15×0.12 示意） */
-const LOOP_X1= -0.30;          /* 安培环 L1：套导线 */
-const LOOP_X2=  0.0;           /* 安培环 L2：套间隙 */
+const PL_X   = 0.19;           /* 极板位置 x=∓PL_X（参考图：两盘间距约为盘径的 1.2 倍） */
+const PL_R   = 0.16;           /* 极板（圆盘）半径 —— 参考教材图：圆盘正对 */
+const PL_T   = 0.028;          /* 圆盘厚度（画成有厚度的金属盘，而不是纸片） */
+const WIRE_X = 0.60;           /* 导线端点 x=±WIRE_X */
+const S_PLATE= Math.PI*PL_R*PL_R;  /* 极板面积 m²（πR²） */
+const LOOP_X1= -0.42;          /* 安培环 L1：套左侧导线 */
+const LOOP_X2=  0.0;           /* 安培环 L2：套间隙（穿过 a、b 两点） */
+const R_BIG  = 0.33;           /* B 场大环半径（套住整个电容器，教材图的大椭圆） */
 const N_LP   = 64;
 
 /* ============================== 状态 ============================== */
@@ -41,10 +43,11 @@ const state = {
   showReadout:true,
   autoRotate:false,
   cardTab:'1',
-  /* ⚠️⚠️ 键必须与 SHOW_ITEMS（page1.js）逐字对齐 */
-  show:{ wire:true, car:true, plate:true, egap:true, loop:true, surf:true },
+  /* ⚠️⚠️ 键必须与 SHOW_ITEMS（page1.js）逐字对齐
+     ★ 首屏只留教材图元素：盘、E、B 环与标注；载流子/曲面按需打开 */
+  show:{ wire:true, car:false, plate:true, egap:true, loop:true, surf:false },
 };
-const E0_RANGE=[50,200], F_RANGE=[0.2,2], R_LOOP_RANGE=[0.06,0.20];
+const E0_RANGE=[50,200], F_RANGE=[0.2,2], R_LOOP_RANGE=[0.06,0.34];
 function clampState(){
   const cl=(v,lo,hi)=>Math.max(lo,Math.min(hi,v));
   state.E0=cl(state.E0,E0_RANGE[0],E0_RANGE[1]);
@@ -64,7 +67,12 @@ function dEdt(t){ return state.E0*1e3*OM()*Math.cos(OM()*t); }   /* V/(m·s) */
 function qPlate(t){ return EPS0*gapE(t)*S_PLATE; }               /* C */
 function conductionI(t){ return EPS0*S_PLATE*dEdt(t); }          /* A */
 function displaceI(t){ return EPS0*S_PLATE*dEdt(t); }            /* A（≡ I_c） */
-function bLoop(r,t){ return MU0*conductionI(t)/(2*Math.PI*r); }  /* T */
+function bLoop(r,t){ return MU0*conductionI(t)/(2*Math.PI*r); }  /* T（套导线的环，包围全部 I_c） */
+/* 套间隙的环：包围的位移电流 = J_d·min(πr², S_板) —— 环大过极板后饱和（对偶 5.1 的 ℰ 饱和） */
+function bGap(r,t){
+  const frac=Math.min(1, r*r/(PL_R*PL_R));
+  return MU0*displaceI(t)*frac/(2*Math.PI*r);
+}
 /* 位移电流密度 J_d（A/m²） */
 function jdAt(t){ return EPS0*dEdt(t); }
 

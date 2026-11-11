@@ -42,19 +42,23 @@ const near=(a,b,eps)=>{ eps=(eps==null?1e-9:eps); return Math.abs(a-b)<=eps*Math
   }
   /* B ∝ 1/r */
   n++; if(!near(bLoop(0.20,0.1), bLoop(0.10,0.1)/2, 1e-12)) fails.push('B 不 ∝ 1/r');
+  /* 间隙环：r<R 只包围 (r/R)²·I_d；r≥R 包围全部 I_d，与导线环外场一致 */
+  n++; if(!near(bGap(0.08,0.1), bLoop(0.08,0.1)*(0.08/PL_R)*(0.08/PL_R), 1e-12)) fails.push('r<R 的包围电流比例错');
+  n++; if(!near(bGap(PL_R,0.1), bLoop(PL_R,0.1), 1e-12)) fails.push('r=R 不连续');
+  n++; if(!near(bGap(0.32,0.1), bLoop(0.32,0.1), 1e-12)) fails.push('r>R 未饱和为全电流外场');
   /* B 的方向：I>0 时 bDir 与右手定则一致（θ=0 处 B 沿 +z） */
   n++; { state.t=0.1; const sgn=Math.sign(conductionI(state.t));
     const d=bDir(0,sgn);
     if(!(sgn>0 ? d.z>0 : d.z<0)) fails.push('B 方向与右手定则相反'); }
   state.rLoop=0.12; state.t=0;
-  group('② 环上磁场（B=μ₀I/2πr / ∝1/r / 右手定则）', n, fails);
+  group('② 环上磁场（全电流外场 / 间隙内包围比例 / 饱和 / 右手定则）', n, fails);
 }
 
 /* ============ ③ 参数钳制 + 影响方向 ============ */
 {
   const fails=[]; let n=0;
   state.E0=10; clampState(); n++; if(state.E0!==50) fails.push('E0 下限没钳');
-  state.rLoop=0.5; clampState(); n++; if(state.rLoop!==0.20) fails.push('rLoop 上限没钳');
+  state.rLoop=0.5; clampState(); n++; if(state.rLoop!==0.34) fails.push('rLoop 上限没钳');
   state.fHz=0; clampState(); n++; if(state.fHz!==0.2) fails.push('fHz 下限没钳');
   state.t=-2; clampState(); n++; if(state.t<0||state.t>=periodT()) fails.push('t 没折回');
   /* E₀ 加倍 ⇒ I 峰值加倍；f 加倍 ⇒ I 峰值加倍 */
