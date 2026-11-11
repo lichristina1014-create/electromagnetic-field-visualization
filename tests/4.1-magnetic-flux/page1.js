@@ -82,11 +82,12 @@ function curMarks(x,y,sign,zs){
     arrow(pt(x,y,z-0.105*sign),pt(x,y,z+0.105*sign),{color:CUR_HEX,w:3.2,z:ZL,headScale:0.85});
   });
 }
-/* 圆上的切向小箭头（右手螺旋的方向指示） */
-function ringArrows(cx,cy,r,z,azs,len,col){
+/* 圆上的切向小箭头（右手螺旋的方向指示）；sg=−1 表示电流反向 ⇒ 绕向也反 */
+function ringArrows(cx,cy,r,z,azs,len,col,sg){
+  const k=(sg==null?1:sg);
   azs.forEach(deg=>{
     const phi=deg*D2R, p=pt(cx+r*Math.cos(phi), cy+r*Math.sin(phi), z);
-    arrow(p, vadd(p,vmul(phiHat(phi),len)), {color:col||B_HEX,w:1.9,headScale:0.72,alpha:.9});
+    arrow(p, vadd(p,vmul(phiHat(phi),len*k)), {color:col||B_HEX,w:1.9,headScale:0.72,alpha:.9});
   });
 }
 /* 球壳：透明填充 + 3 条纬线 + 4 条子午线 + 轮廓圆
@@ -133,15 +134,17 @@ function hintLine(s,col,row){ textScreen(16,72+(row||0)*19,s,{size:11.5,color:co
 function drawAmpereScene(){
   /* 导线 1 放在 +x 侧（camU 的 x 分量为负 ⇒ 屏幕上偏左），导线 2 在 −x 侧 */
   const s=sepW(state.d), x1=s/2, x2=-s/2;
-  const d2=state.rev?-1:1;                 /* 导线 2 的电流方向 */
-  const fdir=state.rev?-1:1;               /* 力的方向：+1 = 指向导线 1（相吸） */
+  const sg1=curSgn(state.I1), sg2=curSgn(state.I2);   /* 电流方向：+1 沿 +z（屏幕向上） */
+  const fdir=forceSign();                  /* +1 = 指向导线 1（相吸）／−1 = 背向（相斥）／0 = 无力 */
+  const np=noCurrent();
 
   if(state.show.wire){
     wireV(x1,0); wireV(x2,0);
-    curMarks(x1,0,1,[-0.62,0,0.62]);
-    curMarks(x2,0,d2,[-0.44,0.22,0.66]);
-    text(pt(x1,0,WIRE_Z1+0.10),'@{I}₁',{color:CUR_HEX,bold:true,size:13,align:'center'});
-    text(pt(x2,0,WIRE_Z1+0.10),'@{I}₂',{color:CUR_HEX,bold:true,size:13,align:'center'});
+    curMarks(x1,0,sg1,[-0.62,0,0.62]);
+    curMarks(x2,0,sg2,[-0.44,0.22,0.66]);
+    /* 标签带上方向箭头：让学生一眼看出哪根是"反的" */
+    text(pt(x1,0,WIRE_Z1+0.10),'@{I}₁ '+(sg1>0?'↑':'↓'),{color:CUR_HEX,bold:true,size:13,align:'center'});
+    text(pt(x2,0,WIRE_Z1+0.10),'@{I}₂ '+(sg2>0?'↑':'↓'),{color:CUR_HEX,bold:true,size:13,align:'center'});
     dimLine(pt(x2,0,-0.86),pt(x1,0,-0.86),
       {color:C.muted,w:1.2,label:'d = '+state.d.toFixed(3)+' m',lsize:11.5,ldy:13});
   }
@@ -150,27 +153,33 @@ function drawAmpereScene(){
   if(state.show.bcir){
     [0.34,-0.34].forEach((z,k)=>{
       curve(ringPts3(x1,0,s,z,48),{color:hexA(B_HEX,0.55),w:1.35,dash:k?[5,4]:null});
-      ringArrows(x1,0,s,z,k?[20,200]:[70,250],0.085);
+      if(Math.abs(state.I1)>1e-9) ringArrows(x1,0,s,z,k?[20,200]:[70,250],0.085,B_HEX,sg1);
     });
   }
 
   if(state.show.force){
-    /* B₁₂：导线 1 在导线 2 处的场 —— 方向正是那一圈圆的切向（−ŷ） */
+    /* B₁₂：导线 1 在导线 2 处的场 —— 方向正是那一圈圆的切向（I₁ 沿 +z 时为 −ŷ，反向则 +ŷ） */
     const B12=bLine(state.I1,state.d);
-    const lb=Math.max(0.09,Math.min(0.34,0.34*B12/4e-5));
-    arrow(pt(x2,0,0.14),pt(x2,-lb,0.14),
-      {color:B_HEX,w:2.6,z:ZL,headScale:0.95,label:'@{B}₁₂',lsize:11.5,ldx:-4,ldy:-9});
+    if(Math.abs(state.I1)>1e-9){
+      const lb=Math.max(0.09,Math.min(0.34,0.34*B12/4e-5));
+      arrow(pt(x2,0,0.14),pt(x2,-sg1*lb,0.14),
+        {color:B_HEX,w:2.6,z:ZL,headScale:0.95,label:'@{B}₁₂',lsize:11.5,ldx:-4,ldy:-9});
+    }
 
     /* 力：一对等大反向的箭头（牛顿第三定律）；长度线性 + 上下限钳制 */
-    const F=fTotal(state.I1,state.I2,state.d,state.La);
-    const lf=Math.min(fArrowLen(F), s*0.42);   /* ⚠️ 上限 0.42·s：两支箭头各占半段，中间留空隙不叠 */
-    arrow(pt(x2,0,-0.12),pt(x2+fdir*lf,0,-0.12),
-      {color:F_HEX,w:4.0,z:ZL,label:'@{F}₂₁',lsize:12.5,ldy:-11});
-    arrow(pt(x1,0,-0.12),pt(x1-fdir*lf,0,-0.12),
-      {color:F_HEX,w:4.0,z:ZL,label:'@{F}₁₂',lsize:12.5,ldy:15});
+    if(fdir!==0){
+      const F=fTotal(state.I1,state.I2,state.d,state.La);
+      const lf=Math.min(fArrowLen(F), s*0.42);   /* ⚠️ 上限 0.42·s：两支箭头各占半段，中间留空隙不叠 */
+      arrow(pt(x2,0,-0.12),pt(x2+fdir*lf,0,-0.12),
+        {color:F_HEX,w:4.0,z:ZL,label:'@{F}₂₁',lsize:12.5,ldy:-11});
+      arrow(pt(x1,0,-0.12),pt(x1-fdir*lf,0,-0.12),
+        {color:F_HEX,w:4.0,z:ZL,label:'@{F}₁₂',lsize:12.5,ldy:15});
+    }
   }
   hintLine('@{B}₁ 绕导线 1 成圈；半径 = d 的那圈恰好穿过导线 2', B_HEX);
-  hintLine(state.rev?'反向电流 ⇒ 相斥（力背向导线 1）':'同向电流 ⇒ 相吸（力指向导线 1）', F_HEX, 1);
+  hintLine(np ? '有一根导线没通电流 ⇒ 没有 @{B}₁₂，也就没有力'
+              : (sameDir() ? '两根电流同向（同号）⇒ 相吸：两支力互指'
+                           : '两根电流反向（异号）⇒ 相斥：两支力背指'), F_HEX, 1);
 }
 
 /* ══════════════════════════ ② 磁感应强度 ══════════════════════════ */
@@ -344,7 +353,7 @@ function sArrow(xa,xb,y,col){
 function drawInsetAmpere(){
   if(!state.show.inset || W<560) return;
   const w=282, h=112, x0=14, y0=H-h-14;
-  const cur=state.rev?1:0;                       /* 当前处在哪一联 */
+  const cur=noCurrent()? -1 : (sameDir()?0:1);    /* 当前落在哪一联（−1 = 没有电流，都不高亮） */
   (()=>{
     crd(x0,y0,w,h);
     txt(x0+11,y0+15,'对照：只看两根导线的电流方向',{size:11,bold:true,color:'#1F3D4C'});
@@ -439,18 +448,22 @@ function currentCard(){
   if(state.mode==='ampere'){
     const B=bLine(state.I1,state.d), FL=fPerLen(state.I1,state.I2,state.d);
     const F=FL*state.La;
+    const sg1=curSgn(state.I1), sg2=curSgn(state.I2);
+    const np=noCurrent();
     return ['安培力 · 两根平行导线',[
-      ['导线 1 的电流 I₁', state.I1.toFixed(1)+' A（沿 +z）'],
-      ['导线 2 的电流 I₂', state.I2.toFixed(1)+' A（'+(state.rev?'沿 −z':'沿 +z')+'）'],
+      ['导线 1 的电流 I₁', state.I1.toFixed(1)+' A（'+(sg1>0?'沿 +z ↑':'沿 −z ↓')+'）'],
+      ['导线 2 的电流 I₂', state.I2.toFixed(1)+' A（'+(sg2>0?'沿 +z ↑':'沿 −z ↓')+'）'],
       ['导线间距 d', state.d.toFixed(3)+' m'],
       ['受力的那一段长度 L', state.La.toFixed(2)+' m'],
       ['§ 导线 1 在导线 2 处产生的场'],
-      ['　B₁₂ = µ₀I₁/(2πd)', fmtSmart(B*1e6,'µT')],
+      ['　B₁₂ = µ₀|I₁|/(2πd)', fmtSmart(B*1e6,'µT')],
       ['§ 安培力'],
-      ['　F/L = µ₀I₁I₂/(2πd)', fmtSmart(FL*1e6,'µN/m')],
+      ['　F/L = µ₀|I₁I₂|/(2πd)', fmtSmart(FL*1e6,'µN/m')],
       ['　F = (F/L)·L', fmtSmart(F*1e6,'µN')],
       ['§ 方向'],
-      ['　两电流', state.rev?'反向 ⇒ 相斥':'同向 ⇒ 相吸', state.rev?'#A8442F':'#0E6E4A'],
+      ['　两电流', np?'有一根为 0 ⇒ 无作用力'
+                     :(sameDir()?'同号（同向）⇒ 相吸':'异号（反向）⇒ 相斥'),
+       np?'#5F7482':(sameDir()?'#0E6E4A':'#A8442F')],
     ],244];
   }
   if(state.mode==='field'){
@@ -517,7 +530,7 @@ function subNote(){
     return '<b>力不是导线拉导线</b>：导线 1 先在自己周围产生 @{B}₁，'+
       '处在场里的导线 2 再受力 @{F} = @{I}₂d@{l}₂ × @{B}₁。<br>'+
       '画面上半径正好等于间距的那一圈圆<b>恰好穿过导线 2</b>，那里的 @{B}₁₂ 就沿圆的切向。'+
-      '按「翻转导线 2 的电流」看相吸 ⇄ 相斥。';
+      '点「反向（+10 / −10）」看两支力箭头当场掉头（大小一点不变）。';
   if(state.mode==='field')
     return '<b>@{B} 的方向沿圆周切向</b>（右手螺旋：拇指顺电流，四指绕向即 @{B} 的绕向），'+
       '<b>大小 1/r 衰减</b> —— 箭头近长远短。<br>'+
@@ -597,9 +610,13 @@ function renderSubSec(sec){
   });
   sec.appendChild(h('<div class="ex-note" style="margin-top:7px">'+richHTML(subNote())+'</div>'));
 }
+/* 电流读数：负号用全角 − 与卡片一致。
+   ⚠️ 不要再往后加 ↑/↓ —— 值单元格只放得下 ~7 个字，"−10.0 A ↓" 会折行（实测）。
+      方向交给：画布导线顶部标签、信息卡"沿 ±z"、数据条"同号/异号"、以及力箭头本身。 */
+const fmtI=v=>(v<0?'−':'')+Math.abs(v).toFixed(1)+' A';
 /* ⚠️ 这里的格式必须与 mkRange 建滑块时的 fmt **完全一致**（syncSliders 会反复调用）。 */
 const SLIDER_FMT={
-  I1:v=>v.toFixed(1)+' A', I2:v=>v.toFixed(1)+' A',
+  I1:fmtI, I2:fmtI,
   d:v=>v.toFixed(3)+' m',  La:v=>v.toFixed(2)+' m',
   If:v=>v.toFixed(1)+' A', rp:v=>v.toFixed(3)+' m',
   th:v=>v.toFixed(0)+'°',  B3:v=>v.toFixed(0)+' mT', A3:v=>v.toFixed(2)+' dm²',
@@ -618,22 +635,30 @@ function renderSliders(sec){
   if(state.mode==='ampere'){
     sec.appendChild(h('<div class="slider-group-label">两根平行导线</div>'));
     mkRange(sec,{k:'I1',label:'导线 1 的电流 I₁',wide:true,min:I1_RANGE[0],max:I1_RANGE[1],step:0.5,
-      get:()=>state.I1,set:v=>{state.I1=v;},fmt:v=>v.toFixed(1)+' A'});
+      get:()=>state.I1,set:v=>{state.I1=v;},fmt:fmtI});
     mkRange(sec,{k:'I2',label:'导线 2 的电流 I₂',wide:true,min:I2_RANGE[0],max:I2_RANGE[1],step:0.5,
-      get:()=>state.I2,set:v=>{state.I2=v;},fmt:v=>v.toFixed(1)+' A'});
+      get:()=>state.I2,set:v=>{state.I2=v;},fmt:fmtI});
     mkRange(sec,{k:'d',label:'导线间距 d',wide:true,min:D_RANGE[0],max:D_RANGE[1],step:0.001,
       get:()=>state.d,set:v=>{state.d=v;},fmt:v=>v.toFixed(3)+' m'});
     mkRange(sec,{k:'La',label:'受力的那一段长度 L',wide:true,min:LA_RANGE[0],max:LA_RANGE[1],step:0.02,
       get:()=>state.La,set:v=>{state.La=v;},fmt:v=>v.toFixed(2)+' m'});
     btnRow(sec,[
-      {t:'翻转导线 2 的电流（同向 ⇄ 反向）', col:'p', on:state.rev,
-        act:()=>{ state.rev=!state.rev; renderPanel(); updateAll(); }},
-      {t:'回到默认', on:Math.abs(state.I1-10)<1e-9&&Math.abs(state.d-0.05)<1e-9,
+      {t:'同向（+10 / +10）⇒ 相吸', col:'p',
+        on:Math.abs(state.I1-10)<1e-9 && Math.abs(state.I2-10)<1e-9,
+        act:()=>{ state.I1=10; state.I2=10; renderPanel(); updateAll(); }},
+      {t:'反向（+10 / −10）⇒ 相斥', col:'p',
+        on:Math.abs(state.I1-10)<1e-9 && Math.abs(state.I2+10)<1e-9,
+        act:()=>{ state.I1=10; state.I2=-10; renderPanel(); updateAll(); }},
+      {t:'翻转 I₂ 的符号', on:false,
+        act:()=>{ state.I2=-state.I2; renderPanel(); updateAll(); }},
+      {t:'回到默认', on:Math.abs(state.I1-10)<1e-9&&Math.abs(state.I2-10)<1e-9&&Math.abs(state.d-0.05)<1e-9,
         act:()=>{ Object.assign(state,PRESET.ampere); renderPanel(); updateAll(); }},
     ]);
     sec.appendChild(h('<div class="ex-note" style="margin-top:9px">'+richHTML(
+      '⭐ <b>把 I₂ 的滑块拖过 0</b>：电流方向当场翻成 ↓，两支橙色力箭头会从"互指"翻成"背指" —— '+
+      '<b>同号 ⇒ 相吸，异号 ⇒ 相斥</b>，这就是安培力最反直觉的一点。<br>'+
       '力箭头长度<b>线性</b>对应 F，太长/太短都截在上下限内（只为看得见，读数看卡片）。<br>'+
-      '💡 把 <b>d 拖小</b>：B₁₂ 与 F 同时变大（都按 1/d）；把 <b>I₂ 拖到最小</b>：F 变小但 B₁₂ 不变 —— '+
+      '💡 把 <b>d 拖小</b>：B₁₂ 与 F 同时变大（都按 1/d）；把 <b>I₂ 拖近 0</b>：F 变小但 B₁₂ 不变 —— '+
       '<b>B₁₂ 只由导线 1 决定</b>，这正是"场"与"力"必须分开讲的理由。')+'</div>'));
   } else if(state.mode==='field'){
     sec.appendChild(h('<div class="slider-group-label">同一根长直导线</div>'));

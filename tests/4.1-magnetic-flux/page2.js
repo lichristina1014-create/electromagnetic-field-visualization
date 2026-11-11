@@ -12,7 +12,7 @@ const CARDS={
     {k:'1',tab:'1. 相吸与相斥',cls:'c1',body:
       '两根导线并排放、都通电，它们会互相推或拉。实验结果只有一句话：'+
       '<div class="frm">同向电流相吸，反向电流相斥</div>'+
-      '<ul><li>按<b>「翻转导线 2 的电流」</b>：力的箭头立刻掉头，<b>大小一点不变</b></li>'+
+      '<ul><li>把 <b>I₂ 的滑块拖过 0</b>（或点「翻转 I₂ 的符号」）：力的箭头立刻掉头，<b>大小一点不变</b></li>'+
       '<li>两根导线受到的力<b>等大反向</b>（牛顿第三定律），画面上两支橙箭头就是这样'+
       '（F₂₁ 与 F₁₂）</li>'+
       '<li>把 <b>d 拖小</b>：力迅速变大（按 1/d）；把 <b>L 拖大</b>：力按比例变大</li></ul>'+
@@ -164,14 +164,14 @@ function updateReadout(){
   let html='';
   if(state.mode==='ampere'){
     const B=bLine(state.I1,state.d), FL=fPerLen(state.I1,state.I2,state.d), F=FL*state.La;
-    html += kchip('I₁ =', state.I1.toFixed(1)+' A');
-    html += kchip('I₂ =', state.I2.toFixed(1)+' A（'+(state.rev?'反向':'同向')+'）');
+    html += kchip('I₁ =', fmtI(state.I1));
+    html += kchip('I₂ =', fmtI(state.I2)+'（'+(noCurrent()?'有一根为 0':(sameDir()?'同号':'异号'))+'）');
     html += kchip('d =', state.d.toFixed(3)+' m');
     html += kchip('L =', state.La.toFixed(2)+' m');
-    html += kchip('B₁₂ = µ₀I₁/(2πd) =', fmtSmart(B*1e6,'µT'),'acc');
+    html += kchip('B₁₂ = µ₀|I₁|/(2πd) =', fmtSmart(B*1e6,'µT'),'acc');
     html += kchip('F/L =', fmtSmart(FL*1e6,'µN/m'));
     html += kchip('F =', fmtSmart(F*1e6,'µN'),'warn');
-    html += kchip('方向 =', state.rev?'相斥':'相吸');
+    html += kchip('方向 =', noCurrent()?'无作用力':(sameDir()?'相吸':'相斥'));
     lgT.textContent='安培力 · 两根平行导线';
     lgN.innerHTML=richHTML('蓝圈 = @{B}₁；蓝箭头 = 导线 1 在导线 2 处的 @{B}₁₂；橙箭头 = 安培力');
   } else if(state.mode==='field'){
@@ -217,7 +217,7 @@ function updateModeTag(){
   if(state.mode==='ampere'){
     const F=fTotal(state.I1,state.I2,state.d,state.La);
     t.innerHTML=richHTML('① 安培力 · F = <b>'+fmtSmart(F*1e6,'µN')+'</b>'+
-      '（'+(state.rev?'反向 ⇒ 相斥':'同向 ⇒ 相吸')+'）');
+      '（'+(noCurrent()?'有一根为 0 ⇒ 无作用力':(sameDir()?'同号 ⇒ 相吸':'异号 ⇒ 相斥'))+'）');
     if(sb) sb.innerHTML=richHTML('两根平行载流导线：<b>同向相吸、反向相斥</b>');
   } else if(state.mode==='field'){
     const B=bLine(state.If,state.rp);

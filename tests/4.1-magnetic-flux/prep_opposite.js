@@ -1,0 +1,1 @@
+(()=>{const b=Array.from(document.getElementById("modeTabs").children).find(x=>x.dataset.k==="ampere");b.click();state.I1=10;state.I2=-10;renderPanel();updateAll();draw();return "opposite ok I2="+state.I2+" prims="+prims.length;})()

@@ -73,7 +73,7 @@ const LOOP_A  = 0.10;                    /* 球内小电流环的半径（世界
 const Q4      = 2.0e-9;                  /* 球内电荷 2.00 nC */
 
 /* ============================== 量程 ============================== */
-const I1_RANGE=[1,20], I2_RANGE=[1,20], D_RANGE=[0.02,0.12], LA_RANGE=[0.20,1.00];
+const I1_RANGE=[-20,20], I2_RANGE=[-20,20], D_RANGE=[0.02,0.12], LA_RANGE=[0.20,1.00];
 const I_RANGE =[2,20], RP_RANGE=[0.02,0.50];
 const TH_RANGE=[0,180], B3_RANGE=[10,100], A3_RANGE=[0.5,2.0];
 const R4_RANGE=[0.14,0.34];
@@ -82,9 +82,8 @@ const R4_RANGE=[0.14,0.34];
 const state = {
   mode:'ampere',                /* ampere | field | flux | closed */
   /* ① 安培力 */
-  I1:10,                        /* 导线 1 的电流 A（方向恒 +z） */
-  I2:10,                        /* 导线 2 的电流 A（**幅值**，方向看 rev） */
-  rev:false,                    /* 导线 2 的电流反向 ⇒ 由相吸变相斥 */
+  I1:10,                        /* 导线 1 的电流 A，**带符号**（+ = 沿 +z，− = 沿 −z） */
+  I2:10,                        /* 导线 2 的电流 A，**带符号**；同号相吸、异号相斥 */
   d:0.05,                       /* 两导线间距 m */
   La:0.60,                      /* 参与受力的那一段长度 m */
   /* ② 磁感应强度 */
@@ -109,7 +108,7 @@ const state = {
 };
 /* 每个页签自己的起点（切页签时整体覆盖 ⇒ 每个演示都可复现） */
 const PRESET={
-  ampere:{I1:10, I2:10, rev:false, d:0.05, La:0.60},
+  ampere:{I1:10, I2:10, d:0.05, La:0.60},
   field: {If:10, rp:0.16},
   flux:  {th:120, B3:40, A3:1.2},
   closed:{R4:0.28},
@@ -135,8 +134,14 @@ function clampState(){
 function fPerLen(I1,I2,d){ return MU0*Math.abs(I1*I2)/(2*Math.PI*Math.max(1e-4,d)); }
 /* 长度 L 上的安培力（N） */
 function fTotal(I1,I2,d,L){ return fPerLen(I1,I2,d)*L; }
-/* 力的方向符号：+1 = 相吸（同向），−1 = 相斥（反向） */
-function forceSign(){ return state.rev ? -1 : 1; }
+/* 力的方向符号：+1 = 相吸（同号电流），−1 = 相斥（异号电流），0 = 有一根没电流 ⇒ 无力
+   ★★ 这里**不要**退回"rev 布尔量 + 幅值"的老写法：方向必须由电流本身的符号决定，
+      学生要能直接把滑块拖过零点，看力箭头当场翻向。 */
+function sameDir(){ return state.I1*state.I2 > 0; }
+function noCurrent(){ return Math.abs(state.I1)<1e-9 || Math.abs(state.I2)<1e-9; }
+function forceSign(){ return noCurrent() ? 0 : (sameDir() ? 1 : -1); }
+/* 电流方向（0 也当 +1，只是那时不画箭头） */
+function curSgn(v){ return v<0 ? -1 : 1; }
 /* 世界间距（屏幕上的两根导线离多远） */
 function sepW(d){
   const u=(d-D_RANGE[0])/(D_RANGE[1]-D_RANGE[0]);

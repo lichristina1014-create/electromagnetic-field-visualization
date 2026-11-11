@@ -42,6 +42,67 @@
   const Fdir2=vcross(vmul(zH,-1),B12);
   T('翻转 @{I}₂ ⇒ F 反向 ⇒ 相斥', Fdir2.x<-0.99, JSON.stringify(Fdir2));
 
+  /* ★★ 带符号电流（2026-11-12 用户要求"电流都是正的看不出吸/斥"）：
+     方向必须由**电流的符号**决定，学生一把滑块拖过零点就该看到力箭头翻向。 */
+  T('电流量程允许取负', I1_RANGE[0]<0 && I2_RANGE[0]<0, I1_RANGE[0]+'…'+I1_RANGE[1]);
+  T('已废弃 rev 布尔量（方向改由电流符号决定）', !('rev' in state));
+  const keepI={I1:state.I1, I2:state.I2};
+  const setI=(a,b)=>{ state.I1=a; state.I2=b; };
+  setI(10,10);
+  T('同号（+10/+10）⇒ 相吸 forceSign=+1', sameDir() && forceSign()===1, forceSign());
+  setI(10,-10);
+  T('异号（+10/−10）⇒ 相斥 forceSign=−1', !sameDir() && forceSign()===-1, forceSign());
+  setI(-10,-10);
+  T('都取负号仍是同向 ⇒ 相吸', sameDir() && forceSign()===1);
+  setI(-10,10);
+  T('I₁<0、I₂>0 仍是异号 ⇒ 相斥', !sameDir() && forceSign()===-1);
+  setI(10,0);
+  T('I₂=0 ⇒ 无作用力（forceSign=0 且 F/L=0）',
+    forceSign()===0 && fPerLen(10,0,0.05)===0, forceSign()+' / '+fPerLen(10,0,0.05));
+  setI(0,10);
+  T('I₁=0 ⇒ 无作用力（没有 @{B} 就没有力）', forceSign()===0 && !(Math.abs(state.I1)>1e-9));
+  /* 电流反向 ⇒ 右手螺旋反过来 ⇒ @{B}₁₂ 翻成 +ŷ（画面上 arrow 用的是 −curSgn(I₁)·lb） */
+  setI(-10,10);
+  const bDir=vmul(pt(0,-1,0), curSgn(state.I1));
+  T('I₁ 反向 ⇒ @{B}₁₂ 翻成 +ŷ', bDir.y>0.99, JSON.stringify(bDir));
+  state.I1=keepI.I1; state.I2=keepI.I2;
+
+  /* 面板上一键切换：点「反向（+10 / −10）⇒ 相斥」应真的把 I₂ 变负并能画出来 */
+  go('ampere');
+  const bRev=Array.from(document.querySelectorAll('#sliderSec button.chip'))
+    .find(b=>/反向（\+10/.test(b.textContent||''));
+  T('面板存在「反向」一键切换', !!bRev);
+  if(bRev){
+    bRev.click();
+    T('点「反向」⇒ I₂ = −10 且 相斥', near(state.I2,-10,1e-9) && forceSign()===-1, state.I2+' / '+forceSign());
+    draw();
+    const nRev=prims.length;
+    const bSame=Array.from(document.querySelectorAll('#sliderSec button.chip'))
+      .find(b=>/同向（\+10/.test(b.textContent||''));
+    if(bSame){ bSame.click(); draw(); }
+    T('两种情形都能画出图元（非空转）', nRev>0, '反向 '+nRev+' 个 / 同向 '+prims.length+' 个');
+  }
+
+  /* ★ 屏幕空间复核：力的箭头必须**真的**互指 / 背指（光把符号算对不算数）
+     ⚠️ 投影方向反直觉：**世界 +x 在屏幕上朝左**（camU.x<0）⇒ 导线 1（+x 侧）出现在**左边**，
+        导线 2（−x 侧）在右边。所以"相吸"时导线 2 那支箭头的屏幕 dx 是**负**的。
+        第一版按直觉写成 >0，两条全红 —— 是断言错、不是画面错。 */
+  const sW=sepW(state.d), X1=sW/2, X2=-sW/2;
+  const arrowDx=(i1,i2)=>{
+    state.I1=i1; state.I2=i2;
+    const lf=Math.min(fArrowLen(fTotal(i1,i2,state.d,state.La)), sW*0.42), fd=forceSign();
+    return {
+      w2: pr(pt(X2+fd*lf,0,-0.12)).x - pr(pt(X2,0,-0.12)).x,
+      w1: pr(pt(X1-fd*lf,0,-0.12)).x - pr(pt(X1,0,-0.12)).x,
+    };
+  };
+  const Aa=arrowDx(10,10), Bb=arrowDx(10,-10);
+  T('（同向）屏幕上两支力箭头互指：尖端相向', Aa.w2<0 && Aa.w1>0,
+    'd2='+Aa.w2.toFixed(1)+'px / d1='+Aa.w1.toFixed(1)+'px');
+  T('（反向）屏幕上两支力箭头背指：尖端朝外', Bb.w2>0 && Bb.w1<0,
+    'd2='+Bb.w2.toFixed(1)+'px / d1='+Bb.w1.toFixed(1)+'px');
+  state.I1=10; state.I2=10;
+
   /* ────────── 2. ② 探针 P 的三矢关系 ────────── */
   /* ⚠️ 探针抬到了 z=PROBE_Z（为了让它不躺在 y 轴上），所以"指向导线"要用**柱坐标**
      的径向 ρ̂ = (0,1,0)，不能拿球坐标的 r̂ 去判 —— 后者带 z 分量，会把 −ρ̂ 判成 −0.496。
