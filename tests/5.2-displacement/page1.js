@@ -147,36 +147,50 @@ function drawJd(){
   const sgn=Math.sign(dE);
   arrow(pt(-0.10*sgn,0.155,0), pt(0.10*sgn,0.155,0), {color:JD_HEX,w:1.7,dash:[4,3],headScale:0.92,z:ZL-2});
 }
-/* 安培环：L1 套导线（x=−0.30）+ L2 套间隙（x=0，穿过 a、b）+ B 场大环 */
+/* B 场环（蓝）+ 安培环 L1/L2（紫，按需显示） */
 function drawLoops(){
-  if(!state.show.loop) return;
-  const r=state.rLoop;
-  /* B 场大环（教材图的大椭圆） */
-  curve(loopPts(LOOP_X2,R_BIG), {color:B_HEX,w:2.0,alpha:0.85,z:ZL-6});
-  /* 测量环 L1 / L2 */
-  curve(loopPts(LOOP_X1,r), {color:'#7B5EA7',w:1.8,alpha:0.95,z:ZL-5});
-  curve(loopPts(LOOP_X2,r), {color:'#7B5EA7',w:1.8,alpha:0.95,z:ZL-5});
-  /* B 切向箭头：大环 8 支 + L2 环 6 支 + L1 环 6 支（方向 = 右手定则） */
-  const I=conductionI(state.t);
-  if(Math.abs(I)>1e-14){
-    const sgn=Math.sign(I);
-    const lenB=clampLen(Math.abs(bGap(R_BIG,state.t))*3e12,0.03,0.09);
-    for(let k=0;k<6;k++){
-      const th=2*Math.PI*k/6;
-      const p0=loopPt(LOOP_X2,R_BIG,th);
-      arrow(p0, vadd(p0, vmul(bDir(th,sgn),lenB)), {color:B_HEX,w:1.8,headScale:0.9,alpha:0.9,z:ZL-2});
-    }
-    const len1=clampLen(Math.abs(bLoop(r,state.t))*3e12,0.03,0.08);
-    const len2=clampLen(Math.abs(bGap(r,state.t))*3e12,0.03,0.08);
-    for(const [x0,lb] of [[LOOP_X1,len1],[LOOP_X2,len2]]){
+  const r=state.rLoop, showB=state.show.bloop, showA=state.show.amp;
+  if(!showB && !showA) return;
+  const I=conductionI(state.t), hasI=Math.abs(I)>1e-14, sgn=hasI?Math.sign(I):1;
+  const lenB=clampLen(Math.abs(bGap(R_BIG,state.t))*3e12,0.03,0.09);
+  const lenIn=clampLen(Math.abs(bGap(r,state.t))*3e12,0.03,0.08);
+  if(showB){
+    /* 教材图：外大环 + 穿过间隙的内环，都是蓝色 B 场线 */
+    curve(loopPts(LOOP_X2,R_BIG), {color:B_HEX,w:2.0,alpha:0.85,z:ZL-6});
+    curve(loopPts(LOOP_X2,r), {color:B_HEX,w:1.9,alpha:0.9,z:ZL-5});
+    if(hasI){
+      for(let k=0;k<6;k++){
+        const th=2*Math.PI*k/6, p0=loopPt(LOOP_X2,R_BIG,th);
+        arrow(p0, vadd(p0, vmul(bDir(th,sgn),lenB)), {color:B_HEX,w:1.8,headScale:0.9,alpha:0.9,z:ZL-2});
+      }
       for(let k=0;k<4;k++){
-        const th=2*Math.PI*k/4 + Math.PI/4;
-        const p0=loopPt(x0,r,th);
-        arrow(p0, vadd(p0, vmul(bDir(th,sgn),lb)), {color:'#7B5EA7',w:1.6,headScale:0.85,z:ZL-1});
+        const th=2*Math.PI*k/4+Math.PI/4, p0=loopPt(LOOP_X2,r,th);
+        arrow(p0, vadd(p0, vmul(bDir(th,sgn),lenIn)), {color:B_HEX,w:1.7,headScale:0.88,alpha:0.9,z:ZL-2});
       }
     }
+    text(pt(LOOP_X2,R_BIG,0), '@{B}', {color:B_HEX,size:13,bold:true,dx:12,dy:-10,z:ZL});
   }
-  /* a、b 两点 + r 标注（教材图：间隙内环上的上下两点） */
+  if(showA){
+    /* 安培环：L1 套导线；L2 套间隙。已有蓝色 B 环时 L2 用紫色虚线叠加 */
+    curve(loopPts(LOOP_X1,r), {color:'#7B5EA7',w:1.8,alpha:0.95,z:ZL-5});
+    curve(loopPts(LOOP_X2,r), {color:'#7B5EA7',w:showB?1.2:1.8,alpha:showB?0.8:0.95,dash:showB?[5,4]:null,z:ZL-4});
+    if(hasI){
+      const len1=clampLen(Math.abs(bLoop(r,state.t))*3e12,0.03,0.08);
+      for(let k=0;k<4;k++){
+        const th=2*Math.PI*k/4+Math.PI/4, p0=loopPt(LOOP_X1,r,th);
+        arrow(p0, vadd(p0, vmul(bDir(th,sgn),len1)), {color:'#7B5EA7',w:1.6,headScale:0.85,z:ZL-1});
+      }
+      if(!showB){
+        for(let k=0;k<4;k++){
+          const th=2*Math.PI*k/4+Math.PI/4, p0=loopPt(LOOP_X2,r,th);
+          arrow(p0, vadd(p0, vmul(bDir(th,sgn),lenIn)), {color:'#7B5EA7',w:1.6,headScale:0.85,z:ZL-1});
+        }
+      }
+    }
+    text(pt(LOOP_X1,r,0), 'L_1', {color:'#7B5EA7',size:11,bold:true,dx:-8,dy:-10,align:'right',z:ZL});
+    text(pt(LOOP_X2,-r,0), 'L_2', {color:'#7B5EA7',size:11,bold:true,dx:20,dy:28,z:ZL});
+  }
+  /* a、b 两点 + r 标注（内环上的上下两点） */
   if(r<PL_R*1.2){
     marker(pt(LOOP_X2,r,0), {r:4.4,color:'#37474F',z:ZL+2});
     marker(pt(LOOP_X2,-r,0), {r:4.4,color:'#37474F',z:ZL+2});
@@ -187,13 +201,10 @@ function drawLoops(){
     arrow(pt(LOOP_X2,0,0), pt(LOOP_X2,r,0), {color:'#26343B',w:1.5,headScale:0.85,z:ZL+5});
     text(pt(LOOP_X2,r*0.55,0), 'r', {color:'#26343B',size:13,bold:true,dx:10,dy:0,align:'left',z:ZL+5});
   }
-  text(pt(LOOP_X2,R_BIG,0), '@{B}', {color:B_HEX,size:13,bold:true,dx:12,dy:-10,z:ZL});
-  text(pt(LOOP_X1,r,0), 'L_1', {color:'#7B5EA7',size:11,bold:true,dx:-8,dy:-10,align:'right',z:ZL});
-  text(pt(LOOP_X2,-r,0), 'L_2', {color:'#7B5EA7',size:11,bold:true,dx:20,dy:28,z:ZL});
 }
 /* 曲面：S1 = L1 上的平盘（导线穿过）；S2 = 从 L1 鼓起、穿过极板间隙 */
 function drawSurf(){
-  if(!state.show.surf || !state.show.loop) return;
+  if(!state.show.surf || !state.show.amp) return;
   if(state.surf==='S1'){
     poly(loopPts(LOOP_X1,state.rLoop), {fill:SURF_HEX,stroke:SURF_HEX,w:1.2,fillAlpha:0.16,strokeAlpha:0.8,z:ZL-6});
     textScreen(12,62, 'S_1 平盘：导线穿过 ⇒ 有 I_c', {color:SURF_HEX,size:11.5,bold:true});
@@ -286,7 +297,8 @@ function chipRow(parent,items,isOn,onPick){
 }
 const SHOW_ITEMS=[
   {k:'wire',t:'导线与 i_C'},{k:'car',t:'载流子'},{k:'plate',t:'圆盘极板与电荷'},
-  {k:'egap',t:'间隙 @{E} 与 @{J}_d'},{k:'loop',t:'安培环与 @{B} 环'},{k:'surf',t:'曲面 S_1/S_2'},
+  {k:'egap',t:'间隙 @{E} 与 @{J}_d'},{k:'bloop',t:'@{B} 场环'},{k:'amp',t:'安培环 L_1/L_2'},
+  {k:'surf',t:'曲面 S_1/S_2'},
 ];
 function mkRange(sec,d){
   const r=h('<div class="slider-row'+(d.wide?' w':'')+'"><label>'+richHTML(d.label)+'</label>'+
@@ -342,7 +354,7 @@ function renderSliders(sec){
   sec.appendChild(h('<div class="slider-group-label q" style="margin-top:10px">曲面选择（同一个环 L_1）</div>'));
   chipRow(sec,[{k:'s1',t:'S_1 平盘（导线穿过）'},{k:'s2',t:'S_2 鼓起（穿过极板间隙）'}],
     k=>(state.surf==='S1')===(k==='s1'),
-    k=>{ state.surf=(k==='s1')?'S1':'S2'; state.show.surf=true; renderPanel(); updateAll(); });
+    k=>{ state.surf=(k==='s1')?'S1':'S2'; state.show.surf=true; state.show.amp=true; renderPanel(); updateAll(); });
   sec.appendChild(h('<div class="slider-group-label g" style="margin-top:10px">时间进程</div>'));
   mkRange(sec,{k:'t',label:'时间 t（看 i_C 与 I_d 同步涨落）',wide:true,min:0,max:periodT(),step:0.01,
     get:()=>state.t,set:v=>{state.playing=false; state.t=v;},fmt:v=>'t = '+v.toFixed(2)+' s'});

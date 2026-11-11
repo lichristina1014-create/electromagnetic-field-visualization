@@ -40,19 +40,22 @@ function check(tag,bs){
 }
 const fails=[];
 for(const [az,el] of CAMS){
-  cam.az=az; cam.el=el; cam.zoom=1.1; cam.px=0; cam.py=0;
+  cam.az=az; cam.el=el; cam.zoom=1.15; cam.px=0; cam.py=0;
   for(const surf of ['S1','S2']){
-    for(const t of [0.1, 0.62]){
-      const bs=grab({surf, t});
-      const bad=check('az='+az+'/'+el+' '+surf+' t='+t, bs);
-      if(bad.length) fails.push('az='+az+' el='+el+' '+surf+' t='+t+' → '+bad.slice(0,2).join(' ; '));
+    for(const amp of [false,true]){
+      for(const t of [0.1, 0.62]){
+        const show=Object.assign({},state.show,{amp});
+        const bs=grab({surf, t, show});
+        const bad=check('az='+az+'/'+el+' '+surf+' amp='+amp+' t='+t, bs);
+        if(bad.length) fails.push('az='+az+' el='+el+' '+surf+' amp='+amp+' t='+t+' → '+bad.slice(0,2).join(' ; '));
+      }
     }
   }
 }
 text=Otext;
 ok('视觉：标签不重叠 / 不越界 / 不被信息卡压（'+scenes+' 个画面 × '+labels+' 个标签）', fails.length===0, fails.slice(0,3).join(' ; '));
 R.push('DATA|视觉扫查|画面 '+scenes+' 个　标签 '+labels+' 个　最大重叠 '+(worst*100).toFixed(0)+'%（'+worstTag+'）');
-cam.az=-0.9; cam.el=0.5; cam.zoom=1.1; cam.px=0; cam.py=0;
-state.surf='S1'; state.t=0; needsRender=true;
+cam.az=-1.10; cam.el=0.95; cam.zoom=1.15; cam.px=0; cam.py=0;
+state.surf='S1'; state.t=0; state.show.amp=false; needsRender=true;
 return R.join('\n')+'\nDONE';
 })()

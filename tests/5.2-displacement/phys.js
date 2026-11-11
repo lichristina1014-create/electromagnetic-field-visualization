@@ -44,8 +44,8 @@ const state = {
   autoRotate:false,
   cardTab:'1',
   /* ⚠️⚠️ 键必须与 SHOW_ITEMS（page1.js）逐字对齐
-     ★ 首屏只留教材图元素：盘、E、B 环与标注；载流子/曲面按需打开 */
-  show:{ wire:true, car:false, plate:true, egap:true, loop:true, surf:false },
+     ★ 首屏只留教材图元素：盘、E、蓝色 B 场环与标注；载流子/安培环/曲面按需打开 */
+  show:{ wire:true, car:false, plate:true, egap:true, bloop:true, amp:false, surf:false },
 };
 const E0_RANGE=[50,200], F_RANGE=[0.2,2], R_LOOP_RANGE=[0.06,0.34];
 function clampState(){
