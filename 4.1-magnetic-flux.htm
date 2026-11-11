@@ -1,0 +1,1684 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>4.1 磁感应强度与磁通量 · 电磁场可视化平台</title>
+<style>
+
+:root{--teal:#156082;--teal-dark:#0E4A66;--teal-light:#E3EFF4;--orange:#E97132;--orange-light:#FDF0E7;--green:#3E9B4F;--green-light:#EAF5EC;--purple:#9B59B6;--crimson:#D04A3A;--blue:#0F9ED5;--ink:#1F3D4C;--muted:#5F7482;--line:#DCE6EB;--bg:#F2F6F8;--panel-w:398px;}
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{height:100%;}
+body{font-family:"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--ink);overflow:hidden;}
+header{height:76px;background:#fff;border-bottom:1px solid var(--line);display:flex;align-items:center;padding:0 22px;gap:14px;}
+.logo{width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,var(--teal),#2E86AB);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:15px;text-decoration:none;}
+header h1{font-size:18px;font-weight:700;letter-spacing:.5px;}
+header .sub{font-size:12px;color:var(--muted);margin-top:2px;}
+header .badge{margin-left:auto;display:flex;flex-direction:column;align-items:flex-end;gap:4px;}
+header .badge .chip{font-size:12px;color:var(--teal);background:var(--teal-light);border:1px solid #C5DEE9;padding:4px 12px;border-radius:20px;white-space:nowrap;}
+header .badge .owner{font-size:11px;color:#5C6B73;background:#F4F7F9;border:1px solid #E2E8EC;padding:3px 10px;border-radius:20px;white-space:nowrap;display:inline-flex;align-items:center;gap:5px;}
+header .badge .owner b{color:var(--teal);font-weight:600;letter-spacing:.3px;}
+header .badge .owner::before{content:"";display:inline-block;width:5px;height:5px;background:var(--teal);border-radius:50%;}
+.layout{display:flex;height:calc(100vh - 76px);}
+aside{width:236px;background:#fff;border-right:1px solid var(--line);overflow-y:auto;padding:14px 0;flex-shrink:0;}
+aside::-webkit-scrollbar{width:6px;} aside::-webkit-scrollbar-thumb{background:#D5E0E6;border-radius:3px;}
+.nav-ch{font-size:12px;color:var(--muted);padding:12px 18px 6px;font-weight:600;letter-spacing:.5px;}
+.nav-item{display:flex;align-items:center;gap:8px;padding:9px 18px;font-size:13.5px;cursor:pointer;color:#3D5A68;border-left:3px solid transparent;transition:background .15s;text-decoration:none;}
+.nav-item:hover{background:#F5F9FB;}
+.nav-item.active{background:var(--teal-light);color:var(--teal-dark);font-weight:600;border-left-color:var(--teal);}
+.nav-item .dot{width:6px;height:6px;border-radius:50%;background:#C6D4DB;flex-shrink:0;}
+.nav-item.active .dot{background:var(--teal);}
+.nav-item.soon{color:#A5B6C0;cursor:not-allowed;}
+.nav-item.soon .dot{background:#E1E9ED;}
+.nav-item.soon::after{content:"建设中";font-size:10px;color:#B7C6CE;margin-left:auto;border:1px solid #DCE6EB;border-radius:8px;padding:1px 6px;}
+main{flex:1;display:flex;flex-direction:column;padding:14px 16px 12px;overflow:hidden;min-width:0;}
+.module-head{display:flex;align-items:center;gap:16px;margin-bottom:10px;flex-wrap:wrap;}
+.module-title{font-size:17px;font-weight:700;}
+.module-title small{font-weight:400;color:var(--muted);font-size:12px;margin-left:8px;}
+.seg{display:flex;background:#fff;border:1px solid var(--line);border-radius:10px;padding:3px;gap:2px;flex-wrap:wrap;}
+.seg button{border:none;background:transparent;padding:7px 15px;font-size:13px;border-radius:8px;cursor:pointer;color:var(--muted);font-family:inherit;transition:all .15s;white-space:nowrap;}
+.seg button:hover{color:var(--teal);}
+.seg button.on{background:var(--teal);color:#fff;font-weight:600;box-shadow:0 2px 6px rgba(21,96,130,.3);}
+.content-row{flex:1;display:flex;gap:14px;min-height:0;}
+.canvas-card{flex:1;background:#fff;border:1px solid var(--line);border-radius:14px;position:relative;overflow:hidden;min-width:0;display:flex;flex-direction:column;box-shadow:0 1px 4px rgba(30,60,80,.05);}
+#cv{width:100%;flex:1;min-height:0;min-width:0;display:block;cursor:grab;touch-action:none;}
+#cv:active{cursor:grabbing;}
+.cv-toolbar{position:absolute;top:12px;right:12px;display:flex;gap:8px;z-index:5;}
+.cv-toolbar button{border:1px solid var(--line);background:rgba(255,255,255,.92);border-radius:8px;padding:5px 12px;font-size:12px;color:var(--muted);cursor:pointer;font-family:inherit;backdrop-filter:blur(4px);transition:all .15s;}
+.cv-toolbar button:hover{color:var(--teal);border-color:var(--teal);}
+.cv-toolbar button.on{background:var(--teal);color:#fff;border-color:var(--teal);}
+.cv-mode-tag{position:absolute;top:12px;left:12px;font-size:12px;color:var(--teal-dark);background:rgba(227,239,244,.92);border:1px solid #C9E0EA;border-radius:8px;padding:5px 12px;z-index:4;pointer-events:none;font-weight:600;max-width:56%;}
+aside,.panel{transition:width .22s ease,padding .22s ease,border-width .22s ease;}
+body.nav-off aside{width:0;padding-top:0;padding-bottom:0;border-right-width:0;overflow:hidden;}
+body.panel-off .panel{width:0;border-left-width:0;border-right-width:0;overflow:hidden;}
+.fold-handle{position:absolute;top:50%;transform:translateY(-50%);z-index:6;width:15px;height:58px;padding:0;line-height:1;border:1px solid var(--line);background:rgba(255,255,255,.94);color:#A3B7C2;font-size:11px;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px);transition:all .15s;}
+.fold-handle:hover{color:var(--teal);border-color:var(--teal);background:#fff;}
+#foldNav{left:0;border-left:none;border-radius:0 9px 9px 0;}
+#foldPanel{right:0;border-right:none;border-radius:9px 0 0 9px;}
+/* ★ 右侧面板的**自由宽度**（不只是"收起 / 展开"两态）：面板左缘贴一条拖动抓取条。
+   ⚠️ 拖动时必须把 .panel 的 `transition:width` 关掉（body.resizing），
+      否则宽度会有 0.22s 的追赶延迟，鼠标跑得越快面板越"跟不上"。 */
+.panel-resizer{flex:0 0 11px;width:11px;margin:0 -5px;align-self:stretch;cursor:col-resize;position:relative;z-index:7;}
+.panel-resizer::before{content:"";position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:3px;height:46px;border-radius:2px;background:#DCE6EB;transition:background .15s,height .15s;}
+.panel-resizer:hover::before,.panel-resizer.dragging::before{background:var(--teal);height:72px;}
+body.resizing,body.resizing .panel,body.resizing aside{transition:none!important;}
+body.resizing{user-select:none;cursor:col-resize;}
+body.panel-off .panel-resizer{display:none;}
+.view-toggles{display:flex;gap:6px;margin-right:6px;}
+.view-toggles button{border:1px solid var(--line);background:#fff;border-radius:8px;padding:5px 11px;font-size:12px;color:var(--muted);cursor:pointer;font-family:inherit;transition:all .15s;}
+.view-toggles button:hover{border-color:var(--teal);color:var(--teal);}
+.view-toggles button.on{background:var(--teal);color:#fff;border-color:var(--teal);}
+.cv-pan-tag{position:absolute;top:12px;left:50%;transform:translateX(-50%);z-index:6;font-size:11.5px;color:#8A5A20;background:rgba(255,248,236,.95);border:1px solid #E7C48F;border-radius:8px;padding:5px 12px;display:none;align-items:center;gap:8px;}
+.cv-pan-tag.show{display:flex;}
+.cv-pan-tag button{border:1px solid #E0BE8C;background:#fff;border-radius:6px;padding:2px 9px;font-size:11.5px;color:#8A5A20;cursor:pointer;font-family:inherit;}
+.cv-pan-tag button:hover{background:#8A5A20;color:#fff;border-color:#8A5A20;}
+.cv-legend{position:absolute;bottom:14px;right:14px;z-index:5;background:rgba(255,255,255,.94);border:1px solid var(--line);border-radius:9px;padding:7px 11px 8px;font-size:11px;color:var(--muted);backdrop-filter:blur(4px);pointer-events:none;min-width:130px;}
+.cv-legend .lg-t{font-size:11px;color:var(--ink);font-weight:600;margin-bottom:5px;}
+.cv-legend .lg-note{font-size:10.5px;color:var(--muted);line-height:1.55;margin-top:4px;}
+.coord-strip{display:flex;gap:8px;padding:10px 12px;border-top:1px solid var(--line);background:#FBFDFE;flex-wrap:nowrap;overflow-x:auto;overflow-y:hidden;}
+.coord-strip::-webkit-scrollbar{height:5px;}
+.coord-strip::-webkit-scrollbar-thumb{background:#D5E0E6;border-radius:3px;}
+.coord-strip:empty{padding:0;border-top:none;}
+.coord-chip{font-size:12px;color:var(--muted);background:#F3F8FA;border:1px solid #E2ECF1;border-radius:8px;padding:5px 12px;white-space:nowrap;}
+.coord-chip b{color:var(--teal-dark);font-weight:600;margin-left:5px;font-family:Menlo,monospace;}
+.coord-chip i{font-style:italic;font-family:Georgia,serif;color:var(--ink);}
+.coord-chip.acc{background:#F5F0FA;border-color:#E2D4F0;}
+.coord-chip.acc b{color:#6B4E8A;}
+.coord-chip.warn{background:#FFF6EC;border-color:#F3DCC0;}
+.coord-chip.warn b{color:#B26A1E;}
+/* ⚠️ 面板宽度走 CSS 变量 --panel-w（而不是写死 398px）：拖动抓取条时只改变量，
+   body.panel-off 的 width:0 仍然靠更高优先级生效，两者不打架。 */
+.panel{width:var(--panel-w,398px);flex-shrink:0;background:#fff;border:1px solid var(--line);border-radius:14px;display:flex;flex-direction:column;overflow-y:auto;box-shadow:0 1px 4px rgba(30,60,80,.05);}
+.panel::-webkit-scrollbar{width:6px;} .panel::-webkit-scrollbar-thumb{background:#D5E0E6;border-radius:3px;}
+.panel-sec{padding:14px 16px;border-bottom:1px solid #EEF3F6;}
+.panel-sec:last-child{border-bottom:none;}
+.readout-toggle{display:flex;align-items:center;gap:8px;padding:8px 10px;margin-bottom:12px;background:#F3F8FA;border:1px solid #E2ECF1;border-radius:8px;cursor:pointer;font-size:12.5px;line-height:1.5;color:var(--muted);}
+.readout-toggle:hover{border-color:#C6DAE3;background:#EDF4F7;}
+.readout-toggle input{accent-color:var(--teal);cursor:pointer;margin:0;}
+.readout-toggle b{color:var(--ink);}
+.sec-title{font-size:12px;color:var(--muted);font-weight:600;letter-spacing:1px;margin-bottom:10px;display:flex;align-items:center;gap:6px;}
+.sec-title::before{content:"";width:3px;height:12px;background:var(--teal);border-radius:2px;}
+.sub-chips{display:flex;gap:6px;flex-wrap:wrap;}
+.chip{border:1px solid var(--line);background:#fff;border-radius:16px;padding:4px 13px;font-size:12.5px;line-height:1.5;cursor:pointer;font-family:inherit;color:var(--muted);transition:all .15s;}
+.chip:hover{border-color:var(--teal);color:var(--teal);}
+.chip.on{background:var(--teal);border-color:var(--teal);color:#fff;font-weight:600;}
+.chip.pre{border-style:dashed;border-color:#C9D6DD;color:#7A8F9B;}
+.chip.pre:hover{border-color:var(--orange);color:var(--orange);background:#FFF8F2;}
+.chip.g.on{background:var(--green);border-color:var(--green);}
+.chip.o.on{background:var(--orange);border-color:var(--orange);}
+.chip.p.on{background:var(--purple);border-color:var(--purple);}
+.slider-row{display:flex;align-items:center;gap:10px;margin-bottom:9px;}
+.slider-row label{width:46px;font-size:13px;font-style:italic;font-family:Georgia,serif;color:var(--ink);text-align:right;flex-shrink:0;}
+.slider-row.w label{width:62px;font-style:normal;font-family:inherit;}
+.slider-row input[type=range]{flex:1;accent-color:var(--teal);height:4px;cursor:pointer;}
+.slider-row .val{width:62px;font-size:12px;color:var(--muted);font-family:Menlo,monospace;flex-shrink:0;}
+.ex-title{font-size:14.5px;font-weight:700;color:var(--teal-dark);margin-bottom:8px;line-height:1.45;}
+.ex-body{font-size:14px;line-height:1.7;color:#3A5462;}
+.ex-body b{color:var(--ink);}
+.ex-body ul{padding-left:18px;margin:6px 0;}
+.ex-body li{margin-bottom:3px;}
+.ex-note{font-size:12.5px;line-height:1.65;color:#6B8290;background:#F7FAFB;border:1px solid #E7EFF3;border-radius:8px;padding:8px 11px;margin-top:9px;}
+.frm{display:block;background:#F4F9FB;border:1px solid #DDE9EF;border-left:3px solid var(--teal);border-radius:8px;padding:10px 14px 10px 18px;margin:10px 0;font-size:14px;line-height:1.7;font-family:Georgia,"Times New Roman",serif;color:var(--ink);overflow-x:auto;white-space:nowrap;}
+.vec{position:relative;font-style:italic;font-weight:700;white-space:nowrap;}
+.vec::before,.vec::after{content:'';position:absolute;pointer-events:none;}
+.vec::before{left:0;right:.24em;top:-.28em;height:1px;background:currentColor;opacity:.9;}
+.vec::after{right:0;top:-.42em;width:0;height:0;border-left:.26em solid currentColor;border-top:.14em solid transparent;border-bottom:.14em solid transparent;}
+sub{font-size:.72em;vertical-align:-.24em;}
+.vec sub{font-style:normal;font-weight:600;}
+.sqrt{display:inline-block;position:relative;padding-left:.62em;margin-left:.05em;font-style:normal;}
+.sqrt::before{content:"√";position:absolute;left:.02em;top:-.12em;font-size:1.1em;font-family:"Cambria Math","STIX Two Math","Latin Modern Math","Times New Roman",Georgia,serif;}
+.sqrt .in{display:inline-block;border-top:1.15px solid currentColor;padding:.10em .06em .02em .06em;border-radius:4px 4px 0 0;line-height:1.1;}
+.card-tabs{display:flex;gap:6px;flex-wrap:wrap;margin:4px 0 10px;}
+.card-tab{cursor:pointer;font-family:inherit;font-size:12.5px;padding:5px 9px;border-radius:9px;border:1px solid var(--line);background:#fff;color:var(--muted);transition:all .15s;line-height:1.4;white-space:nowrap;flex:1;text-align:center;min-width:0;}
+.card-tab:hover{border-color:var(--teal);color:var(--teal);}
+.card-tab.c1.on{background:#156082;border-color:#156082;color:#fff;font-weight:600;}
+.card-tab.c2.on{background:#0F9ED5;border-color:#0F9ED5;color:#fff;font-weight:600;}
+.card-tab.c3.on{background:#E97132;border-color:#E97132;color:#fff;font-weight:600;}
+.card-tab.c4.on{background:#9B59B6;border-color:#9B59B6;color:#fff;font-weight:600;}
+.card-body{background:#FCFEFE;border:1px solid #E2ECF1;border-radius:8px;padding:12px 16px 8px;border-left:4px solid var(--teal);}
+.card-body.c1{border-left-color:#156082;} .card-body.c2{border-left-color:#0F9ED5;}
+.card-body.c3{border-left-color:#E97132;} .card-body.c4{border-left-color:#9B59B6;}
+#toast{position:fixed;bottom:26px;left:50%;transform:translateX(-50%);background:rgba(31,61,76,.94);color:#fff;font-size:13px;padding:9px 20px;border-radius:22px;opacity:0;pointer-events:none;transition:opacity .25s;z-index:99;}
+#toast.show{opacity:1;}
+
+/* 2.1 追加：滑块分组标签（1.3 有定义、1.5 漏了，这里补齐） */
+.slider-group-label{font-size:12px;font-weight:600;color:var(--crimson);margin:4px 0 8px;}
+.slider-group-label.q{color:var(--blue);}
+.slider-group-label.g{color:var(--green);}
+.slider-group-label.o{color:var(--orange);}
+</style>
+</head>
+<body>
+<header>
+  <a class="logo" href="index.html" title="返回平台首页">E&M</a>
+  <div><h1>4.1 磁感应强度与磁通量</h1><div class="sub">安培力 · 磁感应强度 · 磁通量 · 闭合面的磁通量</div></div>
+  <div class="view-toggles" id="viewToggles"><button id="tglNav" title="折叠 / 展开左侧目录（快捷键 [ ）">☰ 目录</button><button id="tglPanel" title="折叠 / 展开右侧控制面板（快捷键 ] ）">☰ 面板</button></div>
+  <div class="badge"><div class="chip">《工程电磁场》 ×《电磁场与电磁波》</div><div class="owner"><b>© 2026 Li Chenlu</b> All Rights Reserved</div></div>
+</header>
+<div class="layout">
+  <aside id="nav"></aside>
+  <main>
+    <div class="module-head">
+      <div class="module-title" id="moduleTitle">磁感应强度与磁通量<small id="moduleSub">两根平行载流导线：同向相吸、反向相斥</small></div>
+      <div class="seg" id="modeTabs"></div>
+    </div>
+    <div class="content-row">
+      <div class="canvas-card">
+        <canvas id="cv"></canvas>
+        <div class="cv-mode-tag" id="modeTag"></div>
+        <div class="cv-pan-tag" id="panTag"><span>画面已平移</span><button id="btnPanReset">回到原点</button></div>
+        <div class="cv-toolbar"><button id="btnViewReset">复位视角</button><button id="btnRotate">自动旋转</button></div>
+        <div class="cv-legend" id="legend"><div class="lg-t" id="lgTitle">安培力 · 两根平行导线</div><div class="lg-note" id="lgNote"></div></div>
+        <button class="fold-handle" id="foldNav" title="折叠 / 展开左侧目录">‹</button>
+        <button class="fold-handle" id="foldPanel" title="折叠 / 展开右侧面板">›</button>
+        <div class="coord-strip" id="coordStrip"></div>
+      </div>
+      <div class="panel-resizer" id="panelResizer" title="拖动调整面板宽度（双击复位为 398px）"></div>
+      <div class="panel" id="panel"></div>
+    </div>
+  </main>
+</div>
+<div id="toast"></div>
+<script>
+'use strict';
+
+/* ============================== 向量工具（与 2.1 / 2.2 同源） ============================== */
+const pt=(x,y,z)=>({x,y,z});
+const vadd=(a,b)=>({x:a.x+b.x,y:a.y+b.y,z:a.z+b.z});
+const vsub=(a,b)=>({x:a.x-b.x,y:a.y-b.y,z:a.z-b.z});
+const vmul=(a,s)=>({x:a.x*s,y:a.y*s,z:a.z*s});
+const vdot=(a,b)=>a.x*b.x+a.y*b.y+a.z*b.z;
+const vlen=a=>Math.hypot(a.x,a.y,a.z);
+const vnorm=a=>{const l=vlen(a)||1;return vmul(a,1/l);};
+const vcross=(a,b)=>({x:a.y*b.z-a.z*b.y, y:a.z*b.x-a.x*b.z, z:a.x*b.y-a.y*b.x});
+const D2R=Math.PI/180, R2D=180/Math.PI;
+const clamp1=v=>Math.max(-1,Math.min(1,v));
+const sstep=x=>{x=Math.max(0,Math.min(1,x));return x*x*(3-2*x);};
+
+/* ============================== 富文本引擎（同源，勿改语义） ============================== */
+function parseRich(s){
+  const items=[], groups=[]; const st={g:-1};
+  (function walk(str){
+    let buf='';
+    const flush=()=>{ if(buf){ items.push({t:'n',s:buf,g:st.g}); buf=''; } };
+    for(let i=0;i<str.length;){
+      const c=str[i];
+      if(c==='@' && str[i+1]==='{'){
+        const j=str.indexOf('}', i+2);
+        if(j<0){ buf+=c; i++; continue; }
+        flush();
+        const save=st.g; st.g=groups.length; groups.push(1);
+        walk(str.slice(i+2,j)); st.g=save; i=j+1; continue;
+      }
+      if(c==='_'){
+        flush();
+        if(str[i+1]==='{'){ const j=str.indexOf('}',i+2);
+          if(j>=0){ items.push({t:'s',s:str.slice(i+2,j),g:st.g}); i=j+1; continue; } }
+        items.push({t:'s',s:str[i+1]||'',g:st.g}); i+=2; continue;
+      }
+      if(c==='<'){ const j=str.indexOf('>',i);
+        if(j>=0){ buf+=str.slice(i,j+1); i=j+1; continue; } }
+      buf+=c; i++;
+    }
+    flush();
+  })(String(s));
+  return {items, groups};
+}
+const RICHFONT='"PingFang SC","Microsoft YaHei",sans-serif';
+const RICHFONT_M='Georgia,"Times New Roman",serif';
+function richLayout(ctx,rich,size,bold){const subSize=size*0.74;const wM=bold?'700 ':'';const fN=wM+size+'px '+RICHFONT;const fNs=wM+subSize+'px '+RICHFONT;const fV='italic '+wM+size+'px '+RICHFONT_M;const fVs=wM+subSize+'px '+RICHFONT_M;const groups=rich.groups.map(()=>({x0:1e9,x1:-1e9,locked:false,top:1e9}));const out=[];let x=0;const oldBL=ctx.textBaseline;ctx.textBaseline='middle';rich.items.forEach(it=>{const sub=it.t==='s',vec=it.g>=0;const font=sub?(vec?fVs:fNs):(vec?fV:fN);ctx.font=font;const m=ctx.measureText(it.s),w=m.width;const dy=sub?size*0.20:0;const asc=(m.actualBoundingBoxAscent!=null)?m.actualBoundingBoxAscent:size*0.38;if(vec){const g=groups[it.g];if(!g.locked){if(sub)g.locked=true;else{if(x<g.x0)g.x0=x;g.x1=x+w;}}const top=dy-asc;if(top<g.top)g.top=top;}out.push({s:it.s,sub,x,w,font,dy});x+=w;});ctx.textBaseline=oldBL;return{items:out,groups,w:x,size,subSize};}
+function richDraw(ctx,lo,cx,cy,align,color,fat){let ox=align==='center'?cx-lo.w/2:align==='right'?cx-lo.w:cx;const dy=it=>cy+it.dy;const ay=g=>cy+g.top-Math.max(2.2,lo.size*0.13);const span=g=>[ox+g.x0-0.6,ox+g.x1+0.6];ctx.save();ctx.textAlign='left';ctx.textBaseline='middle';ctx.lineJoin='round';ctx.lineCap='butt';ctx.lineWidth=3.4;ctx.strokeStyle='rgba(255,255,255,.92)';lo.items.forEach(it=>{ctx.font=it.font;ctx.strokeText(it.s,ox+it.x,dy(it));});lo.groups.forEach(g=>{if(g.x1<=g.x0)return;const y=ay(g),s=span(g);ctx.beginPath();ctx.moveTo(s[0],y);ctx.lineTo(s[1],y);ctx.stroke();});lo.groups.forEach(g=>{if(g.x1<=g.x0)return;const y=ay(g),s=span(g),ax=s[0],bx=s[1];ctx.strokeStyle=color;ctx.lineWidth=1.15;ctx.beginPath();ctx.moveTo(ax,y);ctx.lineTo(bx-1.2,y);ctx.stroke();const h=Math.min(3.6,Math.max(2.6,(bx-ax)*0.40));ctx.beginPath();ctx.moveTo(bx,y);ctx.lineTo(bx-h,y-h*0.52);ctx.lineTo(bx-h,y+h*0.52);ctx.closePath();ctx.fillStyle=color;ctx.fill();});lo.items.forEach(it=>{ctx.font=it.font;if(fat>0){ctx.strokeStyle=color;ctx.lineWidth=fat;ctx.strokeText(it.s,ox+it.x,dy(it));}ctx.fillStyle=color;ctx.fillText(it.s,ox+it.x,dy(it));});ctx.restore();}
+function richHTML(s){const r=parseRich(s);let h='',gi=-1;r.items.forEach(it=>{const body=it.t==='s'?'<sub>'+it.s+'</sub>':it.s;if(it.g!==gi){if(gi>=0)h+='</span>';if(it.g>=0)h+='<span class="vec">';gi=it.g;}h+=body;});if(gi>=0)h+='</span>';return wrapSqrt(h);}
+function wrapSqrt(html){const out=[];let i=0;while(i<html.length){const k=html.indexOf('√(',i);if(k<0){out.push(html.slice(i));break;}out.push(html.slice(i,k));out.push('<span class="sqrt"><span class="in">');let j=k+2,depth=1;while(j<html.length&&depth>0){const c=html[j];if(c==='(')depth++;else if(c===')'){depth--;if(depth===0)break;}j++;}if(depth!==0){out.push(html.slice(k));return out.join('');}out.push(html.slice(k+2,j));out.push('</span></span>');i=j+1;}return out.join('');}
+
+/* ============================== 颜色 / 相机 / 图元 ============================== */
+const C = {teal:'#156082',orange:'#E97132',green:'#3E9B4F',purple:'#9B59B6',crimson:'#D04A3A',blue:'#0F9ED5',gray:'#8CA0AC',light:'#C9D6DD',ink:'#22414F',grid:'#EAF0F4',muted:'#7A8F9B'};
+
+let canvas,ctx,W=800,H=600,DPR=1;
+const cam={az:0.62,el:0.40,zoom:1,px:0,py:0};
+let camU,camV,camD,camScale,CX2,CY;
+/* ══════════ 右上角信息卡的几何 + "HUD 安全区" ══════════
+   ⚠️ 根因：信息卡（叠加在画布上）固定贴右上，而场景原来是**按整个画布**居中的
+      ⇒ 画布越窄，两边的"中心"越靠拢，卡片左缘就会压到介质盒上。
+      实测（camScale=202.5、②③ 场景屏幕半宽 ≈164px、卡片宽 252 + 边距）：
+         场景右缘 = W/2 + 164，卡片左缘 = W − 268 ⇒ **W < 864 就开始重叠**。
+      用户反馈的正是这个（窄窗口下卡片盖住了右边的介质盒）。
+   ⇒ 两条规则（都不改 camScale，只在必要时才缩，避免"为了不遮挡把图缩小"）：
+      ① 只要够宽就把场景居中不动（W ≥ 864 时行为与旧版**完全一致**）；
+      ② 不够宽就把场景整体左移到卡片左边；实在放不下（cx 被压到可用区的 30% 以左）
+         才整体缩小，保证既不遮挡、也不裁切。 */
+const CARD_W=252, CARD_X=()=>W-CARD_W-16, CARD_Y=62;
+const CARD_RESERVE=CARD_W+26;      /* 右侧留给"卡片 + 工具条 + 图例"的整条带 */
+const HALF_SCENE=0.90;             /* 4.1：④ 两球并排 ~0.87、③ 场线 ±0.94 ⇒ 折中取 0.90 */
+function setupCamera(){
+  const ca=Math.cos(cam.az),sa=Math.sin(cam.az),ce=Math.cos(cam.el),se=Math.sin(cam.el);
+  camD={x:ce*ca,y:ce*sa,z:se};camU={x:-sa,y:ca,z:0};camV={x:-ca*se,y:-sa*se,z:ce};
+  let cs=Math.min(W,H)/3.0*cam.zoom;
+  const usable=Math.max(240,W-CARD_RESERVE);
+  let half=HALF_SCENE*cs;
+  /* ① 可用区里根本摆不下整幅场景 ⇒ 先整体缩小（宁可小一点，也不要既被裁又被盖）。 */
+  if(2*half > usable-16){ cs=Math.min(cs,(usable-16)/(2*HALF_SCENE)); half=HALF_SCENE*cs; }
+  /* ② 尽量居中；会压到卡片时左移。 */
+  let cx=Math.min(W/2, W-CARD_RESERVE-10-half);
+  /* ③ 左移过头撞到左边界 ⇒ 再移回来（这一步只会在"卡片+场景真放不下"的极端宽度下触发，
+       此时宁可让卡片压到一点，也不要裁掉场景左半边）。 */
+  if(cx-half<6) cx=6+half;
+  camScale=cs; CX2=Math.max(8,cx); CY=H*0.55;
+}
+function pr(p){return{x:CX2+cam.px+camScale*vdot(p,camU),y:CY+cam.py-camScale*vdot(p,camV),d:vdot(p,camD)};}
+
+let prims=[];
+function P_(z,fn){prims.push({z,draw:fn});}
+/* ⚠️ 各图元的 o.z：可选覆盖画家算法的深度。半透明的介质盒 / 球壳会横跨一大段深度，
+   凡是"必须始终看得清"的标注都要显式抬到它们之上，否则会被洗掉。
+   ⚠️ 凡是 pr() 返回的点都带真实 .d；裸 pt(x,y,z) 的 .d 是 undefined ⇒ 会让排序静默失效。 */
+function line(a,b,o={}){const A=pr(a),B=pr(b);P_(o.z!=null?o.z:(A.d+B.d)/2,()=>{ctx.save();ctx.globalAlpha=o.alpha!=null?o.alpha:1;ctx.strokeStyle=o.color||C.gray;ctx.lineWidth=o.w||1.4;if(o.dash)ctx.setLineDash(o.dash);ctx.beginPath();ctx.moveTo(A.x,A.y);ctx.lineTo(B.x,B.y);ctx.stroke();ctx.restore();});}
+function arrowSeg(A,B,color,w,headScale){const dx=B.x-A.x,dy=B.y-A.y,L=Math.hypot(dx,dy);if(L<0.5)return;const ux=dx/L,uy=dy/L,hs=(headScale||1)*9;ctx.strokeStyle=color;ctx.lineWidth=w;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(A.x,A.y);ctx.lineTo(B.x-ux*hs*.55,B.y-uy*hs*.55);ctx.stroke();const ang=Math.atan2(dy,dx);ctx.beginPath();ctx.moveTo(B.x,B.y);ctx.lineTo(B.x-hs*Math.cos(ang-.42),B.y-hs*Math.sin(ang-.42));ctx.lineTo(B.x-hs*Math.cos(ang+.42),B.y-hs*Math.sin(ang+.42));ctx.closePath();ctx.fillStyle=color;ctx.fill();}
+function arrow(a,b,o={}){const A=pr(a),B=pr(b);P_(o.z!=null?o.z:(A.d+B.d)/2,()=>{ctx.save();ctx.globalAlpha=o.alpha!=null?o.alpha:1;if(o.dash)ctx.setLineDash(o.dash);arrowSeg(A,B,o.color||C.teal,o.w||2,o.headScale);ctx.restore();});if(o.label)text(vmul(vadd(a,b),.5),o.label,{color:o.color||C.teal,dx:o.ldx||0,dy:o.ldy!==undefined?o.ldy:-10,size:o.lsize||12.5,bold:true,align:o.lalign,alpha:o.alpha});}
+function curve(ptsArr,o={}){if(ptsArr.length<2)return;const S=ptsArr.map(pr);P_(o.z!=null?o.z:S.reduce((s,p)=>s+p.d,0)/S.length,()=>{ctx.save();ctx.globalAlpha=o.alpha!=null?o.alpha:1;ctx.strokeStyle=o.color||C.gray;ctx.lineWidth=o.w||1.8;ctx.lineCap='round';ctx.lineJoin='round';if(o.dash)ctx.setLineDash(o.dash);ctx.beginPath();ctx.moveTo(S[0].x,S[0].y);for(let i=1;i<S.length;i++)ctx.lineTo(S[i].x,S[i].y);ctx.stroke();if(o.arrowEnd){const a=S[S.length-2],b=S[S.length-1];ctx.setLineDash([]);arrowSeg(a,b,o.color||C.gray,o.w||1.8,.75);}ctx.restore();});}
+function poly(ptsArr,o={}){if(ptsArr.length<3)return;const S=ptsArr.map(pr);P_(o.z!=null?o.z:S.reduce((s,p)=>s+p.d,0)/S.length,()=>{ctx.save();ctx.beginPath();ctx.moveTo(S[0].x,S[0].y);for(let i=1;i<S.length;i++)ctx.lineTo(S[i].x,S[i].y);ctx.closePath();if(o.fill){ctx.globalAlpha=o.fillAlpha!=null?o.fillAlpha:.15;ctx.fillStyle=o.fill;ctx.fill();}if(o.stroke!==false){ctx.globalAlpha=o.strokeAlpha!=null?o.strokeAlpha:(o.fillAlpha!=null?o.fillAlpha:1);ctx.strokeStyle=o.stroke||o.fill||C.gray;ctx.lineWidth=o.w||1;if(o.dash)ctx.setLineDash(o.dash);ctx.stroke();}ctx.restore();});}
+function marker(p,o={}){
+  const S=pr(p);
+  P_(o.z!=null?o.z:S.d+0.02, ()=>{ ctx.save();
+    ctx.globalAlpha=o.alpha!=null?o.alpha:1;
+    ctx.beginPath(); ctx.arc(S.x,S.y,o.r||5,0,7);
+    ctx.fillStyle=o.color||C.orange; ctx.fill();
+    ctx.lineWidth=2; ctx.strokeStyle='#fff'; ctx.stroke();
+    if(o.ring){ ctx.beginPath(); ctx.arc(S.x,S.y,(o.r||5)+4,0,7);
+      ctx.strokeStyle=o.ring; ctx.lineWidth=2.2; ctx.stroke(); }
+    ctx.restore(); });
+  if(o.label) text(p, o.label, {color:o.color||C.orange,
+    dx:o.ldx!=null?o.ldx:10, dy:o.ldy!=null?o.ldy:-10, size:o.lsize||13, bold:true, align:o.lalign, alpha:o.alpha});
+}
+function text(p,str,o={}){const S=pr(p);P_(1e6,()=>{ctx.save();if(o.alpha!=null)ctx.globalAlpha*=o.alpha;const size=o.size||12.5,bold=!!o.bold;const lo=richLayout(ctx,parseRich(str),size,bold);richDraw(ctx,lo,S.x+(o.dx||0),S.y+(o.dy||0),o.align||'left',o.color||C.ink,o.fat||0);ctx.restore();});}
+function textScreen(x,y,str,o={}){P_(1e6+1,()=>{ctx.save();if(o.alpha!=null)ctx.globalAlpha*=o.alpha;const lo=richLayout(ctx,parseRich(str),o.size||12,!!o.bold);richDraw(ctx,lo,x,y,o.align||'left',o.color||C.ink);ctx.restore();});}
+function dimLine(a,b,o={}){
+  line(a,b,o);
+  const A=pr(a),B=pr(b);
+  const dx=B.x-A.x,dy=B.y-A.y,L=Math.hypot(dx,dy);
+  if(L<1)return;
+  const px=-dy/L,py=dx/L,t=o.tick||6;
+  const tk=P=>{P_(o.z!=null?o.z:(A.d+B.d)/2,()=>{ctx.save();if(o.alpha!=null)ctx.globalAlpha*=o.alpha;ctx.strokeStyle=o.color||C.gray;ctx.lineWidth=o.w||1.4;ctx.setLineDash([]);ctx.beginPath();ctx.moveTo(P.x+px*t,P.y+py*t);ctx.lineTo(P.x-px*t,P.y-py*t);ctx.stroke();ctx.restore();});};
+  tk(A);tk(B);
+  if(o.label)text(vmul(vadd(a,b),.5),o.label,{color:o.color||C.gray,dx:o.ldx||0,dy:o.ldy!==undefined?o.ldy:-10,size:o.lsize||12.5,bold:true,align:o.lalign,alpha:o.alpha});
+}
+function screenDot(p,rad,fill,alpha,z){const S=pr(p);P_(z!=null?z:S.d+0.02,()=>{ctx.save();ctx.globalAlpha=alpha!=null?alpha:1;ctx.beginPath();ctx.arc(S.x,S.y,rad,0,7);ctx.fillStyle=fill;ctx.fill();ctx.restore();});}
+function hexA(hex,a){const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);return 'rgba('+r+','+g+','+b+','+a+')';}
+
+/* ══════════════════════════ 坐标轴（同源） ══════════════════════════ */
+function drawAxes(ext){
+  if(!state.show.box) return;
+  const g=ext*0.86;
+  for(let v=-g;v<=g+1e-9;v+=ext*0.30){line(pt(v,-g,-ext*0.86),pt(v,g,-ext*0.86),{color:C.grid,w:1});line(pt(-g,v,-ext*0.86),pt(g,v,-ext*0.86),{color:C.grid,w:1});}
+  line(pt(0,0,0),pt(-ext,0,0),{color:'#B9C9D2',dash:[5,4],w:1.2});
+  line(pt(0,0,0),pt(0,-ext,0),{color:'#B9C9D2',dash:[5,4],w:1.2});
+  line(pt(0,0,0),pt(0,0,-ext),{color:'#B9C9D2',dash:[5,4],w:1.2});
+  arrow(pt(0,0,0),pt(ext,0,0),{color:C.teal,w:2});
+  arrow(pt(0,0,0),pt(0,ext,0),{color:C.orange,w:2});
+  arrow(pt(0,0,0),pt(0,0,ext),{color:C.green,w:2.2});
+  text(pt(ext*1.05,0,0),'x',{color:C.teal,bold:true,size:13,dy:-4});
+  text(pt(0,ext*1.05,0),'y',{color:C.orange,bold:true,size:13,dy:-4});
+  text(pt(0,0,ext*1.05),'z',{color:C.green,bold:true,size:13,dx:-4});
+}
+
+/* ============================================================================
+   4.1 磁感应强度与磁通量 —— 物理模型与几何（引擎段与 2.3 / 4.2 同源）
+   ----------------------------------------------------------------------------
+   ★★ 教学动线（四个页签，逐字对应教学说明 md）：
+       ① 安培力    ：两根平行载流导线，同向相吸、反向相斥；
+                     力的来源拆解 F = I₂dl₂ × B₁₂（不是"导线拉导线"）
+       ② 磁感应强度：同一根长直导线单独看 —— @{B} 沿圆周切向（右手螺旋），
+                     大小 1/r 衰减；B ≡ F_max/(I·dl) 的定义回勾 ①
+       ③ 磁通量    ：Φ = BA cosθ = 数穿过面的磁感线根数；
+                     θ=90° 时一根不穿，但 @{B} 一根箭头都没少
+       ④ 闭合面    ：磁感线闭合 ⇒ ∮@{B}·dS = 0（进多少出多少）；
+                     电力线有头有尾 ⇒ ∮@{D}·dS = Q内（第 2 章锚点）
+
+   ★★ 定量链条（自检 chk41 逐条断言）：
+       B₁₂   = µ₀I₁/(2πd)            （导线 1 在导线 2 处产生的磁感应强度）
+       F/L   = µ₀I₁I₂/(2πd)          （单位长度安培力，N/m）
+       F     = µ₀I₁I₂L/(2πd)
+       B(r)  = µ₀I/(2πr)             （长直导线外一点的磁感应强度）
+       Φ     = B·A·cosθ              （均匀场穿过平面）
+       穿线根数 n(θ,A) = #{k : |k·d| < w(A)·|cosθ|}   （离散示意，见下）
+       ∮@{B}·dS ≡ 0 ；∮@{D}·dS = Q内
+
+   ★ 单位：I 用 A、d 用 m、F 用 µN、B 用 µT（②）/ mT（③）、
+     A 用 dm²、Φ 用 mWb —— 全部照 md 的"课堂数字好念"约定
+     （40 mT × 1.2 dm² = 0.48 mWb @θ=0）。
+     ⚠️ 板书提醒：1 T·m² = 1 Wb，换算是干净的。
+
+   ⚠️⚠️ ③ 的"数根数"是**离散示意**，绝不是把 Φ 量化：
+     场线间距 FLUX_D 固定（13 根一行），所以面板上的可见根数只随
+     w(A)·|cosθ| 变，而 w ∝ A ⇒ **根数 ∝ A、Φ ∝ A**（一致）；
+     但 A 从 0.5 涨到 2.0（Φ 涨 4 倍）时根数只从 3 涨到 9 ——
+     因为根数还带一个 floor。学生若抠这一点，正是"极限思想"的加分题。
+   ============================================================================ */
+
+/* ============================== 物理常数 ============================== */
+const MU0 = 4*Math.PI*1e-7;              /* H/m，真空磁导率 */
+
+/* ============================== 几何尺度 ============================== */
+const EXT41   = 0.98;                    /* 坐标轴长度 */
+const WIRE_Z0 = -0.95, WIRE_Z1 = 0.95;   /* 长直导线在 z 方向的画成范围 */
+
+/* ① 安培力：世界间距与物理间距的映射（物理 d 越小，两根导线画得越近） */
+const SEP_A = 0.16, SEP_B = 0.66;
+const AMP_DZ = 0.62;                     /* ① 里画出的那一段导线的半长（代表 L） */
+
+/* ② 磁感应强度 */
+const R_M2W = 1.50;                      /* 物理半径 r(m) → 世界半径（0.10/0.16/0.25 m ⇒ 0.15/0.24/0.375） */
+/* ★ ② 的 @{B} 用 quiver 画：xy 平面上一张 5×5 的方格（中心那格跳过），
+   每格一支切向箭头、长度 ∝ 1/ρ —— 这正是矢量场最经典的画法：
+   箭头一圈圈转起来 = 环绕导线；近处长、远处短 = 1/r。
+   ⚠️ 先试过「三个同心圆各摆 6 支箭头」，画面像刺猬（箭头挤在一小片区域、朝向各异），弃用。 */
+const QUIV_N = 7, QUIV_SPAN = 0.84;      /* 7×7 格，坐标 ±0.84 ⇒ 格距 0.28（密一点才像场） */
+const QUIV_L0 = 0.17, QUIV_R0 = 0.30;    /* 箭头最长 0.17（在 ρ=0.30 处），再近就截顶 */
+const QUIV_GUIDE = [0.32, 0.58];         /* 两条虚线导引圆：把「等 B 线」点出来 */
+const RINGS = [0.100, 0.160, 0.250];     /* 卡片里举的三个同一根导线、不同距离的例（m） */
+
+/* ③ 磁通量 */
+const PLATE_HW = 0.325;                  /* 板半宽 = PLATE_HW × A(dm²)  ⇒ A=1.2 时 0.39 */
+const PLATE_HH = 0.20;                   /* 板沿 ŷ 的半高（固定，不随 A 变） */
+const FLUX_D   = 0.156;                  /* 场线间距（固定！A=1.2 时正好 5 根穿过） */
+const FLUX_NK  = 6;                      /* k = -6..6 ⇒ 一行 13 根 */
+const FLUX_Z0  = -0.95, FLUX_Z1 = 0.95;
+
+/* ④ 闭合面 */
+const SEP4    = 0.44;                    /* 两个球心分别在 y = ∓SEP4 */
+const DIP_L   = 0.62;                    /* 磁偶极子场线的口径（最远处离偶极子 DIP_L） */
+const DIP_TRIM= 0.055;                   /* 场线在极点附近的截断半径（免得糊成一团） */
+const DIP_SEG = 240;                     /* 每条偶极子场线的采样段数 */
+const DIP_N   = 4;                       /* 4 条子午线（4 个方位）⇒ 4 进 4 出 */
+const ELE_N   = 6;                       /* 电力线 6 根 ⇒ 6 出 0 进 */
+const ELE_R0  = 0.02, ELE_R1 = 0.62;     /* 电力线的起点/终点半径 */
+const LOOP_A  = 0.10;                    /* 球内小电流环的半径（世界） */
+const Q4      = 2.0e-9;                  /* 球内电荷 2.00 nC */
+
+/* ============================== 量程 ============================== */
+const I1_RANGE=[1,20], I2_RANGE=[1,20], D_RANGE=[0.02,0.12], LA_RANGE=[0.20,1.00];
+const I_RANGE =[2,20], RP_RANGE=[0.02,0.50];
+const TH_RANGE=[0,180], B3_RANGE=[10,100], A3_RANGE=[0.5,2.0];
+const R4_RANGE=[0.14,0.34];
+
+/* ============================== 状态 ============================== */
+const state = {
+  mode:'ampere',                /* ampere | field | flux | closed */
+  /* ① 安培力 */
+  I1:10,                        /* 导线 1 的电流 A（方向恒 +z） */
+  I2:10,                        /* 导线 2 的电流 A（**幅值**，方向看 rev） */
+  rev:false,                    /* 导线 2 的电流反向 ⇒ 由相吸变相斥 */
+  d:0.05,                       /* 两导线间距 m */
+  La:0.60,                      /* 参与受力的那一段长度 m */
+  /* ② 磁感应强度 */
+  If:10,                        /* 长直导线电流 A */
+  rp:0.16,                      /* 探针 P 到导线的距离 m（默认正落在**中圈**上） */
+  /* ③ 磁通量 */
+  th:120,                       /* ★ 初始故意停在 120°（负通量区，md 的要求） */
+  B3:40,                        /* 均匀场 mT */
+  A3:1.2,                       /* 面面积 dm² */
+  /* ④ 闭合面 */
+  R4:0.28,                      /* 闭合球面半径 m（世界单位同值） */
+  /* ⚠️⚠️ 这些键**必须与 page1.js 的 SHOW_ITEMS 逐字对齐**（四页签并集）：
+       wire/bcir/force/inset = ①；bvec/probe = ②；
+       fline/plate/count/cos = ③；sphM/linesM/sphE/linesE = ④；box = 坐标轴。 */
+  show:{ wire:true, bcir:true, force:true, inset:true,
+         bvec:true, probe:true,
+         fline:true, plate:true, count:true, cos:true,
+         sphM:true, linesM:true, sphE:true, linesE:true, box:true },
+  showReadout:true,
+  autoRotate:false,
+  cardTab:'1',
+};
+/* 每个页签自己的起点（切页签时整体覆盖 ⇒ 每个演示都可复现） */
+const PRESET={
+  ampere:{I1:10, I2:10, rev:false, d:0.05, La:0.60},
+  field: {If:10, rp:0.16},
+  flux:  {th:120, B3:40, A3:1.2},
+  closed:{R4:0.28},
+};
+/* ★ 防御：把 state 里所有"滑块量"夹回各自量程（按钮把量设到量程外的静默不一致） */
+function clampState(){
+  const cl=(v,lo,hi)=>Math.max(lo,Math.min(hi,v));
+  state.I1=cl(state.I1,I1_RANGE[0],I1_RANGE[1]);
+  state.I2=cl(state.I2,I2_RANGE[0],I2_RANGE[1]);
+  state.d =cl(state.d ,D_RANGE[0], D_RANGE[1]);
+  state.La=cl(state.La,LA_RANGE[0],LA_RANGE[1]);
+  state.If=cl(state.If,I_RANGE[0], I_RANGE[1]);
+  state.rp=cl(state.rp,RP_RANGE[0],RP_RANGE[1]);
+  state.th=cl(state.th,TH_RANGE[0],TH_RANGE[1]);
+  state.B3=cl(state.B3,B3_RANGE[0],B3_RANGE[1]);
+  state.A3=cl(state.A3,A3_RANGE[0],A3_RANGE[1]);
+  state.R4=cl(state.R4,R4_RANGE[0],R4_RANGE[1]);
+  return state;
+}
+
+/* ============================== ① 安培力 ============================== */
+/* 单位长度安培力（N/m）：两根平行载流导线 */
+function fPerLen(I1,I2,d){ return MU0*Math.abs(I1*I2)/(2*Math.PI*Math.max(1e-4,d)); }
+/* 长度 L 上的安培力（N） */
+function fTotal(I1,I2,d,L){ return fPerLen(I1,I2,d)*L; }
+/* 力的方向符号：+1 = 相吸（同向），−1 = 相斥（反向） */
+function forceSign(){ return state.rev ? -1 : 1; }
+/* 世界间距（屏幕上的两根导线离多远） */
+function sepW(d){
+  const u=(d-D_RANGE[0])/(D_RANGE[1]-D_RANGE[0]);
+  return SEP_A + Math.max(0,Math.min(1,u))*(SEP_B-SEP_A);
+}
+/* 力箭头的画成长度：线性 + 上下限钳制（照 2.1 的 LE 打法），下限以下仍画但最短 */
+const F_VIS_REF = 1.2e-3;                 /* N —— 箭头到这个量级就按最长画 */
+function fArrowLen(F){
+  const u=F/F_VIS_REF;
+  return Math.max(0.13, Math.min(0.60, 0.60*u+0.13));
+}
+
+/* ============================== ② 磁感应强度 ============================== */
+function bLine(I,r){ return MU0*Math.abs(I)/(2*Math.PI*Math.max(1e-4,r)); }
+/* 长直导线（沿 +z）在柱坐标点 (ρ, φ, z) 处的 @{B} 单位方向 = φ̂ */
+function phiHat(phi){ return pt(-Math.sin(phi), Math.cos(phi), 0); }
+
+/* ============================== ③ 磁通量 ============================== */
+/* 面的一组正交基：a 为面内"宽"方向（随 θ 绕 y 轴转），b = ŷ，n = a×b */
+function plateBasis(thDeg){
+  const t=thDeg*D2R;
+  const a=pt(Math.cos(t),0,-Math.sin(t));
+  const b=pt(0,1,0);
+  return {a:a, b:b, n:vnorm(vcross(a,b)), t:t};
+}
+/* Φ = B·A·cosθ，返回 Wb */
+function fluxWb(BmT,Adm2,thDeg){
+  return (BmT*1e-3)*(Adm2*1e-2)*Math.cos(thDeg*D2R);
+}
+function fluxM(BmT,Adm2,thDeg){ return fluxWb(BmT,Adm2,thDeg)*1e3; }   /* mWb */
+function plateHW(Adm2){ return PLATE_HW*Adm2; }                        /* 半宽（世界） */
+/* 一行场线的 x 坐标（固定间距 —— 关键：**不随 A 变**） */
+function lineXs(){
+  const xs=[]; for(let k=-FLUX_NK;k<=FLUX_NK;k++) xs.push(k*FLUX_D);
+  return xs;
+}
+/* 真正穿过面的那几根（严格不等式：θ=90° 时一根都不算，含 x=0 那根）
+   ⚠️ 用 < 而不是 <=：θ=90° 时面与 @{B} 平行，x=0 的那根线躺在面内、不算穿过。 */
+function piercingXs(thDeg,Adm2){
+  const c=Math.abs(Math.cos(thDeg*D2R)), w=plateHW(Adm2);
+  return lineXs().filter(x=>Math.abs(x) < w*c - 1e-9);
+}
+/* 面的四个角（世界坐标） */
+function plateCorners(thDeg,Adm2){
+  const {a,b}=plateBasis(thDeg), w=plateHW(Adm2), h=PLATE_HH;
+  return [ vadd(vmul(a, w),vmul(b, h)), vadd(vmul(a,-w),vmul(b, h)),
+           vadd(vmul(a,-w),vmul(b,-h)), vadd(vmul(a, w),vmul(b,-h)) ];
+}
+
+/* ============================== ④ 闭合面 ============================== */
+const CEN_M = pt(0,-SEP4,0);             /* 磁感线那侧的球心（小电流环所在处） */
+const CEN_E = pt(0, SEP4,0);             /* 电力线那侧的球心（+Q 所在处） */
+/* 磁偶极子的场线：r = L·sin²θ（解析、**必然闭合**、必过两极）
+   ★ 为什么不用 RK4 追真·电流环的场线：解析式的闭合性由构造保证 ——
+     本页最要紧的一句话就是"磁感线闭合"，绝不能让"线没接上"的画面来打脸。
+   ⚠️ 端点 r→0 会糊成一个点 ⇒ 从 r ≥ DIP_TRIM 起画。 */
+function dipolePts(phiDeg,L){
+  const phi=phiDeg*D2R, out=[];
+  const N=DIP_SEG;
+  for(let i=0;i<=N;i++){
+    const th=Math.PI*i/N, s=Math.sin(th), r=L*s*s;
+    if(r<DIP_TRIM) continue;
+    out.push(pt(r*s*Math.cos(phi), r*s*Math.sin(phi), r*Math.cos(th)));
+  }
+  return out;
+}
+/* 一条折线穿过球面（球心 c、半径 R）的次数：出 / 进 各算各的 */
+function countCross(pts,c,R){
+  let out=0, inn=0;
+  for(let i=1;i<pts.length;i++){
+    const fa=vlen(vsub(pts[i-1],c))-R, fb=vlen(vsub(pts[i],c))-R;
+    if(fa<0 && fb>=0) out++;
+    else if(fa>=0 && fb<0) inn++;
+  }
+  return {out:out, inn:inn};
+}
+/* 电力线的 6 个方向（±x / ±y / ±z）⇒ 6 出 0 进，一眼数得清 */
+const ELE_DIRS=[pt(1,0,0),pt(-1,0,0),pt(0,1,0),pt(0,-1,0),pt(0,0,1),pt(0,0,-1)];
+function eleLine(c,dir){ return [ vadd(c,vmul(dir,ELE_R0)), vadd(c,vmul(dir,ELE_R1*0.55)),
+                                 vadd(c,vmul(dir,ELE_R1*0.82)), vadd(c,vmul(dir,ELE_R1)) ]; }
+/* 两侧的穿越统计（honest：由几何真算，不写死 4/4、6/0） */
+function crossStats(R){
+  let mo=0, mi=0;
+  for(let i=0;i<DIP_N;i++){
+    /* ⚠️ 偶极子场线是**以原点为中心**生成的，而球心在 CEN_M ⇒ 必须先把线平移到 CEN_M，
+       否则拿原点系的线去和偏移了 0.44 的球比，统计出来的根数是错的（曾实测 1/1）。 */
+    const cs=countCross(dipolePts(i*90,DIP_L).map(q=>vadd(q,CEN_M)),CEN_M,R); mo+=cs.out; mi+=cs.inn;
+  }
+  let eo=0, ei=0;
+  for(let i=0;i<ELE_N;i++){
+    const cs=countCross(eleLine(CEN_E,ELE_DIRS[i]),CEN_E,R); eo+=cs.out; ei+=cs.inn;
+  }
+  return {mOut:mo, mIn:mi, eOut:eo, eIn:ei,
+          mNet:mo-mi, eNet:eo-ei};
+}
+
+/* ============================== 小工具 ============================== */
+const SUP={'-':'⁻','0':'⁰','1':'¹','2':'²','3':'³','4':'⁴','5':'⁵','6':'⁶','7':'⁷','8':'⁸','9':'⁹'};
+const supStr=n=>String(n).split('').map(c=>SUP[c]||c).join('');
+function fmtN(v,d){ d=(d==null)?2:d; if(!isFinite(v)) return '—';
+  return (v<0?'−':'')+Math.abs(v).toFixed(d); }
+/* 按量级自动选小数位：0.33 / 24.0 / 4021 都好看 */
+function fmtSmart(v,unit){
+  const a=Math.abs(v);
+  const d=a>=1000?0:(a>=100?1:(a>=10?1:2));
+  return fmtN(v,d)+' '+unit;
+}
+
+
+/* ============================== 目录 ============================== */
+/* ⚠️ 2026-11-xx：4.1 从占位改成真页面（四个页签：安培力 / 磁感应强度 / 磁通量 / 闭合面的磁通量），
+      标题也顺手扩成「磁感应强度与磁通量」—— 全站 19 项 nav 的 ch4-1 一起改，
+      改完务必源与产物同改（见 memory 的 ref-deploy）。 */
+const NAV = [
+  { ch:'第 1 章 · 矢量分析', items:[
+    { id:'coord',  t:'1.1 三种常见坐标系', ready:true, href:'index.html?v=20261111r3' },
+    { id:'ch1-2',  t:'1.2 矢量的代数运算', ready:true, href:'1.2-vector-algebra.htm?v=20261111r3' },
+    { id:'ch1-3',  t:'1.3 方向导数与梯度', ready:true, href:'1.3-directional-derivative.htm?v=20261111r3' },
+    { id:'ch1-4',  t:'1.4 通量与散度',     ready:true, href:'1.4-divergence-flux.htm?v=20261111r3' },
+    { id:'ch1-5',  t:'1.5 环量与旋度',     ready:true, href:'1.5-curl-circulation.htm?v=20261111r3' },
+  ]},
+  { ch:'第 2 章 · 静电场', items:[
+    { id:'ch2-1', t:'2.1 电场强度与电荷密度', ready:true, href:'2.1-field-charge-density.htm?v=20261111r3' },
+    { id:'ch2-2', t:'2.2 静电场中的导体',     ready:true, href:'2.2-conductor-electrostatic.htm?v=20261111r3' },
+    { id:'ch2-3', t:'2.3 静电场中的电介质',   ready:true, href:'2.3-dielectric-polarization.htm?v=20261111r3' },
+    { id:'ch2-4', t:'2.4 高斯定理及其应用', ready:true, href:'2.4-gauss-law.htm?v=20261111r3' },
+    { id:'ch2-5', t:'2.5 多导体系统的电容与串扰', ready:true, href:'2.5-multi-conductor-crosstalk.htm?v=20261111r3' },
+  ]},
+  { ch:'第 3 章 · 恒定电场', items:[
+    { id:'ch3-1', t:'3.1 电流的分类', ready:true, href:'3.1-current-density.htm?v=20261111r3' },
+    { id:'ch3-2', t:'3.2 恒定电场的特点', ready:true, href:'3.2-constant-field.htm?v=20261111r3' },
+  ]},
+  { ch:'第 4 章 · 恒定磁场', items:[
+    { id:'ch4-1', t:'4.1 磁感应强度与磁通量', ready:true, active:true },
+    { id:'ch4-2', t:'4.2 磁介质的磁化', ready:true, href:'4.2-magnetization.htm?v=20261111r3' },
+  ]},
+
+  { ch:'第 5 章 · 时变电磁场', items:[
+    { id:'ch5-1', t:'5.1 变化的磁场激发电场', ready:true, href:'5.1-faraday-induction.htm?v=20261111r3' },
+    { id:'ch5-2', t:'5.2 变化的电场激发磁场', ready:true, href:'5.2-displacement-current.htm?v=20261111r3' },
+    { id:'ch5-4', t:'5.4 介质边界与反射透射', ready:true, href:'5.4-media-boundary.htm?v=20261111r3' },
+    { id:'ch5-6', t:'5.6 坡印廷矢量与能量流', ready:true, href:'5.6-poynting-vector.htm?v=20261111r3' },
+    { id:'ch5-8', t:'5.8 电磁波传播实验室 ★', ready:true, href:'5.8-wave-lab.htm?v=20261111r3' },
+  ]},
+];
+
+
+/* ============================================================================
+   4.1 磁感应强度与磁通量 —— 页面专属（一）
+   图元助手 / 四个页签的场景装配 / 右上信息卡 / 画布插图 / 面板上半
+   ----------------------------------------------------------------------------
+   ⚠️ 所有进画布的串都必须走 parseRich()（@{...} 矢量 / _x 下标）；
+      所有进 DOM 的串都必须走 richHTML()。本引擎**不认 Markdown 星号**，加粗只能 <b>。
+   ⚠️ buildScene() 的第一句必须是 prims=[]（否则每帧往上叠一层整场景）。
+   ★ 3D 里的文字标签只留"必须钉在物体上"的那几个（B₁₂、F、P、n̂、θ、根数），
+     其余说明一律走画布左上角的 textScreen 提示行 —— 世界坐标锚的标签在
+     窄窗/旋转后极容易撞到右上信息卡。
+   ============================================================================ */
+
+/* ══════════════════════════ 画布小卡助手（与 2.1~2.4 / 3.x / 4.2 同源） ══════════════════════════ */
+function txt(x,y,str,o={}){
+  ctx.save();
+  const lo=richLayout(ctx,parseRich(str),o.size||12,!!o.bold);
+  richDraw(ctx,lo,x,y,o.align||'left',o.color||C.ink);
+  ctx.restore();
+}
+function rrPath(x,y,w,h,r){
+  ctx.beginPath(); ctx.moveTo(x+r,y); ctx.lineTo(x+w-r,y); ctx.quadraticCurveTo(x+w,y,x+w,y+r);
+  ctx.lineTo(x+w,y+h-r); ctx.quadraticCurveTo(x+w,y+h,x+w,y+h-r);
+  ctx.lineTo(x+r,y+h); ctx.quadraticCurveTo(x,y+h,x+r,y+h);
+  ctx.lineTo(x,y+h-r); ctx.quadraticCurveTo(x,y,x+r,y); ctx.closePath();
+}
+function crd(x,y,w,h){
+  ctx.save(); ctx.shadowColor='rgba(30,60,80,.10)'; ctx.shadowBlur=8; ctx.shadowOffsetY=2;
+  rrPath(x,y,w,h,10); ctx.fillStyle='rgba(255,255,255,.95)'; ctx.fill(); ctx.restore();
+  ctx.save(); rrPath(x,y,w,h,10); ctx.strokeStyle='#DCE6EB'; ctx.lineWidth=1; ctx.stroke(); ctx.restore();
+}
+
+/* ══════════════════════════ 配色 ══════════════════════════ */
+const ZL       = 1e4+40;         /* 标注深度档：压在导线 / 球面之上 */
+const WIRE_HEX = '#33505E';      /* 导线本体（深蓝灰） */
+const CUR_HEX  = C.crimson;      /* 电流箭头（红） */
+const B_HEX    = '#0F9ED5';      /* 磁感应强度（蓝） */
+const F_HEX    = C.orange;       /* 安培力（橙） */
+const FL_HEX   = '#5E9FBF';      /* 磁感线 */
+const PL_HEX   = C.teal;         /* 穿过面的那块板 */
+const LOOP_HEX = '#8A6BB8';      /* 球内小电流环（紫） */
+const Q_HEX    = C.crimson;      /* 电荷（红） */
+const OUT_HEX  = C.green;        /* 穿出（绿） */
+const IN_HEX   = '#B0577E';      /* 穿入（玫红） */
+
+/* ══════════════════════════ 右上角信息卡 ══════════════════════════ */
+function infoCard(title,rows,h){
+  const x0=CARD_X(), y0=CARD_Y, w=CARD_W;
+  crd(x0,y0,w,h);
+  txt(x0+12,y0+15,title,{size:11.5,bold:true,color:'#1F3D4C'});
+  rows.forEach((r,i)=>{
+    const y=y0+38+i*19;
+    /* ⚠️ 章节行要同时认两种写法：['§','文本'] 与 ['§ 文本']（2.3 的教训：
+       只认前者 ⇒ 单元素那种右列取 r[1] 得 undefined，而 parseRich(undefined)
+       **不抛异常**、静默排版成 "undefined"）。 */
+    const markerOnly=(r[0]==='§');
+    if(markerOnly || (r.length===1 && String(r[0]||'')[0]==='§')){
+      const lab=markerOnly ? String(r[1]==null?'':r[1]) : String(r[0]).slice(1);
+      txt(x0+11,y,lab.trim(),{size:11,bold:true,color:r[2]||'#1F3D4C'}); return;
+    }
+    let lab=String(r[0]==null?'':r[0]);
+    if(lab[0]==='§') lab=lab.slice(1).trim();
+    txt(x0+13,y,lab,{size:11,color:'#5F7482'});
+    txt(x0+w-13,y,r[1]==null?'':String(r[1]),{size:11,bold:true,color:r[2]||'#0E4A66',align:'right'});
+  });
+}
+
+/* ══════════════════════════ 通用场景件 ══════════════════════════ */
+/* xy 平面上的整圆（绕 z 轴） */
+function ringPts3(cx,cy,r,z,N){
+  const out=[]; for(let i=0;i<=N;i++){ const a=2*Math.PI*i/N;
+    out.push(pt(cx+r*Math.cos(a), cy+r*Math.sin(a), z)); }
+  return out;
+}
+/* 竖直导线：粗线 + 白色高光芯（画成"圆柱"的既视感） */
+function wireV(x,y){
+  line(pt(x,y,WIRE_Z0),pt(x,y,WIRE_Z1),{color:WIRE_HEX,w:4.4});
+  line(pt(x,y,WIRE_Z0),pt(x,y,WIRE_Z1),{color:'#FFFFFF',alpha:.50,w:1.25});
+}
+/* 导线上的电流方向小箭头（红） */
+function curMarks(x,y,sign,zs){
+  zs.forEach(z=>{
+    arrow(pt(x,y,z-0.105*sign),pt(x,y,z+0.105*sign),{color:CUR_HEX,w:3.2,z:ZL,headScale:0.85});
+  });
+}
+/* 圆上的切向小箭头（右手螺旋的方向指示） */
+function ringArrows(cx,cy,r,z,azs,len,col){
+  azs.forEach(deg=>{
+    const phi=deg*D2R, p=pt(cx+r*Math.cos(phi), cy+r*Math.sin(phi), z);
+    arrow(p, vadd(p,vmul(phiHat(phi),len)), {color:col||B_HEX,w:1.9,headScale:0.72,alpha:.9});
+  });
+}
+/* 球壳：透明填充 + 3 条纬线 + 4 条子午线 + 轮廓圆
+   ★ 正交投影下球面的轮廓**恒为一个圆**（半径 R·camScale）——最省事也最准。 */
+function sphereShell(c,R,hex,wk){
+  /* wk = 线框浓淡系数（磁感线那侧传 0.55：球壳让位给场线，否则两张网叠出摩尔纹） */
+  const k0=(wk==null?1:wk);
+  const S=pr(c), rr=Math.max(6,R*camScale);
+  P_(vdot(c,camD)-R*0.55, ()=>{
+    const g=ctx.createRadialGradient(S.x-rr*0.30,S.y-rr*0.34,rr*0.10,S.x,S.y,rr*1.02);
+    g.addColorStop(0,hexA(hex,0.02)); g.addColorStop(0.72,hexA(hex,0.09)); g.addColorStop(1,hexA(hex,0.20));
+    ctx.save(); ctx.beginPath(); ctx.arc(S.x,S.y,rr,0,7); ctx.fillStyle=g; ctx.fill(); ctx.restore();
+  });
+  [-0.55,0,0.55].forEach(k=>{
+    const rr0=R*Math.sqrt(Math.max(1e-6,1-k*k));
+    curve(ringPts3(c.x,c.y,rr0,c.z+R*k,40),{color:hexA(hex,0.30*k0),w:1.05});
+  });
+  for(let m=0;m<4;m++){
+    const phi=m*Math.PI/2, pts=[];
+    for(let i=0;i<=32;i++){ const t=Math.PI*i/32;
+      pts.push(pt(c.x+R*Math.sin(t)*Math.cos(phi), c.y+R*Math.sin(t)*Math.sin(phi), c.z+R*Math.cos(t))); }
+    curve(pts,{color:hexA(hex,0.24*k0),w:1.0});
+  }
+  P_(vdot(c,camD), ()=>{ ctx.save(); ctx.beginPath(); ctx.arc(S.x,S.y,rr,0,7);
+    ctx.strokeStyle=hexA(hex,0.52); ctx.lineWidth=1.5; ctx.stroke(); ctx.restore(); });
+}
+/* 折线与球面的交点（含"出/入"标记）—— 画穿出/穿入的小圆点用 */
+function crossPts(pts,c,R){
+  const out=[];
+  for(let i=1;i<pts.length;i++){
+    const fa=vlen(vsub(pts[i-1],c))-R, fb=vlen(vsub(pts[i],c))-R;
+    if(fa===fb) continue;
+    if((fa<0&&fb>=0)||(fa>=0&&fb<0)){
+      const u=fa/(fa-fb);
+      out.push({p:vadd(pts[i-1],vmul(vsub(pts[i],pts[i-1]),u)), goingOut:fa<0});
+    }
+  }
+  return out;
+}
+/* 画布左上角的说明行（固定屏幕坐标，永远不会撞到右上信息卡） */
+function hintLine(s,col,row){ textScreen(16,72+(row||0)*19,s,{size:11.5,color:col||'#5F7482'}); }
+
+/* ══════════════════════════ ① 安培力 ══════════════════════════ */
+function drawAmpereScene(){
+  /* 导线 1 放在 +x 侧（camU 的 x 分量为负 ⇒ 屏幕上偏左），导线 2 在 −x 侧 */
+  const s=sepW(state.d), x1=s/2, x2=-s/2;
+  const d2=state.rev?-1:1;                 /* 导线 2 的电流方向 */
+  const fdir=state.rev?-1:1;               /* 力的方向：+1 = 指向导线 1（相吸） */
+
+  if(state.show.wire){
+    wireV(x1,0); wireV(x2,0);
+    curMarks(x1,0,1,[-0.62,0,0.62]);
+    curMarks(x2,0,d2,[-0.44,0.22,0.66]);
+    text(pt(x1,0,WIRE_Z1+0.10),'@{I}₁',{color:CUR_HEX,bold:true,size:13,align:'center'});
+    text(pt(x2,0,WIRE_Z1+0.10),'@{I}₂',{color:CUR_HEX,bold:true,size:13,align:'center'});
+    dimLine(pt(x2,0,-0.86),pt(x1,0,-0.86),
+      {color:C.muted,w:1.2,label:'d = '+state.d.toFixed(3)+' m',lsize:11.5,ldy:13});
+  }
+
+  /* 导线 1 的磁场：半径正好等于间距的那一圈**恰好穿过导线 2** —— 全页最要紧的一笔 */
+  if(state.show.bcir){
+    [0.34,-0.34].forEach((z,k)=>{
+      curve(ringPts3(x1,0,s,z,48),{color:hexA(B_HEX,0.55),w:1.35,dash:k?[5,4]:null});
+      ringArrows(x1,0,s,z,k?[20,200]:[70,250],0.085);
+    });
+  }
+
+  if(state.show.force){
+    /* B₁₂：导线 1 在导线 2 处的场 —— 方向正是那一圈圆的切向（−ŷ） */
+    const B12=bLine(state.I1,state.d);
+    const lb=Math.max(0.09,Math.min(0.34,0.34*B12/4e-5));
+    arrow(pt(x2,0,0.14),pt(x2,-lb,0.14),
+      {color:B_HEX,w:2.6,z:ZL,headScale:0.95,label:'@{B}₁₂',lsize:11.5,ldx:-4,ldy:-9});
+
+    /* 力：一对等大反向的箭头（牛顿第三定律）；长度线性 + 上下限钳制 */
+    const F=fTotal(state.I1,state.I2,state.d,state.La);
+    const lf=Math.min(fArrowLen(F), s*0.42);   /* ⚠️ 上限 0.42·s：两支箭头各占半段，中间留空隙不叠 */
+    arrow(pt(x2,0,-0.12),pt(x2+fdir*lf,0,-0.12),
+      {color:F_HEX,w:4.0,z:ZL,label:'@{F}₂₁',lsize:12.5,ldy:-11});
+    arrow(pt(x1,0,-0.12),pt(x1-fdir*lf,0,-0.12),
+      {color:F_HEX,w:4.0,z:ZL,label:'@{F}₁₂',lsize:12.5,ldy:15});
+  }
+  hintLine('@{B}₁ 绕导线 1 成圈；半径 = d 的那圈恰好穿过导线 2', B_HEX);
+  hintLine(state.rev?'反向电流 ⇒ 相斥（力背向导线 1）':'同向电流 ⇒ 相吸（力指向导线 1）', F_HEX, 1);
+}
+
+/* ══════════════════════════ ② 磁感应强度 ══════════════════════════ */
+/* 箭头长度 ∝ 1/ρ（ρ 用**世界**半径；ρ=QUIV_R0 处最长 QUIV_L0，再近就截顶） */
+function bLen(rho){ return Math.max(0.07,Math.min(QUIV_L0,QUIV_L0*(QUIV_R0/Math.max(0.05,rho)))); }
+/* ★★ P 点的取位（踩过的坑，别改回去）：
+   若把 P 放在 (0,r,0)，它正好躺在 **y 轴上** ⇒ 橙色的 F 箭头与橙色的 y 轴共线，
+   画面上看起来像"轴线自带一个箭头"，学生会把坐标轴当成力。
+   抬高到 z=0.42（场沿导线平移不变 ⇒ 物理上完全等价）既避开了 y 轴，
+   也避开了 z=0 那三圈的箭头，三支箭头才散得开。 */
+const PROBE_Z = 0.42;
+function drawFieldScene(){
+  const rw=state.rp*R_M2W;
+  const P=pt(0,rw,PROBE_Z), SP=pr(P);  /* P 的屏幕位置：环上的箭头要给它让位 */
+
+  if(state.show.wire){
+    wireV(0,0);
+    curMarks(0,0,1,[-0.62,0,0.62]);
+    text(pt(0,0,WIRE_Z1+0.10),'@{I}',{color:CUR_HEX,bold:true,size:13,align:'center'});
+    /* 右手螺旋：拇指顺电流、四指绕向 = @{B} 的绕向 */
+    curve(ringPts3(0,0,0.42,0.84,40),{color:hexA(B_HEX,0.45),w:1.3,dash:[4,4]});
+    ringArrows(0,0,0.42,0.84,[30],0.09);
+    text(pt(0,0.42,0.93),'右手螺旋',{color:B_HEX,size:11,bold:true,align:'center'});
+  }
+
+  if(state.show.bvec){
+    QUIV_GUIDE.forEach(r=>curve(ringPts3(0,0,r,0,48),{color:hexA(B_HEX,0.30),w:1.1,dash:[4,4]}));
+    for(let ix=0;ix<QUIV_N;ix++) for(let iy=0;iy<QUIV_N;iy++){
+      const x=-QUIV_SPAN+2*QUIV_SPAN*ix/(QUIV_N-1);
+      const y=-QUIV_SPAN+2*QUIV_SPAN*iy/(QUIV_N-1);
+      const rho=Math.hypot(x,y);
+      if(rho<1e-6) continue;                       /* 中心那格在导线上，跳过 */
+      const p=pt(x,y,0);
+      const L=bLen(rho), e=vadd(p,vmul(phiHat(Math.atan2(y,x)),L));
+      /* ★ 屏幕空间最小间距过滤：P 附近（18px 内）的 quiver 箭头不画，
+         否则拖 r 让 P 走进场里时，三支探针箭头会和 quiver 糊成一团。 */
+      const S0=pr(p), S1=pr(e);
+      if(Math.hypot(S0.x-SP.x,S0.y-SP.y)<18 || Math.hypot(S1.x-SP.x,S1.y-SP.y)<18) continue;
+      arrow(p, e, {color:B_HEX,w:1.5,alpha:0.9,headScale:0.7});
+    }
+  }
+
+  if(state.show.probe){
+    /* P 脚下这一圈：让"B 就是这一圈的切向"看得见 */
+    curve(ringPts3(0,0,rw,PROBE_Z,48),{color:hexA(B_HEX,0.62),w:1.5});
+    const B=bLine(state.If,state.rp);
+    const lB=Math.max(0.16,Math.min(0.46,0.46*B/2e-5));
+    const dphi=phiHat(Math.PI/2);                    /* = (−1,0,0) */
+    marker(P,{color:F_HEX,r:5,ring:hexA(F_HEX,.35),label:'P',lsize:12});
+    /* ① 该点的 @{B} */
+    arrow(P, vadd(P,vmul(dphi,lB)), {color:B_HEX,w:3.2,z:ZL,headScale:1.0,
+      label:'@{B}',lsize:13,ldx:-2,ldy:-11});
+    /* ② 测试电流元 I₂dl₂（沿 +z，与导线同向） */
+    arrow(P, vadd(P,pt(0,0,0.24)), {color:CUR_HEX,w:2.6,z:ZL,headScale:0.95,
+      label:'@{I}₂d@{l}₂',lsize:11.5,ldx:-40,ldy:1});
+    /* ③ 力 F = I₂dl₂ × B ⇒ 指向导线（同向相吸，回勾 ①） */
+    arrow(P, vadd(P,pt(0,-0.28,0)), {color:F_HEX,w:3.2,z:ZL,headScale:1.0,
+      label:'@{F}',lsize:13,ldy:15});
+    /* dl ⊥ B 的直角标记 */
+    const e=0.055;
+    curve([vadd(P,pt(-e,0,e)),vadd(P,pt(0,0,e)),vadd(P,pt(-e,0,0))],{color:C.muted,w:1.1});
+    /* r 的数值卡片里有，画面上不再标（P 周围已经有三支箭头 + 三个标签） */
+  }
+  hintLine('@{B} 沿圆周切向、大小 1/r 衰减 —— 箭头近长远短', B_HEX);
+}
+
+/* ══════════════════════════ ③ 磁通量 ══════════════════════════ */
+function drawFluxScene(){
+  const th=state.th, A=state.A3;
+  const pierce=piercingXs(th,A);
+  const isP=x=>pierce.some(v=>Math.abs(v-x)<1e-9);
+
+  if(state.show.fline){
+    lineXs().forEach(x=>{
+      const on=isP(x);
+      const p0=pt(x,0,FLUX_Z0), p1=pt(x,0,FLUX_Z1);
+      curve([p0,p1],{color:on?hexA(B_HEX,.95):hexA(B_HEX,.26),w:on?2.3:1.2});
+      /* 每根线都保留箭头：θ=90° 时"一根不穿但场还在"全靠这些箭头说话 */
+      arrow(pt(x,0,FLUX_Z1-0.17),p1,{color:on?B_HEX:hexA(B_HEX,.30),w:on?2.1:1.2,headScale:0.85});
+    });
+  }
+
+  if(state.show.plate){
+    /* ⚠️ poly 的 fillAlpha 会同时压低描边透明度（引擎的行为）⇒ 必须显式给 strokeAlpha */
+    poly(plateCorners(th,A),{fill:PL_HEX,fillAlpha:.13,strokeAlpha:1,stroke:PL_HEX,w:1.9});
+    const n=plateBasis(th).n;
+    arrow(pt(0,0,0), vmul(n,0.50), {color:LOOP_HEX,w:2.4,z:ZL,headScale:0.95,
+      label:'n̂',lsize:12.5,ldy:-9});
+    /* θ：从 +z 转到 n̂（两者都在 xz 平面内 ⇒ 直接在 xz 平面画弧） */
+    if(th>4 && th<176){
+      const arc=[]; for(let i=0;i<=24;i++){ const t=th*D2R*i/24;
+        arc.push(pt(0.30*Math.sin(t),0,0.30*Math.cos(t))); }
+      curve(arc,{color:LOOP_HEX,w:1.4,dash:[4,3]});
+      const tm=th*D2R/2;
+      text(pt(0.345*Math.sin(tm),0,0.345*Math.cos(tm)),'θ',
+        {color:LOOP_HEX,bold:true,size:12.5,align:'center'});
+    }
+  }
+
+  if(state.show.count){
+    const n0=pierce.length, sgn=Math.cos(th*D2R)>=0?1:-1;
+    text(pt(0,0,FLUX_Z1+0.14),'穿过面的磁感线：'+n0+' 根（净 '+(n0===0?0:sgn*n0)+' 根）',
+      {color:PL_HEX,bold:true,size:12.5,align:'center'});
+  }
+  /* θ=90° 的关键句：md 里明写的那一句，必须最显眼 */
+  if(Math.abs(Math.cos(th*D2R))<0.02)
+    hintLine('Φ = 0，但 @{B} 还在！面只是与场平行，一根线都没被打中', F_HEX);
+  else
+    hintLine('Φ = B·A·cos θ ＝ 数穿过面的磁感线根数', B_HEX);
+}
+
+/* ══════════════════════════ ④ 闭合面的磁通量 ══════════════════════════ */
+function drawClosedScene(){
+  const R=state.R4;
+
+  /* ── 磁感线那一侧：球内一个小电流环，场线闭合成环 ── */
+  if(state.show.sphM) sphereShell(CEN_M,R,'#156082',0.55);
+  if(state.show.linesM){
+    for(let i=0;i<DIP_N;i++){
+      /* 方位从 45° 起、口径在 0.62/0.52 之间交替：四条线不重合，看着才像一族而不是一条 */
+      const pts=dipolePts(i*90+45, i%2?DIP_L:DIP_L*0.84).map(p=>vadd(p,CEN_M));
+      curve(pts,{color:hexA(FL_HEX,.95),w:2.1});
+      [Math.floor(pts.length*0.30),Math.floor(pts.length*0.78)].forEach(k=>{
+        if(k>0&&k<pts.length-1) arrow(pts[k-1],pts[k],{color:FL_HEX,w:1.9,headScale:0.7});
+      });
+      crossPts(pts,CEN_M,R).forEach(cp=>{
+        screenDot(cp.p,3.4,cp.goingOut?OUT_HEX:IN_HEX,.95,ZL);
+      });
+    }
+    /* 球内的小电流环（偶极子的"源"） */
+    curve(ringPts3(CEN_M.x,CEN_M.y,LOOP_A,CEN_M.z,36),{color:LOOP_HEX,w:2.6,z:ZL});
+    ringArrows(CEN_M.x,CEN_M.y,LOOP_A,CEN_M.z,[0,120,240],0.05,LOOP_HEX);
+    text(pt(CEN_M.x,CEN_M.y,CEN_M.z-LOOP_A-0.13),'球内：小电流环',
+      {color:LOOP_HEX,size:10.5,bold:true,align:'center'});
+    text(pt(CEN_M.x,CEN_M.y,CEN_M.z+R+0.17),'磁感线：闭合 · 穿进必穿出',
+      {color:FL_HEX,bold:true,size:11.5,align:'center'});
+  }
+
+  /* ── 电力线那一侧：球内 +Q，6 根径向线全部向外 ── */
+  if(state.show.sphE) sphereShell(CEN_E,R,'#D04A3A');
+  if(state.show.linesE){
+    for(let i=0;i<ELE_N;i++){
+      const pts=eleLine(CEN_E,ELE_DIRS[i]);
+      curve(pts,{color:hexA(Q_HEX,.88),w:1.9,arrowEnd:true});
+      crossPts(pts,CEN_E,R).forEach(cp=>{
+        screenDot(cp.p,3.4,cp.goingOut?OUT_HEX:IN_HEX,.95,ZL);
+      });
+    }
+    marker(CEN_E,{color:Q_HEX,r:6,ring:hexA(Q_HEX,.28)});
+    text(CEN_E,'+Q',{color:Q_HEX,bold:true,size:13,dy:20,align:'center'});
+    text(pt(CEN_E.x,CEN_E.y,CEN_E.z+R+0.17),'电力线：有头有尾（起于正电荷）',
+      {color:Q_HEX,bold:true,size:11.5,align:'center'});
+  }
+  const st=crossStats(R);
+  hintLine('磁感线 '+st.mIn+' 进 '+st.mOut+' 出 ⇒ 净 '+st.mNet+
+           '　｜　电力线 '+st.eIn+' 进 '+st.eOut+' 出 ⇒ 净 '+st.eNet, C.ink);
+}
+
+/* ══════════════════════════ 画布插图（屏幕空间） ══════════════════════════ */
+/* 画一支屏幕空间的水平箭头（从 xa 到 xb，y 处） */
+function sArrow(xa,xb,y,col){
+  ctx.save();
+  ctx.strokeStyle=col; ctx.fillStyle=col; ctx.lineWidth=2.2; ctx.lineCap='round';
+  ctx.beginPath(); ctx.moveTo(xa,y); ctx.lineTo(xb,y); ctx.stroke();
+  const s=Math.sign(xb-xa)||1;
+  ctx.beginPath(); ctx.moveTo(xb,y);
+  ctx.lineTo(xb-6*s,y-3.4); ctx.lineTo(xb-6*s,y+3.4); ctx.closePath(); ctx.fill();
+  ctx.restore();
+}
+/* ① 双联对照：同向 ⇒ 相吸 / 反向 ⇒ 相斥（md 图 A 的左右对照；3D 场景里摆不下） */
+function drawInsetAmpere(){
+  if(!state.show.inset || W<560) return;
+  const w=282, h=112, x0=14, y0=H-h-14;
+  const cur=state.rev?1:0;                       /* 当前处在哪一联 */
+  (()=>{
+    crd(x0,y0,w,h);
+    txt(x0+11,y0+15,'对照：只看两根导线的电流方向',{size:11,bold:true,color:'#1F3D4C'});
+    [['同向 ⇒ 相吸',0],['反向 ⇒ 相斥',1]].forEach(([lab,rev],k)=>{
+      const cx=x0+w*0.27+k*w*0.46, cy=y0+62;
+      /* 两个截面圆：⊙ = 电流流出纸面，⊗ = 流入纸面 */
+      [[-24,1],[24,rev?-1:1]].forEach(([dx,dir])=>{
+        const px=cx+dx;
+        ctx.save();
+        ctx.beginPath(); ctx.arc(px,cy,11,0,7);
+        ctx.fillStyle='#FFFFFF'; ctx.fill();
+        ctx.strokeStyle=CUR_HEX; ctx.lineWidth=2; ctx.stroke();
+        if(dir>0){ ctx.beginPath(); ctx.arc(px,cy,2.8,0,7); ctx.fillStyle=CUR_HEX; ctx.fill(); }
+        else { ctx.beginPath();
+          ctx.moveTo(px-5,cy-5); ctx.lineTo(px+5,cy+5);
+          ctx.moveTo(px+5,cy-5); ctx.lineTo(px-5,cy+5);
+          ctx.lineWidth=1.9; ctx.stroke(); }
+        ctx.restore();
+      });
+      /* 力箭头：相吸 → 两箭头在中间对指；相斥 → 两箭头在外侧背指 */
+      if(!rev){ sArrow(cx-12,cx-2,cy,F_HEX); sArrow(cx+12,cx+2,cy,F_HEX); }
+      /* ⚠️ 相斥的两支箭头必须画在圆**外面**（cx∓37..cx∓49）：画在里面会被圆压住、看成一团 */
+      else    { sArrow(cx-37,cx-49,cy,F_HEX); sArrow(cx+37,cx+49,cy,F_HEX); }
+      txt(cx,y0+96,lab,{size:10.5,bold:k===cur,color:k===cur?F_HEX:'#8A9AA5',align:'center'});
+    });
+  })();
+}
+/* ③ cosθ 曲线 + Φ/Φmax 竖条（md：cosθ 曲线动点、90° 处虚线 + 仪表） */
+function drawInsetCos(){
+  if(!state.show.cos || W<620) return;
+  const w=320, h=150, x0=14, y0=H-h-14;
+  const th=state.th, c=Math.cos(th*D2R), fM=fluxM(state.B3,state.A3,th);
+  (()=>{
+    crd(x0,y0,w,h);
+    txt(x0+11,y0+15,'Φ = B·A·cos θ',{size:11,bold:true,color:'#1F3D4C'});
+    txt(x0+w-12,y0+15,(fM<0?'−':'')+Math.abs(fM).toFixed(3)+' mWb',
+      {size:11.5,bold:true,color:PL_HEX,align:'right'});
+    /* ── 绘图区 ── */
+    const px=x0+38, py=y0+34, pw=180, ph=96;
+    const X=t=>px+pw*t/180, Y=v=>py+ph*(1-v)/2;
+    ctx.save();
+    ctx.strokeStyle='#E7EEF3'; ctx.lineWidth=1;
+    for(let k=0;k<=3;k++){ const gx=px+pw*k/3;
+      ctx.beginPath(); ctx.moveTo(gx,py); ctx.lineTo(gx,py+ph); ctx.stroke(); }
+    ctx.beginPath(); ctx.moveTo(px,Y(0)); ctx.lineTo(px+pw,Y(0)); ctx.stroke();
+    /* 90° 虚线 */
+    ctx.setLineDash([4,3]); ctx.strokeStyle='#C9D6DD';
+    ctx.beginPath(); ctx.moveTo(X(90),py); ctx.lineTo(X(90),py+ph); ctx.stroke();
+    ctx.setLineDash([]);
+    /* cos 曲线 */
+    ctx.beginPath(); ctx.strokeStyle=LOOP_HEX; ctx.lineWidth=1.8;
+    for(let i=0;i<=90;i++){ const t=180*i/90, yy=Y(Math.cos(t*D2R));
+      if(i===0) ctx.moveTo(X(t),yy); else ctx.lineTo(X(t),yy); }
+    ctx.stroke();
+    /* 动点 */
+    ctx.beginPath(); ctx.arc(X(th),Y(c),4.4,0,7); ctx.fillStyle=F_HEX; ctx.fill();
+    ctx.strokeStyle='#fff'; ctx.lineWidth=1.6; ctx.stroke();
+    /* 刻度 */
+    ctx.fillStyle='#8A9AA5'; ctx.font='9px '+RICHFONT; ctx.textAlign='center';
+    ['0°','90°','180°'].forEach((s,i)=>ctx.fillText(s,px+pw*i/2,py+ph+12));
+    ctx.textAlign='right';
+    ctx.fillText('+1',px-4,py+7); ctx.fillText('0',px-4,Y(0)+3); ctx.fillText('−1',px-4,py+ph);
+    ctx.restore();
+    /* ── Φ/Φmax 竖条（中线 = 0，向上正、向下负） ── */
+    const bx=x0+w-72, by0=y0+34, bh=96, bw=16;
+    const zero=by0+bh/2, len=(bh/2-2)*Math.max(-1,Math.min(1,c));
+    ctx.save();
+    rrPath(bx,by0,bw,bh,7); ctx.strokeStyle='#DCE6EB'; ctx.lineWidth=1; ctx.stroke();
+    ctx.beginPath(); ctx.rect(bx+2, Math.min(zero,zero-len), bw-4, Math.abs(len));
+    ctx.fillStyle=c>=0?OUT_HEX:IN_HEX; ctx.fill();
+    ctx.beginPath(); ctx.moveTo(bx,zero); ctx.lineTo(bx+bw,zero);
+    ctx.strokeStyle='#8A9AA5'; ctx.lineWidth=1.2; ctx.stroke();
+    ctx.restore();
+    txt(bx+bw+6,by0+8,'+1',{size:9,color:'#8A9AA5'});
+    txt(bx+bw+6,zero+4,'0',{size:9,color:'#8A9AA5'});
+    txt(bx+bw+6,by0+bh-2,'−1',{size:9,color:'#8A9AA5'});
+  })();
+}
+
+/* ══════════════════════════ 场景装配 ══════════════════════════ */
+function buildScene(){
+  prims=[];                     /* ★ 第一句必须是 prims=[] */
+  if(state.mode==='ampere') drawAmpereScene();
+  if(state.mode==='field')  drawFieldScene();
+  if(state.mode==='flux')   drawFluxScene();
+  if(state.mode==='closed') drawClosedScene();
+  drawAxes(EXT41);
+}
+
+/* ══════════════ 信息卡内容 ══════════════ */
+function currentCard(){
+  if(state.mode==='ampere'){
+    const B=bLine(state.I1,state.d), FL=fPerLen(state.I1,state.I2,state.d);
+    const F=FL*state.La;
+    return ['安培力 · 两根平行导线',[
+      ['导线 1 的电流 I₁', state.I1.toFixed(1)+' A（沿 +z）'],
+      ['导线 2 的电流 I₂', state.I2.toFixed(1)+' A（'+(state.rev?'沿 −z':'沿 +z')+'）'],
+      ['导线间距 d', state.d.toFixed(3)+' m'],
+      ['受力的那一段长度 L', state.La.toFixed(2)+' m'],
+      ['§ 导线 1 在导线 2 处产生的场'],
+      ['　B₁₂ = µ₀I₁/(2πd)', fmtSmart(B*1e6,'µT')],
+      ['§ 安培力'],
+      ['　F/L = µ₀I₁I₂/(2πd)', fmtSmart(FL*1e6,'µN/m')],
+      ['　F = (F/L)·L', fmtSmart(F*1e6,'µN')],
+      ['§ 方向'],
+      ['　两电流', state.rev?'反向 ⇒ 相斥':'同向 ⇒ 相吸', state.rev?'#A8442F':'#0E6E4A'],
+    ],244];
+  }
+  if(state.mode==='field'){
+    const B=bLine(state.If,state.rp);
+    return ['磁感应强度 · 长直导线',[
+      ['导线电流 I', state.If.toFixed(1)+' A'],
+      ['探针到导线的距离 r', state.rp.toFixed(3)+' m'],
+      ['§ 该点的磁感应强度'],
+      ['　B = µ₀I/(2πr)', fmtSmart(B*1e6,'µT')],
+      ['　方向', '沿圆周切向 φ̂'],
+      ['§ 同一根导线，不同距离'],
+      ['　r = 0.100 m', fmtSmart(bLine(state.If,0.100)*1e6,'µT')],
+      ['　r = 0.160 m', fmtSmart(bLine(state.If,0.160)*1e6,'µT')],
+      ['　r = 0.250 m', fmtSmart(bLine(state.If,0.250)*1e6,'µT')],
+      ['§ 定义（回勾 ①）'],
+      ['　B ≡ F_max/(I·dl)', '与 I、dl 无关'],
+    ],244];
+  }
+  if(state.mode==='flux'){
+    const n=piercingXs(state.th,state.A3).length;
+    const c=Math.cos(state.th*D2R);
+    const f=fluxM(state.B3,state.A3,state.th);
+    return ['磁通量 · 穿过一个面',[
+      ['均匀场 B', state.B3.toFixed(0)+' mT（沿 +z）'],
+      ['面面积 A', state.A3.toFixed(2)+' dm²'],
+      ['面法线与 B 的夹角 θ', state.th.toFixed(0)+'°'],
+      ['§ 磁通量'],
+      ['　Φ_max = B·A（θ=0）', fluxM(state.B3,state.A3,0).toFixed(3)+' mWb'],
+      ['　cos θ', (c<0?'−':'')+Math.abs(c).toFixed(3)],
+      ['　Φ = B·A·cos θ', (f<0?'−':'')+Math.abs(f).toFixed(3)+' mWb'],
+      ['§ 数线根数（一行共 13 根）'],
+      ['　穿过面的根数', n+' 根'],
+      ['　净根数（出正入负）', (n===0?0:(c>=0?n:-n))+' 根'],
+      ['§ 判读'],
+      ['　面与 B 的关系', n===0?'平行 ⇒ 一根不穿':(c>0?'斜穿（正向）':'斜穿（反向）')],
+    ],263];
+  }
+  const st=crossStats(state.R4);
+  return ['闭合面的磁通量',[
+    ['闭合面半径 R', state.R4.toFixed(3)+' m'],
+    ['§ 磁感线那侧（球内：小电流环）'],
+    ['　穿出根数', String(st.mOut)],
+    ['　穿入根数', String(st.mIn)],
+    ['　净根数', String(st.mNet)],
+    ['　∮@{B}·dS', '0 Wb', '#0E6E4A'],
+    ['§ 电力线那侧（球内：+Q）'],
+    ['　穿出根数', String(st.eOut)],
+    ['　穿入根数', String(st.eIn)],
+    ['　净根数', String(st.eNet)],
+    ['　∮@{D}·dS = Q内', '+2.00 nC', '#A8442F'],
+    ['§ 结论'],
+    ['　磁场的高斯定理', '∮@{B}·dS ≡ 0', '#0E6E4A'],
+  ],282];
+}
+function drawOverlays(){
+  const c=currentCard(); infoCard(c[0],c[1],c[2]);
+  if(state.mode==='ampere') drawInsetAmpere();
+  if(state.mode==='flux')   drawInsetCos();
+}
+
+/* ══════════════════════════ 面板底部的实时结论条 ══════════════════════════ */
+function subNote(){
+  if(state.mode==='ampere')
+    return '<b>力不是导线拉导线</b>：导线 1 先在自己周围产生 @{B}₁，'+
+      '处在场里的导线 2 再受力 @{F} = @{I}₂d@{l}₂ × @{B}₁。<br>'+
+      '画面上半径正好等于间距的那一圈圆<b>恰好穿过导线 2</b>，那里的 @{B}₁₂ 就沿圆的切向。'+
+      '按「翻转导线 2 的电流」看相吸 ⇄ 相斥。';
+  if(state.mode==='field')
+    return '<b>@{B} 的方向沿圆周切向</b>（右手螺旋：拇指顺电流，四指绕向即 @{B} 的绕向），'+
+      '<b>大小 1/r 衰减</b> —— 箭头近长远短。<br>'+
+      'P 点的测试电流元与导线<b>同向</b>，受力指向导线：这就是 ① 里"同向相吸"的微观解释。';
+  if(state.mode==='flux')
+    return '<b>磁通量就是数穿过的磁感线根数</b>，斜了要打 cos θ 的折：'+
+      'θ=0° 全穿、60° 只剩一半、90° <b>一根都不穿</b>。<br>'+
+      '★ 但 θ=90° 时 <b>@{B} 一根箭头都没少</b> —— 变的是"面与场的夹角"，不是场本身。';
+  return '<b>磁感线闭合、无头无尾</b>：穿进闭合面的必然再穿出来 ⇒ <b>∮@{B}·dS ≡ 0</b>，'+
+    '与面的大小、形状、位置都无关。<br>'+
+    '电力线有头有尾：包住 +Q 就有净穿出 ⇒ <b>∮@{D}·dS = Q内</b>（第 2 章锚点）。'+
+    '<b>为什么磁感线必须闭合？</b>因为至今没找到磁单极子 —— 见第 3 张讲解卡。';
+}
+
+/* ══════════════════════════ 右侧面板 ══════════════════════════ */
+const panel=document.getElementById('panel');
+function h(html){const d=document.createElement('div');d.innerHTML=html;return d;}
+let _toastTimer=0;
+function toastMsg(msg){
+  const el=document.getElementById('toast'); if(!el) return;
+  el.textContent=msg; el.classList.add('show');
+  clearTimeout(_toastTimer); _toastTimer=setTimeout(()=>el.classList.remove('show'),1700);
+}
+function kchip(k,v,cls){return '<span class="coord-chip '+(cls||'')+'">'+richHTML(k)+'<b>'+richHTML(v)+'</b></span>';}
+function chipRow(parent,items,isOn,onPick){
+  const box=h('<div class="sub-chips"></div>').firstChild;
+  items.forEach(it=>{
+    const lab=richHTML(String(it.t??it.sub??it.label??''));
+    const b=h('<button class="chip '+(it.col||'')+(isOn(it.k)?' on':'')+'" data-k="'+it.k+'">'+lab+'</button>').firstChild;
+    b.onclick=()=>onPick(it.k);
+    box.appendChild(b);
+  });
+  parent.appendChild(box);
+  return box;
+}
+const SHOW_ITEMS={
+  ampere:[{k:'wire',t:'两根导线与电流'},{k:'bcir',t:'导线 1 的磁场圆'},{k:'force',t:'@{B}₁₂ 与安培力'},
+          {k:'inset',t:'同向 / 反向对照插图'},{k:'box',t:'坐标轴'}],
+  field: [{k:'wire',t:'长直导线与电流'},{k:'bvec',t:'各处的 @{B}（quiver）'},
+          {k:'probe',t:'P 点的 @{B} / 电流元 / 力'},{k:'box',t:'坐标轴'}],
+  flux:  [{k:'fline',t:'均匀磁场的场线'},{k:'plate',t:'穿过的面与法线'},
+          {k:'count',t:'穿线根数标注'},{k:'cos',t:'cos θ 曲线与 Φ 仪表'},{k:'box',t:'坐标轴'}],
+  closed:[{k:'sphM',t:'磁感线那侧的闭合面'},{k:'linesM',t:'磁感线（闭合）'},
+          {k:'sphE',t:'电力线那侧的闭合面'},{k:'linesE',t:'电力线（有头有尾）'},{k:'box',t:'坐标轴'}],
+};
+function mkRange(sec,d){
+  const r=h('<div class="slider-row'+(d.wide?' w':'')+'"><label>'+richHTML(d.label)+'</label>'+
+    '<input type="range" id="s_'+d.k+'" min="'+d.min+'" max="'+d.max+'" step="'+d.step+'" value="'+d.get()+'">'+
+    '<span class="val" id="v_'+d.k+'">'+d.fmt(d.get())+'</span></div>');
+  const inp=r.querySelector('input');
+  inp.oninput=()=>{
+    /* ⚠️ 必须用 d.set() 的**返回值**（生效值）来格式化与回写滑块（防"显示≠真实状态"） */
+    const eff=d.set(parseFloat(inp.value));
+    const v=(eff==null||!isFinite(eff))?parseFloat(inp.value):eff;
+    if(String(inp.value)!==String(v)) inp.value=String(v);
+    document.getElementById('v_'+d.k).textContent=d.fmt(v);
+    needsRender=true; updateReadout(); updateModeTag();
+    if(d.after) d.after();
+  };
+  sec.appendChild(r);
+}
+function btnRow(sec,specs){
+  const bx=h('<div class="sub-chips"></div>').firstChild;
+  specs.forEach(s=>{ const b=h('<button class="chip '+(s.col||'')+(s.on?' on':'')+'">'+richHTML(s.t)+'</button>').firstChild;
+    b.onclick=s.act; bx.appendChild(b); });
+  sec.appendChild(bx);
+}
+function renderSubSec(sec){
+  sec.innerHTML='';
+  sec.appendChild(h('<div class="sec-title">显示</div>'));
+  chipRow(sec,SHOW_ITEMS[state.mode],k=>state.show[k],k=>{
+    const next=!state.show[k];
+    /* ⚠️ 不许把层全关掉：全关 ⇒ 只剩坐标轴/空画布 */
+    const othersOn=SHOW_ITEMS[state.mode].some(it=>it.k!==k && state.show[it.k]);
+    if(!next && !othersOn){ toastMsg('至少保留一层显示'); return; }
+    state.show[k]=next; needsRender=true; renderPanel();
+  });
+  sec.appendChild(h('<div class="ex-note" style="margin-top:7px">'+richHTML(subNote())+'</div>'));
+}
+/* ⚠️ 这里的格式必须与 mkRange 建滑块时的 fmt **完全一致**（syncSliders 会反复调用）。 */
+const SLIDER_FMT={
+  I1:v=>v.toFixed(1)+' A', I2:v=>v.toFixed(1)+' A',
+  d:v=>v.toFixed(3)+' m',  La:v=>v.toFixed(2)+' m',
+  If:v=>v.toFixed(1)+' A', rp:v=>v.toFixed(3)+' m',
+  th:v=>v.toFixed(0)+'°',  B3:v=>v.toFixed(0)+' mT', A3:v=>v.toFixed(2)+' dm²',
+  R4:v=>v.toFixed(3)+' m',
+};
+function syncSliders(){
+  const set=(k,v)=>{ const s=document.getElementById('s_'+k); if(s) s.value=v;
+    const e=document.getElementById('v_'+k); if(e) e.textContent=SLIDER_FMT[k]?SLIDER_FMT[k](v):String(v); };
+  set('I1',state.I1); set('I2',state.I2); set('d',state.d); set('La',state.La);
+  set('If',state.If); set('rp',state.rp);
+  set('th',state.th); set('B3',state.B3); set('A3',state.A3);
+  set('R4',state.R4);
+}
+function renderSliders(sec){
+  sec.innerHTML='';
+  if(state.mode==='ampere'){
+    sec.appendChild(h('<div class="slider-group-label">两根平行导线</div>'));
+    mkRange(sec,{k:'I1',label:'导线 1 的电流 I₁',wide:true,min:I1_RANGE[0],max:I1_RANGE[1],step:0.5,
+      get:()=>state.I1,set:v=>{state.I1=v;},fmt:v=>v.toFixed(1)+' A'});
+    mkRange(sec,{k:'I2',label:'导线 2 的电流 I₂',wide:true,min:I2_RANGE[0],max:I2_RANGE[1],step:0.5,
+      get:()=>state.I2,set:v=>{state.I2=v;},fmt:v=>v.toFixed(1)+' A'});
+    mkRange(sec,{k:'d',label:'导线间距 d',wide:true,min:D_RANGE[0],max:D_RANGE[1],step:0.001,
+      get:()=>state.d,set:v=>{state.d=v;},fmt:v=>v.toFixed(3)+' m'});
+    mkRange(sec,{k:'La',label:'受力的那一段长度 L',wide:true,min:LA_RANGE[0],max:LA_RANGE[1],step:0.02,
+      get:()=>state.La,set:v=>{state.La=v;},fmt:v=>v.toFixed(2)+' m'});
+    btnRow(sec,[
+      {t:'翻转导线 2 的电流（同向 ⇄ 反向）', col:'p', on:state.rev,
+        act:()=>{ state.rev=!state.rev; renderPanel(); updateAll(); }},
+      {t:'回到默认', on:Math.abs(state.I1-10)<1e-9&&Math.abs(state.d-0.05)<1e-9,
+        act:()=>{ Object.assign(state,PRESET.ampere); renderPanel(); updateAll(); }},
+    ]);
+    sec.appendChild(h('<div class="ex-note" style="margin-top:9px">'+richHTML(
+      '力箭头长度<b>线性</b>对应 F，太长/太短都截在上下限内（只为看得见，读数看卡片）。<br>'+
+      '💡 把 <b>d 拖小</b>：B₁₂ 与 F 同时变大（都按 1/d）；把 <b>I₂ 拖到最小</b>：F 变小但 B₁₂ 不变 —— '+
+      '<b>B₁₂ 只由导线 1 决定</b>，这正是"场"与"力"必须分开讲的理由。')+'</div>'));
+  } else if(state.mode==='field'){
+    sec.appendChild(h('<div class="slider-group-label">同一根长直导线</div>'));
+    mkRange(sec,{k:'If',label:'导线电流 I',wide:true,min:I_RANGE[0],max:I_RANGE[1],step:0.5,
+      get:()=>state.If,set:v=>{state.If=v;},fmt:v=>v.toFixed(1)+' A'});
+    mkRange(sec,{k:'rp',label:'探针 P 到导线的距离 r',wide:true,min:RP_RANGE[0],max:RP_RANGE[1],step:0.005,
+      get:()=>state.rp,set:v=>{state.rp=v;},fmt:v=>v.toFixed(3)+' m'});
+    btnRow(sec,[
+      {t:'r = 0.100 m（内圈）', on:Math.abs(state.rp-0.100)<1e-6,
+        act:()=>{ state.rp=0.100; renderPanel(); updateAll(); }},
+      {t:'r = 0.160 m（中圈）', on:Math.abs(state.rp-0.160)<1e-6,
+        act:()=>{ state.rp=0.160; renderPanel(); updateAll(); }},
+      {t:'r = 0.250 m（外圈）', on:Math.abs(state.rp-0.250)<1e-6,
+        act:()=>{ state.rp=0.250; renderPanel(); updateAll(); }},
+    ]);
+    sec.appendChild(h('<div class="ex-note" style="margin-top:9px">'+richHTML(
+      '方格上的 B 箭头<b>近长远短</b>，而且一圈圈转起来 —— 这两件事合起来才是「长直导线的场」。<br>'+
+      '💡 P 点的三支箭头凑成一次叉乘：<b>d@{l}₂（红，沿 +z）</b>、<b>@{B}（蓝，沿切向）</b>、'+
+      '<b>@{F}（橙，指向导线）</b> —— @{F} = @{I}₂d@{l}₂ × @{B} 的现场。')+'</div>'));
+  } else if(state.mode==='flux'){
+    sec.appendChild(h('<div class="slider-group-label">面与场</div>'));
+    mkRange(sec,{k:'th',label:'法线与 B 的夹角 θ',wide:true,min:TH_RANGE[0],max:TH_RANGE[1],step:1,
+      get:()=>state.th,set:v=>{state.th=v;},fmt:v=>v.toFixed(0)+'°'});
+    mkRange(sec,{k:'B3',label:'均匀场 B',wide:true,min:B3_RANGE[0],max:B3_RANGE[1],step:1,
+      get:()=>state.B3,set:v=>{state.B3=v;},fmt:v=>v.toFixed(0)+' mT'});
+    mkRange(sec,{k:'A3',label:'面面积 A',wide:true,min:A3_RANGE[0],max:A3_RANGE[1],step:0.05,
+      get:()=>state.A3,set:v=>{state.A3=v;},fmt:v=>v.toFixed(2)+' dm²'});
+    btnRow(sec,[
+      {t:'θ=0°（全穿）', on:state.th===0, act:()=>{ state.th=0; renderPanel(); updateAll(); }},
+      {t:'θ=60°', on:state.th===60, act:()=>{ state.th=60; renderPanel(); updateAll(); }},
+      {t:'θ=90°（一根不穿）', col:'o', on:state.th===90, act:()=>{ state.th=90; renderPanel(); updateAll(); }},
+      {t:'θ=120°（负通量）', on:state.th===120, act:()=>{ state.th=120; renderPanel(); updateAll(); }},
+    ]);
+    sec.appendChild(h('<div class="ex-note" style="margin-top:9px">'+richHTML(
+      '★ 初始故意停在 <b>120°</b>：先看到 <b>Φ &lt; 0</b> 并解释它，再拖回 0° / 90°。<br>'+
+      '💡 根数是<b>离散示意</b>（一行 13 根、间距固定），Φ = BA cos θ 是连续精确值；'+
+      '线够密时两者才一致 —— 这正是"取极限"的思想。')+'</div>'));
+  } else {
+    sec.appendChild(h('<div class="slider-group-label">两个闭合面共用同一个半径</div>'));
+    mkRange(sec,{k:'R4',label:'闭合面半径 R',wide:true,min:R4_RANGE[0],max:R4_RANGE[1],step:0.005,
+      get:()=>state.R4,set:v=>{state.R4=v;},fmt:v=>v.toFixed(3)+' m'});
+    btnRow(sec,[
+      {t:'缩到最小', on:Math.abs(state.R4-R4_RANGE[0])<1e-6,
+        act:()=>{ state.R4=R4_RANGE[0]; renderPanel(); updateAll(); }},
+      {t:'放到最大', on:Math.abs(state.R4-R4_RANGE[1])<1e-6,
+        act:()=>{ state.R4=R4_RANGE[1]; renderPanel(); updateAll(); }},
+    ]);
+    sec.appendChild(h('<div class="ex-note" style="margin-top:9px">'+richHTML(
+      '★ 把 R 从最小拖到最大：<b>穿入根数、穿出根数一个都不变</b> —— '+
+      '∮@{B}·dS = 0 与面的大小、形状、位置都无关。<br>'+
+      '绿点 = 穿出，玫红点 = 穿入：磁感线上<b>两种点成对出现</b>，电力线上只有绿点。')+'</div>'));
+  }
+  sec.appendChild(h('<div class="ex-note" style="margin-top:9px">'+richHTML(
+    '拖动画布旋转视角、滚轮缩放；右键（或 Ctrl+拖）平移。<br>'+
+    '💡 画面上的读数全部按<b>真实物理量</b>算，箭头长度只为看得见（必要时截在上下限内）。')+'</div>'));
+}
+
+
+/* ============================================================================
+   4.1 磁感应强度与磁通量 —— 页面专属（二）
+   讲解卡 / 面板装配 / 画布下方数据条 / 主循环 / 交互 / 页签
+   ----------------------------------------------------------------------------
+   ⚠️ 所有进 DOM 的串都必须过 richHTML()（只认 @{...} 与 _x，**不认 Markdown 星号**）。
+   ⚠️ page1.js 里被引用的符号（本文件负责定义）：
+      renderPanel / updateReadout / updateModeTag / updateAll / needsRender /
+      draw / tick / resize / NAV / CARDS
+   ============================================================================ */
+const CARDS={
+  ampere:[
+    {k:'1',tab:'1. 相吸与相斥',cls:'c1',body:
+      '两根导线并排放、都通电，它们会互相推或拉。实验结果只有一句话：'+
+      '<div class="frm">同向电流相吸，反向电流相斥</div>'+
+      '<ul><li>按<b>「翻转导线 2 的电流」</b>：力的箭头立刻掉头，<b>大小一点不变</b></li>'+
+      '<li>两根导线受到的力<b>等大反向</b>（牛顿第三定律），画面上两支橙箭头就是这样'+
+      '（F₂₁ 与 F₁₂）</li>'+
+      '<li>把 <b>d 拖小</b>：力迅速变大（按 1/d）；把 <b>L 拖大</b>：力按比例变大</li></ul>'+
+      '<div class="ex-note">⚠️ 力不是"电流和电流直接拉"，中间<b>隔着一层场</b> —— '+
+      '下一张卡把它拆成两步。</div>'},
+    {k:'2',tab:'2. 力的来源',cls:'c2',body:
+      '把"两根导线互相作用"拆成两件事：'+
+      '<div class="frm">① 导线 1 在自己周围产生 @{B}₁　→　② 导线 2 在 @{B}₁ 里受力 @{F} = @{I}₂d@{l}₂ × @{B}₁</div>'+
+      '<ul><li>画面上<b>半径正好等于 d 的那一圈圆恰好穿过导线 2</b> —— 那里的 @{B}₁₂ 就沿圆的切向</li>'+
+      '<li>叉乘现场：d@{l}₂ 沿 +z、@{B}₁₂ 沿 −ŷ ⇒ @{F} 沿 +x，<b>正指向导线 1</b> ⇒ 相吸</li>'+
+      '<li>翻转 @{I}₂ ⇒ d@{l}₂ 反号 ⇒ @{F} 反号 ⇒ 相斥。<b>方向全由叉乘定，不用背</b></li></ul>'+
+      '<div class="ex-note">⭐ 这就是引入"场"的全部价值：<b>把两个电流之间的作用，'+
+      '拆成"产生场"和"在场中受力"两件独立的事</b>。② 页签单独看第一件事。</div>'},
+    {k:'3',tab:'3. 定量与量级',cls:'c3',body:
+      '两根无限长平行导线之间，单位长度上的力：'+
+      '<div class="frm">F/L = µ₀I₁I₂/(2πd) = 2×10⁻⁷ · I₁I₂ / d</div>'+
+      '<ul><li>默认参数（10 A、10 A、d = 0.050 m）：F/L ≈ <b>400 µN/m</b> —— 确实很小</li>'+
+      '<li>但短路电流上万安时，母线之间的电动力能以<b>吨</b>计 ⇒ 开关柜里必须加固支撑</li>'+
+      '<li>那个 2×10⁻⁷ 就是 µ₀/2π —— 它曾是"安培"这个单位的定义来源</li></ul>'+
+      '<div class="ex-note">💡 卡片里的 F 与 F/L 都按<b>真实值</b>算；画面上的橙箭头长度是'+
+      '线性映射后再截在上下限内（只为看得见，别拿它当尺子）。</div>'},
+  ],
+  field:[
+    {k:'1',tab:'1. 右手螺旋',cls:'c1',body:
+      '<div class="frm">右手握住导线，拇指顺电流方向，四指绕的方向就是 @{B} 的方向</div>'+
+      '<ul><li>@{B} 绕导线成<b>一圈一圈的闭合圆</b>：圆心在导线上、圆面垂直于导线</li>'+
+      '<li>用柱坐标写：@{B} = (µ₀I/2πρ)·φ̂ —— <b>只有 φ 分量</b>，没有 ρ、z 分量</li>'+
+      '<li>翻转电流 ⇒ 每一圈圆上的箭头同时反向</li></ul>'+
+      '<div class="ex-note">⚠️ 别把这些圆圈看成"电场的涟漪"：磁感线<b>本来就是闭合的</b>'+
+      '（④ 页签的 ∮@{B}·dS = 0 就靠这个）。</div>'},
+    {k:'2',tab:'2. 1/r 衰减',cls:'c2',body:
+      '<div class="frm">B = µ₀I/(2πr)　⇒　r 翻倍，B 减半</div>'+
+      '<ul><li>方格上的箭头<b>一圈圈转起来</b>就是环绕导线，<b>近长远短</b>就是 1/r：'+
+      'r = 0.100 / 0.160 / 0.250 m 处约 20.0 / 12.5 / 8.0 µT（默认 I = 10 A）</li>'+
+      '<li>拖 <b>r</b> 滑块让 P 点在三圈之间走：卡片读数与箭头长度同步变</li>'+
+      '<li>长直导线的场是<b>二维场</b>：沿导线方向平移，什么都不变</li></ul>'+
+      '<div class="ex-note">💡 与点电荷的 1/r² 对比记：<b>球对称 ⇒ 1/r²；轴对称（线）⇒ 1/r</b>。'+
+      '两者都是"通量摊在一个面上"的结果。</div>'},
+    {k:'3',tab:'3. @{B} 的定义',cls:'c3',body:
+      '上一张卡给了公式，但"@{B} 到底是什么"要靠受力来定义：'+
+      '<div class="frm">B ≡ F_max /(I·dl)　　单位 T = N/(A·m)</div>'+
+      '<ul><li>把一小段电流元放进场里，量它受到的<b>最大</b>力 —— 最大发生在 d@{l} ⊥ @{B} 时</li>'+
+      '<li>P 点三支箭头：d@{l}₂（红，+z）、@{B}（蓝，切向）、@{F}（橙）—— <b>三者两两垂直</b></li>'+
+      '<li>d@{l}₂ 与导线同向 ⇒ @{F} 指向导线 ⇒ 正好回勾 ① 页签的"同向相吸"</li></ul>'+
+      '<div class="ex-note">⭐ 顺序很重要：<b>先有力，才有 @{B} 的定义</b>。@{B} 不是"想象出来的箭头"，'+
+      '它是"单位电流元最多能受多大力"。</div>'},
+  ],
+  flux:[
+    {k:'1',tab:'1. 数线根数',cls:'c1',body:
+      '<div class="frm">Φ = B·A·cos θ　　单位 Wb（1 T·m² = 1 Wb）</div>'+
+      '<ul><li><b>θ = 0°</b>（面垂直于场）：全穿，5 根</li>'+
+      '<li><b>θ = 60°</b>：打折，3 根</li>'+
+      '<li><b>θ = 90°</b>（面平行于场）：<b>一根不穿</b></li></ul>'+
+      '<div class="ex-note">💡 单位按课堂习惯取 mT / dm² / mWb，数字好念：'+
+      '40 mT × 1.2 dm² = <b>0.48 mWb</b>。板书时保留一次 1 T·m² = 1 Wb 的换算。</div>'+
+      '<div class="ex-note">⚠️ 根数是<b>离散示意</b>（一行固定 13 根），Φ 是连续精确值；'+
+      '线足够密时两者才一致 —— 学生若抠这一点，那正是"取极限"的加分题。</div>'},
+    {k:'2',tab:'2. Φ=0 场还在',cls:'c2',body:
+      '把面转到与场平行，画面上的 <b>13 根场线一根都没少</b>，只是没有一根被打中：'+
+      '<div class="frm">Φ = B·A·cos 90° = 0，而 B ≠ 0</div>'+
+      '<ul><li>类比：雨中把伞面转成与雨平行 —— <b>雨没停，只是没落到伞上</b></li>'+
+      '<li>所以"Φ = 0"绝不能读成"这里没有磁场"</li>'+
+      '<li>伏笔：法拉第定律里起作用的是 <b>dΦ/dt</b>，不是 Φ 本身（第 5 章）</li></ul>'+
+      '<div class="ex-note">★ 这一句是本节最容易被学生记反的地方，所以页面上做成了按钮：'+
+      '按「θ=90°」，看读数归零而箭头不变。</div>'},
+    {k:'3',tab:'3. 负号是记账',cls:'c3',body:
+      '把面继续转过去，Φ 变负。负的<b>不是"负的磁场"</b>：'+
+      '<div class="frm">约定：从法线 n̂ 那一面穿出记为正 ⇒ 反向穿出就是负</div>'+
+      '<ul><li>Φ 是<b>代数和</b>：穿出加、穿入减（画面上的"净根数"就是它）</li>'+
+      '<li>把 n̂ 翻个方向，Φ 立刻变号 —— 说明 <b>Φ 的正负依赖人为约定的正方向</b></li>'+
+      '<li>伏笔：电磁感应里 Φ 由正变负的过程，正是感应电动势出现的时候</li></ul>'+
+      '<div class="ex-note">💡 页面初始就停在 <b>120°</b>（负通量区）—— 先让学生看到 Φ < 0 '+
+      '并解释它，再拖回 0° / 90°，顺序反了就没有这个冲击。</div>'},
+  ],
+  closed:[
+    {k:'1',tab:'1. 磁感线闭合',cls:'c1',body:
+      '球内放一个小电流环，它的场线<b>一圈一圈闭合</b>，无头无尾：'+
+      '<div class="frm">∮@{B}·dS = 0　（磁场的高斯定理）</div>'+
+      '<ul><li>任何一条线只要穿进球面，就<b>一定从另一处穿出去</b>：'+
+      '绿点（穿出）与玫红点（穿入）<b>成对出现</b></li>'+
+      '<li>把 <b>R 从最小拖到最大</b>：<b>4 进 4 出，一个数都不变</b></li>'+
+      '<li>把球挪到别处、捏成别的形状，结论也不变 —— 只要它是闭合面</li></ul>'+
+      '<div class="ex-note">⚠️ 关键在于：这条定理的成立<b>完全不依赖于面里面有什么</b>。'+
+      '球里放磁铁、放电线、什么都不放，∮@{B}·dS 都是 0。</div>'},
+    {k:'2',tab:'2. 电力线有端点',cls:'c2',body:
+      '同一张图的另一侧，把一个 +Q 包进闭合面：'+
+      '<div class="frm">∮@{D}·dS = Q内　（第 2 章的高斯定理）</div>'+
+      '<ul><li>6 根电力线全部<b>从电荷发出</b>：6 出 0 进 ⇒ 净 6 ≠ 0</li>'+
+      '<li>这是"有源"：电荷是电力线的<b>源头</b>，线在电荷处<b>起头</b></li>'+
+      '<li>磁感线没有源头 ⇒ 净通量恒为 0 ⇒ <b>不存在磁荷</b></li></ul>'+
+      '<div class="ex-note">★ 两边的差别不在数学，在<b>场线有没有端点</b>：'+
+      '这一句话就是本节要学生记住的全部。</div>'},
+    {k:'3',tab:'3. 为何必须闭合',cls:'c3',body:
+      '追问到底（口头考核的最后一问）：'+
+      '<ul><li>因为至今<b>没有找到磁单极子</b>：磁铁掰成两半，每一半都有 N 和 S；'+
+      'N、S 总是成对出现</li>'+
+      '<li>电荷可以单独存在（电力线有纯源头），<b>磁极不行</b></li>'+
+      '<li>所以 ∮@{B}·dS ≡ 0 不是数学巧合，而是"没有磁荷"这件事的数学表述</li></ul>'+
+      '<div class="frm">假如哪天真找到磁单极子：∮@{B}·dS = µ₀Q_m —— 高斯定理就得改写</div>'+
+      '<div class="ex-note">⟶ 那样麦克斯韦方程组会变得<b>完全对称</b>（第 6 章）。'+
+      '这是物理学最美的一处伏笔，也是整套方程组里唯一一处"不对称"的来源。</div>'},
+  ],
+};
+function renderExplain(sec){
+  sec.innerHTML='';
+  const list=CARDS[state.mode];
+  sec.appendChild(h('<div class="sec-title">讲解</div>'));
+  const tabs=h('<div class="card-tabs"></div>').firstChild;
+  list.forEach(c=>{
+    /* ⚠️ 页签名里也有 @{F}/@{B} 这类矢量标记 ⇒ 必须过 richHTML，否则按钮上字面显示 "@{F}" */
+    const b=h('<button class="card-tab '+c.cls+(c.k===state.cardTab?' on':'')+'">'+richHTML(c.tab)+'</button>').firstChild;
+    b.onclick=()=>{ state.cardTab=c.k; renderPanel(); };
+    tabs.appendChild(b);
+  });
+  sec.appendChild(tabs);
+  const cur=list.find(c=>c.k===state.cardTab)||list[0];
+  const body=h('<div class="card-body '+cur.cls+'"><div class="ex-title">'+richHTML(cur.tab)+'</div></div>').firstChild;
+  body.appendChild(h('<div class="ex-body">'+richHTML(cur.body)+'</div>').firstChild);
+  sec.appendChild(body);
+}
+function renderPanel(){
+  ['subSec','sliderSec','explainSec'].forEach(id=>{const el=document.getElementById(id);if(el)el.remove();});
+  const mk=id=>{const d=document.createElement('div');d.className='panel-sec';d.id=id;return d;};
+  let tog=document.getElementById('toggleSec');
+  if(!tog){
+    tog=mk('toggleSec');
+    tog.appendChild(h('<label class="readout-toggle"><input type="checkbox" id="showReadoutCb"'+(state.showReadout?' checked':'')+'><span>在<b>画布下方</b>显示<b>实时数据</b>条</span></label>'));
+    tog.querySelector('#showReadoutCb').onchange=e=>{state.showReadout=e.target.checked;updateReadout();};
+    panel.appendChild(tog);
+  }else tog.querySelector('#showReadoutCb').checked=state.showReadout;
+  const s=mk('subSec'), sl=mk('sliderSec'), ex=mk('explainSec');
+  panel.appendChild(s); panel.appendChild(sl); panel.appendChild(ex);
+  renderSubSec(s); renderSliders(sl); renderExplain(ex);
+  updateReadout(); updateModeTag();
+}
+/* ⚠️ 图例（.cv-legend）是 absolute + bottom:14px，而 .canvas-card 里还有一条数据条（.coord-strip）
+   也贴在底部 ⇒ 图例默认会压住数据条。修法：bottom = 数据条高度 + 14。 */
+function placeLegend(){
+  const st=document.getElementById('coordStrip'), lg=document.getElementById('legend');
+  if(!st||!lg) return;
+  lg.style.bottom=(st.offsetHeight+14)+'px';
+}
+
+/* ══════════════════════════ 画布下方实时数据条 ══════════════════════════ */
+function updateReadout(){
+  const strip=document.getElementById('coordStrip'); if(!strip) return;
+  if(!state.showReadout){ strip.innerHTML=''; placeLegend(); return; }
+  const lgT=document.getElementById('lgTitle'), lgN=document.getElementById('lgNote');
+  let html='';
+  if(state.mode==='ampere'){
+    const B=bLine(state.I1,state.d), FL=fPerLen(state.I1,state.I2,state.d), F=FL*state.La;
+    html += kchip('I₁ =', state.I1.toFixed(1)+' A');
+    html += kchip('I₂ =', state.I2.toFixed(1)+' A（'+(state.rev?'反向':'同向')+'）');
+    html += kchip('d =', state.d.toFixed(3)+' m');
+    html += kchip('L =', state.La.toFixed(2)+' m');
+    html += kchip('B₁₂ = µ₀I₁/(2πd) =', fmtSmart(B*1e6,'µT'),'acc');
+    html += kchip('F/L =', fmtSmart(FL*1e6,'µN/m'));
+    html += kchip('F =', fmtSmart(F*1e6,'µN'),'warn');
+    html += kchip('方向 =', state.rev?'相斥':'相吸');
+    lgT.textContent='安培力 · 两根平行导线';
+    lgN.innerHTML=richHTML('蓝圈 = @{B}₁；蓝箭头 = 导线 1 在导线 2 处的 @{B}₁₂；橙箭头 = 安培力');
+  } else if(state.mode==='field'){
+    const B=bLine(state.If,state.rp);
+    html += kchip('I =', state.If.toFixed(1)+' A');
+    html += kchip('r =', state.rp.toFixed(3)+' m');
+    html += kchip('B = µ₀I/(2πr) =', fmtSmart(B*1e6,'µT'),'acc');
+    html += kchip('r=0.100 m 处 =', fmtSmart(bLine(state.If,0.100)*1e6,'µT'));
+    html += kchip('r=0.160 m 处 =', fmtSmart(bLine(state.If,0.160)*1e6,'µT'));
+    html += kchip('r=0.250 m 处 =', fmtSmart(bLine(state.If,0.250)*1e6,'µT'));
+    lgT.textContent='长直导线的磁场';
+    lgN.innerHTML=richHTML('蓝箭头 = @{B}；红 = 测试电流元 d@{l}₂；橙 = 力 @{F}（指向导线）');
+  } else if(state.mode==='flux'){
+    const c=Math.cos(state.th*D2R), n=piercingXs(state.th,state.A3).length;
+    html += kchip('θ =', state.th.toFixed(0)+'°');
+    html += kchip('B =', state.B3.toFixed(0)+' mT');
+    html += kchip('A =', state.A3.toFixed(2)+' dm²');
+    html += kchip('cos θ =', (c<0?'−':'')+Math.abs(c).toFixed(3));
+    html += kchip('Φ_max = B·A =', fluxM(state.B3,state.A3,0).toFixed(3)+' mWb');
+    html += kchip('Φ =', (fluxM(state.B3,state.A3,state.th)<0?'−':'')+
+      Math.abs(fluxM(state.B3,state.A3,state.th)).toFixed(3)+' mWb','acc');
+    html += kchip('穿过根数 =', n+' / 13');
+    lgT.textContent='磁通量 · 穿过一个面';
+    lgN.innerHTML=richHTML('蓝线 = @{B} 场线（加粗的才算穿过面）；紫箭头 = 面法线 n̂');
+  } else {
+    const st=crossStats(state.R4);
+    html += kchip('R =', state.R4.toFixed(3)+' m');
+    html += kchip('磁感线：出 / 入 =', st.mOut+' / '+st.mIn);
+    html += kchip('净根数 =', String(st.mNet),'acc');
+    html += kchip('∮@{B}·dS =', '0 Wb','acc');
+    html += kchip('电力线：出 / 入 =', st.eOut+' / '+st.eIn);
+    html += kchip('净根数 =', String(st.eNet),'warn');
+    html += kchip('∮@{D}·dS = Q内 =', '+2.00 nC','warn');
+    lgT.textContent='闭合面的磁通量';
+    lgN.innerHTML=richHTML('绿点 = 穿出，玫红点 = 穿入；磁感线上成对、电力线上只有绿点');
+  }
+  strip.innerHTML=html;
+  placeLegend();
+}
+function updateModeTag(){
+  const t=document.getElementById('modeTag'); if(!t) return;
+  const sb=document.getElementById('moduleSub');
+  if(state.mode==='ampere'){
+    const F=fTotal(state.I1,state.I2,state.d,state.La);
+    t.innerHTML=richHTML('① 安培力 · F = <b>'+fmtSmart(F*1e6,'µN')+'</b>'+
+      '（'+(state.rev?'反向 ⇒ 相斥':'同向 ⇒ 相吸')+'）');
+    if(sb) sb.innerHTML=richHTML('两根平行载流导线：<b>同向相吸、反向相斥</b>');
+  } else if(state.mode==='field'){
+    const B=bLine(state.If,state.rp);
+    t.innerHTML=richHTML('② 磁感应强度 · B = <b>'+fmtSmart(B*1e6,'µT')+'</b>'+
+      '（r = '+state.rp.toFixed(3)+' m）');
+    if(sb) sb.innerHTML=richHTML('长直导线周围：<b>方向右手螺旋、大小 1/r</b>');
+  } else if(state.mode==='flux'){
+    const f=fluxM(state.B3,state.A3,state.th);
+    t.innerHTML=richHTML('③ 磁通量 · Φ = <b>'+(f<0?'−':'')+Math.abs(f).toFixed(3)+' mWb</b>'+
+      '（θ = '+state.th.toFixed(0)+'°）');
+    if(sb) sb.innerHTML=richHTML('数穿过面的磁感线：<b>Φ = B·A·cos θ</b>');
+  } else {
+    const st=crossStats(state.R4);
+    t.innerHTML=richHTML('④ 闭合面 · ∮@{B}·dS = <b>0</b>，∮@{D}·dS = <b>Q内</b>'+
+      '（磁感线 '+st.mIn+' 进 '+st.mOut+' 出）');
+    if(sb) sb.innerHTML=richHTML('磁感线闭合 ⇒ <b>进多少出多少</b>');
+  }
+}
+
+/* ══════════════════════════════ 主循环 ══════════════════════════════ */
+let needsRender=true;
+function draw(){
+  setupCamera(); ctx.clearRect(0,0,W,H);
+  buildScene();
+  prims.sort((a,b)=>a.z-b.z);
+  for(const p of prims) p.draw(ctx);
+  drawOverlays();
+  const tg=document.getElementById('panTag');
+  if(tg) tg.classList.toggle('show',Math.abs(cam.px)>2||Math.abs(cam.py)>2);
+  needsRender=false;
+}
+/* ⚠️ tick 里的 draw 必须包 try/catch：下一帧是在函数末尾排的，
+   任何一帧抛异常 ⇒ 整个渲染循环永久停摆（症状是"画面卡住、点什么都没反应"）。
+   ★ 本页的场景是静态的 ⇒ 只在 needsRender 时才重画（省电，也避免无谓的排序）。 */
+function tick(ts){
+  try{
+    if(state.autoRotate){ cam.az+=0.0045; needsRender=true; }
+    if(needsRender) draw();
+  }catch(err){ needsRender=false; console.error('draw/tick error:',err); }
+  requestAnimationFrame(tick);
+}
+function updateAll(){ needsRender=true; syncSliders(); updateReadout(); updateModeTag(); }
+
+/* ══════════════════════════════ 交互 ══════════════════════════════ */
+let drag=null;
+function localPos(ev){const r=canvas.getBoundingClientRect();return{x:ev.clientX-r.left,y:ev.clientY-r.top};}
+canvas=document.getElementById('cv');
+ctx=canvas.getContext('2d');
+canvas.addEventListener('pointerdown',ev=>{
+  try{ canvas.setPointerCapture(ev.pointerId); }catch(e){}
+  const m=localPos(ev);
+  drag={x:m.x,y:m.y,btn:ev.button,mode:(ev.button===2||ev.ctrlKey)?'pan':'rot'};
+  ev.preventDefault();
+});
+canvas.addEventListener('pointermove',ev=>{
+  const m=localPos(ev);
+  if(!drag) return;
+  const dx=m.x-drag.x, dy=m.y-drag.y; drag.x=m.x; drag.y=m.y;
+  if(drag.mode==='pan'){ cam.px+=dx; cam.py+=dy; needsRender=true; }
+  else { cam.az-=dx*0.0075; cam.el=Math.max(-1.45,Math.min(1.45,cam.el+dy*0.0062)); needsRender=true; }
+});
+canvas.addEventListener('pointerup',()=>{ drag=null; });
+canvas.addEventListener('pointercancel',()=>{ drag=null; });
+canvas.addEventListener('contextmenu',e=>e.preventDefault());
+canvas.addEventListener('wheel',e=>{e.preventDefault();cam.zoom=Math.max(.45,Math.min(3.2,cam.zoom*(e.deltaY<0?1.09:1/1.09)));needsRender=true;},{passive:false});
+document.getElementById('btnViewReset').onclick=()=>{
+  const c=CAM41[state.mode]; cam.az=c.az; cam.el=c.el; cam.zoom=1; cam.px=0; cam.py=0; needsRender=true; };
+document.getElementById('btnRotate').onclick=e=>{state.autoRotate=!state.autoRotate;e.target.classList.toggle('on',state.autoRotate);};
+document.getElementById('btnPanReset').onclick=()=>{cam.px=0;cam.py=0;needsRender=true;};
+function bindFold(bid,cls){document.getElementById(bid).onclick=()=>{document.body.classList.toggle(cls);setTimeout(resize,60);setTimeout(resize,260);};}
+bindFold('foldNav','nav-off'); bindFold('foldPanel','panel-off');
+document.getElementById('tglNav').onclick=()=>{document.body.classList.toggle('nav-off');setTimeout(resize,260);};
+document.getElementById('tglPanel').onclick=()=>{document.body.classList.toggle('panel-off');setTimeout(resize,260);};
+window.addEventListener('keydown',e=>{if(e.target.tagName==='INPUT')return;
+  if(e.key==='['){document.body.classList.toggle('nav-off');setTimeout(resize,260);}
+  if(e.key===']'){document.body.classList.toggle('panel-off');setTimeout(resize,260);}});
+
+/* ══════════ 右侧面板：拖动抓取条自由调整宽度 ══════════ */
+const PANEL_W0=398, PANEL_WMIN=260;
+const panelEl=document.getElementById('panel'), panelRz=document.getElementById('panelResizer');
+function panelMaxW(){
+  const navW=document.body.classList.contains('nav-off')?0:236;
+  return Math.max(PANEL_WMIN+60, Math.min(760, window.innerWidth-navW-330));
+}
+function setPanelW(px,save){
+  const w=Math.max(PANEL_WMIN, Math.min(panelMaxW(), Math.round(px)));
+  document.documentElement.style.setProperty('--panel-w', w+'px');
+  if(save){ try{ localStorage.setItem('em41-panel-w', String(w)); }catch(e){} }
+  return w;
+}
+(()=>{ let v=0; try{ v=parseInt(localStorage.getItem('em41-panel-w')||'0',10)||0; }catch(e){}
+      if(v>=PANEL_WMIN) setPanelW(v,false); })();
+let _rz=null;
+function rzEnd(){
+  if(_rz) setPanelW(panelEl.getBoundingClientRect().width,true);
+  _rz=null; document.body.classList.remove('resizing'); panelRz.classList.remove('dragging');
+}
+panelRz.addEventListener('pointerdown',ev=>{
+  if(document.body.classList.contains('panel-off')) return;
+  try{ panelRz.setPointerCapture(ev.pointerId); }catch(e){}
+  _rz={x:ev.clientX, w:panelEl.getBoundingClientRect().width};
+  document.body.classList.add('resizing'); panelRz.classList.add('dragging');
+  ev.preventDefault();
+});
+panelRz.addEventListener('pointermove',ev=>{ if(!_rz) return; setPanelW(_rz.w-(ev.clientX-_rz.x), false); });
+panelRz.addEventListener('pointerup',rzEnd);
+panelRz.addEventListener('pointercancel',rzEnd);
+panelRz.addEventListener('dblclick',()=>setPanelW(PANEL_W0,true));
+window.addEventListener('resize',()=>{ const cur=panelEl.getBoundingClientRect().width;
+  if(cur>panelMaxW()) setPanelW(cur,true); });
+
+/* ══════════════════════════════ 页签 ══════════════════════════════
+   ★ 每个页签有自己的预设 + 自己的取景 ⇒ 每个演示的起点都可复现。
+     ✓ el 的选择是"看得见那个物理要点"：① 低俯视看两根导线分开；
+       ② 抬高看水平圆变成椭圆；③ 中等俯视看面怎么翻；④ 两球并排不叠。 */
+const CAM41={
+  ampere:{az:0.62, el:0.34, zoom:1},
+  field: {az:0.62, el:0.55, zoom:1},
+  flux:  {az:0.62, el:0.42, zoom:1},
+  closed:{az:0.62, el:0.38, zoom:1},
+};
+const MT=[{k:'ampere', t:'① 安培力'},
+          {k:'field',  t:'② 磁感应强度'},
+          {k:'flux',   t:'③ 磁通量'},
+          {k:'closed', t:'④ 闭合面的磁通量'}];
+const modeTabs=document.getElementById('modeTabs');
+MT.forEach(m=>{const b=document.createElement('button');b.textContent=m.t;b.dataset.k=m.k;
+  b.onclick=()=>{ state.mode=m.k; state.cardTab='1';
+    Object.assign(state, JSON.parse(JSON.stringify(PRESET[m.k])));
+    clampState();                       /* ★ 见 phys.js：防"按钮把量设到量程外"的静默不一致 */
+    syncModeTabs();
+    const c=CAM41[m.k]; cam.az=c.az; cam.el=c.el; cam.zoom=c.zoom; cam.px=0; cam.py=0;
+    renderPanel(); updateAll(); };
+  modeTabs.appendChild(b);});
+function syncModeTabs(){Array.from(modeTabs.children).forEach(b=>b.classList.toggle('on',b.dataset.k===state.mode));}
+
+function resize(){
+  const r=canvas.getBoundingClientRect();
+  const nw=Math.max(60,Math.round(r.width)),nh=Math.max(60,Math.round(r.height));
+  DPR=Math.min(2,window.devicePixelRatio||1);
+  if(nw===W&&nh===H&&canvas.width===Math.round(nw*DPR))return;
+  W=nw;H=nh;canvas.width=Math.round(W*DPR);canvas.height=Math.round(H*DPR);
+  ctx.setTransform(DPR,0,0,DPR,0,0); needsRender=true;
+  placeLegend();
+}
+new ResizeObserver(()=>resize()).observe(canvas);
+
+const nav=document.getElementById('nav');
+NAV.forEach(g=>{nav.appendChild(h('<div class="nav-ch">'+g.ch+'</div>'));
+  g.items.forEach(it=>{const cls='nav-item'+(it.active?' active':'')+(it.ready?'':' soon');
+    nav.appendChild(h('<a class="'+cls+'" '+(it.href?'href="'+it.href+'"':'')+'><span class="dot"></span>'+it.t+'</a>'));});});
+
+syncModeTabs();
+resize();
+renderPanel();
+updateAll();
+tick(0);
+
+</script>
+</body>
+</html>

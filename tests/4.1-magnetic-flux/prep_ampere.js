@@ -1,0 +1,1 @@
+(()=>{const b=Array.from(document.getElementById("modeTabs").children).find(x=>x.dataset.k==="ampere");b.click();draw();return "ampere ok prims="+prims.length;})()

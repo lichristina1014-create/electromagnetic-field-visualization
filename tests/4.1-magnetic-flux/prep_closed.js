@@ -1,0 +1,1 @@
+(()=>{const b=Array.from(document.getElementById("modeTabs").children).find(x=>x.dataset.k==="closed");b.click();draw();return "closed ok prims="+prims.length;})()

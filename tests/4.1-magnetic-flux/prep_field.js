@@ -1,0 +1,1 @@
+(()=>{const b=Array.from(document.getElementById("modeTabs").children).find(x=>x.dataset.k==="field");b.click();draw();return "field ok prims="+prims.length;})()
